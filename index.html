@@ -41,6 +41,9 @@
             width: 200px;
             text-align: center;
         }
+        .stat-box.offline {
+            background-color: red;
+        }
         .table-container {
             margin-top: 20px;
             width: 90%;
@@ -149,24 +152,26 @@
                         // Agregar fila al tabla de temperaturas
                         let row = `<tr>
                             <td>${estacion.name}</td>
-                            <td>${temperaturesByDay.Monday.max}°C / ${temperaturesByDay.Monday.min}°C</td>
-                            <td>${temperaturesByDay.Tuesday.max}°C / ${temperaturesByDay.Tuesday.min}°C</td>
-                            <td>${temperaturesByDay.Wednesday.max}°C / ${temperaturesByDay.Wednesday.min}°C</td>
-                            <td>${temperaturesByDay.Thursday.max}°C / ${temperaturesByDay.Thursday.min}°C</td>
-                            <td>${temperaturesByDay.Friday.max}°C / ${temperaturesByDay.Friday.min}°C</td>
-                            <td>${temperaturesByDay.Saturday.max}°C / ${temperaturesByDay.Saturday.min}°C</td>
-                            <td>${temperaturesByDay.Sunday.max}°C / ${temperaturesByDay.Sunday.min}°C</td>
+                            <td>${temperaturesByDay.Monday.max !== -Infinity ? temperaturesByDay.Monday.max : '--'}°C / ${temperaturesByDay.Monday.min !== Infinity ? temperaturesByDay.Monday.min : '--'}°C</td>
+                            <td>${temperaturesByDay.Tuesday.max !== -Infinity ? temperaturesByDay.Tuesday.max : '--'}°C / ${temperaturesByDay.Tuesday.min !== Infinity ? temperaturesByDay.Tuesday.min : '--'}°C</td>
+                            <td>${temperaturesByDay.Wednesday.max !== -Infinity ? temperaturesByDay.Wednesday.max : '--'}°C / ${temperaturesByDay.Wednesday.min !== Infinity ? temperaturesByDay.Wednesday.min : '--'}°C</td>
+                            <td>${temperaturesByDay.Thursday.max !== -Infinity ? temperaturesByDay.Thursday.max : '--'}°C / ${temperaturesByDay.Thursday.min !== Infinity ? temperaturesByDay.Thursday.min : '--'}°C</td>
+                            <td>${temperaturesByDay.Friday.max !== -Infinity ? temperaturesByDay.Friday.max : '--'}°C / ${temperaturesByDay.Friday.min !== Infinity ? temperaturesByDay.Friday.min : '--'}°C</td>
+                            <td>${temperaturesByDay.Saturday.max !== -Infinity ? temperaturesByDay.Saturday.max : '--'}°C / ${temperaturesByDay.Saturday.min !== Infinity ? temperaturesByDay.Saturday.min : '--'}°C</td>
+                            <td>${temperaturesByDay.Sunday.max !== -Infinity ? temperaturesByDay.Sunday.max : '--'}°C / ${temperaturesByDay.Sunday.min !== Infinity ? temperaturesByDay.Sunday.min : '--'}°C</td>
                         </tr>`;
                         
                         document.querySelector('#temperature-table tbody').innerHTML += row;
+
+                        // Agregar cuadro con los datos de la estación
+                        document.getElementById('estacion-stats').innerHTML += `<div class='stat-box'>${estacion.name}<br>Temperatura máxima: ${temperaturesByDay.Monday.max}°C, Mínima: ${temperaturesByDay.Monday.min}°C</div>`;
                     })
                     .catch(error => {
                         console.error(`Error obteniendo datos de ${estacion.name}:`, error);
-                        document.getElementById('estacion-stats').innerHTML += `<div class='stat-box'><b>${estacion.name}</b><br>Fuera de servicio</div>`;
+                        document.getElementById('estacion-stats').innerHTML += `<div class='stat-box offline'><b>${estacion.name}</b><br>Fuera de servicio</div>`;
                     });
             }
         });
     </script>
 </body>
 </html>
-
