@@ -41,6 +41,18 @@
             width: 200px;
             text-align: center;
         }
+        .max-min {
+            margin-top: 20px;
+            font-size: 18px;
+        }
+        .max-min div {
+            padding: 5px;
+            background-color: #e3e3e3;
+            margin-bottom: 10px;
+        }
+        .red {
+            background-color: red;
+        }
     </style>
 </head>
 <body>
@@ -63,12 +75,6 @@
             { id: null, key: null, name: 'Tiempoentuescuela (ILAPLA66)', lat: -34.991, lon: -57.867, wunderground: true }
         ];
 
-        // Función para obtener el nombre del día de la semana
-        function obtenerDiaSemana(fecha) {
-            const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-            return diasSemana[fecha.getDay()];
-        }
-
         estaciones.forEach(estacion => {
             if (estacion.wunderground) {
                 L.marker([estacion.lat, estacion.lon]).addTo(map)
@@ -76,43 +82,100 @@
                 document.getElementById('estacion-stats').innerHTML += `<div class='stat-box'>${estacion.name}<br><a href='https://www.wunderground.com/dashboard/pws/ILAPLA66' target='_blank'>Ver datos</a></div>`;
             } else {
                 // Intentamos obtener los últimos datos
-                fetch(`https://api.thingspeak.com/channels/${estacion.id}/feeds.json?api_key=${estacion.key}&results=1`)
+                fetch(`https://api.thingspeak.com/channels/${estacion.id}/feeds.json?api_key=${estacion.key}&results=168`)
                     .then(response => response.json())
                     .then(data => {
-                        const feed = data.feeds[0];
-                        let temp = 'No disponible';
-                        let humedad = 'No disponible';
-                        let fecha = 'No disponible';
-                        let tiempoTranscurrido = 999;
+                        const feeds = data.feeds;
                         let estado = 'Sin datos disponibles';
+                        let maxTemp = '--';
+                        let minTemp = '--';
+                        let variables = '';
 
-                        if (feed) {
-                            temp = feed.field1;
-                            humedad = feed.field2;
-                            fecha = new Date(feed.created_at);
-                            tiempoTranscurrido = (Date.now() - fecha) / 3600000; // en horas
+                        if (feeds && feeds.length > 0) {
+                            let maxTempVal = -Infinity;
+                            let minTempVal = Infinity;
 
-                            const diaSemana = obtenerDiaSemana(fecha);
+                            feeds.forEach(feed => {
+                                let temp = parseFloat(feed.field1);
+                                let humedad = feed.field2;
+                                let presion = feed.field3;
+                                let precipitacion = feed.field4;
+                                let fecha = new Date(feed.created_at);
+                                variables = `
+                                    Temp: ${temp ? temp + '°C' : '--'}<br>
+                                    Humedad: ${humedad ? humedad + '%' : '--'}<br>
+                                    Presion: ${presion ? presion + 'hPa' : '--'}<br>
+                                    Precipitacion: ${precipitacion ? precipitacion + 'mm' : '--'}<br>
+                                `;
 
-                            if (tiempoTranscurrido < 6) {
-                                estado = `Última medición: Temp: ${temp}°C, Humedad: ${humedad}%<br>Fecha: ${diaSemana}, ${fecha.toLocaleDateString()}`;
-                            } else {
-                                estado = `Última medición hace ${Math.round(tiempoTranscurrido)} horas. Temp: ${temp}°C, Humedad: ${humedad}%<br>Fecha: ${diaSemana}, ${fecha.toLocaleDateString()}`;
-                            }
+                                if (!isNaN(temp)) {
+                                    maxTempVal = Math.max(maxTempVal, temp);
+                                    minTempVal = Math.min(minTempVal, temp);
+                                }
+                            });
+
+                            maxTemp = maxTempVal === -Infinity ? '--' : maxTempVal + '°C';
+                            minTemp = minTempVal === Infinity ? '--' : minTempVal + '°C';
+
+                            estado = `Última medición: ${maxTemp} / ${minTemp}`;
                         } else {
                             estado = 'Sin datos disponibles';
                         }
 
                         // Agregar marcador en el mapa
-                        L.marker([estacion.lat, estacion.lon]).addTo(map)
-                            .bindPopup(`<b>${estacion.name}</b><br>${estado}<br>Última medición: ${fecha}`);
+                        let marker = L.marker([estacion.lat, estacion.lon]).addTo(map);
+                        marker.bindPopup(`<b>${estacion.name}</b><br>${estado}`);
 
-                        // Agregar información a las estadísticas
-                        document.getElementById('estacion-stats').innerHTML += `<div class='stat-box'><b>${estacion.name}</b><br>${estado}</div>`;
+                        // Agregar cuadrantes
+                        document.getElementById('estacion-stats').innerHTML += `
+                            <div class='stat-box ${estado === 'Sin datos disponibles' ? 'red' : ''}'>
+                                <b>${estacion.name}</b><br>${estado}
+                                <br>${variables}
+                            </div>
+                        `;
+
+                        // Agregar máximas y mínimas
+                        let weekStats = `<div><b>Temperaturas máximas y mínimas de la última semana</b></div>`;
+                        for (let i = 0; i < 7; i++) {
+                            let day = new Date();
+                            day.setDate(day.getDate() - i);
+                            let dayString = day.toLocaleDateString();
+
+                            let dayData = feeds.filter(feed => {
+                                let feedDate = new Date(feed.created_at);
+                                return feedDate.toLocaleDateString() === dayString;
+                            });
+
+                            let dailyMax = '--';
+                            let dailyMin = '--';
+
+                            if (dayData.length > 0) {
+                                let dailyMaxTemp = -Infinity;
+                                let dailyMinTemp = Infinity;
+
+                                dayData.forEach(feed => {
+                                    let temp = parseFloat(feed.field1);
+                                    if (!isNaN(temp)) {
+                                        dailyMaxTemp = Math.max(dailyMaxTemp, temp);
+                                        dailyMinTemp = Math.min(dailyMinTemp, temp);
+                                    }
+                                });
+
+                                dailyMax = dailyMaxTemp === -Infinity ? '--' : dailyMaxTemp + '°C';
+                                dailyMin = dailyMinTemp === Infinity ? '--' : dailyMinTemp + '°C';
+                            }
+
+                            weekStats += `
+                                <div>${dayString}: Max: ${dailyMax} / Min: ${dailyMin}</div>
+                            `;
+                        }
+
+                        document.getElementById('estacion-stats').innerHTML += `<div class="max-min">${weekStats}</div>`;
+
                     })
                     .catch(error => {
                         console.error(`Error obteniendo datos de ${estacion.name}:`, error);
-                        document.getElementById('estacion-stats').innerHTML += `<div class='stat-box'><b>${estacion.name}</b><br>Fuera de servicio</div>`;
+                        document.getElementById('estacion-stats').innerHTML += `<div class='stat-box ${estado === 'Sin datos disponibles' ? 'red' : ''}'>${estacion.name}<br>Fuera de servicio</div>`;
                     });
             }
         });
