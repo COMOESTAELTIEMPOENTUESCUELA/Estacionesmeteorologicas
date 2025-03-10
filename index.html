@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Mapa de Estaciones </title>
+    <title>Mapa de Estaciones</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <style>
@@ -25,46 +25,70 @@
             border-radius: 10px;
             box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
         }
+        .stats {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin: 20px auto;
+        }
+        .stat-box {
+            padding: 15px;
+            margin: 5px;
+            background: #007bff;
+            color: white;
+            border-radius: 5px;
+            font-weight: bold;
+            width: 200px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
     <img src="https://drive.google.com/uc?export=view&id=1Si5qBOsQiFPGyYMiQ8mXPEYJE-YLbhd5" class="logo" alt="Logo">
     <h2>Estaciones Meteorológicas</h2>
     <div id="map"></div>
+    <div class="stats" id="estacion-stats"></div>
+
     <script>
         var map = L.map('map').setView([-34.9214, -57.9544], 10);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap contributors'
         }).addTo(map);
 
-        // Estaciones con datos de ThingSpeak
         const estaciones = [
             { id: 2218686, key: 'JUXJQRZMFFAS037Z', name: 'Escuela 23', lat: -35.025972, lon: -57.752972 },
             { id: 2685796, key: 'XKV09A27AXZ35IEA', name: 'Estación EMA', lat: -34.9438126377134, lon: -57.89444617313153 },
             { id: 2218689, key: 'ZLNOSLZJPQM3H7SD', name: 'Escuela 34', lat: -35.072583, lon: -57.865778 },
-            { id: 2218687, key: 'TH3V4TJLRFZD3JSG', name: 'Colegio San Vicente de Paul', lat: -34.90335049405157, lon: -57.94831605582217 }
+            { id: 2218687, key: 'TH3V4TJLRFZD3JSG', name: 'Colegio San Vicente de Paul', lat: -34.90335049405157, lon: -57.94831605582217 },
+            { id: null, key: null, name: 'Tiempoentuescuela (ILAPLA66)', lat: -34.991, lon: -57.867, wunderground: true }
         ];
 
         estaciones.forEach(estacion => {
-            const url = `https://api.thingspeak.com/channels/${estacion.id}/feeds.json?api_key=${estacion.key}&results=1`;
-            fetch(url)
-                .then(response => response.json())
-                .then(data => {
-                    const temp = data.feeds[0] ? data.feeds[0].field1 : '--';
-                    const humedad = data.feeds[0] ? data.feeds[0].field2 : '--';
-                    const precipitacion = data.feeds[0] ? data.feeds[0].field3 : '--';
-                    const fecha = data.feeds[0] ? new Date(data.feeds[0].created_at) : 'No disponible';
-                    
-                    var marker = L.marker([estacion.lat, estacion.lon]).addTo(map);
-                    marker.bindPopup(`<b>${estacion.name}</b><br>Temp: ${temp}°C<br>Humedad: ${humedad}%<br>Precipitación: ${precipitacion} mm<br>Última medición: ${fecha}`);
-                })
-                .catch(error => console.error(`Error al obtener datos de ${estacion.name}:`, error));
-        });
+            if (estacion.wunderground) {
+                L.marker([estacion.lat, estacion.lon]).addTo(map)
+                    .bindPopup(`<b>${estacion.name}</b><br><a href='https://www.wunderground.com/dashboard/pws/ILAPLA66' target='_blank'>Ver datos en vivo</a>`);
+                document.getElementById('estacion-stats').innerHTML += `<div class='stat-box'>${estacion.name}<br><a href='https://www.wunderground.com/dashboard/pws/ILAPLA66' target='_blank'>Ver datos</a></div>`;
+            } else {
+                fetch(`https://api.thingspeak.com/channels/${estacion.id}/feeds.json?api_key=${estacion.key}&results=1`)
+                    .then(response => response.json())
+                    .then(data => {
+                        const temp = data.feeds[0] ? data.feeds[0].field1 : 'Fuera de servicio';
+                        const humedad = data.feeds[0] ? data.feeds[0].field2 : 'Fuera de servicio';
+                        const fecha = data.feeds[0] ? new Date(data.feeds[0].created_at) : 'No disponible';
+                        const tiempoTranscurrido = data.feeds[0] ? (Date.now() - new Date(data.feeds[0].created_at)) / 3600000 : 999;
+                        const estado = tiempoTranscurrido < 6 ? `Temp: ${temp}°C<br>Humedad: ${humedad}%` : 'Fuera de servicio';
 
-        // Estación de Weather Underground (sin API, enlazando a su página)
-        var wuMarker = L.marker([-34.991, -57.867]).addTo(map);
-        wuMarker.bindPopup(`<b>Tiempoentuescuela (WU)</b><br>
-            <a href='https://www.wunderground.com/dashboard/pws/ILAPLA66' target='_blank'>Ver datos en vivo</a>`);
+                        L.marker([estacion.lat, estacion.lon]).addTo(map)
+                            .bindPopup(`<b>${estacion.name}</b><br>${estado}<br>Última medición: ${fecha}`);
+
+                        document.getElementById('estacion-stats').innerHTML += `<div class='stat-box'><b>${estacion.name}</b><br>${estado}</div>`;
+                    })
+                    .catch(error => {
+                        console.error(`Error obteniendo datos de ${estacion.name}:`, error);
+                        document.getElementById('estacion-stats').innerHTML += `<div class='stat-box'><b>${estacion.name}</b><br>Fuera de servicio</div>`;
+                    });
+            }
+        });
     </script>
 </body>
 </html>
