@@ -11,15 +11,13 @@
             margin: 0;
             padding: 0;
             text-align: center;
-            background-image: url('https://www.transparenttextures.com/patterns/diag-stripes.png'); /* Fondo de entramado */
+            background-image: url('https://www.transparenttextures.com/patterns/diag-stripes.png');
         }
-
         .logo {
             width: 150px;
             margin: 20px auto;
             display: block;
         }
-
         #map {
             height: 500px;
             width: 80%;
@@ -27,40 +25,19 @@
             border-radius: 10px;
             box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
         }
-
-        .stats {
-            margin: 20px auto;
-            padding: 10px;
-            background: #fff;
-            display: inline-block;
-            border-radius: 10px;
-            box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .stat-box {
-            padding: 15px;
-            margin: 5px;
-            background: #007bff;
-            color: white;
-            display: inline-block;
-            border-radius: 5px;
-            font-weight: bold;
-        }
     </style>
 </head>
 <body>
     <img src="https://drive.google.com/uc?export=view&id=1Si5qBOsQiFPGyYMiQ8mXPEYJE-YLbhd5" class="logo" alt="Logo">
-    <h2>Estaciones meteorologicas automaticas</h2>
-    
+    <h2>Estaciones Meteorológicas</h2>
     <div id="map"></div>
-
     <script>
         var map = L.map('map').setView([-34.9214, -57.9544], 10);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap contributors'
         }).addTo(map);
 
-        // Estaciones adicionales
+        // Estaciones con datos de ThingSpeak
         const estaciones = [
             { id: 2218686, key: 'JUXJQRZMFFAS037Z', name: 'Escuela 23', lat: -35.025972, lon: -57.752972 },
             { id: 2685796, key: 'XKV09A27AXZ35IEA', name: 'Estación EMA', lat: -34.9438126377134, lon: -57.89444617313153 },
@@ -80,13 +57,14 @@
                     
                     var marker = L.marker([estacion.lat, estacion.lon]).addTo(map);
                     marker.bindPopup(`<b>${estacion.name}</b><br>Temp: ${temp}°C<br>Humedad: ${humedad}%<br>Precipitación: ${precipitacion} mm<br>Última medición: ${fecha}`);
-                    
-                    // Mostrar los datos de las estaciones en el cuadro superior
-                    document.getElementById('max-temp').innerHTML = `Temp Máx: ${temp}°C`;
-                    document.getElementById('min-temp').innerHTML = `Temp Mín: ${temp}°C`;
                 })
                 .catch(error => console.error(`Error al obtener datos de ${estacion.name}:`, error));
         });
+
+        // Estación de Weather Underground (sin API, enlazando a su página)
+        var wuMarker = L.marker([-34.991, -57.867]).addTo(map);
+        wuMarker.bindPopup(`<b>Tiempoentuescuela (WU)</b><br>
+            <a href='https://www.wunderground.com/dashboard/pws/ILAPLA66' target='_blank'>Ver datos en vivo</a>`);
     </script>
 </body>
 </html>
