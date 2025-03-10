@@ -7,7 +7,7 @@
     <style>
         body {
             font-family: 'Arial', sans-serif;
-            background-color: #cce7ff; /* Fondo celeste */
+            background-color: #cce7ff;
             margin: 0;
             padding: 0;
             text-align: center;
@@ -50,18 +50,47 @@
         .stat-box.error {
             background: #ff4d4d;
         }
+        .quad-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .quad-box {
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
+            width: 30%;
+            min-width: 250px;
+            text-align: left;
+        }
+        .quad-box h3 {
+            color: #0066cc;
+            font-size: 20px;
+        }
+        .quad-box p {
+            margin: 10px 0;
+            font-size: 16px;
+        }
+        .status {
+            font-weight: bold;
+        }
+        .status.ok {
+            color: green;
+        }
+        .status.error {
+            color: red;
+        }
     </style>
 </head>
 <body>
     <h2>Temperaturas actuales de las estaciones de la red</h2>
     <div id="map"></div>
     <div id="info"></div>
-    <div class="stats" id="stats">
-        <div class="stat-box" id="temp">Temp: --°C</div>
-        <div class="stat-box" id="hum">Humedad: --%</div>
-        <div class="stat-box" id="prec">Precipitación: -- mm</div>
-    </div>
-    
+    <div class="quad-container" id="quadContainer"></div>
+
     <script>
         var map = L.map('map').setView([-34.9214, -57.9544], 10);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -71,6 +100,7 @@
         // Estaciones existentes y nuevas
         const estaciones = [
             { id: 2218686, key: 'JUXJQRZMFFAS037Z', name: 'Escuela 23', lat: -35.025972, lon: -57.752972 },
+            { id: null, key: 'TH3V4TJLRFZD3JSG', name: 'San Vicente de Paul', lat: -34.95, lon: -57.92 },
             { id: 2218689, key: 'ZLNOSLZJPQM3H7SD', name: 'Escuela 34', lat: -35.072583, lon: -57.865778 },
             { id: 2685796, key: 'XKV09A27AXZ35IEA', name: 'Estación EMA', lat: -34.9438126377134, lon: -57.89444617313153 }
         ];
@@ -138,14 +168,41 @@
                     var marker = L.marker([estacion.lat, estacion.lon]).addTo(map);
                     marker.bindPopup(`<b>${estacion.name}</b><br>Temp: ${estacion.temp}°C<br>Última medición: ${estacion.lastUpdate}`);
                 });
+
+                // Mostrar los cuadrantes con los datos
+                mostrarCuadrantes(datos);
             });
         }
 
-        // Mostrar datos inmediatamente al cargar la página
-        mostrarDatos();
+        // Mostrar cuadrantes con datos de las estaciones
+        function mostrarCuadrantes(datos) {
+            const cuadrantesContainer = document.getElementById('quadContainer');
+            cuadrantesContainer.innerHTML = ''; // Limpiar el contenedor
 
-        // Actualizar los datos cada 30 segundos
-        setInterval(mostrarDatos, 30000);  // 30000 ms = 30 segundos
+            datos.forEach(estacion => {
+                const lastUpdateDate = new Date(estacion.lastUpdate);
+                const currentDate = new Date();
+                const timeDifference = (currentDate - lastUpdateDate) / (1000 * 60 * 60); // Diferencia en horas
+
+                // Crear el elemento del cuadrante
+                const cuadrante = document.createElement('div');
+                cuadrante.classList.add('quad-box');
+                cuadrante.innerHTML = `
+                    <h3>${estacion.name}</h3>
+                    <p>Temp: ${estacion.temp}°C</p>
+                    <p>Humedad: ${estacion.hum}%</p>
+                    <p>Precipitación: ${estacion.prec} mm</p>
+                    <p><b>Última medición:</b> ${estacion.lastUpdate}</p>
+                    <p class="status ${timeDifference <= 6 ? 'ok' : 'error'}">${timeDifference <= 6 ? 'EMA operativa' : 'EMA caída'}</p>
+                `;
+
+                // Agregar al contenedor de cuadrantes
+                cuadrantesContainer.appendChild(cuadrante);
+            });
+        }
+
+        // Inicializar la visualización
+        mostrarDatos();
     </script>
 </body>
 </html>
