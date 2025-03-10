@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>¿Como esta el tiempo en tu escuela?</title>
+    <title>Mapa de Estaciones con Leaflet y ThingSpeak</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <style>
@@ -11,7 +11,15 @@
             margin: 0;
             padding: 0;
             text-align: center;
+            background-image: url('https://www.transparenttextures.com/patterns/diag-stripes.png'); /* Fondo de entramado */
         }
+
+        .logo {
+            width: 150px;
+            margin: 20px auto;
+            display: block;
+        }
+
         #map {
             height: 500px;
             width: 80%;
@@ -19,6 +27,7 @@
             border-radius: 10px;
             box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
         }
+
         .stats {
             margin: 20px auto;
             padding: 10px;
@@ -27,6 +36,7 @@
             border-radius: 10px;
             box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
         }
+
         .stat-box {
             padding: 15px;
             margin: 5px;
@@ -36,109 +46,50 @@
             border-radius: 5px;
             font-weight: bold;
         }
-        .quad-box {
-            background: #f1f1f1;
-            border: 1px solid #ddd;
-            padding: 15px;
-            margin: 10px;
-            border-radius: 5px;
-            display: inline-block;
-            width: 250px;
-        }
-        .status {
-            font-weight: bold;
-            margin-top: 10px;
-        }
-        .status.ok {
-            color: green;
-        }
-        .status.error {
-            color: red;
-        }
     </style>
 </head>
 <body>
-    <h2>Estaciones meteorologicas automaticas</h2>
-
-    
+    <img src="https://drive.google.com/uc?export=view&id=1Si5qBOsQiFPGyYMiQ8mXPEYJE-YLbhd5" class="logo" alt="Logo">
+    <h2>Estaciones de ThingSpeak y SMN en el Mapa</h2>
+    <div class="stats">
+        <div class="stat-box" id="max-temp">Temp Máx: --°C</div>
+        <div class="stat-box" id="min-temp">Temp Mín: --°C</div>
+    </div>
     <div id="map"></div>
-    
-    <div id="quadContainer"></div>
-    
+
     <script>
         var map = L.map('map').setView([-34.9214, -57.9544], 10);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap contributors'
         }).addTo(map);
 
-        // Estaciones
+        // Estaciones adicionales
         const estaciones = [
-            { id: 2218686, key: 'JUXJQRZMFFAS037Z', name: 'Escuela 23', lat: -35.025972, lon: -57.752972 },
-            { id: 2685796, key: 'XKV09A27AXZ35IEA', name: 'Estación EMA', lat: -34.9438126377134, lon: -57.89444617313153 },
-            { id: 2218689, key: 'ZLNOSLZJPQM3H7SD', name: 'Escuela 34', lat: -35.072583, lon: -57.865778 }
+            { id: 2218686, key: 'JUXJQRZMFFAS037Z', name: 'Escuela 23', lat: -34.94, lon: -57.91 },
+            { id: null, key: 'TH3V4TJLRFZD3JSG', name: 'San Vicente de Paul', lat: -34.95, lon: -57.92 },
+            { id: 2218689, key: 'ZLNOSLZJPQM3H7SD', name: 'Escuela 34', lat: -34.96, lon: -57.93 },
+            { id: 2685796, key: 'XKV09A27AXZ35IEA', name: 'EMA Nueva', lat: -34.9438126377134, lon: -57.89444617313153 }
         ];
 
-        // Función para obtener y mostrar los datos de las estaciones
-        function mostrarDatos() {
-            const cuadrantesContainer = document.getElementById('quadContainer');
-            cuadrantesContainer.innerHTML = '';  // Limpiar antes de agregar
-
-            let maxTemp = -Infinity, minTemp = Infinity;
-            let maxHum = -Infinity, minHum = Infinity;
-            let totalPrec = 0;
-
-            estaciones.forEach(estacion => {
-                const url = `https://api.thingspeak.com/channels/${estacion.id}/feeds.json?api_key=${estacion.key}&results=1`;
-                
-                fetch(url)
-                    .then(response => response.json())
-                    .then(data => {
-                        const feed = data.feeds[0];
-                        const temp = feed.field1;
-                        const hum = feed.field2;
-                        const prec = feed.field3;
-                        const lastUpdate = feed.created_at;
-
-                        // Mostrar marcador en el mapa
-                        var marker = L.marker([estacion.lat, estacion.lon]).addTo(map);
-                        marker.bindPopup(`<b>${estacion.name}</b><br>Temp: ${temp}°C<br>Humedad: ${hum}%<br>Precipitación: ${prec} mm`);
-
+        estaciones.forEach(estacion => {
+            const url = `https://api.thingspeak.com/channels/${estacion.id}/feeds.json?api_key=${estacion.key}&results=1`;
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    const temp = data.feeds[0] ? data.feeds[0].field1 : '--';
+                    const humedad = data.feeds[0] ? data.feeds[0].field2 : '--';
+                    const precipitacion = data.feeds[0] ? data.feeds[0].field3 : '--';
+                    const fecha = data.feeds[0] ? new Date(data.feeds[0].created_at) : 'No disponible';
                     
-
-                        // Verificar si la estación está caída
-                        const timeDifference = (new Date() - new Date(lastUpdate)) / 1000 / 3600;
-                        const status = timeDifference <= 6 ? 'ok' : 'error';
-
-                        // Crear cuadrante de datos
-                        const cuadrante = document.createElement('div');
-                        cuadrante.classList.add('quad-box');
-                        cuadrante.innerHTML = `
-                            <h3>${estacion.name}</h3>
-                            <p>Temp: ${temp}°C</p>
-                            <p>Humedad: ${hum}%</p>
-                            <p>Precipitación: ${prec} mm</p>
-                            <p><b>Última medición:</b> ${lastUpdate}</p>
-                            <p class="status ${status}">${status === 'ok' ? 'EMA operativa' : 'EMA caída'}</p>
-                        `;
-                        cuadrantesContainer.appendChild(cuadrante);
-
-                        // Actualizar las estadísticas generales
-                        document.getElementById('temp').innerHTML = `Temp Máx: ${maxTemp}°C | Temp Mín: ${minTemp}°C`;
-                        document.getElementById('hum').innerHTML = `Humedad Máx: ${maxHum}% | Humedad Mín: ${minHum}%`;
-                        document.getElementById('prec').innerHTML = `Precipitación Total: ${totalPrec.toFixed(2)} mm`;
-                    })
-                    .catch(error => {
-                        console.error(`Error al obtener datos de ${estacion.name}:`, error);
-                    });
-            });
-        }
-
-        // Inicializar la visualización
-        mostrarDatos();
+                    var marker = L.marker([estacion.lat, estacion.lon]).addTo(map);
+                    marker.bindPopup(`<b>${estacion.name}</b><br>Temp: ${temp}°C<br>Humedad: ${humedad}%<br>Precipitación: ${precipitacion} mm<br>Última medición: ${fecha}`);
+                    
+                    // Mostrar los datos de las estaciones en el cuadro superior
+                    document.getElementById('max-temp').innerHTML = `Temp Máx: ${temp}°C`;
+                    document.getElementById('min-temp').innerHTML = `Temp Mín: ${temp}°C`;
+                })
+                .catch(error => console.error(`Error al obtener datos de ${estacion.name}:`, error));
+        });
     </script>
 </body>
 </html>
-
-
-
-
