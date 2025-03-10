@@ -41,6 +41,31 @@
             width: 200px;
             text-align: center;
         }
+        .table-container {
+            margin-top: 20px;
+            width: 90%;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: white;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+        th {
+            background-color: #007bff;
+            color: white;
+        }
+        td {
+            background-color: #f9f9f9;
+        }
     </style>
 </head>
 <body>
@@ -48,6 +73,27 @@
     <h2>Estaciones Meteorológicas</h2>
     <div id="map"></div>
     <div class="stats" id="estacion-stats"></div>
+
+    <div class="table-container">
+        <h3>Temperaturas máximas y mínimas de la última semana</h3>
+        <table id="temperature-table">
+            <thead>
+                <tr>
+                    <th>Estación</th>
+                    <th>Lunes</th>
+                    <th>Martes</th>
+                    <th>Miércoles</th>
+                    <th>Jueves</th>
+                    <th>Viernes</th>
+                    <th>Sábado</th>
+                    <th>Domingo</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Los datos de las temperaturas se llenarán aquí -->
+            </tbody>
+        </table>
+    </div>
 
     <script>
         var map = L.map('map').setView([-34.9214, -57.9544], 10);
@@ -69,38 +115,50 @@
                     .bindPopup(`<b>${estacion.name}</b><br><a href='https://www.wunderground.com/dashboard/pws/ILAPLA66' target='_blank'>Ver datos en vivo</a>`);
                 document.getElementById('estacion-stats').innerHTML += `<div class='stat-box'>${estacion.name}<br><a href='https://www.wunderground.com/dashboard/pws/ILAPLA66' target='_blank'>Ver datos</a></div>`;
             } else {
-                // Intentamos obtener los últimos datos
-                fetch(`https://api.thingspeak.com/channels/${estacion.id}/feeds.json?api_key=${estacion.key}&results=1`)
+                fetch(`https://api.thingspeak.com/channels/${estacion.id}/feeds.json?api_key=${estacion.key}&results=168`) // 168 resultados = 7 días
                     .then(response => response.json())
                     .then(data => {
-                        const feed = data.feeds[0];
-                        let temp = 'No disponible';
-                        let humedad = 'No disponible';
-                        let fecha = 'No disponible';
-                        let tiempoTranscurrido = 999;
-                        let estado = 'Sin datos disponibles';
+                        let temperaturesByDay = {
+                            Monday: { max: -Infinity, min: Infinity },
+                            Tuesday: { max: -Infinity, min: Infinity },
+                            Wednesday: { max: -Infinity, min: Infinity },
+                            Thursday: { max: -Infinity, min: Infinity },
+                            Friday: { max: -Infinity, min: Infinity },
+                            Saturday: { max: -Infinity, min: Infinity },
+                            Sunday: { max: -Infinity, min: Infinity },
+                        };
 
-                        if (feed) {
-                            temp = feed.field1;
-                            humedad = feed.field2;
-                            fecha = new Date(feed.created_at);
-                            tiempoTranscurrido = (Date.now() - fecha) / 3600000; // en horas
+                        // Recorrer los datos y obtener las temperaturas
+                        data.feeds.forEach(feed => {
+                            const temp = parseFloat(feed.field1);
+                            if (!isNaN(temp)) {
+                                const date = new Date(feed.created_at);
+                                const dayOfWeek = date.toLocaleString('en-us', { weekday: 'long' }); // Obtener el día de la semana
 
-                            if (tiempoTranscurrido < 6) {
-                                estado = `Última medición: Temp: ${temp}°C, Humedad: ${humedad}%`;
-                            } else {
-                                estado = `Última medición hace ${Math.round(tiempoTranscurrido)} horas. Temp: ${temp}°C, Humedad: ${humedad}%`;
+                                if (temperaturesByDay[dayOfWeek]) {
+                                    if (temp > temperaturesByDay[dayOfWeek].max) temperaturesByDay[dayOfWeek].max = temp;
+                                    if (temp < temperaturesByDay[dayOfWeek].min) temperaturesByDay[dayOfWeek].min = temp;
+                                }
                             }
-                        } else {
-                            estado = 'Sin datos disponibles';
-                        }
+                        });
 
-                        // Agregar marcador en el mapa
+                        // Agregar marcador al mapa
                         L.marker([estacion.lat, estacion.lon]).addTo(map)
-                            .bindPopup(`<b>${estacion.name}</b><br>${estado}<br>Última medición: ${fecha}`);
+                            .bindPopup(`<b>${estacion.name}</b><br>Temperatura máxima: ${temperaturesByDay.Monday.max}°C, Mínima: ${temperaturesByDay.Monday.min}°C`);
 
-                        // Agregar información a las estadísticas
-                        document.getElementById('estacion-stats').innerHTML += `<div class='stat-box'><b>${estacion.name}</b><br>${estado}</div>`;
+                        // Agregar fila al tabla de temperaturas
+                        let row = `<tr>
+                            <td>${estacion.name}</td>
+                            <td>${temperaturesByDay.Monday.max}°C / ${temperaturesByDay.Monday.min}°C</td>
+                            <td>${temperaturesByDay.Tuesday.max}°C / ${temperaturesByDay.Tuesday.min}°C</td>
+                            <td>${temperaturesByDay.Wednesday.max}°C / ${temperaturesByDay.Wednesday.min}°C</td>
+                            <td>${temperaturesByDay.Thursday.max}°C / ${temperaturesByDay.Thursday.min}°C</td>
+                            <td>${temperaturesByDay.Friday.max}°C / ${temperaturesByDay.Friday.min}°C</td>
+                            <td>${temperaturesByDay.Saturday.max}°C / ${temperaturesByDay.Saturday.min}°C</td>
+                            <td>${temperaturesByDay.Sunday.max}°C / ${temperaturesByDay.Sunday.min}°C</td>
+                        </tr>`;
+                        
+                        document.querySelector('#temperature-table tbody').innerHTML += row;
                     })
                     .catch(error => {
                         console.error(`Error obteniendo datos de ${estacion.name}:`, error);
