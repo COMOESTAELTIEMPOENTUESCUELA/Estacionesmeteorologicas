@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -35,12 +34,33 @@
             width: 80%;
             text-align: left;
         }
+        .stats {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+        .stat-box {
+            padding: 15px;
+            background: #007bff;
+            color: white;
+            font-weight: bold;
+            border-radius: 5px;
+        }
+        .stat-box.error {
+            background: #ff4d4d;
+        }
     </style>
 </head>
 <body>
     <h2>Temperaturas actuales de las estaciones de la red</h2>
     <div id="map"></div>
-    <div id="info">Cargando temperaturas...</div>
+    <div id="info"></div>
+    <div class="stats" id="stats">
+        <div class="stat-box" id="temp">Temp: --°C</div>
+        <div class="stat-box" id="hum">Humedad: --%</div>
+        <div class="stat-box" id="prec">Precipitación: -- mm</div>
+    </div>
     
     <script>
         var map = L.map('map').setView([-34.9214, -57.9544], 10);
@@ -50,58 +70,69 @@
 
         // Estaciones existentes y nuevas
         const estaciones = [
-            { id: 2218686, key: 'JUXJQRZMFFAS037Z', name: 'Escuela 23', lat: -35.025972, lon: -57.752972 }, // Nueva ubicación Escuela 23
+            { id: 2218686, key: 'JUXJQRZMFFAS037Z', name: 'Escuela 23', lat: -35.025972, lon: -57.752972 },
             { id: null, key: 'TH3V4TJLRFZD3JSG', name: 'San Vicente de Paul', lat: -34.95, lon: -57.92 },
-            { id: 2218689, key: 'ZLNOSLZJPQM3H7SD', name: 'Escuela 34', lat: -35.072583, lon: -57.865778 },  // Nueva ubicación Escuela 34
-            { id: 2685796, key: 'XKV09A27AXZ35IEA', name: 'Estación EMA', lat: -34.9438126377134, lon: -57.89444617313153 }  // Estación EMA con nuevas coordenadas
+            { id: 2218689, key: 'ZLNOSLZJPQM3H7SD', name: 'Escuela 34', lat: -35.072583, lon: -57.865778 },
+            { id: 2685796, key: 'XKV09A27AXZ35IEA', name: 'Estación EMA', lat: -34.9438126377134, lon: -57.89444617313153 }
         ];
 
-        // Función para obtener la temperatura de las estaciones
-        function obtenerTemperaturas() {
+        // Función para obtener los datos de temperatura, humedad y precipitación de las estaciones
+        function obtenerDatos() {
             return Promise.all(estaciones.map(estacion => {
                 const url = `https://api.thingspeak.com/channels/${estacion.id}/feeds.json?api_key=${estacion.key}&results=1`;
                 return fetch(url)
                     .then(response => response.json())
                     .then(data => {
-                        const temp = data.feeds[0].field1;
-                        return { name: estacion.name, temp: temp, lat: estacion.lat, lon: estacion.lon };
+                        const temp = data.feeds[0].field1; // Temperatura
+                        const hum = data.feeds[0].field2; // Humedad
+                        const prec = data.feeds[0].field3; // Precipitación
+                        const lastUpdate = data.feeds[0].created_at; // Última actualización
+                        return { name: estacion.name, temp: temp, hum: hum, prec: prec, lastUpdate: lastUpdate, lat: estacion.lat, lon: estacion.lon };
                     })
                     .catch(error => console.error(`Error al obtener datos de ${estacion.name}:`, error));
             }));
         }
 
-        // Mostrar temperaturas de todas las estaciones
-        function mostrarTemperaturas() {
-            obtenerTemperaturas().then(temperaturas => {
-                let contenido = '<h3>Temperaturas actuales:</h3>';
-                temperaturas.forEach(estacion => {
-                    contenido += `<p><b>${estacion.name}</b><br>Temperatura: ${estacion.temp}°C</p>`;
+        // Mostrar los datos de todas las estaciones
+        function mostrarDatos() {
+            obtenerDatos().then(datos => {
+                let contenido = '<h3>Última medición:</h3>';
+                let maxTemp = -Infinity, minTemp = Infinity, maxHum = -Infinity, minHum = Infinity, totalPrec = 0;
+
+                // Mostrar datos de cada estación
+                datos.forEach(estacion => {
+                    contenido += `<p><b>${estacion.name}</b><br>Temp: ${estacion.temp}°C | Humedad: ${estacion.hum}% | Precipitación: ${estacion.prec} mm<br>Última medición: ${estacion.lastUpdate}</p>`;
+
+                    // Acumulación de máximos y mínimos
+                    if (estacion.temp > maxTemp) maxTemp = estacion.temp;
+                    if (estacion.temp < minTemp) minTemp = estacion.temp;
+                    if (estacion.hum > maxHum) maxHum = estacion.hum;
+                    if (estacion.hum < minHum) minHum = estacion.hum;
+                    totalPrec += parseFloat(estacion.prec);
                 });
 
-                // Mostrar la información en el área de info
+                // Actualizar área de información sobre el mapa
                 document.getElementById('info').innerHTML = contenido;
+
+                // Actualizar estadísticas generales
+                document.getElementById('temp').innerHTML = `Temp Máx: ${maxTemp}°C | Temp Mín: ${minTemp}°C`;
+                document.getElementById('hum').innerHTML = `Humedad Máx: ${maxHum}% | Humedad Mín: ${minHum}%`;
+                document.getElementById('prec').innerHTML = `Precipitación Total: ${totalPrec} mm`;
+
+                // Agregar los marcadores en el mapa
+                datos.forEach(estacion => {
+                    var marker = L.marker([estacion.lat, estacion.lon]).addTo(map);
+                    marker.bindPopup(`<b>${estacion.name}</b><br>Temp: ${estacion.temp}°C<br>Última medición: ${estacion.lastUpdate}`);
+                });
             });
         }
 
-        // Agregar las estaciones al mapa
-        estaciones.forEach(estacion => {
-            const url = `https://api.thingspeak.com/channels/${estacion.id}/feeds.json?api_key=${estacion.key}&results=1`;
-            fetch(url)
-                .then(response => response.json())
-                .then(data => {
-                    const temp = data.feeds[0].field1;
-                    var marker = L.marker([estacion.lat, estacion.lon]).addTo(map);
-                    marker.bindPopup(`<b>${estacion.name}</b><br>Temperatura: ${temp}°C`);
-                })
-                .catch(error => console.error(`Error al obtener datos de ${estacion.name}:`, error));
-        });
+        // Mostrar datos inmediatamente al cargar la página
+        mostrarDatos();
 
-        // Mostrar temperaturas inmediatamente al cargar la página
-        mostrarTemperaturas();
-
-        // Actualizar las temperaturas cada 30 segundos
-        setInterval(mostrarTemperaturas, 30000);  // 30000 ms = 30 segundos
-
+        // Actualizar los datos cada 30 segundos
+        setInterval(mostrarDatos, 30000);  // 30000 ms = 30 segundos
     </script>
 </body>
 </html>
+
