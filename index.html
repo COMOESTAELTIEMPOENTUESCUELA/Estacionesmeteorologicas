@@ -71,7 +71,6 @@
         // Estaciones existentes y nuevas
         const estaciones = [
             { id: 2218686, key: 'JUXJQRZMFFAS037Z', name: 'Escuela 23', lat: -35.025972, lon: -57.752972 },
-            { id: null, key: 'TH3V4TJLRFZD3JSG', name: 'San Vicente de Paul', lat: -34.95, lon: -57.92 },
             { id: 2218689, key: 'ZLNOSLZJPQM3H7SD', name: 'Escuela 34', lat: -35.072583, lon: -57.865778 },
             { id: 2685796, key: 'XKV09A27AXZ35IEA', name: 'Estación EMA', lat: -34.9438126377134, lon: -57.89444617313153 }
         ];
@@ -83,13 +82,22 @@
                 return fetch(url)
                     .then(response => response.json())
                     .then(data => {
-                        const temp = data.feeds[0].field1; // Temperatura
-                        const hum = data.feeds[0].field2; // Humedad
-                        const prec = data.feeds[0].field3; // Precipitación
-                        const lastUpdate = data.feeds[0].created_at; // Última actualización
-                        return { name: estacion.name, temp: temp, hum: hum, prec: prec, lastUpdate: lastUpdate, lat: estacion.lat, lon: estacion.lon };
+                        // Verificación si 'feeds' existe y tiene datos
+                        if (data.feeds && data.feeds.length > 0) {
+                            const temp = data.feeds[0].field1; // Temperatura
+                            const hum = data.feeds[0].field2; // Humedad
+                            const prec = data.feeds[0].field3; // Precipitación
+                            const lastUpdate = data.feeds[0].created_at; // Última actualización
+                            return { name: estacion.name, temp: temp, hum: hum, prec: prec, lastUpdate: lastUpdate, lat: estacion.lat, lon: estacion.lon };
+                        } else {
+                            // En caso de que no haya datos
+                            return { name: estacion.name, temp: 'No disponible', hum: 'No disponible', prec: 'No disponible', lastUpdate: 'No disponible', lat: estacion.lat, lon: estacion.lon };
+                        }
                     })
-                    .catch(error => console.error(`Error al obtener datos de ${estacion.name}:`, error));
+                    .catch(error => {
+                        console.error(`Error al obtener datos de ${estacion.name}:`, error);
+                        return { name: estacion.name, temp: 'Error', hum: 'Error', prec: 'Error', lastUpdate: 'Error', lat: estacion.lat, lon: estacion.lon };
+                    });
             }));
         }
 
@@ -104,11 +112,17 @@
                     contenido += `<p><b>${estacion.name}</b><br>Temp: ${estacion.temp}°C | Humedad: ${estacion.hum}% | Precipitación: ${estacion.prec} mm<br>Última medición: ${estacion.lastUpdate}</p>`;
 
                     // Acumulación de máximos y mínimos
-                    if (estacion.temp > maxTemp) maxTemp = estacion.temp;
-                    if (estacion.temp < minTemp) minTemp = estacion.temp;
-                    if (estacion.hum > maxHum) maxHum = estacion.hum;
-                    if (estacion.hum < minHum) minHum = estacion.hum;
-                    totalPrec += parseFloat(estacion.prec);
+                    if (estacion.temp !== 'No disponible' && estacion.temp !== 'Error') {
+                        if (parseFloat(estacion.temp) > maxTemp) maxTemp = parseFloat(estacion.temp);
+                        if (parseFloat(estacion.temp) < minTemp) minTemp = parseFloat(estacion.temp);
+                    }
+                    if (estacion.hum !== 'No disponible' && estacion.hum !== 'Error') {
+                        if (parseFloat(estacion.hum) > maxHum) maxHum = parseFloat(estacion.hum);
+                        if (parseFloat(estacion.hum) < minHum) minHum = parseFloat(estacion.hum);
+                    }
+                    if (estacion.prec !== 'No disponible' && estacion.prec !== 'Error') {
+                        totalPrec += parseFloat(estacion.prec);
+                    }
                 });
 
                 // Actualizar área de información sobre el mapa
@@ -135,4 +149,5 @@
     </script>
 </body>
 </html>
+
 
