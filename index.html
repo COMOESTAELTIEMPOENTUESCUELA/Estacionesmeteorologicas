@@ -1,9 +1,9 @@
-
-
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-    <title>Mapa de Estaciones</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa de Estaciones Meteorológicas</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <style>
@@ -28,29 +28,46 @@
             box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
         }
         .stats {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr); /* Dos columnas */
+            gap: 10px;
             margin: 20px auto;
+            max-width: 800px;
+            text-align: center;
         }
         .stat-box {
             padding: 10px;
-            margin: 5px;
             background: #007bff;
             color: white;
             border-radius: 5px;
             font-weight: bold;
-            width: 180px; /* Ajustado para hacer más pequeños los cuadros */
+            width: 100%;
+            box-sizing: border-box;
             text-align: center;
-            box-sizing: border-box; /* Asegura que el padding no aumente el tamaño */
+        }
+        .stat-box b {
+            font-size: 16px;
+        }
+        .stat-box p {
+            font-size: 14px;
+            margin: 5px 0;
+        }
+        .day-header {
+            font-size: 20px;
+            font-weight: bold;
+            margin-top: 20px;
+            color: #007bff;
         }
     </style>
 </head>
 <body>
     <img src="https://drive.google.com/uc?export=view&id=1Si5qBOsQiFPGyYMiQ8mXPEYJE-YLbhd5" class="logo" alt="Logo">
-    <h2>Estaciones Meteorológicas</h2>
+    <h2>Estaciones Meteorológicas - Temperaturas</h2>
     <div id="map"></div>
-    <div class="stats" id="estacion-stats"></div>
+
+    <div class="stats" id="estacion-stats">
+        <!-- Estadísticas se insertarán aquí -->
+    </div>
 
     <script>
         var map = L.map('map').setView([-34.9214, -57.9544], 10);
@@ -72,53 +89,88 @@
             return diasSemana[fecha.getDay()];
         }
 
+        // Dividir los datos por días de la semana
+        let datosPorDia = {
+            'Lunes': [],
+            'Martes': [],
+            'Miércoles': [],
+            'Jueves': [],
+            'Viernes': [],
+            'Sábado': [],
+            'Domingo': []
+        };
+
         estaciones.forEach(estacion => {
             if (estacion.wunderground) {
                 L.marker([estacion.lat, estacion.lon]).addTo(map)
                     .bindPopup(`<b>${estacion.name}</b><br><a href='https://www.wunderground.com/dashboard/pws/ILAPLA66' target='_blank'>Ver datos en vivo</a>`);
-                document.getElementById('estacion-stats').innerHTML += `<div class='stat-box'>${estacion.name}<br><a href='https://www.wunderground.com/dashboard/pws/ILAPLA66' target='_blank'>Ver datos</a></div>`;
+                document.getElementById('estacion-stats').innerHTML += `
+                    <div class='stat-box'>
+                        <b>${estacion.name}</b><br><a href='https://www.wunderground.com/dashboard/pws/ILAPLA66' target='_blank'>Ver datos</a>
+                    </div>`;
             } else {
                 // Intentamos obtener los últimos datos
-                fetch(`https://api.thingspeak.com/channels/${estacion.id}/feeds.json?api_key=${estacion.key}&results=1`)
+                fetch(`https://api.thingspeak.com/channels/${estacion.id}/feeds.json?api_key=${estacion.key}&results=7`)
                     .then(response => response.json())
                     .then(data => {
-                        const feed = data.feeds[0];
-                        let temp = 'No disponible';
-                        let humedad = 'No disponible';
-                        let fecha = 'No disponible';
-                        let tiempoTranscurrido = 999;
-                        let estado = 'Sin datos disponibles';
-
-                        if (feed) {
-                            temp = feed.field1;
-                            humedad = feed.field2;
-                            fecha = new Date(feed.created_at);
-                            tiempoTranscurrido = (Date.now() - fecha) / 3600000; // en horas
-
+                        const feeds = data.feeds;
+                        feeds.forEach(feed => {
+                            const fecha = new Date(feed.created_at);
                             const diaSemana = obtenerDiaSemana(fecha);
+                            const temp_max = feed.field3;
+                            const temp_min = feed.field4;
 
-                            if (tiempoTranscurrido < 6) {
-                                estado = `Última medición: Temp: ${temp}°C, Humedad: ${humedad}%<br>Fecha: ${diaSemana}, ${fecha.toLocaleDateString()}`;
-                            } else {
-                                estado = `Última medición hace ${Math.round(tiempoTranscurrido)} horas. Temp: ${temp}°C, Humedad: ${humedad}%<br>Fecha: ${diaSemana}, ${fecha.toLocaleDateString()}`;
-                            }
-                        } else {
-                            estado = 'Sin datos disponibles';
-                        }
+                            // Guardamos las temperaturas para cada día
+                            datosPorDia[diaSemana].push({
+                                name: estacion.name,
+                                temp_max: temp_max,
+                                temp_min: temp_min
+                            });
+                        });
 
                         // Agregar marcador en el mapa
                         L.marker([estacion.lat, estacion.lon]).addTo(map)
-                            .bindPopup(`<b>${estacion.name}</b><br>${estado}<br>Última medición: ${fecha}`);
+                            .bindPopup(`<b>${estacion.name}</b><br>Última medición`);
 
-                        // Agregar información a las estadísticas
-                        document.getElementById('estacion-stats').innerHTML += `<div class='stat-box'><b>${estacion.name}</b><br>${estado}</div>`;
                     })
                     .catch(error => {
                         console.error(`Error obteniendo datos de ${estacion.name}:`, error);
-                        document.getElementById('estacion-stats').innerHTML += `<div class='stat-box'><b>${estacion.name}</b><br>Fuera de servicio</div>`;
+                        document.getElementById('estacion-stats').innerHTML += `
+                            <div class='stat-box'>
+                                <b>${estacion.name}</b><br>Fuera de servicio
+                            </div>`;
                     });
             }
         });
+
+        // Mostrar los datos organizados por días
+        function mostrarDatosPorDia() {
+            for (let dia in datosPorDia) {
+                if (datosPorDia[dia].length > 0) {
+                    const header = document.createElement('div');
+                    header.className = 'day-header';
+                    header.innerHTML = `${dia}`;
+
+                    const dayStats = document.createElement('div');
+                    dayStats.className = 'stats';
+
+                    datosPorDia[dia].forEach(data => {
+                        dayStats.innerHTML += `
+                            <div class='stat-box'>
+                                <b>${data.name}</b><br>
+                                Temp. Máxima: ${data.temp_max}°C<br>
+                                Temp. Mínima: ${data.temp_min}°C
+                            </div>`;
+                    });
+
+                    document.getElementById('estacion-stats').appendChild(header);
+                    document.getElementById('estacion-stats').appendChild(dayStats);
+                }
+            }
+        }
+
+        // Llamar la función para mostrar los datos
+        setTimeout(mostrarDatosPorDia, 2000); // Esperar a que los datos se carguen antes de mostrarlos
     </script>
 </body>
 </html>
