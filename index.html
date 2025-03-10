@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Mapa de Estaciones con Leaflet y Datos del SMN</title>
+    <title>Mapa de Estaciones con Leaflet y ThingSpeak</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <style>
@@ -47,51 +47,29 @@
     <div id="map"></div>
     
     <script>
-        var map = L.map('map').setView([-34.9214, -57.9544], 10); // Coordenadas de La Plata
+        var map = L.map('map').setView([-34.9214, -57.9544], 10);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap contributors'
         }).addTo(map);
 
-        // Datos de las estaciones del SMN
-        var smnStations = [
-            {
-                name: "Estación SMN La Plata Aero",
-                lat: -34.9722,
-                lon: -57.8947,
-                temperature: 25.3 // Reemplaza con la temperatura actual
-            },
-            {
-                name: "Estación SMN Punta Indio",
-                lat: -35.2833,
-                lon: -57.2333,
-                temperature: 24.8 // Reemplaza con la temperatura actual
-            }
+        // Estaciones actualizadas
+        const estaciones = [
+            { id: 2218686, key: 'JUXJQRZMFFAS037Z', name: 'Escuela 23', lat: -35.025972, lon: -57.752972 }, // Nueva ubicación Escuela 23
+            { id: null, key: 'TH3V4TJLRFZD3JSG', name: 'San Vicente de Paul', lat: -34.95, lon: -57.92 },
+            { id: 2218689, key: 'ZLNOSLZJPQM3H7SD', name: 'Escuela 34', lat: -35.072583, lon: -57.865778 }  // Nueva ubicación Escuela 34
         ];
 
-        // Agregar marcadores para las estaciones del SMN
-        smnStations.forEach(function(station) {
-            var marker = L.marker([station.lat, station.lon]).addTo(map);
-            marker.bindPopup(`<b>${station.name}</b><br>Temperatura: ${station.temperature}°C`);
+        estaciones.forEach(estacion => {
+            const url = `https://api.thingspeak.com/channels/${estacion.id}/feeds.json?api_key=${estacion.key}&results=1`;
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    const temp = data.feeds[0].field1;
+                    var marker = L.marker([estacion.lat, estacion.lon]).addTo(map);
+                    marker.bindPopup(`<b>${estacion.name}</b><br>Temperatura: ${temp}°C`);
+                })
+                .catch(error => console.error(`Error al obtener datos de ${estacion.name}:`, error));
         });
-
-        // URL de la API de ThingSpeak con el Channel ID proporcionado
-        const url = 'https://api.thingspeak.com/channels/2685796/feeds.json?api_key=P3H82TMM9GH1NS26&results=288';
-
-        fetch(url)
-            .then(response => response.json())
-            .then(data => {
-                let temps = data.feeds.map(entry => parseFloat(entry.field1)).filter(temp => !isNaN(temp));
-                let maxTemp = Math.max(...temps);
-                let minTemp = Math.min(...temps);
-                
-                document.getElementById('max-temp').innerText = `Temp Máx: ${maxTemp.toFixed(1)}°C`;
-                document.getElementById('min-temp').innerText = `Temp Mín: ${minTemp.toFixed(1)}°C`;
-                
-                let latestTemp = temps[temps.length - 1];
-                let marker = L.marker([-34.9436, -57.8944]).addTo(map);
-                marker.bindPopup(`<b>Última Temperatura</b><br>${latestTemp}°C`);
-            })
-            .catch(error => console.error('Error al obtener datos:', error));
     </script>
 </body>
 </html>
