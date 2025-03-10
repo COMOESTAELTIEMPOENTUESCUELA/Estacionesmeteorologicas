@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -91,6 +90,7 @@
                         let maxTemp = '--';
                         let minTemp = '--';
                         let variables = '';
+                        let lastUpdate = '';
 
                         if (feeds && feeds.length > 0) {
                             let maxTempVal = -Infinity;
@@ -102,6 +102,7 @@
                                 let presion = feed.field3;
                                 let precipitacion = feed.field4;
                                 let fecha = new Date(feed.created_at);
+                                lastUpdate = `Fecha de la última medición: ${fecha.toLocaleString()}`;
                                 variables = `
                                     Temp: ${temp ? temp + '°C' : '--'}<br>
                                     Humedad: ${humedad ? humedad + '%' : '--'}<br>
@@ -125,12 +126,13 @@
 
                         // Agregar marcador en el mapa
                         let marker = L.marker([estacion.lat, estacion.lon]).addTo(map);
-                        marker.bindPopup(`<b>${estacion.name}</b><br>${estado}`);
+                        marker.bindPopup(`<b>${estacion.name}</b><br>${estado}<br>${lastUpdate}<br>${variables}`);
 
                         // Agregar cuadrantes
                         document.getElementById('estacion-stats').innerHTML += `
                             <div class='stat-box ${estado === 'Sin datos disponibles' ? 'red' : ''}'>
                                 <b>${estacion.name}</b><br>${estado}
+                                <br>${lastUpdate}
                                 <br>${variables}
                             </div>
                         `;
@@ -183,3 +185,4 @@
     </script>
 </body>
 </html>
+
