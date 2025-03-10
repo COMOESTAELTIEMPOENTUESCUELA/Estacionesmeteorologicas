@@ -4,48 +4,62 @@
     <title>Mapa de Estaciones con Leaflet y ThingSpeak</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <style>
+      #map { height: 500px; }
+      #dashboard {
+        display: flex;
+        justify-content: space-around;
+        margin-bottom: 10px;
+      }
+      .panel {
+        padding: 10px;
+        border: 1px solid #ccc;
+        text-align: center;
+        width: 20%;
+      }
+      #logo {
+        display: block;
+        margin: 0 auto;
+        width: 100px;
+      }
+    </style>
   </head>
   <body>
+    <img id="logo" src="Logo1.jpg" alt="Logo del Proyecto">
     <h2>Estaciones de ThingSpeak en el Mapa</h2>
-    <div id="map" style="height: 500px;"></div>
+    <div id="dashboard">
+      <div class="panel" id="temp">Temperatura: -- °C</div>
+      <div class="panel" id="hum">Humedad: -- %</div>
+      <div class="panel" id="pres">Presión: -- hPa</div>
+      <div class="panel" id="prec">Precipitación: -- mm</div>
+    </div>
+    <div id="map"></div>
     <script>
-      // Inicializa el mapa
-      var map = L.map('map').setView([-34.943601567561295, -57.89445690196709], 13);  // Centrado en la ubicación de las estaciones
-
-      // Capa de OpenStreetMap
+      var map = L.map('map').setView([-34.943601567561295, -57.89445690196709], 13);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        attribution: '&copy; OpenStreetMap contributors'
       }).addTo(map);
 
-      // URL de la API de ThingSpeak con el Channel ID proporcionado
-      const url = 'https://api.thingspeak.com/channels/2685796/feeds.json?api_key=P3H82TMM9GH1NS26&results=2';
+      const url = 'https://api.thingspeak.com/channels/2685796/feeds.json?api_key=P3H82TMM9GH1NS26&results=1';
 
-      // Realiza la solicitud a la API de ThingSpeak
       fetch(url)
         .then(response => response.json())
         .then(data => {
-          // Obtiene los datos de la respuesta (temperatura y ubicación de las estaciones)
-          const temperatura1 = data.feeds[0].field1; // Campo 1: Temperatura de la primera estación
-          const latitud1 = -34.943601567561295;  // Latitud de la estación (fija en este caso)
-          const longitud1 = -57.89445690196709; // Longitud de la estación (fija en este caso)
+          const feed = data.feeds[0];
+          document.getElementById('temp').innerText = `Temperatura: ${feed.field1} °C`;
+          document.getElementById('hum').innerText = `Humedad: ${feed.field2} %`;
+          document.getElementById('pres').innerText = `Presión: ${feed.field3} hPa`;
+          document.getElementById('prec').innerText = `Precipitación: ${feed.field4} mm`;
 
-          const temperatura2 = data.feeds[1].field1; // Campo 1: Temperatura de la segunda estación
-          const latitud2 = -34.943601567561295;  // Latitud de la estación (fija en este caso)
-          const longitud2 = -57.89445690196709; // Longitud de la estación (fija en este caso)
-
-          // Marca la primera estación en el mapa
-          var marker1 = L.marker([latitud1, longitud1]).addTo(map);
-          marker1.bindPopup(`<b>Estación 1</b><br>Temperatura: ${temperatura1}°C`).openPopup();
-
-          // Marca la segunda estación en el mapa
-          var marker2 = L.marker([latitud2, longitud2]).addTo(map);
-          marker2.bindPopup(`<b>Estación 2</b><br>Temperatura: ${temperatura2}°C`).openPopup();
-
-          // Centra el mapa en las dos estaciones (aunque las coordenadas son iguales, puedes usar fitBounds en caso de futuras estaciones)
-          map.fitBounds([ [latitud1, longitud1], [latitud2, longitud2] ]);
+          const latitud = -34.943601567561295;
+          const longitud = -57.89445690196709;
+          var marker = L.marker([latitud, longitud]).addTo(map);
+          marker.bindPopup(`<b>Estación</b><br>Temperatura: ${feed.field1}°C`).openPopup();
+          map.setView([latitud, longitud], 13);
         })
         .catch(error => console.error('Error al obtener los datos de ThingSpeak:', error));
     </script>
   </body>
 </html>
+
 
