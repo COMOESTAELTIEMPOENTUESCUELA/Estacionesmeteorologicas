@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -45,11 +44,18 @@
         .max-min {
             margin-top: 20px;
             font-size: 18px;
+            width: 80%;
+            margin: 20px auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
         }
         .max-min div {
-            padding: 5px;
+            padding: 10px;
             background-color: #e3e3e3;
             margin-bottom: 10px;
+            border-radius: 5px;
         }
         .red {
             background-color: red;
@@ -61,6 +67,7 @@
     <h2>Estaciones Meteorológicas</h2>
     <div id="map"></div>
     <div class="stats" id="estacion-stats"></div>
+    <div class="max-min" id="max-min-temps"></div>
 
     <script>
         var map = L.map('map').setView([-34.9214, -57.9544], 10);
@@ -75,6 +82,12 @@
             { id: 2218687, key: 'TH3V4TJLRFZD3JSG', name: 'Colegio San Vicente de Paul', lat: -34.90335049405157, lon: -57.94831605582217 },
             { id: null, key: null, name: 'Tiempoentuescuela (ILAPLA66)', lat: -34.991, lon: -57.867, wunderground: true }
         ];
+
+        // Función para obtener el nombre del día de la semana
+        function getDayName(date) {
+            const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+            return days[date.getDay()];
+        }
 
         estaciones.forEach(estacion => {
             if (estacion.wunderground) {
@@ -141,6 +154,7 @@
                             let day = new Date();
                             day.setDate(day.getDate() - i);
                             let dayString = day.toLocaleDateString();
+                            let dayName = getDayName(day);
 
                             let dayData = feeds.filter(feed => {
                                 let feedDate = new Date(feed.created_at);
@@ -167,11 +181,11 @@
                             }
 
                             weekStats += `
-                                <div>${dayString}: Max: ${dailyMax} / Min: ${dailyMin}</div>
+                                <div>${dayName} (${dayString}): Max: ${dailyMax} / Min: ${dailyMin}</div>
                             `;
                         }
 
-                        document.getElementById('estacion-stats').innerHTML += `<div class="max-min">${weekStats}</div>`;
+                        document.getElementById('max-min-temps').innerHTML = weekStats;
 
                     })
                     .catch(error => {
