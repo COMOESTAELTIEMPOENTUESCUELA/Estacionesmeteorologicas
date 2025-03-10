@@ -174,8 +174,9 @@
                 stationData.forEach(station => {
                     if (station.data) {
                         const dailyData = calculateDailyMaxMin(station.data);
-                        const max = dailyData[day]?.max !== -Infinity ? dailyData[day].max.toFixed(1) + '°C' : '--';
-                        const min = dailyData[day]?.min !== Infinity ? dailyData[day].min.toFixed(1) + '°C' : '--';
+                        const dayData = dailyData[day] || { max: '--', min: '--' };
+                        const max = dayData.max !== -Infinity ? dayData.max.toFixed(1) + '°C' : '--';
+                        const min = dayData.min !== Infinity ? dayData.min.toFixed(1) + '°C' : '--';
                         row.innerHTML += `<td>${max} / ${min}</td>`;
                     } else {
                         row.innerHTML += `<td>-- / --</td>`;
