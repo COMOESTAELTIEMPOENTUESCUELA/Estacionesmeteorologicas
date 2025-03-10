@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -92,40 +93,37 @@
                         if (feeds && feeds.length > 0) {
                             let maxTempVal = -Infinity;
                             let minTempVal = Infinity;
+                            let lastData = feeds[feeds.length - 1]; // Última medición
 
-                            feeds.forEach(feed => {
-                                let temp = parseFloat(feed.field1);
-                                let humedad = feed.field2;
-                                let presion = feed.field3;
-                                let precipitacion = feed.field4;
-                                let fecha = new Date(feed.created_at);
-                                variables = `
-                                    Temp: ${temp ? temp + '°C' : '--'}<br>
-                                    Humedad: ${humedad ? humedad + '%' : '--'}<br>
-                                    Presion: ${presion ? presion + 'hPa' : '--'}<br>
-                                    Precipitacion: ${precipitacion ? precipitacion + 'mm' : '--'}<br>
-                                `;
+                            let lastTemp = parseFloat(lastData.field1);
+                            let lastHumedad = lastData.field2;
+                            let lastPresion = lastData.field3;
+                            let lastPrecipitacion = lastData.field4;
+                            let lastFecha = new Date(lastData.created_at);
 
-                                if (!isNaN(temp)) {
-                                    maxTempVal = Math.max(maxTempVal, temp);
-                                    minTempVal = Math.min(minTempVal, temp);
-                                }
-                            });
+                            variables = `
+                                <b>Última medición:</b><br>
+                                Temp: ${lastTemp ? lastTemp + '°C' : '--'}<br>
+                                Humedad: ${lastHumedad ? lastHumedad + '%' : '--'}<br>
+                                Presion: ${lastPresion ? lastPresion + 'hPa' : '--'}<br>
+                                Precipitacion: ${lastPrecipitacion ? lastPrecipitacion + 'mm' : '--'}<br>
+                                Fecha: ${lastFecha.toLocaleString()}
+                            `;
 
-                            estado = `Última medición: ${maxTempVal === -Infinity ? '--' : maxTempVal + '°C'} / ${minTempVal === Infinity ? '--' : minTempVal + '°C'}`;
+                            maxTempVal = Math.max(maxTempVal, lastTemp);
+                            minTempVal = Math.min(minTempVal, lastTemp);
                         } else {
                             estado = 'Sin datos disponibles';
                         }
 
                         // Agregar marcador en el mapa
                         let marker = L.marker([estacion.lat, estacion.lon]).addTo(map);
-                        marker.bindPopup(`<b>${estacion.name}</b><br>${estado}`);
+                        marker.bindPopup(`<b>${estacion.name}</b><br>${variables}`);
 
                         // Agregar cuadrantes
                         document.getElementById('estacion-stats').innerHTML += `
                             <div class='stat-box ${estado === 'Sin datos disponibles' ? 'red' : ''}'>
-                                <b>${estacion.name}</b><br>${estado}
-                                <br>${variables}
+                                <b>${estacion.name}</b><br>${variables}
                             </div>
                         `;
 
