@@ -1,10 +1,10 @@
+
 <!DOCTYPE html>
 <html>
 <head>
     <title>Mapa de Estaciones</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/SheetJS/0.17.0/xlsx.full.min.js"></script>
     <style>
         body {
             font-family: 'Arial', sans-serif;
@@ -61,7 +61,6 @@
     <h2>Estaciones Meteorológicas</h2>
     <div id="map"></div>
     <div class="stats" id="estacion-stats"></div>
-    <button onclick="downloadExcel()">Descargar datos de temperaturas</button>
 
     <script>
         var map = L.map('map').setView([-34.9214, -57.9544], 10);
@@ -77,25 +76,26 @@
             { id: null, key: null, name: 'Tiempoentuescuela (ILAPLA66)', lat: -34.991, lon: -57.867, wunderground: true }
         ];
 
-        let weeklyData = {};
-
         estaciones.forEach(estacion => {
             if (estacion.wunderground) {
                 L.marker([estacion.lat, estacion.lon]).addTo(map)
                     .bindPopup(`<b>${estacion.name}</b><br><a href='https://www.wunderground.com/dashboard/pws/ILAPLA66' target='_blank'>Ver datos en vivo</a>`);
                 document.getElementById('estacion-stats').innerHTML += `<div class='stat-box'>${estacion.name}<br><a href='https://www.wunderground.com/dashboard/pws/ILAPLA66' target='_blank'>Ver datos</a></div>`;
             } else {
+                // Intentamos obtener los últimos datos
                 fetch(`https://api.thingspeak.com/channels/${estacion.id}/feeds.json?api_key=${estacion.key}&results=168`)
                     .then(response => response.json())
                     .then(data => {
                         const feeds = data.feeds;
+                        let estado = 'Sin datos disponibles';
                         let maxTemp = '--';
                         let minTemp = '--';
                         let variables = '';
 
-                        let stationData = [];
-
                         if (feeds && feeds.length > 0) {
+                            let maxTempVal = -Infinity;
+                            let minTempVal = Infinity;
+
                             feeds.forEach(feed => {
                                 let temp = parseFloat(feed.field1);
                                 let humedad = feed.field2;
@@ -109,31 +109,31 @@
                                     Precipitacion: ${precipitacion ? precipitacion + 'mm' : '--'}<br>
                                 `;
 
-                                let day = fecha.toLocaleDateString();
-
-                                if (!stationData[day]) {
-                                    stationData[day] = { maxTemp: -Infinity, minTemp: Infinity };
-                                }
-
                                 if (!isNaN(temp)) {
-                                    stationData[day].maxTemp = Math.max(stationData[day].maxTemp, temp);
-                                    stationData[day].minTemp = Math.min(stationData[day].minTemp, temp);
+                                    maxTempVal = Math.max(maxTempVal, temp);
+                                    minTempVal = Math.min(minTempVal, temp);
                                 }
                             });
 
-                            // Almacenamos los datos semanales
-                            weeklyData[estacion.name] = stationData;
+                            maxTemp = maxTempVal === -Infinity ? '--' : maxTempVal + '°C';
+                            minTemp = minTempVal === Infinity ? '--' : minTempVal + '°C';
 
-                            // Mostrar los datos
-                            maxTemp = maxTemp === -Infinity ? '--' : maxTemp + '°C';
-                            minTemp = minTemp === Infinity ? '--' : minTemp + '°C';
-
-                            L.marker([estacion.lat, estacion.lon]).addTo(map)
-                                .bindPopup(`<b>${estacion.name}</b><br>Temp Max: ${maxTemp} / Temp Min: ${minTemp}`);
-
+                            estado = `Última medición: ${maxTemp} / ${minTemp}`;
                         } else {
-                            console.log('Sin datos para esta estación');
+                            estado = 'Sin datos disponibles';
                         }
+
+                        // Agregar marcador en el mapa
+                        let marker = L.marker([estacion.lat, estacion.lon]).addTo(map);
+                        marker.bindPopup(`<b>${estacion.name}</b><br>${estado}`);
+
+                        // Agregar cuadrantes
+                        document.getElementById('estacion-stats').innerHTML += `
+                            <div class='stat-box ${estado === 'Sin datos disponibles' ? 'red' : ''}'>
+                                <b>${estacion.name}</b><br>${estado}
+                                <br>${variables}
+                            </div>
+                        `;
 
                         // Agregar máximas y mínimas
                         let weekStats = `<div><b>Temperaturas máximas y mínimas de la última semana</b></div>`;
@@ -142,12 +142,28 @@
                             day.setDate(day.getDate() - i);
                             let dayString = day.toLocaleDateString();
 
+                            let dayData = feeds.filter(feed => {
+                                let feedDate = new Date(feed.created_at);
+                                return feedDate.toLocaleDateString() === dayString;
+                            });
+
                             let dailyMax = '--';
                             let dailyMin = '--';
 
-                            if (stationData[dayString]) {
-                                dailyMax = stationData[dayString].maxTemp === -Infinity ? '--' : stationData[dayString].maxTemp + '°C';
-                                dailyMin = stationData[dayString].minTemp === Infinity ? '--' : stationData[dayString].minTemp + '°C';
+                            if (dayData.length > 0) {
+                                let dailyMaxTemp = -Infinity;
+                                let dailyMinTemp = Infinity;
+
+                                dayData.forEach(feed => {
+                                    let temp = parseFloat(feed.field1);
+                                    if (!isNaN(temp)) {
+                                        dailyMaxTemp = Math.max(dailyMaxTemp, temp);
+                                        dailyMinTemp = Math.min(dailyMinTemp, temp);
+                                    }
+                                });
+
+                                dailyMax = dailyMaxTemp === -Infinity ? '--' : dailyMaxTemp + '°C';
+                                dailyMin = dailyMinTemp === Infinity ? '--' : dailyMinTemp + '°C';
                             }
 
                             weekStats += `
@@ -164,34 +180,6 @@
                     });
             }
         });
-
-        function downloadExcel() {
-            let wb = XLSX.utils.book_new();
-            let sheetData = [];
-
-            // Encabezado
-            let headers = ['Estación', 'Lunes Max', 'Lunes Min', 'Martes Max', 'Martes Min', 'Miércoles Max', 'Miércoles Min', 'Jueves Max', 'Jueves Min', 'Viernes Max', 'Viernes Min', 'Sábado Max', 'Sábado Min', 'Domingo Max', 'Domingo Min'];
-            sheetData.push(headers);
-
-            // Datos de cada estación
-            for (const [station, data] of Object.entries(weeklyData)) {
-                let row = [station];
-                for (let i = 0; i < 7; i++) {
-                    let day = new Date();
-                    day.setDate(day.getDate() - i);
-                    let dayString = day.toLocaleDateString();
-
-                    let dailyMax = data[dayString] ? data[dayString].maxTemp : '--';
-                    let dailyMin = data[dayString] ? data[dayString].minTemp : '--';
-                    row.push(dailyMax, dailyMin);
-                }
-                sheetData.push(row);
-            }
-
-            let ws = XLSX.utils.aoa_to_sheet(sheetData);
-            XLSX.utils.book_append_sheet(wb, ws, 'Temperaturas');
-            XLSX.writeFile(wb, 'Estaciones_Meteorológicas.xlsx');
-        }
     </script>
 </body>
 </html>
