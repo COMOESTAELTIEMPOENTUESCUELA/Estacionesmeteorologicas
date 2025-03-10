@@ -1,94 +1,88 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Mapa de Estaciones con Leaflet y ThingSpeak</title>
+    <title>Mapa de Estaciones con Leaflet y Datos del SMN</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap');
         body {
-            font-family: 'Roboto', sans-serif;
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f4f4;
             margin: 0;
             padding: 0;
-            background-color: #f4f4f4;
-            color: #333;
-        }
-        header {
-            background: #005f73;
-            color: white;
             text-align: center;
-            padding: 15px;
-        }
-        .container {
-            width: 90%;
-            max-width: 1200px;
-            margin: auto;
-            padding: 20px;
         }
         #map {
             height: 500px;
-            border-radius: 8px;
-            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+            width: 80%;
+            margin: auto;
+            border-radius: 10px;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
         }
         .stats {
-            display: flex;
-            justify-content: space-around;
-            margin: 20px 0;
+            margin: 20px auto;
+            padding: 10px;
+            background: #fff;
+            display: inline-block;
+            border-radius: 10px;
+            box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
         }
         .stat-box {
-            background: #e9c46a;
             padding: 15px;
-            border-radius: 8px;
-            text-align: center;
-            font-weight: bold;
-            flex: 1;
             margin: 5px;
-        }
-        .logo {
-            display: block;
-            margin: 10px auto;
-            width: 150px;
+            background: #007bff;
+            color: white;
+            display: inline-block;
+            border-radius: 5px;
+            font-weight: bold;
         }
     </style>
 </head>
 <body>
-    <header>
-        <img src="Logo1.jpg" alt="Logo del Proyecto" class="logo">
-        <h1>Estaciones Meteorológicas</h1>
-    </header>
-    <div class="container">
-        <div class="stats">
-            <div class="stat-box" id="temp">Temperatura: --°C</div>
-            <div class="stat-box" id="humedad">Humedad: --%</div>
-            <div class="stat-box" id="presion">Presión: -- hPa</div>
-            <div class="stat-box" id="lluvia">Precipitación: -- mm</div>
-        </div>
-        <div id="map"></div>
+    <h2>Estaciones de ThingSpeak y SMN en el Mapa</h2>
+    <div class="stats">
+        <div class="stat-box" id="max-temp">Temp Máx: --°C</div>
+        <div class="stat-box" id="min-temp">Temp Mín: --°C</div>
     </div>
+    <div id="map"></div>
+    
     <script>
-        var map = L.map('map').setView([-34.9436, -57.8944], 13);
+        var map = L.map('map').setView([-34.9214, -57.9544], 13); // Coordenadas de La Plata
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap contributors'
         }).addTo(map);
 
-        const url = 'https://api.thingspeak.com/channels/2685796/feeds.json?api_key=P3H82TMM9GH1NS26&results=2';
+        // Datos de la estación del SMN en La Plata
+        var smnStation = {
+            name: "Estación SMN La Plata",
+            lat: -34.9214,
+            lon: -57.9544,
+            temperature: 25.3 // Ejemplo de temperatura actual
+        };
+
+        // Agregar marcador para la estación del SMN
+        var smnMarker = L.marker([smnStation.lat, smnStation.lon]).addTo(map);
+        smnMarker.bindPopup(`<b>${smnStation.name}</b><br>Temperatura: ${smnStation.temperature}°C`);
+
+        // URL de la API de ThingSpeak con el Channel ID proporcionado
+        const url = 'https://api.thingspeak.com/channels/2685796/feeds.json?api_key=P3H82TMM9GH1NS26&results=288';
+
         fetch(url)
             .then(response => response.json())
             .then(data => {
-                const temp = data.feeds[0].field1;
-                const humedad = data.feeds[0].field2;
-                const presion = data.feeds[0].field3;
-                const lluvia = data.feeds[0].field4;
-
-                document.getElementById('temp').innerText = `Temperatura: ${temp}°C`;
-                document.getElementById('humedad').innerText = `Humedad: ${humedad}%`;
-                document.getElementById('presion').innerText = `Presión: ${presion} hPa`;
-                document.getElementById('lluvia').innerText = `Precipitación: ${lluvia} mm`;
-
-                var marker = L.marker([-34.9436, -57.8944]).addTo(map);
-                marker.bindPopup(`<b>Estación Meteorológica</b><br>Temp: ${temp}°C<br>Humedad: ${humedad}%`).openPopup();
+                let temps = data.feeds.map(entry => parseFloat(entry.field1)).filter(temp => !isNaN(temp));
+                let maxTemp = Math.max(...temps);
+                let minTemp = Math.min(...temps);
+                
+                document.getElementById('max-temp').innerText = `Temp Máx: ${maxTemp.toFixed(1)}°C`;
+                document.getElementById('min-temp').innerText = `Temp Mín: ${minTemp.toFixed(1)}°C`;
+                
+                let latestTemp = temps[temps.length - 1];
+                let marker = L.marker([-34.9436, -57.8944]).addTo(map);
+                marker.bindPopup(`<b>Última Temperatura</b><br>${latestTemp}°C`);
             })
-            .catch(error => console.error('Error al obtener los datos:', error));
+            .catch(error => console.error('Error al obtener datos:', error));
     </script>
 </body>
 </html>
+
