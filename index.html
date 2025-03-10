@@ -87,10 +87,7 @@
                     .then(data => {
                         const feeds = data.feeds;
                         let estado = 'Sin datos disponibles';
-                        let maxTemp = '--';
-                        let minTemp = '--';
                         let variables = '';
-                        let lastUpdate = '';
 
                         if (feeds && feeds.length > 0) {
                             let maxTempVal = -Infinity;
@@ -102,7 +99,6 @@
                                 let presion = feed.field3;
                                 let precipitacion = feed.field4;
                                 let fecha = new Date(feed.created_at);
-                                lastUpdate = `Fecha de la última medición: ${fecha.toLocaleString()}`;
                                 variables = `
                                     Temp: ${temp ? temp + '°C' : '--'}<br>
                                     Humedad: ${humedad ? humedad + '%' : '--'}<br>
@@ -116,28 +112,24 @@
                                 }
                             });
 
-                            maxTemp = maxTempVal === -Infinity ? '--' : maxTempVal + '°C';
-                            minTemp = minTempVal === Infinity ? '--' : minTempVal + '°C';
-
-                            estado = `Última medición: ${maxTemp} / ${minTemp}`;
+                            estado = `Última medición: ${maxTempVal === -Infinity ? '--' : maxTempVal + '°C'} / ${minTempVal === Infinity ? '--' : minTempVal + '°C'}`;
                         } else {
                             estado = 'Sin datos disponibles';
                         }
 
                         // Agregar marcador en el mapa
                         let marker = L.marker([estacion.lat, estacion.lon]).addTo(map);
-                        marker.bindPopup(`<b>${estacion.name}</b><br>${estado}<br>${lastUpdate}<br>${variables}`);
+                        marker.bindPopup(`<b>${estacion.name}</b><br>${estado}`);
 
                         // Agregar cuadrantes
                         document.getElementById('estacion-stats').innerHTML += `
                             <div class='stat-box ${estado === 'Sin datos disponibles' ? 'red' : ''}'>
                                 <b>${estacion.name}</b><br>${estado}
-                                <br>${lastUpdate}
                                 <br>${variables}
                             </div>
                         `;
 
-                        // Agregar máximas y mínimas
+                        // Agregar máximas y mínimas en la hoja de cálculo
                         let weekStats = `<div><b>Temperaturas máximas y mínimas de la última semana</b></div>`;
                         for (let i = 0; i < 7; i++) {
                             let day = new Date();
@@ -185,4 +177,3 @@
     </script>
 </body>
 </html>
-
