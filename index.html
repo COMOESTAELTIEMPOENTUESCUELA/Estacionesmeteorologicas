@@ -75,6 +75,8 @@
     <img src="https://drive.google.com/uc?export=view&id=1Si5qBOsQiFPGyYMiQ8mXPEYJE-YLbhd5" class="logo" alt="Logo">
     <h2>Estaciones Meteorológicas</h2>
     <div id="map"></div>
+
+    <!-- Cuadrantes de las estaciones -->
     <div class="stats" id="estacion-stats"></div>
 
     <div class="table-container">
@@ -161,11 +163,23 @@
                         // Agregar marcador al mapa con todas las variables
                         L.marker([estacion.lat, estacion.lon]).addTo(map)
                             .bindPopup(`<b>${estacion.name}</b><br>
-                                Temperatura máxima: ${temperaturesByDay.Monday.max}°C, Mínima: ${temperaturesByDay.Monday.min}°C<br>
+                                Temperatura: ${variables.temperature.length ? variables.temperature[variables.temperature.length - 1] : '--'}°C<br>
                                 Humedad: ${variables.humidity.length ? variables.humidity[variables.humidity.length - 1] : '--'}%<br>
                                 Presión: ${variables.pressure.length ? variables.pressure[variables.pressure.length - 1] : '--'} hPa<br>
                                 Precipitación: ${variables.precipitation.length ? variables.precipitation[variables.precipitation.length - 1] : '--'} mm
                             `);
+
+                        // Cuadrantes de datos
+                        const colorClass = data.feeds.length > 0 ? '' : 'offline'; // Si no hay datos, poner en rojo
+                        document.getElementById('estacion-stats').innerHTML += `
+                            <div class="stat-box ${colorClass}">
+                                <b>${estacion.name}</b><br>
+                                Temperatura: ${variables.temperature.length ? variables.temperature[variables.temperature.length - 1] : '--'}°C<br>
+                                Humedad: ${variables.humidity.length ? variables.humidity[variables.humidity.length - 1] : '--'}%<br>
+                                Presión: ${variables.pressure.length ? variables.pressure[variables.pressure.length - 1] : '--'} hPa<br>
+                                Precipitación: ${variables.precipitation.length ? variables.precipitation[variables.precipitation.length - 1] : '--'} mm
+                            </div>
+                        `;
 
                         // Agregar fila a la tabla de temperaturas
                         let row = `<tr>
@@ -185,3 +199,4 @@
     </script>
 </body>
 </html>
+
