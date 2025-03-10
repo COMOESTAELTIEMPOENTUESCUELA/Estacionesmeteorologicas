@@ -59,11 +59,7 @@
 </head>
 <body>
     <h2>Estaciones meteorologicas automaticas</h2>
-    <div class="stats">
-        <div class="stat-box" id="temp">Temp Máx: --°C | Temp Mín: --°C</div>
-        <div class="stat-box" id="hum">Humedad Máx: --% | Humedad Mín: --%</div>
-        <div class="stat-box" id="prec">Precipitación Total: -- mm</div>
-    </div>
+
     
     <div id="map"></div>
     
@@ -107,12 +103,7 @@
                         var marker = L.marker([estacion.lat, estacion.lon]).addTo(map);
                         marker.bindPopup(`<b>${estacion.name}</b><br>Temp: ${temp}°C<br>Humedad: ${hum}%<br>Precipitación: ${prec} mm`);
 
-                        // Actualizar las estadísticas generales
-                        maxTemp = Math.max(maxTemp, temp);
-                        minTemp = Math.min(minTemp, temp);
-                        maxHum = Math.max(maxHum, hum);
-                        minHum = Math.min(minHum, hum);
-                        totalPrec += parseFloat(prec);
+                    
 
                         // Verificar si la estación está caída
                         const timeDifference = (new Date() - new Date(lastUpdate)) / 1000 / 3600;
