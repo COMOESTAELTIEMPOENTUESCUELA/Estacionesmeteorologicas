@@ -47,22 +47,32 @@
     <div id="map"></div>
     
     <script>
-        var map = L.map('map').setView([-34.9214, -57.9544], 13); // Coordenadas de La Plata
+        var map = L.map('map').setView([-34.9214, -57.9544], 10); // Coordenadas de La Plata
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap contributors'
         }).addTo(map);
 
-        // Datos de la estación del SMN en La Plata
-        var smnStation = {
-            name: "Estación SMN La Plata",
-            lat: -34.9214,
-            lon: -57.9544,
-            temperature: 25.3 // Ejemplo de temperatura actual
-        };
+        // Datos de las estaciones del SMN
+        var smnStations = [
+            {
+                name: "Estación SMN La Plata Aero",
+                lat: -34.9722,
+                lon: -57.8947,
+                temperature: 25.3 // Reemplaza con la temperatura actual
+            },
+            {
+                name: "Estación SMN Punta Indio",
+                lat: -35.2833,
+                lon: -57.2333,
+                temperature: 24.8 // Reemplaza con la temperatura actual
+            }
+        ];
 
-        // Agregar marcador para la estación del SMN
-        var smnMarker = L.marker([smnStation.lat, smnStation.lon]).addTo(map);
-        smnMarker.bindPopup(`<b>${smnStation.name}</b><br>Temperatura: ${smnStation.temperature}°C`);
+        // Agregar marcadores para las estaciones del SMN
+        smnStations.forEach(function(station) {
+            var marker = L.marker([station.lat, station.lon]).addTo(map);
+            marker.bindPopup(`<b>${station.name}</b><br>Temperatura: ${station.temperature}°C`);
+        });
 
         // URL de la API de ThingSpeak con el Channel ID proporcionado
         const url = 'https://api.thingspeak.com/channels/2685796/feeds.json?api_key=P3H82TMM9GH1NS26&results=288';
@@ -85,4 +95,3 @@
     </script>
 </body>
 </html>
-
