@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -10,22 +11,59 @@
             margin: 0;
             padding: 20px;
             background-color: #f4f4f4;
+            color: #333;
         }
         h1 {
             text-align: center;
+            color: #2c3e50;
         }
-        #datos, #graficos, #mapa {
-            margin: 20px 0;
-            padding: 20px;
+        .container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .estacion {
             background-color: #fff;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            text-align: center;
+        }
+        .estacion h2 {
+            margin-top: 0;
+            color: #34495e;
+        }
+        .datos {
+            margin: 10px 0;
+        }
+        .datos p {
+            margin: 5px 0;
+            font-size: 18px;
         }
         canvas {
             max-width: 100%;
+            margin-top: 20px;
         }
         #mapa {
+            grid-column: span 2;
             height: 400px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
+        }
+        .graficos {
+            grid-column: span 2;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+        .grafico {
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            padding: 20px;
         }
     </style>
     <!-- Chart.js -->
@@ -36,68 +74,112 @@
 <body>
     <h1>Estaciones Meteorológicas en Tiempo Real</h1>
 
-    <div id="datos">
-        <h2>Datos en Tiempo Real</h2>
-        <p>Cargando datos...</p>
-    </div>
+    <div class="container">
+        <!-- Estación 1 -->
+        <div class="estacion" id="estacion1">
+            <h2>Estación 1</h2>
+            <div class="datos">
+                <p>Temperatura: <span id="temp1">Cargando...</span> °C</p>
+                <p>Humedad: <span id="hum1">Cargando...</span> %</p>
+                <p>Presión: <span id="pres1">Cargando...</span> hPa</p>
+            </div>
+        </div>
 
-    <div id="graficos">
-        <h2>Gráficos</h2>
-        <canvas id="myChart"></canvas>
-    </div>
+        <!-- Estación 2 -->
+        <div class="estacion" id="estacion2">
+            <h2>Estación 2</h2>
+            <div class="datos">
+                <p>Temperatura: <span id="temp2">Cargando...</span> °C</p>
+                <p>Humedad: <span id="hum2">Cargando...</span> %</p>
+                <p>Presión: <span id="pres2">Cargando...</span> hPa</p>
+            </div>
+        </div>
 
-    <div id="mapa">
-        <h2>Ubicación de las Estaciones</h2>
+        <!-- Estación 3 -->
+        <div class="estacion" id="estacion3">
+            <h2>Estación 3</h2>
+            <div class="datos">
+                <p>Temperatura: <span id="temp3">Cargando...</span> °C</p>
+                <p>Humedad: <span id="hum3">Cargando...</span> %</p>
+                <p>Presión: <span id="pres3">Cargando...</span> hPa</p>
+            </div>
+        </div>
+
+        <!-- Estación 4 -->
+        <div class="estacion" id="estacion4">
+            <h2>Estación 4</h2>
+            <div class="datos">
+                <p>Temperatura: <span id="temp4">Cargando...</span> °C</p>
+                <p>Humedad: <span id="hum4">Cargando...</span> %</p>
+                <p>Presión: <span id="pres4">Cargando...</span> hPa</p>
+            </div>
+        </div>
+
+        <!-- Gráficos -->
+        <div class="graficos">
+            <div class="grafico">
+                <h3>Gráfico de Temperatura</h3>
+                <canvas id="chartTemp"></canvas>
+            </div>
+            <div class="grafico">
+                <h3>Gráfico de Humedad</h3>
+                <canvas id="chartHum"></canvas>
+            </div>
+        </div>
+
+        <!-- Mapa -->
+        <div id="mapa">
+            <h2>Ubicación de las Estaciones</h2>
+        </div>
     </div>
 
     <script>
-        // Configuración de ThingSpeak (reemplaza con tu Channel ID y API Key)
-        const channelId = '2685796';
-        const apiKey = 'P3H82TMM9GH1NS26';
-        const apiUrl = `https://api.thingspeak.com/channels/2685796/feeds.json?results=2`;
+        // Configuración de ThingSpeak (reemplaza con tus Channel IDs y API Keys)
+        const estaciones = [
+            { id: '2685796', apiKey: 'P3H82TMM9GH1NS26', tempId: 'temp1', humId: 'hum1', presId: 'pres1' },
+            { id: 'ESTACION2_CHANNEL_ID', apiKey: 'ESTACION2_API_KEY', tempId: 'temp2', humId: 'hum2', presId: 'pres2' },
+            { id: 'ESTACION3_CHANNEL_ID', apiKey: 'ESTACION3_API_KEY', tempId: 'temp3', humId: 'hum3', presId: 'pres3' },
+            { id: 'ESTACION4_CHANNEL_ID', apiKey: 'ESTACION4_API_KEY', tempId: 'temp4', humId: 'hum4', presId: 'pres4' }
+        ];
 
-        // Función para obtener y mostrar los datos
-        async function fetchData() {
+        // Función para obtener y mostrar los datos de una estación
+        async function fetchData(estacion) {
             try {
+                const apiUrl = `https://api.thingspeak.com/channels/2685796/feeds.json?results=2`;
                 const response = await fetch(apiUrl);
                 const data = await response.json();
                 const feeds = data.feeds[0];
 
                 // Mostrar los datos en la página
-                document.getElementById('datos').innerHTML = `
-                    <h2>Datos en Tiempo Real</h2>
-                    <p>Temperatura: ${feeds.field1} °C</p>
-                    <p>Humedad: ${feeds.field2} %</p>
-                    <p>Presión: ${feeds.field3} hPa</p>
-                `;
-
-                // Actualizar el gráfico
-                updateChart([feeds.field1, feeds.field2, feeds.field3]);
+                document.getElementById(estacion.tempId).textContent = feeds.field1 || 'N/A';
+                document.getElementById(estacion.humId).textContent = feeds.field2 || 'N/A';
+                document.getElementById(estacion.presId).textContent = feeds.field3 || 'N/A';
             } catch (error) {
-                console.error('Error fetching data:', error);
-                document.getElementById('datos').innerHTML = `<p>Error al cargar los datos.</p>`;
+                console.error(`Error fetching data for ${estacion.id}:`, error);
+                document.getElementById(estacion.tempId).textContent = 'Error';
+                document.getElementById(estacion.humId).textContent = 'Error';
+                document.getElementById(estacion.presId).textContent = 'Error';
+            }
+        }
+
+        // Función para actualizar los datos de todas las estaciones
+        async function updateAllData() {
+            for (const estacion of estaciones) {
+                await fetchData(estacion);
             }
         }
 
         // Configuración del gráfico con Chart.js
-        const ctx = document.getElementById('myChart').getContext('2d');
-        const myChart = new Chart(ctx, {
+        const ctxTemp = document.getElementById('chartTemp').getContext('2d');
+        const chartTemp = new Chart(ctxTemp, {
             type: 'line',
             data: {
-                labels: ['Temperatura', 'Humedad', 'Presión'],
+                labels: ['Estación 1', 'Estación 2', 'Estación 3', 'Estación 4'],
                 datasets: [{
-                    label: 'Datos en Tiempo Real',
+                    label: 'Temperatura (°C)',
                     data: [],
-                    backgroundColor: [
-                        'rgba(255, 99, 132, 0.2)',
-                        'rgba(54, 162, 235, 0.2)',
-                        'rgba(75, 192, 192, 0.2)'
-                    ],
-                    borderColor: [
-                        'rgba(255, 99, 132, 1)',
-                        'rgba(54, 162, 235, 1)',
-                        'rgba(75, 192, 192, 1)'
-                    ],
+                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
                     borderWidth: 1
                 }]
             },
@@ -110,10 +192,36 @@
             }
         });
 
-        // Función para actualizar el gráfico
-        function updateChart(data) {
-            myChart.data.datasets[0].data = data;
-            myChart.update();
+        const ctxHum = document.getElementById('chartHum').getContext('2d');
+        const chartHum = new Chart(ctxHum, {
+            type: 'line',
+            data: {
+                labels: ['Estación 1', 'Estación 2', 'Estación 3', 'Estación 4'],
+                datasets: [{
+                    label: 'Humedad (%)',
+                    data: [],
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        // Función para actualizar los gráficos
+        function updateCharts() {
+            const temps = estaciones.map(e => parseFloat(document.getElementById(e.tempId).textContent || 0);
+            const hums = estaciones.map(e => parseFloat(document.getElementById(e.humId).textContent || 0);
+            chartTemp.data.datasets[0].data = temps;
+            chartHum.data.datasets[0].data = hums;
+            chartTemp.update();
+            chartHum.update();
         }
 
         // Configuración del mapa con Google Maps
@@ -123,19 +231,24 @@
                 zoom: 8
             });
 
-            // Marcador para la estación meteorológica
-            new google.maps.Marker({
-                position: { lat: -34.397, lng: 150.644 }, // Coordenadas de ejemplo
-                map: map,
-                title: 'Estación Meteorológica'
+            // Marcadores para las estaciones (coordenadas de ejemplo)
+            estaciones.forEach((estacion, index) => {
+                new google.maps.Marker({
+                    position: { lat: -34.397 + index * 0.1, lng: 150.644 + index * 0.1 }, // Ajusta las coordenadas
+                    map: map,
+                    title: `Estación ${index + 1}`
+                });
             });
         }
 
         // Llamar a la función para obtener los datos al cargar la página
-        fetchData();
+        updateAllData().then(updateCharts);
 
-        // Actualizar los datos cada 60 segundos
-        setInterval(fetchData, 60000);
+        // Actualizar los datos y gráficos cada 60 segundos
+        setInterval(async () => {
+            await updateAllData();
+            updateCharts();
+        }, 60000);
     </script>
 </body>
 </html>
