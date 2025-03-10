@@ -1,7 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-    <title>Mapa de Estaciones</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa de Estaciones Meteorológicas</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <style>
@@ -41,35 +43,29 @@
             width: 200px;
             text-align: center;
         }
-        .max-min {
-            margin-top: 20px;
-            font-size: 18px;
-            width: 90%;
-            margin: 20px auto;
-            background-color: #fff;
+        .table-container {
+            margin-top: 30px;
             padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
-            overflow-x: auto;
+            border: 2px solid #007bff;
+            border-radius: 8px;
+            width: 80%;
+            margin: auto;
+            background-color: #ffffff;
         }
-        .max-min table {
+        table {
             width: 100%;
             border-collapse: collapse;
         }
-        .max-min th, .max-min td {
-            padding: 10px;
+        table, th, td {
             border: 1px solid #ddd;
+        }
+        th, td {
+            padding: 8px;
             text-align: center;
         }
-        .max-min th {
+        th {
             background-color: #007bff;
             color: white;
-        }
-        .max-min tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-        .red {
-            background-color: red;
         }
     </style>
 </head>
@@ -78,20 +74,26 @@
     <h2>Estaciones Meteorológicas</h2>
     <div id="map"></div>
     <div class="stats" id="estacion-stats"></div>
-    <div class="max-min" id="max-min-temps">
+
+    <!-- Contenedor para la tabla de temperaturas -->
+    <div class="table-container">
+        <h3>Temperaturas Máximas y Mínimas por Día</h3>
         <table>
             <thead>
                 <tr>
-                    <th>Día</th>
-                    <th>Fecha</th>
-                    <th>Escuela 23 (Máx/Mín)</th>
-                    <th>Estación EMA (Máx/Mín)</th>
-                    <th>Escuela 34 (Máx/Mín)</th>
-                    <th>Colegio San Vicente (Máx/Mín)</th>
-                    <th>Tiempoentuescuela (Máx/Mín)</th>
+                    <th>Estación</th>
+                    <th>Lunes</th>
+                    <th>Martes</th>
+                    <th>Miércoles</th>
+                    <th>Jueves</th>
+                    <th>Viernes</th>
+                    <th>Sábado</th>
+                    <th>Domingo</th>
                 </tr>
             </thead>
-            <tbody id="max-min-body"></tbody>
+            <tbody id="temperature-table">
+                <!-- Las filas se llenarán dinámicamente aquí -->
+            </tbody>
         </table>
     </div>
 
@@ -109,93 +111,61 @@
             { id: null, key: null, name: 'Tiempoentuescuela (ILAPLA66)', lat: -34.991, lon: -57.867, wunderground: true }
         ];
 
-        // Función para obtener el nombre del día de la semana
-        function getDayName(date) {
-            const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-            return days[date.getDay()];
+        // Función para obtener el día de la semana (lunes, martes, etc.)
+        function getDayOfWeek(date) {
+            const daysOfWeek = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+            return daysOfWeek[new Date(date).getDay()];
         }
 
-        // Función para obtener los datos de una estación
-        async function fetchStationData(estacion) {
-            if (estacion.wunderground) {
-                return { name: estacion.name, data: null };
-            } else {
-                try {
-                    const response = await fetch(`https://api.thingspeak.com/channels/${estacion.id}/feeds.json?api_key=${estacion.key}&results=168`);
-                    const data = await response.json();
-                    return { name: estacion.name, data: data.feeds };
-                } catch (error) {
-                    console.error(`Error obteniendo datos de ${estacion.name}:`, error);
-                    return { name: estacion.name, data: null };
-                }
-            }
-        }
-
-        // Función para calcular máximas y mínimas por día
-        function calculateDailyMaxMin(feeds) {
-            const dailyData = {};
-            feeds.forEach(feed => {
-                const date = new Date(feed.created_at).toLocaleDateString();
-                const temp = parseFloat(feed.field1);
-                if (!isNaN(temp)) {
-                    if (!dailyData[date]) {
-                        dailyData[date] = { max: -Infinity, min: Infinity };
-                    }
-                    dailyData[date].max = Math.max(dailyData[date].max, temp);
-                    dailyData[date].min = Math.min(dailyData[date].min, temp);
-                }
-            });
-            return dailyData;
-        }
-
-        // Función para renderizar la tabla de máximas y mínimas
-        function renderMaxMinTable(stationData) {
-            const tableBody = document.getElementById('max-min-body');
-            tableBody.innerHTML = '';
-
-            // Obtener todos los días únicos
-            const allDays = new Set();
-            stationData.forEach(station => {
-                if (station.data) {
-                    Object.keys(calculateDailyMaxMin(station.data)).forEach(day => allDays.add(day));
-                }
-            });
-
-            // Convertir a array y ordenar
-            const sortedDays = Array.from(allDays).sort((a, b) => new Date(a) - new Date(b));
-
-            // Renderizar filas
-            sortedDays.forEach(day => {
-                const date = new Date(day);
-                const dayName = getDayName(date);
-                const row = document.createElement('tr');
-                row.innerHTML = `<td>${dayName}</td><td>${day}</td>`;
-
-                stationData.forEach(station => {
-                    if (station.data) {
-                        const dailyData = calculateDailyMaxMin(station.data);
-                        const dayData = dailyData[day] || { max: '--', min: '--' };
-                        const max = dayData.max !== -Infinity ? dayData.max.toFixed(1) + '°C' : '--';
-                        const min = dayData.min !== Infinity ? dayData.min.toFixed(1) + '°C' : '--';
-                        row.innerHTML += `<td>${max} / ${min}</td>`;
-                    } else {
-                        row.innerHTML += `<td>-- / --</td>`;
-                    }
-                });
-
-                tableBody.appendChild(row);
-            });
-        }
-
-        // Cargar datos de todas las estaciones y renderizar la tabla
-        Promise.all(estaciones.map(fetchStationData)).then(stationData => {
-            renderMaxMinTable(stationData);
-        });
-
-        // Agregar marcadores al mapa
         estaciones.forEach(estacion => {
-            L.marker([estacion.lat, estacion.lon]).addTo(map)
-                .bindPopup(`<b>${estacion.name}</b>`);
+            if (estacion.wunderground) {
+                L.marker([estacion.lat, estacion.lon]).addTo(map)
+                    .bindPopup(`<b>${estacion.name}</b><br><a href='https://www.wunderground.com/dashboard/pws/ILAPLA66' target='_blank'>Ver datos en vivo</a>`);
+                document.getElementById('estacion-stats').innerHTML += `<div class='stat-box'>${estacion.name}<br><a href='https://www.wunderground.com/dashboard/pws/ILAPLA66' target='_blank'>Ver datos</a></div>`;
+            } else {
+                // Intentamos obtener los últimos datos
+                fetch(`https://api.thingspeak.com/channels/${estacion.id}/feeds.json?api_key=${estacion.key}&results=7`)
+                    .then(response => response.json())
+                    .then(data => {
+                        const feeds = data.feeds;
+                        const temperatures = { lunes: '--', martes: '--', miercoles: '--', jueves: '--', viernes: '--', sabado: '--', domingo: '--' };
+
+                        feeds.forEach(feed => {
+                            const fecha = new Date(feed.created_at);
+                            const dayOfWeek = getDayOfWeek(fecha);
+
+                            // Almacenar las temperaturas máximas y mínimas
+                            if (feed.field1 && feed.field2) {
+                                const tempMax = Math.max(parseFloat(feed.field1), parseFloat(feed.field2));
+                                const tempMin = Math.min(parseFloat(feed.field1), parseFloat(feed.field2));
+                                temperatures[dayOfWeek.toLowerCase()] = `Max: ${tempMax}°C, Min: ${tempMin}°C`;
+                            }
+                        });
+
+                        // Crear la fila de la estación y las temperaturas para la tabla
+                        const row = `<tr>
+                            <td>${estacion.name}</td>
+                            <td>${temperatures.lunes}</td>
+                            <td>${temperatures.martes}</td>
+                            <td>${temperatures.miercoles}</td>
+                            <td>${temperatures.jueves}</td>
+                            <td>${temperatures.viernes}</td>
+                            <td>${temperatures.sabado}</td>
+                            <td>${temperatures.domingo}</td>
+                        </tr>`;
+
+                        // Agregar la fila a la tabla
+                        document.getElementById('temperature-table').innerHTML += row;
+
+                        // Agregar marcador en el mapa
+                        L.marker([estacion.lat, estacion.lon]).addTo(map)
+                            .bindPopup(`<b>${estacion.name}</b><br>Temperaturas de la semana`);
+                    })
+                    .catch(error => {
+                        console.error(`Error obteniendo datos de ${estacion.name}:`, error);
+                        document.getElementById('estacion-stats').innerHTML += `<div class='stat-box'><b>${estacion.name}</b><br>Fuera de servicio</div>`;
+                    });
+            }
         });
     </script>
 </body>
