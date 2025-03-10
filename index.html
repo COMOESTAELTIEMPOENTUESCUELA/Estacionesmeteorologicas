@@ -88,7 +88,15 @@
 <body>
     <h2>Temperaturas actuales de las estaciones de la red</h2>
     <div id="map"></div>
+
+    <!-- Información de las estaciones -->
     <div id="info"></div>
+
+    <!-- Elementos para las estadísticas generales -->
+    <div id="temp"></div>
+    <div id="hum"></div>
+    <div id="prec"></div>
+
     <div class="quad-container" id="quadContainer"></div>
 
     <script>
@@ -157,47 +165,27 @@
 
                 // Actualizar área de información sobre el mapa
                 document.getElementById('info').innerHTML = contenido;
-
-                // Actualizar estadísticas generales
                 document.getElementById('temp').innerHTML = `Temp Máx: ${maxTemp}°C | Temp Mín: ${minTemp}°C`;
                 document.getElementById('hum').innerHTML = `Humedad Máx: ${maxHum}% | Humedad Mín: ${minHum}%`;
                 document.getElementById('prec').innerHTML = `Precipitación Total: ${totalPrec} mm`;
 
-                // Agregar los marcadores en el mapa
+                // Cuadrantes de estaciones
+                const cuadrantesContainer = document.getElementById('quadContainer');
+                cuadrantesContainer.innerHTML = '';  // Limpiar antes de agregar
                 datos.forEach(estacion => {
-                    var marker = L.marker([estacion.lat, estacion.lon]).addTo(map);
-                    marker.bindPopup(`<b>${estacion.name}</b><br>Temp: ${estacion.temp}°C<br>Última medición: ${estacion.lastUpdate}`);
+                    const timeDifference = (new Date() - new Date(estacion.lastUpdate)) / 1000 / 3600;
+                    const cuadrante = document.createElement('div');
+                    cuadrante.classList.add('quad-box');
+                    cuadrante.innerHTML = `
+                        <h3>${estacion.name}</h3>
+                        <p>Temp: ${estacion.temp}°C</p>
+                        <p>Humedad: ${estacion.hum}%</p>
+                        <p>Precipitación: ${estacion.prec} mm</p>
+                        <p><b>Última medición:</b> ${estacion.lastUpdate}</p>
+                        <p class="status ${timeDifference <= 6 ? 'ok' : 'error'}">${timeDifference <= 6 ? 'EMA operativa' : 'EMA caída'}</p>
+                    `;
+                    cuadrantesContainer.appendChild(cuadrante);
                 });
-
-                // Mostrar los cuadrantes con los datos
-                mostrarCuadrantes(datos);
-            });
-        }
-
-        // Mostrar cuadrantes con datos de las estaciones
-        function mostrarCuadrantes(datos) {
-            const cuadrantesContainer = document.getElementById('quadContainer');
-            cuadrantesContainer.innerHTML = ''; // Limpiar el contenedor
-
-            datos.forEach(estacion => {
-                const lastUpdateDate = new Date(estacion.lastUpdate);
-                const currentDate = new Date();
-                const timeDifference = (currentDate - lastUpdateDate) / (1000 * 60 * 60); // Diferencia en horas
-
-                // Crear el elemento del cuadrante
-                const cuadrante = document.createElement('div');
-                cuadrante.classList.add('quad-box');
-                cuadrante.innerHTML = `
-                    <h3>${estacion.name}</h3>
-                    <p>Temp: ${estacion.temp}°C</p>
-                    <p>Humedad: ${estacion.hum}%</p>
-                    <p>Precipitación: ${estacion.prec} mm</p>
-                    <p><b>Última medición:</b> ${estacion.lastUpdate}</p>
-                    <p class="status ${timeDifference <= 6 ? 'ok' : 'error'}">${timeDifference <= 6 ? 'EMA operativa' : 'EMA caída'}</p>
-                `;
-
-                // Agregar al contenedor de cuadrantes
-                cuadrantesContainer.appendChild(cuadrante);
             });
         }
 
@@ -206,5 +194,6 @@
     </script>
 </body>
 </html>
+
 
 
