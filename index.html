@@ -52,11 +52,13 @@
             attribution: '&copy; OpenStreetMap contributors'
         }).addTo(map);
 
-        // Estaciones actualizadas
+        // Estaciones existentes y nuevas
         const estaciones = [
             { id: 2218686, key: 'JUXJQRZMFFAS037Z', name: 'Escuela 23', lat: -35.025972, lon: -57.752972 }, // Nueva ubicación Escuela 23
             { id: null, key: 'TH3V4TJLRFZD3JSG', name: 'San Vicente de Paul', lat: -34.95, lon: -57.92 },
-            { id: 2218689, key: 'ZLNOSLZJPQM3H7SD', name: 'Escuela 34', lat: -35.072583, lon: -57.865778 }  // Nueva ubicación Escuela 34
+            { id: 2218689, key: 'ZLNOSLZJPQM3H7SD', name: 'Escuela 34', lat: -35.072583, lon: -57.865778 },  // Nueva ubicación Escuela 34
+            { id: 2218690, key: 'ABC123XYZ987', name: 'Estación A', lat: -34.95, lon: -57.85 },
+            { id: 2218691, key: 'DEF456UVW654', name: 'Estación B', lat: -34.96, lon: -57.87 }
         ];
 
         estaciones.forEach(estacion => {
@@ -70,6 +72,18 @@
                 })
                 .catch(error => console.error(`Error al obtener datos de ${estacion.name}:`, error));
         });
+
+        // Para la temperatura máxima y mínima
+        function updateMaxMinTemp() {
+            // Llamadas a la API o cálculo de los valores de temperatura máxima y mínima
+            const maxTemp = 30;  // Aquí debes reemplazar por la lógica para obtener la temp máxima
+            const minTemp = 15;  // Aquí debes reemplazar por la lógica para obtener la temp mínima
+
+            document.getElementById('max-temp').textContent = `Temp Máx: ${maxTemp}°C`;
+            document.getElementById('min-temp').textContent = `Temp Mín: ${minTemp}°C`;
+        }
+
+        updateMaxMinTemp();  // Actualiza las temperaturas al cargar la página
     </script>
 </body>
 </html>
