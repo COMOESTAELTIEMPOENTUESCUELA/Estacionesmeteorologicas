@@ -131,25 +131,43 @@
                             Sunday: { max: -Infinity, min: Infinity },
                         };
 
+                        let variables = {
+                            temperature: [],
+                            humidity: [],
+                            pressure: [],
+                            precipitation: []
+                        };
+
                         // Recorrer los datos y obtener las temperaturas
                         data.feeds.forEach(feed => {
                             const temp = parseFloat(feed.field1);
-                            if (!isNaN(temp)) {
-                                const date = new Date(feed.created_at);
-                                const dayOfWeek = date.toLocaleString('en-us', { weekday: 'long' }); // Obtener el día de la semana
+                            const humidity = parseFloat(feed.field2);
+                            const pressure = parseFloat(feed.field3);
+                            const precipitation = parseFloat(feed.field4);
+                            const date = new Date(feed.created_at);
+                            const dayOfWeek = date.toLocaleString('en-us', { weekday: 'long' });
 
+                            if (!isNaN(temp)) {
                                 if (temperaturesByDay[dayOfWeek]) {
                                     if (temp > temperaturesByDay[dayOfWeek].max) temperaturesByDay[dayOfWeek].max = temp;
                                     if (temp < temperaturesByDay[dayOfWeek].min) temperaturesByDay[dayOfWeek].min = temp;
                                 }
                             }
+                            if (!isNaN(humidity)) variables.humidity.push(humidity);
+                            if (!isNaN(pressure)) variables.pressure.push(pressure);
+                            if (!isNaN(precipitation)) variables.precipitation.push(precipitation);
                         });
 
-                        // Agregar marcador al mapa
+                        // Agregar marcador al mapa con todas las variables
                         L.marker([estacion.lat, estacion.lon]).addTo(map)
-                            .bindPopup(`<b>${estacion.name}</b><br>Temperatura máxima: ${temperaturesByDay.Monday.max}°C, Mínima: ${temperaturesByDay.Monday.min}°C`);
+                            .bindPopup(`<b>${estacion.name}</b><br>
+                                Temperatura máxima: ${temperaturesByDay.Monday.max}°C, Mínima: ${temperaturesByDay.Monday.min}°C<br>
+                                Humedad: ${variables.humidity.length ? variables.humidity[variables.humidity.length - 1] : '--'}%<br>
+                                Presión: ${variables.pressure.length ? variables.pressure[variables.pressure.length - 1] : '--'} hPa<br>
+                                Precipitación: ${variables.precipitation.length ? variables.precipitation[variables.precipitation.length - 1] : '--'} mm
+                            `);
 
-                        // Agregar fila al tabla de temperaturas
+                        // Agregar fila a la tabla de temperaturas
                         let row = `<tr>
                             <td>${estacion.name}</td>
                             <td>${temperaturesByDay.Monday.max !== -Infinity ? temperaturesByDay.Monday.max : '--'}°C / ${temperaturesByDay.Monday.min !== Infinity ? temperaturesByDay.Monday.min : '--'}°C</td>
@@ -160,15 +178,7 @@
                             <td>${temperaturesByDay.Saturday.max !== -Infinity ? temperaturesByDay.Saturday.max : '--'}°C / ${temperaturesByDay.Saturday.min !== Infinity ? temperaturesByDay.Saturday.min : '--'}°C</td>
                             <td>${temperaturesByDay.Sunday.max !== -Infinity ? temperaturesByDay.Sunday.max : '--'}°C / ${temperaturesByDay.Sunday.min !== Infinity ? temperaturesByDay.Sunday.min : '--'}°C</td>
                         </tr>`;
-                        
                         document.querySelector('#temperature-table tbody').innerHTML += row;
-
-                        // Agregar cuadro con los datos de la estación
-                        document.getElementById('estacion-stats').innerHTML += `<div class='stat-box'>${estacion.name}<br>Temperatura máxima: ${temperaturesByDay.Monday.max}°C, Mínima: ${temperaturesByDay.Monday.min}°C</div>`;
-                    })
-                    .catch(error => {
-                        console.error(`Error obteniendo datos de ${estacion.name}:`, error);
-                        document.getElementById('estacion-stats').innerHTML += `<div class='stat-box offline'><b>${estacion.name}</b><br>Fuera de servicio</div>`;
                     });
             }
         });
