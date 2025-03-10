@@ -7,75 +7,47 @@
     <style>
         body {
             font-family: 'Arial', sans-serif;
-            background-color: #cce7ff;
+            background-color: #f4f4f4;
             margin: 0;
             padding: 0;
             text-align: center;
         }
-        h2 {
-            color: #0066cc;
-            font-size: 36px;
-            margin-top: 20px;
-        }
         #map {
             height: 500px;
             width: 80%;
-            margin: 20px auto;
+            margin: auto;
             border-radius: 10px;
             box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
         }
-        #info {
-            margin-top: 20px;
+        .stats {
+            margin: 20px auto;
             padding: 10px;
             background: #fff;
             display: inline-block;
             border-radius: 10px;
             box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
-            width: 80%;
-            text-align: left;
-        }
-        .stats {
-            margin-top: 20px;
-            display: flex;
-            justify-content: center;
-            gap: 20px;
         }
         .stat-box {
             padding: 15px;
+            margin: 5px;
             background: #007bff;
             color: white;
-            font-weight: bold;
+            display: inline-block;
             border-radius: 5px;
-        }
-        .stat-box.error {
-            background: #ff4d4d;
-        }
-        .quad-container {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 20px;
-            margin-top: 20px;
+            font-weight: bold;
         }
         .quad-box {
-            background: #ffffff;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
-            width: 30%;
-            min-width: 250px;
-            text-align: left;
-        }
-        .quad-box h3 {
-            color: #0066cc;
-            font-size: 20px;
-        }
-        .quad-box p {
-            margin: 10px 0;
-            font-size: 16px;
+            background: #f1f1f1;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px;
+            border-radius: 5px;
+            display: inline-block;
+            width: 250px;
         }
         .status {
             font-weight: bold;
+            margin-top: 10px;
         }
         .status.ok {
             color: green;
@@ -86,106 +58,87 @@
     </style>
 </head>
 <body>
-    <h2>Temperaturas actuales de las estaciones de la red</h2>
+    <h2>Estaciones de ThingSpeak y SMN en el Mapa</h2>
+    <div class="stats">
+        <div class="stat-box" id="temp">Temp Máx: --°C | Temp Mín: --°C</div>
+        <div class="stat-box" id="hum">Humedad Máx: --% | Humedad Mín: --%</div>
+        <div class="stat-box" id="prec">Precipitación Total: -- mm</div>
+    </div>
+    
     <div id="map"></div>
-
-    <!-- Información de las estaciones -->
-    <div id="info"></div>
-
-    <!-- Elementos para las estadísticas generales -->
-    <div id="temp"></div>
-    <div id="hum"></div>
-    <div id="prec"></div>
-
-    <div class="quad-container" id="quadContainer"></div>
-
+    
+    <div id="quadContainer"></div>
+    
     <script>
         var map = L.map('map').setView([-34.9214, -57.9544], 10);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap contributors'
         }).addTo(map);
 
-        // Estaciones existentes y nuevas
+        // Estaciones
         const estaciones = [
             { id: 2218686, key: 'JUXJQRZMFFAS037Z', name: 'Escuela 23', lat: -35.025972, lon: -57.752972 },
-            { id: null, key: 'TH3V4TJLRFZD3JSG', name: 'San Vicente de Paul', lat: -34.95, lon: -57.92 },
-            { id: 2218689, key: 'ZLNOSLZJPQM3H7SD', name: 'Escuela 34', lat: -35.072583, lon: -57.865778 },
-            { id: 2685796, key: 'XKV09A27AXZ35IEA', name: 'Estación EMA', lat: -34.9438126377134, lon: -57.89444617313153 }
+            { id: 2685796, key: 'XKV09A27AXZ35IEA', name: 'Estación EMA', lat: -34.9438126377134, lon: -57.89444617313153 },
+            { id: 2218689, key: 'ZLNOSLZJPQM3H7SD', name: 'Escuela 34', lat: -35.072583, lon: -57.865778 }
         ];
 
-        // Función para obtener los datos de temperatura, humedad y precipitación de las estaciones
-        function obtenerDatos() {
-            return Promise.all(estaciones.map(estacion => {
+        // Función para obtener y mostrar los datos de las estaciones
+        function mostrarDatos() {
+            const cuadrantesContainer = document.getElementById('quadContainer');
+            cuadrantesContainer.innerHTML = '';  // Limpiar antes de agregar
+
+            let maxTemp = -Infinity, minTemp = Infinity;
+            let maxHum = -Infinity, minHum = Infinity;
+            let totalPrec = 0;
+
+            estaciones.forEach(estacion => {
                 const url = `https://api.thingspeak.com/channels/${estacion.id}/feeds.json?api_key=${estacion.key}&results=1`;
-                return fetch(url)
+                
+                fetch(url)
                     .then(response => response.json())
                     .then(data => {
-                        // Verificación si 'feeds' existe y tiene datos
-                        if (data.feeds && data.feeds.length > 0) {
-                            const temp = data.feeds[0].field1; // Temperatura
-                            const hum = data.feeds[0].field2; // Humedad
-                            const prec = data.feeds[0].field3; // Precipitación
-                            const lastUpdate = data.feeds[0].created_at; // Última actualización
-                            return { name: estacion.name, temp: temp, hum: hum, prec: prec, lastUpdate: lastUpdate, lat: estacion.lat, lon: estacion.lon };
-                        } else {
-                            // En caso de que no haya datos
-                            return { name: estacion.name, temp: 'No disponible', hum: 'No disponible', prec: 'No disponible', lastUpdate: 'No disponible', lat: estacion.lat, lon: estacion.lon };
-                        }
+                        const feed = data.feeds[0];
+                        const temp = feed.field1;
+                        const hum = feed.field2;
+                        const prec = feed.field3;
+                        const lastUpdate = feed.created_at;
+
+                        // Mostrar marcador en el mapa
+                        var marker = L.marker([estacion.lat, estacion.lon]).addTo(map);
+                        marker.bindPopup(`<b>${estacion.name}</b><br>Temp: ${temp}°C<br>Humedad: ${hum}%<br>Precipitación: ${prec} mm`);
+
+                        // Actualizar las estadísticas generales
+                        maxTemp = Math.max(maxTemp, temp);
+                        minTemp = Math.min(minTemp, temp);
+                        maxHum = Math.max(maxHum, hum);
+                        minHum = Math.min(minHum, hum);
+                        totalPrec += parseFloat(prec);
+
+                        // Verificar si la estación está caída
+                        const timeDifference = (new Date() - new Date(lastUpdate)) / 1000 / 3600;
+                        const status = timeDifference <= 6 ? 'ok' : 'error';
+
+                        // Crear cuadrante de datos
+                        const cuadrante = document.createElement('div');
+                        cuadrante.classList.add('quad-box');
+                        cuadrante.innerHTML = `
+                            <h3>${estacion.name}</h3>
+                            <p>Temp: ${temp}°C</p>
+                            <p>Humedad: ${hum}%</p>
+                            <p>Precipitación: ${prec} mm</p>
+                            <p><b>Última medición:</b> ${lastUpdate}</p>
+                            <p class="status ${status}">${status === 'ok' ? 'EMA operativa' : 'EMA caída'}</p>
+                        `;
+                        cuadrantesContainer.appendChild(cuadrante);
+
+                        // Actualizar las estadísticas generales
+                        document.getElementById('temp').innerHTML = `Temp Máx: ${maxTemp}°C | Temp Mín: ${minTemp}°C`;
+                        document.getElementById('hum').innerHTML = `Humedad Máx: ${maxHum}% | Humedad Mín: ${minHum}%`;
+                        document.getElementById('prec').innerHTML = `Precipitación Total: ${totalPrec.toFixed(2)} mm`;
                     })
                     .catch(error => {
                         console.error(`Error al obtener datos de ${estacion.name}:`, error);
-                        return { name: estacion.name, temp: 'Error', hum: 'Error', prec: 'Error', lastUpdate: 'Error', lat: estacion.lat, lon: estacion.lon };
                     });
-            }));
-        }
-
-        // Mostrar los datos de todas las estaciones
-        function mostrarDatos() {
-            obtenerDatos().then(datos => {
-                let contenido = '<h3>Última medición:</h3>';
-                let maxTemp = -Infinity, minTemp = Infinity, maxHum = -Infinity, minHum = Infinity, totalPrec = 0;
-
-                // Mostrar datos de cada estación
-                datos.forEach(estacion => {
-                    contenido += `<p><b>${estacion.name}</b><br>Temp: ${estacion.temp}°C | Humedad: ${estacion.hum}% | Precipitación: ${estacion.prec} mm<br>Última medición: ${estacion.lastUpdate}</p>`;
-
-                    // Acumulación de máximos y mínimos
-                    if (estacion.temp !== 'No disponible' && estacion.temp !== 'Error') {
-                        if (parseFloat(estacion.temp) > maxTemp) maxTemp = parseFloat(estacion.temp);
-                        if (parseFloat(estacion.temp) < minTemp) minTemp = parseFloat(estacion.temp);
-                    }
-                    if (estacion.hum !== 'No disponible' && estacion.hum !== 'Error') {
-                        if (parseFloat(estacion.hum) > maxHum) maxHum = parseFloat(estacion.hum);
-                        if (parseFloat(estacion.hum) < minHum) minHum = parseFloat(estacion.hum);
-                    }
-                    if (estacion.prec !== 'No disponible' && estacion.prec !== 'Error') {
-                        totalPrec += parseFloat(estacion.prec);
-                    }
-                });
-
-                // Actualizar área de información sobre el mapa
-                document.getElementById('info').innerHTML = contenido;
-                document.getElementById('temp').innerHTML = `Temp Máx: ${maxTemp}°C | Temp Mín: ${minTemp}°C`;
-                document.getElementById('hum').innerHTML = `Humedad Máx: ${maxHum}% | Humedad Mín: ${minHum}%`;
-                document.getElementById('prec').innerHTML = `Precipitación Total: ${totalPrec} mm`;
-
-                // Cuadrantes de estaciones
-                const cuadrantesContainer = document.getElementById('quadContainer');
-                cuadrantesContainer.innerHTML = '';  // Limpiar antes de agregar
-                datos.forEach(estacion => {
-                    const timeDifference = (new Date() - new Date(estacion.lastUpdate)) / 1000 / 3600;
-                    const cuadrante = document.createElement('div');
-                    cuadrante.classList.add('quad-box');
-                    cuadrante.innerHTML = `
-                        <h3>${estacion.name}</h3>
-                        <p>Temp: ${estacion.temp}°C</p>
-                        <p>Humedad: ${estacion.hum}%</p>
-                        <p>Precipitación: ${estacion.prec} mm</p>
-                        <p><b>Última medición:</b> ${estacion.lastUpdate}</p>
-                        <p class="status ${timeDifference <= 6 ? 'ok' : 'error'}">${timeDifference <= 6 ? 'EMA operativa' : 'EMA caída'}</p>
-                    `;
-                    cuadrantesContainer.appendChild(cuadrante);
-                });
             });
         }
 
@@ -194,6 +147,7 @@
     </script>
 </body>
 </html>
+
 
 
 
