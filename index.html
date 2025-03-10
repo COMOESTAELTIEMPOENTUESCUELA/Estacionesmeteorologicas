@@ -69,37 +69,40 @@
                     .bindPopup(`<b>${estacion.name}</b><br><a href='https://www.wunderground.com/dashboard/pws/ILAPLA66' target='_blank'>Ver datos en vivo</a>`);
                 document.getElementById('estacion-stats').innerHTML += `<div class='stat-box'>${estacion.name}<br><a href='https://www.wunderground.com/dashboard/pws/ILAPLA66' target='_blank'>Ver datos</a></div>`;
             } else {
-                // Intentamos obtener los últimos datos
-                fetch(`https://api.thingspeak.com/channels/${estacion.id}/feeds.json?api_key=${estacion.key}&results=1`)
+                // Obtener los datos históricos de la última semana
+                fetch(`https://api.thingspeak.com/channels/${estacion.id}/feeds.json?api_key=${estacion.key}&results=168`) // 168 resultados = 7 días
                     .then(response => response.json())
                     .then(data => {
-                        const feed = data.feeds[0];
-                        let temp = 'No disponible';
-                        let humedad = 'No disponible';
-                        let fecha = 'No disponible';
-                        let tiempoTranscurrido = 999;
-                        let estado = 'Sin datos disponibles';
+                        let temperaturas = [];
+                        let maxTemp = -Infinity;
+                        let minTemp = Infinity;
+                        let fechaUltima = 'No disponible';
 
-                        if (feed) {
-                            temp = feed.field1;
-                            humedad = feed.field2;
-                            fecha = new Date(feed.created_at);
-                            tiempoTranscurrido = (Date.now() - fecha) / 3600000; // en horas
-
-                            if (tiempoTranscurrido < 6) {
-                                estado = `Última medición: Temp: ${temp}°C, Humedad: ${humedad}%`;
-                            } else {
-                                estado = `Última medición hace ${Math.round(tiempoTranscurrido)} horas. Temp: ${temp}°C, Humedad: ${humedad}%`;
+                        // Recorrer los datos y obtener las temperaturas
+                        data.feeds.forEach(feed => {
+                            const temp = parseFloat(feed.field1);
+                            if (!isNaN(temp)) {
+                                temperaturas.push(temp);
+                                if (temp > maxTemp) maxTemp = temp;
+                                if (temp < minTemp) minTemp = temp;
                             }
-                        } else {
-                            estado = 'Sin datos disponibles';
+                        });
+
+                        // Obtener la fecha de la última actualización
+                        if (data.feeds.length > 0) {
+                            fechaUltima = new Date(data.feeds[data.feeds.length - 1].created_at);
                         }
 
-                        // Agregar marcador en el mapa
-                        L.marker([estacion.lat, estacion.lon]).addTo(map)
-                            .bindPopup(`<b>${estacion.name}</b><br>${estado}<br>Última medición: ${fecha}`);
+                        let estado = 'Sin datos disponibles';
+                        if (temperaturas.length > 0) {
+                            estado = `Temperatura máxima: ${maxTemp}°C, Mínima: ${minTemp}°C`;
+                        }
 
-                        // Agregar información a las estadísticas
+                        // Agregar marcador al mapa
+                        L.marker([estacion.lat, estacion.lon]).addTo(map)
+                            .bindPopup(`<b>${estacion.name}</b><br>${estado}<br>Última medición: ${fechaUltima}`);
+
+                        // Agregar estadísticas al panel
                         document.getElementById('estacion-stats').innerHTML += `<div class='stat-box'><b>${estacion.name}</b><br>${estado}</div>`;
                     })
                     .catch(error => {
@@ -111,4 +114,3 @@
     </script>
 </body>
 </html>
-
