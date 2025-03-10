@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -53,18 +52,6 @@
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
             margin-top: 20px;
         }
-        .graficos {
-            grid-column: span 2;
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 20px;
-        }
-        .grafico {
-            background-color: #fff;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            padding: 20px;
-        }
     </style>
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -80,9 +67,8 @@
             <h2>Estación 1</h2>
             <div class="datos">
                 <p>Temperatura: <span id="temp1">Cargando...</span> °C</p>
-                <p>Humedad: <span id="hum1">Cargando...</span> %</p>
-                <p>Presión: <span id="pres1">Cargando...</span> hPa</p>
             </div>
+            <canvas id="chartTemp1"></canvas>
         </div>
 
         <!-- Estación 2 -->
@@ -90,9 +76,8 @@
             <h2>Estación 2</h2>
             <div class="datos">
                 <p>Temperatura: <span id="temp2">Cargando...</span> °C</p>
-                <p>Humedad: <span id="hum2">Cargando...</span> %</p>
-                <p>Presión: <span id="pres2">Cargando...</span> hPa</p>
             </div>
+            <canvas id="chartTemp2"></canvas>
         </div>
 
         <!-- Estación 3 -->
@@ -100,9 +85,8 @@
             <h2>Estación 3</h2>
             <div class="datos">
                 <p>Temperatura: <span id="temp3">Cargando...</span> °C</p>
-                <p>Humedad: <span id="hum3">Cargando...</span> %</p>
-                <p>Presión: <span id="pres3">Cargando...</span> hPa</p>
             </div>
+            <canvas id="chartTemp3"></canvas>
         </div>
 
         <!-- Estación 4 -->
@@ -110,21 +94,8 @@
             <h2>Estación 4</h2>
             <div class="datos">
                 <p>Temperatura: <span id="temp4">Cargando...</span> °C</p>
-                <p>Humedad: <span id="hum4">Cargando...</span> %</p>
-                <p>Presión: <span id="pres4">Cargando...</span> hPa</p>
             </div>
-        </div>
-
-        <!-- Gráficos -->
-        <div class="graficos">
-            <div class="grafico">
-                <h3>Gráfico de Temperatura</h3>
-                <canvas id="chartTemp"></canvas>
-            </div>
-            <div class="grafico">
-                <h3>Gráfico de Humedad</h3>
-                <canvas id="chartHum"></canvas>
-            </div>
+            <canvas id="chartTemp4"></canvas>
         </div>
 
         <!-- Mapa -->
@@ -136,29 +107,29 @@
     <script>
         // Configuración de ThingSpeak (reemplaza con tus Channel IDs y API Keys)
         const estaciones = [
-            { id: '2685796', apiKey: 'P3H82TMM9GH1NS26', tempId: 'temp1', humId: 'hum1', presId: 'pres1' },
-            { id: 'ESTACION2_CHANNEL_ID', apiKey: 'ESTACION2_API_KEY', tempId: 'temp2', humId: 'hum2', presId: 'pres2' },
-            { id: 'ESTACION3_CHANNEL_ID', apiKey: 'ESTACION3_API_KEY', tempId: 'temp3', humId: 'hum3', presId: 'pres3' },
-            { id: 'ESTACION4_CHANNEL_ID', apiKey: 'ESTACION4_API_KEY', tempId: 'temp4', humId: 'hum4', presId: 'pres4' }
+            { id: '2685796', apiKey: 'P3H82TMM9GH1NS26', tempId: 'temp1', chartId: 'chartTemp1' },
+            { id: 'ESTACION2_CHANNEL_ID', apiKey: 'ESTACION2_API_KEY', tempId: 'temp2', chartId: 'chartTemp2' },
+            { id: 'ESTACION3_CHANNEL_ID', apiKey: 'ESTACION3_API_KEY', tempId: 'temp3', chartId: 'chartTemp3' },
+            { id: 'ESTACION4_CHANNEL_ID', apiKey: 'ESTACION4_API_KEY', tempId: 'temp4', chartId: 'chartTemp4' }
         ];
 
         // Función para obtener y mostrar los datos de una estación
         async function fetchData(estacion) {
             try {
-                const apiUrl = `https://api.thingspeak.com/channels/2685796/feeds.json?results=2`;
+                const apiUrl = `https://api.thingspeak.com/channels/2685796/feeds.json?results=2`; // 288 resultados = 1 día (cada 5 minutos)
                 const response = await fetch(apiUrl);
                 const data = await response.json();
-                const feeds = data.feeds[0];
+                const feeds = data.feeds;
 
-                // Mostrar los datos en la página
-                document.getElementById(estacion.tempId).textContent = feeds.field1 || 'N/A';
-                document.getElementById(estacion.humId).textContent = feeds.field2 || 'N/A';
-                document.getElementById(estacion.presId).textContent = feeds.field3 || 'N/A';
+                // Mostrar la temperatura actual
+                const lastFeed = feeds[feeds.length - 1];
+                document.getElementById(estacion.tempId).textContent = lastFeed.field1 || 'N/A';
+
+                // Actualizar el gráfico de temperatura
+                updateChart(estacion.chartId, feeds.map(feed => feed.field1), 'Temperatura (°C)');
             } catch (error) {
                 console.error(`Error fetching data for ${estacion.id}:`, error);
                 document.getElementById(estacion.tempId).textContent = 'Error';
-                document.getElementById(estacion.humId).textContent = 'Error';
-                document.getElementById(estacion.presId).textContent = 'Error';
             }
         }
 
@@ -169,59 +140,32 @@
             }
         }
 
-        // Configuración del gráfico con Chart.js
-        const ctxTemp = document.getElementById('chartTemp').getContext('2d');
-        const chartTemp = new Chart(ctxTemp, {
-            type: 'line',
-            data: {
-                labels: ['Estación 1', 'Estación 2', 'Estación 3', 'Estación 4'],
-                datasets: [{
-                    label: 'Temperatura (°C)',
-                    data: [],
-                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                    borderColor: 'rgba(255, 99, 132, 1)',
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                scales: {
-                    y: {
-                        beginAtZero: true
+        // Función para actualizar un gráfico
+        function updateChart(chartId, data, label) {
+            const ctx = document.getElementById(chartId).getContext('2d');
+            if (window[chartId]) {
+                window[chartId].destroy(); // Destruir el gráfico anterior si existe
+            }
+            window[chartId] = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: Array.from({ length: data.length }, (_, i) => `${i * 5} min`), // Etiquetas de tiempo (cada 5 minutos)
+                    datasets: [{
+                        label: label,
+                        data: data,
+                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
                     }
                 }
-            }
-        });
-
-        const ctxHum = document.getElementById('chartHum').getContext('2d');
-        const chartHum = new Chart(ctxHum, {
-            type: 'line',
-            data: {
-                labels: ['Estación 1', 'Estación 2', 'Estación 3', 'Estación 4'],
-                datasets: [{
-                    label: 'Humedad (%)',
-                    data: [],
-                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                    borderColor: 'rgba(54, 162, 235, 1)',
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                scales: {
-                    y: {
-                        beginAtZero: true
-                    }
-                }
-            }
-        });
-
-        // Función para actualizar los gráficos
-        function updateCharts() {
-            const temps = estaciones.map(e => parseFloat(document.getElementById(e.tempId).textContent || 0);
-            const hums = estaciones.map(e => parseFloat(document.getElementById(e.humId).textContent || 0);
-            chartTemp.data.datasets[0].data = temps;
-            chartHum.data.datasets[0].data = hums;
-            chartTemp.update();
-            chartHum.update();
+            });
         }
 
         // Configuración del mapa con Google Maps
@@ -242,13 +186,10 @@
         }
 
         // Llamar a la función para obtener los datos al cargar la página
-        updateAllData().then(updateCharts);
+        updateAllData();
 
         // Actualizar los datos y gráficos cada 60 segundos
-        setInterval(async () => {
-            await updateAllData();
-            updateCharts();
-        }, 60000);
+        setInterval(updateAllData, 60000);
     </script>
 </body>
 </html>
