@@ -72,11 +72,12 @@
                 fetch(`https://api.thingspeak.com/channels/${estacion.id}/feeds.json?api_key=${estacion.key}&results=1`)
                     .then(response => response.json())
                     .then(data => {
-                        const temp = data.feeds[0] ? data.feeds[0].field1 : 'Fuera de servicio';
-                        const humedad = data.feeds[0] ? data.feeds[0].field2 : 'Fuera de servicio';
-                        const fecha = data.feeds[0] ? new Date(data.feeds[0].created_at) : 'No disponible';
-                        const tiempoTranscurrido = data.feeds[0] ? (Date.now() - new Date(data.feeds[0].created_at)) / 3600000 : 999;
-                        const estado = tiempoTranscurrido < 6 ? `Temp: ${temp}°C<br>Humedad: ${humedad}%` : 'Fuera de servicio';
+                        const lastFeed = data.feeds[0];
+                        const temp = lastFeed ? lastFeed.field1 : 'No disponible';
+                        const humedad = lastFeed ? lastFeed.field2 : 'No disponible';
+                        const fecha = lastFeed ? new Date(lastFeed.created_at).toLocaleString() : 'No disponible';
+                        const tiempoTranscurrido = lastFeed ? (Date.now() - new Date(lastFeed.created_at)) / 3600000 : 999;
+                        const estado = tiempoTranscurrido < 6 ? `Temp: ${temp}°C<br>Humedad: ${humedad}%` : `Última medición: ${fecha}<br>Sin datos recientes`;
 
                         L.marker([estacion.lat, estacion.lon]).addTo(map)
                             .bindPopup(`<b>${estacion.name}</b><br>${estado}<br>Última medición: ${fecha}`);
@@ -92,3 +93,4 @@
     </script>
 </body>
 </html>
+
