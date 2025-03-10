@@ -130,6 +130,7 @@
                         const feeds = data.feeds;
                         const temperatures = { lunes: '--', martes: '--', miercoles: '--', jueves: '--', viernes: '--', sabado: '--', domingo: '--' };
 
+                        // Recopilar datos de las últimas 7 entradas (una para cada día de la semana)
                         feeds.forEach(feed => {
                             const fecha = new Date(feed.created_at);
                             const dayOfWeek = getDayOfWeek(fecha);
@@ -158,8 +159,16 @@
                         document.getElementById('temperature-table').innerHTML += row;
 
                         // Agregar marcador en el mapa
+                        const popupContent = `
+                            <b>${estacion.name}</b><br>
+                            <strong>Últimas Temperaturas</strong><br>
+                            Max: ${temperatures.lunes.split(',')[0]}<br>
+                            Min: ${temperatures.lunes.split(',')[1]}<br>
+                            <a href='https://www.wunderground.com/dashboard/pws/ILAPLA66' target='_blank'>Ver datos completos</a>
+                        `;
+
                         L.marker([estacion.lat, estacion.lon]).addTo(map)
-                            .bindPopup(`<b>${estacion.name}</b><br>Temperaturas de la semana`);
+                            .bindPopup(popupContent);
                     })
                     .catch(error => {
                         console.error(`Error obteniendo datos de ${estacion.name}:`, error);
