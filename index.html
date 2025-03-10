@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -32,13 +33,14 @@
             border-radius: 10px;
             box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
             width: 80%;
+            text-align: left;
         }
     </style>
 </head>
 <body>
-    <h2>¿Cómo está el tiempo en tu escuela?</h2>
+    <h2>Temperaturas actuales de las estaciones de la red</h2>
     <div id="map"></div>
-    <div id="info">Haz clic en el mapa para ver las temperaturas de las estaciones cercanas.</div>
+    <div id="info">Cargando temperaturas...</div>
     
     <script>
         var map = L.map('map').setView([-34.9214, -57.9544], 10);
@@ -68,22 +70,18 @@
             }));
         }
 
-        // Muestra las temperaturas al hacer clic en el mapa
-        map.on('click', function (e) {
+        // Mostrar temperaturas de todas las estaciones
+        function mostrarTemperaturas() {
             obtenerTemperaturas().then(temperaturas => {
-                let contenido = '<h3>Temperaturas cercanas:</h3>';
+                let contenido = '<h3>Temperaturas actuales:</h3>';
                 temperaturas.forEach(estacion => {
-                    // Verificar si la estación está dentro de un radio de 10 km del punto de clic
-                    var distancia = map.distance([e.latlng.lat, e.latlng.lng], [estacion.lat, estacion.lon]);
-                    if (distancia < 10000) { // Radio de 10 km
-                        contenido += `<p><b>${estacion.name}</b><br>Temperatura: ${estacion.temp}°C</p>`;
-                    }
+                    contenido += `<p><b>${estacion.name}</b><br>Temperatura: ${estacion.temp}°C</p>`;
                 });
 
                 // Mostrar la información en el área de info
-                document.getElementById('info').innerHTML = contenido || '<p>No hay estaciones cercanas a este punto.</p>';
+                document.getElementById('info').innerHTML = contenido;
             });
-        });
+        }
 
         // Agregar las estaciones al mapa
         estaciones.forEach(estacion => {
@@ -97,7 +95,13 @@
                 })
                 .catch(error => console.error(`Error al obtener datos de ${estacion.name}:`, error));
         });
+
+        // Mostrar temperaturas inmediatamente al cargar la página
+        mostrarTemperaturas();
+
+        // Actualizar las temperaturas cada 30 segundos
+        setInterval(mostrarTemperaturas, 30000);  // 30000 ms = 30 segundos
+
     </script>
 </body>
 </html>
-
