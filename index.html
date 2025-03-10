@@ -1,9 +1,8 @@
+
 <!DOCTYPE html>
-<html lang="es">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapa de Estaciones Meteorológicas</title>
+    <title>Mapa de Estaciones</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <style>
@@ -28,46 +27,40 @@
             box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
         }
         .stats {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr); /* Dos columnas */
-            gap: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
             margin: 20px auto;
-            max-width: 800px;
-            text-align: center;
         }
         .stat-box {
-            padding: 10px;
+            padding: 15px;
+            margin: 5px;
             background: #007bff;
             color: white;
             border-radius: 5px;
             font-weight: bold;
-            width: 100%;
-            box-sizing: border-box;
+            width: 200px;
             text-align: center;
         }
-        .stat-box b {
-            font-size: 16px;
-        }
-        .stat-box p {
-            font-size: 14px;
-            margin: 5px 0;
-        }
-        .day-header {
-            font-size: 20px;
-            font-weight: bold;
+        .max-min {
             margin-top: 20px;
-            color: #007bff;
+            font-size: 18px;
+        }
+        .max-min div {
+            padding: 5px;
+            background-color: #e3e3e3;
+            margin-bottom: 10px;
+        }
+        .red {
+            background-color: red;
         }
     </style>
 </head>
 <body>
     <img src="https://drive.google.com/uc?export=view&id=1Si5qBOsQiFPGyYMiQ8mXPEYJE-YLbhd5" class="logo" alt="Logo">
-    <h2>Estaciones Meteorológicas - Temperaturas</h2>
+    <h2>Estaciones Meteorológicas</h2>
     <div id="map"></div>
-
-    <div class="stats" id="estacion-stats">
-        <!-- Estadísticas se insertarán aquí -->
-    </div>
+    <div class="stats" id="estacion-stats"></div>
 
     <script>
         var map = L.map('map').setView([-34.9214, -57.9544], 10);
@@ -83,94 +76,110 @@
             { id: null, key: null, name: 'Tiempoentuescuela (ILAPLA66)', lat: -34.991, lon: -57.867, wunderground: true }
         ];
 
-        // Función para obtener el nombre del día de la semana
-        function obtenerDiaSemana(fecha) {
-            const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-            return diasSemana[fecha.getDay()];
-        }
-
-        // Dividir los datos por días de la semana
-        let datosPorDia = {
-            'Lunes': [],
-            'Martes': [],
-            'Miércoles': [],
-            'Jueves': [],
-            'Viernes': [],
-            'Sábado': [],
-            'Domingo': []
-        };
-
         estaciones.forEach(estacion => {
             if (estacion.wunderground) {
                 L.marker([estacion.lat, estacion.lon]).addTo(map)
                     .bindPopup(`<b>${estacion.name}</b><br><a href='https://www.wunderground.com/dashboard/pws/ILAPLA66' target='_blank'>Ver datos en vivo</a>`);
-                document.getElementById('estacion-stats').innerHTML += `
-                    <div class='stat-box'>
-                        <b>${estacion.name}</b><br><a href='https://www.wunderground.com/dashboard/pws/ILAPLA66' target='_blank'>Ver datos</a>
-                    </div>`;
+                document.getElementById('estacion-stats').innerHTML += `<div class='stat-box'>${estacion.name}<br><a href='https://www.wunderground.com/dashboard/pws/ILAPLA66' target='_blank'>Ver datos</a></div>`;
             } else {
                 // Intentamos obtener los últimos datos
-                fetch(`https://api.thingspeak.com/channels/${estacion.id}/feeds.json?api_key=${estacion.key}&results=7`)
+                fetch(`https://api.thingspeak.com/channels/${estacion.id}/feeds.json?api_key=${estacion.key}&results=168`)
                     .then(response => response.json())
                     .then(data => {
                         const feeds = data.feeds;
-                        feeds.forEach(feed => {
-                            const fecha = new Date(feed.created_at);
-                            const diaSemana = obtenerDiaSemana(fecha);
-                            const temp_max = feed.field3;
-                            const temp_min = feed.field4;
+                        let estado = 'Sin datos disponibles';
+                        let maxTemp = '--';
+                        let minTemp = '--';
+                        let variables = '';
 
-                            // Guardamos las temperaturas para cada día
-                            datosPorDia[diaSemana].push({
-                                name: estacion.name,
-                                temp_max: temp_max,
-                                temp_min: temp_min
+                        if (feeds && feeds.length > 0) {
+                            let maxTempVal = -Infinity;
+                            let minTempVal = Infinity;
+
+                            feeds.forEach(feed => {
+                                let temp = parseFloat(feed.field1);
+                                let humedad = feed.field2;
+                                let presion = feed.field3;
+                                let precipitacion = feed.field4;
+                                let fecha = new Date(feed.created_at);
+                                variables = `
+                                    Temp: ${temp ? temp + '°C' : '--'}<br>
+                                    Humedad: ${humedad ? humedad + '%' : '--'}<br>
+                                    Presion: ${presion ? presion + 'hPa' : '--'}<br>
+                                    Precipitacion: ${precipitacion ? precipitacion + 'mm' : '--'}<br>
+                                `;
+
+                                if (!isNaN(temp)) {
+                                    maxTempVal = Math.max(maxTempVal, temp);
+                                    minTempVal = Math.min(minTempVal, temp);
+                                }
                             });
-                        });
+
+                            maxTemp = maxTempVal === -Infinity ? '--' : maxTempVal + '°C';
+                            minTemp = minTempVal === Infinity ? '--' : minTempVal + '°C';
+
+                            estado = `Última medición: ${maxTemp} / ${minTemp}`;
+                        } else {
+                            estado = 'Sin datos disponibles';
+                        }
 
                         // Agregar marcador en el mapa
-                        L.marker([estacion.lat, estacion.lon]).addTo(map)
-                            .bindPopup(`<b>${estacion.name}</b><br>Última medición`);
+                        let marker = L.marker([estacion.lat, estacion.lon]).addTo(map);
+                        marker.bindPopup(`<b>${estacion.name}</b><br>${estado}`);
+
+                        // Agregar cuadrantes
+                        document.getElementById('estacion-stats').innerHTML += `
+                            <div class='stat-box ${estado === 'Sin datos disponibles' ? 'red' : ''}'>
+                                <b>${estacion.name}</b><br>${estado}
+                                <br>${variables}
+                            </div>
+                        `;
+
+                        // Agregar máximas y mínimas
+                        let weekStats = `<div><b>Temperaturas máximas y mínimas de la última semana</b></div>`;
+                        for (let i = 0; i < 7; i++) {
+                            let day = new Date();
+                            day.setDate(day.getDate() - i);
+                            let dayString = day.toLocaleDateString();
+
+                            let dayData = feeds.filter(feed => {
+                                let feedDate = new Date(feed.created_at);
+                                return feedDate.toLocaleDateString() === dayString;
+                            });
+
+                            let dailyMax = '--';
+                            let dailyMin = '--';
+
+                            if (dayData.length > 0) {
+                                let dailyMaxTemp = -Infinity;
+                                let dailyMinTemp = Infinity;
+
+                                dayData.forEach(feed => {
+                                    let temp = parseFloat(feed.field1);
+                                    if (!isNaN(temp)) {
+                                        dailyMaxTemp = Math.max(dailyMaxTemp, temp);
+                                        dailyMinTemp = Math.min(dailyMinTemp, temp);
+                                    }
+                                });
+
+                                dailyMax = dailyMaxTemp === -Infinity ? '--' : dailyMaxTemp + '°C';
+                                dailyMin = dailyMinTemp === Infinity ? '--' : dailyMinTemp + '°C';
+                            }
+
+                            weekStats += `
+                                <div>${dayString}: Max: ${dailyMax} / Min: ${dailyMin}</div>
+                            `;
+                        }
+
+                        document.getElementById('estacion-stats').innerHTML += `<div class="max-min">${weekStats}</div>`;
 
                     })
                     .catch(error => {
                         console.error(`Error obteniendo datos de ${estacion.name}:`, error);
-                        document.getElementById('estacion-stats').innerHTML += `
-                            <div class='stat-box'>
-                                <b>${estacion.name}</b><br>Fuera de servicio
-                            </div>`;
+                        document.getElementById('estacion-stats').innerHTML += `<div class='stat-box ${estado === 'Sin datos disponibles' ? 'red' : ''}'>${estacion.name}<br>Fuera de servicio</div>`;
                     });
             }
         });
-
-        // Mostrar los datos organizados por días
-        function mostrarDatosPorDia() {
-            for (let dia in datosPorDia) {
-                if (datosPorDia[dia].length > 0) {
-                    const header = document.createElement('div');
-                    header.className = 'day-header';
-                    header.innerHTML = `${dia}`;
-
-                    const dayStats = document.createElement('div');
-                    dayStats.className = 'stats';
-
-                    datosPorDia[dia].forEach(data => {
-                        dayStats.innerHTML += `
-                            <div class='stat-box'>
-                                <b>${data.name}</b><br>
-                                Temp. Máxima: ${data.temp_max}°C<br>
-                                Temp. Mínima: ${data.temp_min}°C
-                            </div>`;
-                    });
-
-                    document.getElementById('estacion-stats').appendChild(header);
-                    document.getElementById('estacion-stats').appendChild(dayStats);
-                }
-            }
-        }
-
-        // Llamar la función para mostrar los datos
-        setTimeout(mostrarDatosPorDia, 2000); // Esperar a que los datos se carguen antes de mostrarlos
     </script>
 </body>
 </html>
