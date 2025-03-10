@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estaciones Meteorológicas en Tiempo Real</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        h1 {
+            text-align: center;
+        }
+        #datos, #graficos, #mapa {
+            margin: 20px 0;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        canvas {
+            max-width: 100%;
+        }
+        #mapa {
+            height: 400px;
+        }
+    </style>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Maps API -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=TU_API_KEY_DE_GOOGLE_MAPS&callback=initMap" async defer></script>
+</head>
+<body>
+    <h1>Estaciones Meteorológicas en Tiempo Real</h1>
+
+    <div id="datos">
+        <h2>Datos en Tiempo Real</h2>
+        <p>Cargando datos...</p>
+    </div>
+
+    <div id="graficos">
+        <h2>Gráficos</h2>
+        <canvas id="myChart"></canvas>
+    </div>
+
+    <div id="mapa">
+        <h2>Ubicación de las Estaciones</h2>
+    </div>
+
+    <script>
+        // Configuración de ThingSpeak (reemplaza con tu Channel ID y API Key)
+        const channelId = '2685796';
+        const apiKey = 'P3H82TMM9GH1NS26';
+        const apiUrl = `https://api.thingspeak.com/channels/2685796/feeds.json?results=2`;
+
+        // Función para obtener y mostrar los datos
+        async function fetchData() {
+            try {
+                const response = await fetch(apiUrl);
+                const data = await response.json();
+                const feeds = data.feeds[0];
+
+                // Mostrar los datos en la página
+                document.getElementById('datos').innerHTML = `
+                    <h2>Datos en Tiempo Real</h2>
+                    <p>Temperatura: ${feeds.field1} °C</p>
+                    <p>Humedad: ${feeds.field2} %</p>
+                    <p>Presión: ${feeds.field3} hPa</p>
+                `;
+
+                // Actualizar el gráfico
+                updateChart([feeds.field1, feeds.field2, feeds.field3]);
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                document.getElementById('datos').innerHTML = `<p>Error al cargar los datos.</p>`;
+            }
+        }
+
+        // Configuración del gráfico con Chart.js
+        const ctx = document.getElementById('myChart').getContext('2d');
+        const myChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['Temperatura', 'Humedad', 'Presión'],
+                datasets: [{
+                    label: 'Datos en Tiempo Real',
+                    data: [],
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.2)',
+                        'rgba(54, 162, 235, 0.2)',
+                        'rgba(75, 192, 192, 0.2)'
+                    ],
+                    borderColor: [
+                        'rgba(255, 99, 132, 1)',
+                        'rgba(54, 162, 235, 1)',
+                        'rgba(75, 192, 192, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        // Función para actualizar el gráfico
+        function updateChart(data) {
+            myChart.data.datasets[0].data = data;
+            myChart.update();
+        }
+
+        // Configuración del mapa con Google Maps
+        function initMap() {
+            const map = new google.maps.Map(document.getElementById('mapa'), {
+                center: { lat: -34.397, lng: 150.644 }, // Coordenadas de ejemplo
+                zoom: 8
+            });
+
+            // Marcador para la estación meteorológica
+            new google.maps.Marker({
+                position: { lat: -34.397, lng: 150.644 }, // Coordenadas de ejemplo
+                map: map,
+                title: 'Estación Meteorológica'
+            });
+        }
+
+        // Llamar a la función para obtener los datos al cargar la página
+        fetchData();
+
+        // Actualizar los datos cada 60 segundos
+        setInterval(fetchData, 60000);
+    </script>
+</body>
+</html>
