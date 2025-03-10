@@ -1,21 +1,26 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Mapa de Estaciones con Leaflet y ThingSpeak</title>
+    <title>Mapa de Estaciones</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <style>
         body {
             font-family: 'Arial', sans-serif;
-            background-color: #f4f4f4;
+            background-color: #cce7ff; /* Fondo celeste */
             margin: 0;
             padding: 0;
             text-align: center;
         }
+        h2 {
+            color: #0066cc;
+            font-size: 36px;
+            margin-top: 20px;
+        }
         #map {
             height: 500px;
             width: 80%;
-            margin: auto;
+            margin: 20px auto;
             border-radius: 10px;
             box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
         }
@@ -39,11 +44,7 @@
     </style>
 </head>
 <body>
-    <h2>Estaciones de ThingSpeak y SMN en el Mapa</h2>
-    <div class="stats">
-        <div class="stat-box" id="max-temp">Temp Máx: --°C</div>
-        <div class="stat-box" id="min-temp">Temp Mín: --°C</div>
-    </div>
+    <h2>¿Cómo está el tiempo en tu escuela?</h2>
     <div id="map"></div>
     
     <script>
@@ -71,18 +72,6 @@
                 })
                 .catch(error => console.error(`Error al obtener datos de ${estacion.name}:`, error));
         });
-
-        // Para la temperatura máxima y mínima
-        function updateMaxMinTemp() {
-            // Llamadas a la API o cálculo de los valores de temperatura máxima y mínima
-            const maxTemp = 30;  // Aquí debes reemplazar por la lógica para obtener la temp máxima
-            const minTemp = 15;  // Aquí debes reemplazar por la lógica para obtener la temp mínima
-
-            document.getElementById('max-temp').textContent = `Temp Máx: ${maxTemp}°C`;
-            document.getElementById('min-temp').textContent = `Temp Mín: ${minTemp}°C`;
-        }
-
-        updateMaxMinTemp();  // Actualiza las temperaturas al cargar la página
     </script>
 </body>
 </html>
