@@ -1,195 +1,51 @@
 <!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Estaciones Meteorológicas en Tiempo Real</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f4f4f4;
-            color: #333;
-        }
-        h1 {
-            text-align: center;
-            color: #2c3e50;
-        }
-        .container {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 20px;
-            margin-top: 20px;
-        }
-        .estacion {
-            background-color: #fff;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            padding: 20px;
-            text-align: center;
-        }
-        .estacion h2 {
-            margin-top: 0;
-            color: #34495e;
-        }
-        .datos {
-            margin: 10px 0;
-        }
-        .datos p {
-            margin: 5px 0;
-            font-size: 18px;
-        }
-        canvas {
-            max-width: 100%;
-            margin-top: 20px;
-        }
-        #mapa {
-            grid-column: span 2;
-            height: 400px;
-            background-color: #fff;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            margin-top: 20px;
-        }
-    </style>
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Google Maps API -->
-    <script src="https://maps.googleapis.com/maps/api/js?key=TU_API_KEY_DE_GOOGLE_MAPS&callback=initMap" async defer></script>
-</head>
-<body>
-    <h1>Estaciones Meteorológicas en Tiempo Real</h1>
-
-    <div class="container">
-        <!-- Estación 1 -->
-        <div class="estacion" id="estacion1">
-            <h2>Estación 1</h2>
-            <div class="datos">
-                <p>Temperatura: <span id="temp1">Cargando...</span> °C</p>
-            </div>
-            <canvas id="chartTemp1"></canvas>
-        </div>
-
-        <!-- Estación 2 -->
-        <div class="estacion" id="estacion2">
-            <h2>Estación 2</h2>
-            <div class="datos">
-                <p>Temperatura: <span id="temp2">Cargando...</span> °C</p>
-            </div>
-            <canvas id="chartTemp2"></canvas>
-        </div>
-
-        <!-- Estación 3 -->
-        <div class="estacion" id="estacion3">
-            <h2>Estación 3</h2>
-            <div class="datos">
-                <p>Temperatura: <span id="temp3">Cargando...</span> °C</p>
-            </div>
-            <canvas id="chartTemp3"></canvas>
-        </div>
-
-        <!-- Estación 4 -->
-        <div class="estacion" id="estacion4">
-            <h2>Estación 4</h2>
-            <div class="datos">
-                <p>Temperatura: <span id="temp4">Cargando...</span> °C</p>
-            </div>
-            <canvas id="chartTemp4"></canvas>
-        </div>
-
-        <!-- Mapa -->
-        <div id="mapa">
-            <h2>Ubicación de las Estaciones</h2>
-        </div>
-    </div>
-
+<html>
+  <head>
+    <title>Mapa de Estaciones con Leaflet y ThingSpeak</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+  </head>
+  <body>
+    <h2>Estaciones de ThingSpeak en el Mapa</h2>
+    <div id="map" style="height: 500px;"></div>
     <script>
-        // Configuración de ThingSpeak (reemplaza con tus Channel IDs y API Keys)
-        const estaciones = [
-            { id: '2685796', apiKey: 'P3H82TMM9GH1NS26', tempId: 'temp1', chartId: 'chartTemp1' },
-            { id: 'ESTACION2_CHANNEL_ID', apiKey: 'ESTACION2_API_KEY', tempId: 'temp2', chartId: 'chartTemp2' },
-            { id: 'ESTACION3_CHANNEL_ID', apiKey: 'ESTACION3_API_KEY', tempId: 'temp3', chartId: 'chartTemp3' },
-            { id: 'ESTACION4_CHANNEL_ID', apiKey: 'ESTACION4_API_KEY', tempId: 'temp4', chartId: 'chartTemp4' }
-        ];
+      // Inicializa el mapa
+      var map = L.map('map').setView([0, 0], 2);  // Vista inicial centrada en el mundo
 
-        // Función para obtener y mostrar los datos de una estación
-        async function fetchData(estacion) {
-            try {
-                const apiUrl = `https://api.thingspeak.com/channels/2685796/feeds.json?results=2`; // 288 resultados = 1 día (cada 5 minutos)
-                const response = await fetch(apiUrl);
-                const data = await response.json();
-                const feeds = data.feeds;
+      // Capa de OpenStreetMap
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      }).addTo(map);
 
-                // Mostrar la temperatura actual
-                const lastFeed = feeds[feeds.length - 1];
-                document.getElementById(estacion.tempId).textContent = lastFeed.field1 || 'N/A';
+      // URL de la API de ThingSpeak con el Channel ID proporcionado
+      const url = 'https://api.thingspeak.com/channels/2685796/feeds.json?api_key=P3H82TMM9GH1NS26&results=2';
 
-                // Actualizar el gráfico de temperatura
-                updateChart(estacion.chartId, feeds.map(feed => feed.field1), 'Temperatura (°C)');
-            } catch (error) {
-                console.error(`Error fetching data for ${estacion.id}:`, error);
-                document.getElementById(estacion.tempId).textContent = 'Error';
-            }
-        }
+      // Realiza la solicitud a la API de ThingSpeak
+      fetch(url)
+        .then(response => response.json())
+        .then(data => {
+          // Obtiene los datos de la respuesta (temperatura y ubicación de las estaciones)
+          const temperatura1 = data.feeds[0].field1; // Campo 1: Temperatura de la primera estación
+          const latitud1 = parseFloat(data.feeds[0].location.latitude);  // Latitud de la estación 1
+          const longitud1 = parseFloat(data.feeds[0].location.longitude); // Longitud de la estación 1
 
-        // Función para actualizar los datos de todas las estaciones
-        async function updateAllData() {
-            for (const estacion of estaciones) {
-                await fetchData(estacion);
-            }
-        }
+          const temperatura2 = data.feeds[1].field1; // Campo 1: Temperatura de la segunda estación
+          const latitud2 = parseFloat(data.feeds[1].location.latitude);  // Latitud de la estación 2
+          const longitud2 = parseFloat(data.feeds[1].location.longitude); // Longitud de la estación 2
 
-        // Función para actualizar un gráfico
-        function updateChart(chartId, data, label) {
-            const ctx = document.getElementById(chartId).getContext('2d');
-            if (window[chartId]) {
-                window[chartId].destroy(); // Destruir el gráfico anterior si existe
-            }
-            window[chartId] = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: Array.from({ length: data.length }, (_, i) => `${i * 5} min`), // Etiquetas de tiempo (cada 5 minutos)
-                    datasets: [{
-                        label: label,
-                        data: data,
-                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                        borderColor: 'rgba(255, 99, 132, 1)',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    scales: {
-                        y: {
-                            beginAtZero: true
-                        }
-                    }
-                }
-            });
-        }
+          // Marca la primera estación en el mapa
+          var marker1 = L.marker([latitud1, longitud1]).addTo(map);
+          marker1.bindPopup(`<b>Estación 1</b><br>Temperatura: ${temperatura1}°C`).openPopup();
 
-        // Configuración del mapa con Google Maps
-        function initMap() {
-            const map = new google.maps.Map(document.getElementById('mapa'), {
-                center: { lat: -34.397, lng: 150.644 }, // Coordenadas de ejemplo
-                zoom: 8
-            });
+          // Marca la segunda estación en el mapa
+          var marker2 = L.marker([latitud2, longitud2]).addTo(map);
+          marker2.bindPopup(`<b>Estación 2</b><br>Temperatura: ${temperatura2}°C`).openPopup();
 
-            // Marcadores para las estaciones (coordenadas de ejemplo)
-            estaciones.forEach((estacion, index) => {
-                new google.maps.Marker({
-                    position: { lat: -34.397 + index * 0.1, lng: 150.644 + index * 0.1 }, // Ajusta las coordenadas
-                    map: map,
-                    title: `Estación ${index + 1}`
-                });
-            });
-        }
-
-        // Llamar a la función para obtener los datos al cargar la página
-        updateAllData();
-
-        // Actualizar los datos y gráficos cada 60 segundos
-        setInterval(updateAllData, 60000);
+          // Centra el mapa en las dos estaciones
+          map.fitBounds([ [latitud1, longitud1], [latitud2, longitud2] ]);
+        })
+        .catch(error => console.error('Error al obtener los datos de ThingSpeak:', error));
     </script>
-</body>
+  </body>
 </html>
+
