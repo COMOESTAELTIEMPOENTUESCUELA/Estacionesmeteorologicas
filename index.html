@@ -32,6 +32,7 @@
             flex-wrap: wrap;
             justify-content: space-evenly;
             width: 80%;
+            margin-top: 20px;
         }
         .stat-box {
             background: #007bff;
@@ -81,7 +82,6 @@
         <h2>Estaciones Meteorológicas</h2>
         <div id="map"></div>
         <div class="stats-container" id="estacion-stats"></div>
-        <div class="max-min" id="historical-stats"></div>
     </div>
 
     <script>
@@ -108,7 +108,6 @@
                         <a href='https://www.wunderground.com/dashboard/pws/ILAPLA66' target='_blank'>Ver datos</a>
                     </div>`;
             } else {
-                // Intentamos obtener los últimos datos
                 fetch(`https://api.thingspeak.com/channels/${estacion.id}/feeds.json?api_key=${estacion.key}&results=168`)
                     .then(response => response.json())
                     .then(data => {
@@ -136,33 +135,17 @@
                             estado = 'Sin datos disponibles';
                         }
 
-                        // Agregar marcador en el mapa
                         let marker = L.marker([estacion.lat, estacion.lon]).addTo(map);
                         marker.bindPopup(`<b>${estacion.name}</b><br>${variables}`);
 
-                        // Agregar cuadrantes
                         document.getElementById('estacion-stats').innerHTML += `
                             <div class='stat-box'>
                                 <b>${estacion.name}</b><br>${variables}
                             </div>
                         `;
 
-                    })
-                    .catch(error => {
-                        console.error(`Error obteniendo datos de ${estacion.name}:`, error);
-                        document.getElementById('estacion-stats').innerHTML += `<div class='stat-box'>${estacion.name}<br>Fuera de servicio</div>`;
-                    });
-            }
-        });
-
-        // Mostrar histórico de máximas y mínimas
-        function mostrarHistorico() {
-            let weekStats = `<div><b>Máximas y Mínimas de la Última Semana</b></div>`;
-            estaciones.forEach(estacion => {
-                fetch(`https://api.thingspeak.com/channels/${estacion.id}/feeds.json?api_key=${estacion.key}&results=168`)
-                    .then(response => response.json())
-                    .then(data => {
-                        const feeds = data.feeds;
+                        // Mostrar histórico de máximas y mínimas
+                        let weekStats = `<div><b>Máximas y Mínimas de la Última Semana</b></div>`;
                         let weeklyMax = -Infinity;
                         let weeklyMin = Infinity;
 
@@ -177,18 +160,22 @@
                         weekStats += `
                             <div>${estacion.name}: Max: ${weeklyMax !== -Infinity ? weeklyMax + '°C' : '--'} / Min: ${weeklyMin !== Infinity ? weeklyMin + '°C' : '--'}</div>
                         `;
+
+                        // Agregar cuadrantes con datos históricos
+                        setTimeout(() => {
+                            document.getElementById('estacion-stats').innerHTML += `
+                                <div class='stat-box'>
+                                    ${weekStats}
+                                </div>
+                            `;
+                        }, 1500);  // Esperar que los datos se carguen
                     })
                     .catch(error => {
-                        console.error(`Error obteniendo histórico de ${estacion.name}:`, error);
+                        console.error(`Error obteniendo datos de ${estacion.name}:`, error);
                     });
-            });
+            }
+        });
 
-            setTimeout(() => {
-                document.getElementById('historical-stats').innerHTML = weekStats;
-            }, 1500);  // Esperar que los datos se carguen
-        }
-
-        mostrarHistorico();  // Cargar los máximos y mínimos históricos al cargar la página
     </script>
 </body>
 </html>
