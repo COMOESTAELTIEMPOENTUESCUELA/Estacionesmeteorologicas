@@ -30,7 +30,7 @@
             border-radius: 10px;
             box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
         }
-        .stats, .max-min {
+        .stats, .max-min, .temp-table {
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
@@ -49,12 +49,30 @@
         .red {
             background-color: red;
         }
+        table {
+            width: 90%;
+            margin: 20px auto;
+            border-collapse: collapse;
+            background-color: white;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #ddd;
+        }
+        th {
+            background-color: #007bff;
+            color: white;
+        }
         @media (max-width: 768px) {
             #map {
                 height: 400px;
             }
             .stat-box, .temp-box {
                 width: 90%;
+            }
+            table {
+                font-size: 0.8em;
             }
         }
     </style>
@@ -65,7 +83,23 @@
     <div id="map"></div>
     <div class="stats" id="estacion-stats"></div>
     <h2>Temperaturas Máximas y Mínimas Últimos 7 Días</h2>
-    <div class="max-min" id="temp-stats"></div>
+    <div class="temp-table">
+        <table id="temp-table">
+            <thead>
+                <tr>
+                    <th>Estación</th>
+                    <th>Lunes</th>
+                    <th>Martes</th>
+                    <th>Miércoles</th>
+                    <th>Jueves</th>
+                    <th>Viernes</th>
+                    <th>Sábado</th>
+                    <th>Domingo</th>
+                </tr>
+            </thead>
+            <tbody id="temp-body"></tbody>
+        </table>
+    </div>
 
     <script>
         var map = L.map('map').setView([-34.9214, -57.9544], 10);
@@ -117,7 +151,7 @@
                         </div>
                     `;
 
-                    obtenerMaxMin(estacion);
+                    obtenerTemperaturasUltimos7Dias(estacion);
                 })
                 .catch(error => {
                     console.error(`Error obteniendo datos de ${estacion.name}:`, error);
@@ -129,30 +163,54 @@
                 });
         });
 
-        function obtenerMaxMin(estacion) {
+        function obtenerTemperaturasUltimos7Dias(estacion) {
             fetch(`https://api.thingspeak.com/channels/${estacion.id}/feeds.json?api_key=${estacion.key}&results=100`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.feeds.length > 0) {
-                        let temperaturas = data.feeds
-                            .map(feed => parseFloat(feed.field1))
-                            .filter(temp => !isNaN(temp));
+                        let temperaturasPorDia = {
+                            Lunes: [],
+                            Martes: [],
+                            Miércoles: [],
+                            Jueves: [],
+                            Viernes: [],
+                            Sábado: [],
+                            Domingo: []
+                        };
 
-                        if (temperaturas.length > 0) {
-                            let tempMax = Math.max(...temperaturas);
-                            let tempMin = Math.min(...temperaturas);
+                        data.feeds.forEach(feed => {
+                            let fecha = new Date(feed.created_at);
+                            let diaSemana = obtenerDiaSemana(fecha);
+                            let temp = parseFloat(feed.field1);
 
-                            document.getElementById('temp-stats').innerHTML += `
-                                <div class='temp-box'>
-                                    <b>${estacion.name}</b><br>
-                                    Máx: ${tempMax}°C<br>
-                                    Mín: ${tempMin}°C
-                                </div>
-                            `;
-                        }
+                            if (!isNaN(temp)) {
+                                temperaturasPorDia[diaSemana].push(temp);
+                            }
+                        });
+
+                        let fila = document.createElement('tr');
+                        fila.innerHTML = `<td>${estacion.name}</td>`;
+
+                        Object.keys(temperaturasPorDia).forEach(dia => {
+                            let temps = temperaturasPorDia[dia];
+                            if (temps.length > 0) {
+                                let max = Math.max(...temps).toFixed(1);
+                                let min = Math.min(...temps).toFixed(1);
+                                fila.innerHTML += `<td>Máx: ${max}°C<br>Mín: ${min}°C</td>`;
+                            } else {
+                                fila.innerHTML += `<td>--</td>`;
+                            }
+                        });
+
+                        document.getElementById('temp-body').appendChild(fila);
                     }
                 })
                 .catch(error => console.error(`Error obteniendo temperaturas de ${estacion.name}:`, error));
+        }
+
+        function obtenerDiaSemana(fecha) {
+            const dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+            return dias[fecha.getDay()];
         }
     </script>
 </body>
