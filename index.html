@@ -1,9 +1,7 @@
 <!DOCTYPE html>
-<html lang="es">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapa de Estaciones Meteorológicas</title>
+    <title>Mapa de Estaciones</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <style>
@@ -13,78 +11,55 @@
             margin: 0;
             padding: 0;
             text-align: center;
-        }
-        .container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 20px;
-        }
-        #map {
-            height: 600px;
-            width: 80%;
-            margin-bottom: 20px;
-            border-radius: 10px;
-            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
-        }
-        .stats-container {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: space-evenly;
-            width: 80%;
-            margin-top: 20px;
-        }
-        .stat-box {
-            background: #007bff;
-            color: white;
-            padding: 10px;
-            margin: 10px;
-            width: 200px;
-            border-radius: 8px;
-            font-weight: bold;
-            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.2);
-            transition: background-color 0.3s;
-            font-size: 12px; /* Reducido el tamaño de la fuente */
-        }
-        .stat-box:hover {
-            background: #0056b3;
-        }
-        .max-min {
-            display: flex;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            width: 100%;
-            margin-top: 20px;
-        }
-        .max-min div {
-            padding: 15px;
-            background-color: #e3e3e3;
-            width: 48%;
-            margin-bottom: 10px;
-            border-radius: 5px;
-            font-weight: bold;
-            font-size: 12px; /* Reducido el tamaño de la fuente */
-        }
-        .max-min div:nth-child(odd) {
-            background-color: #d6f0ff;
+            background-image: url('https://www.transparenttextures.com/patterns/diag-stripes.png');
         }
         .logo {
             width: 150px;
             margin: 20px auto;
+            display: block;
         }
-        h2 {
-            font-size: 24px;
-            color: #333;
+        #map {
+            height: 500px;
+            width: 80%;
+            margin: auto;
+            border-radius: 10px;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        .stats {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin: 20px auto;
+        }
+        .stat-box {
+            padding: 15px;
+            margin: 5px;
+            background: #007bff;
+            color: white;
+            border-radius: 5px;
+            font-weight: bold;
+            width: 200px;
+            text-align: center;
+        }
+        .max-min {
+            margin-top: 20px;
+            font-size: 18px;
+        }
+        .max-min div {
+            padding: 5px;
+            background-color: #e3e3e3;
+            margin-bottom: 10px;
+        }
+        .red {
+            background-color: red;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <img src="https://drive.google.com/uc?export=view&id=1Si5qBOsQiFPGyYMiQ8mXPEYJE-YLbhd5" class="logo" alt="Logo">
-        <h2>Estaciones Meteorológicas</h2>
-        <div id="map"></div>
-        <div class="stats-container" id="estacion-stats"></div>
-    </div>
+    <img src="https://drive.google.com/uc?export=view&id=1Si5qBOsQiFPGyYMiQ8mXPEYJE-YLbhd5" class="logo" alt="Logo">
+    <h2>Estaciones Meteorológicas</h2>
+    <div id="map"></div>
+    <div class="stats" id="estacion-stats"></div>
 
     <script>
         var map = L.map('map').setView([-34.9214, -57.9544], 10);
@@ -104,80 +79,106 @@
             if (estacion.wunderground) {
                 L.marker([estacion.lat, estacion.lon]).addTo(map)
                     .bindPopup(`<b>${estacion.name}</b><br><a href='https://www.wunderground.com/dashboard/pws/ILAPLA66' target='_blank'>Ver datos en vivo</a>`);
-                document.getElementById('estacion-stats').innerHTML += `
-                    <div class='stat-box'>
-                        <b>${estacion.name}</b><br>
-                        <a href='https://www.wunderground.com/dashboard/pws/ILAPLA66' target='_blank'>Ver datos</a>
-                    </div>`;
+                document.getElementById('estacion-stats').innerHTML += `<div class='stat-box'>${estacion.name}<br><a href='https://www.wunderground.com/dashboard/pws/ILAPLA66' target='_blank'>Ver datos</a></div>`;
             } else {
+                // Intentamos obtener los últimos datos
                 fetch(`https://api.thingspeak.com/channels/${estacion.id}/feeds.json?api_key=${estacion.key}&results=168`)
                     .then(response => response.json())
                     .then(data => {
                         const feeds = data.feeds;
                         let estado = 'Sin datos disponibles';
+                        let maxTemp = '--';
+                        let minTemp = '--';
                         let variables = '';
 
                         if (feeds && feeds.length > 0) {
-                            let lastData = feeds[feeds.length - 1]; // Última medición
-                            let lastTemp = parseFloat(lastData.field1);
-                            let lastHumedad = lastData.field2;
-                            let lastPresion = lastData.field3;
-                            let lastPrecipitacion = lastData.field4;
-                            let lastFecha = new Date(lastData.created_at);
+                            let maxTempVal = -Infinity;
+                            let minTempVal = Infinity;
 
-                            variables = `
-                                <b>Última medición:</b><br>
-                                Temp: ${lastTemp ? lastTemp + '°C' : '--'}<br>
-                                Humedad: ${lastHumedad ? lastHumedad + '%' : '--'}<br>
-                                Presion: ${lastPresion ? lastPresion + 'hPa' : '--'}<br>
-                                Precipitacion: ${lastPrecipitacion ? lastPrecipitacion + 'mm' : '--'}<br>
-                                Fecha: ${lastFecha.toLocaleString()}
-                            `;
+                            feeds.forEach(feed => {
+                                let temp = parseFloat(feed.field1);
+                                let humedad = feed.field2;
+                                let presion = feed.field3;
+                                let precipitacion = feed.field4;
+                                let fecha = new Date(feed.created_at);
+                                variables = `
+                                    Temp: ${temp ? temp + '°C' : '--'}<br>
+                                    Humedad: ${humedad ? humedad + '%' : '--'}<br>
+                                    Presion: ${presion ? presion + 'hPa' : '--'}<br>
+                                    Precipitacion: ${precipitacion ? precipitacion + 'mm' : '--'}<br>
+                                `;
+
+                                if (!isNaN(temp)) {
+                                    maxTempVal = Math.max(maxTempVal, temp);
+                                    minTempVal = Math.min(minTempVal, temp);
+                                }
+                            });
+
+                            maxTemp = maxTempVal === -Infinity ? '--' : maxTempVal + '°C';
+                            minTemp = minTempVal === Infinity ? '--' : minTempVal + '°C';
+
+                            estado = `Última medición: ${maxTemp} / ${minTemp}`;
                         } else {
                             estado = 'Sin datos disponibles';
                         }
 
+                        // Agregar marcador en el mapa
                         let marker = L.marker([estacion.lat, estacion.lon]).addTo(map);
-                        marker.bindPopup(`<b>${estacion.name}</b><br>${variables}`);
+                        marker.bindPopup(`<b>${estacion.name}</b><br>${estado}`);
 
+                        // Agregar cuadrantes
                         document.getElementById('estacion-stats').innerHTML += `
-                            <div class='stat-box'>
-                                <b>${estacion.name}</b><br>${variables}
+                            <div class='stat-box ${estado === 'Sin datos disponibles' ? 'red' : ''}'>
+                                <b>${estacion.name}</b><br>${estado}
+                                <br>${variables}
                             </div>
                         `;
 
-                        // Mostrar histórico de máximas y mínimas
-                        let weekStats = `<div><b>Máximas y Mínimas de la Última Semana</b></div>`;
-                        let weeklyMax = -Infinity;
-                        let weeklyMin = Infinity;
+                        // Agregar máximas y mínimas
+                        let weekStats = `<div><b>Temperaturas máximas y mínimas de la última semana</b></div>`;
+                        for (let i = 0; i < 7; i++) {
+                            let day = new Date();
+                            day.setDate(day.getDate() - i);
+                            let dayString = day.toLocaleDateString();
 
-                        feeds.forEach(feed => {
-                            let temp = parseFloat(feed.field1);
-                            if (!isNaN(temp)) {
-                                weeklyMax = Math.max(weeklyMax, temp);
-                                weeklyMin = Math.min(weeklyMin, temp);
+                            let dayData = feeds.filter(feed => {
+                                let feedDate = new Date(feed.created_at);
+                                return feedDate.toLocaleDateString() === dayString;
+                            });
+
+                            let dailyMax = '--';
+                            let dailyMin = '--';
+
+                            if (dayData.length > 0) {
+                                let dailyMaxTemp = -Infinity;
+                                let dailyMinTemp = Infinity;
+
+                                dayData.forEach(feed => {
+                                    let temp = parseFloat(feed.field1);
+                                    if (!isNaN(temp)) {
+                                        dailyMaxTemp = Math.max(dailyMaxTemp, temp);
+                                        dailyMinTemp = Math.min(dailyMinTemp, temp);
+                                    }
+                                });
+
+                                dailyMax = dailyMaxTemp === -Infinity ? '--' : dailyMaxTemp + '°C';
+                                dailyMin = dailyMinTemp === Infinity ? '--' : dailyMinTemp + '°C';
                             }
-                        });
 
-                        weekStats += `
-                            <div>${estacion.name}: Max: ${weeklyMax !== -Infinity ? weeklyMax + '°C' : '--'} / Min: ${weeklyMin !== Infinity ? weeklyMin + '°C' : '--'}</div>
-                        `;
-
-                        // Agregar cuadrantes con datos históricos
-                        setTimeout(() => {
-                            document.getElementById('estacion-stats').innerHTML += `
-                                <div class='stat-box'>
-                                    ${weekStats}
-                                </div>
+                            weekStats += `
+                                <div>${dayString}: Max: ${dailyMax} / Min: ${dailyMin}</div>
                             `;
-                        }, 1500);  // Esperar que los datos se carguen
+                        }
+
+                        document.getElementById('estacion-stats').innerHTML += `<div class="max-min">${weekStats}</div>`;
+
                     })
                     .catch(error => {
                         console.error(`Error obteniendo datos de ${estacion.name}:`, error);
+                        document.getElementById('estacion-stats').innerHTML += `<div class='stat-box ${estado === 'Sin datos disponibles' ? 'red' : ''}'>${estacion.name}<br>Fuera de servicio</div>`;
                     });
             }
         });
-
     </script>
 </body>
 </html>
