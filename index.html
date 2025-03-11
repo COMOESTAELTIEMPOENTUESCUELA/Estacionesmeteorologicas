@@ -13,7 +13,6 @@
             margin: 0;
             padding: 0;
             text-align: center;
-            background-image: url('https://www.transparenttextures.com/patterns/diag-stripes.png');
         }
         .logo {
             width: 150px;
@@ -26,18 +25,18 @@
         }
         #map {
             height: 500px;
-            width: 80%;
+            width: 90%;
             margin: auto;
             border-radius: 10px;
             box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
         }
-        .stats {
+        .stats, .max-min {
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
             margin: 20px auto;
         }
-        .stat-box {
+        .stat-box, .temp-box {
             padding: 15px;
             margin: 5px;
             background: #007bff;
@@ -47,17 +46,16 @@
             width: 200px;
             text-align: center;
         }
-        .max-min {
-            margin-top: 20px;
-            font-size: 18px;
-        }
-        .max-min div {
-            padding: 5px;
-            background-color: #e3e3e3;
-            margin-bottom: 10px;
-        }
         .red {
             background-color: red;
+        }
+        @media (max-width: 768px) {
+            #map {
+                height: 400px;
+            }
+            .stat-box, .temp-box {
+                width: 90%;
+            }
         }
     </style>
 </head>
@@ -66,6 +64,8 @@
     <h2>Estaciones Meteorológicas</h2>
     <div id="map"></div>
     <div class="stats" id="estacion-stats"></div>
+    <h2>Temperaturas Máximas y Mínimas Últimos 7 Días</h2>
+    <div class="max-min" id="temp-stats"></div>
 
     <script>
         var map = L.map('map').setView([-34.9214, -57.9544], 10);
@@ -77,122 +77,83 @@
             { id: 2218686, key: 'JUXJQRZMFFAS037Z', name: 'Escuela 23', lat: -35.025972, lon: -57.752972 },
             { id: 2685796, key: 'XKV09A27AXZ35IEA', name: 'Estación EMA', lat: -34.9438126377134, lon: -57.89444617313153 },
             { id: 2218689, key: 'ZLNOSLZJPQM3H7SD', name: 'Escuela 34', lat: -35.072583, lon: -57.865778 },
-            { id: 2218687, key: 'TH3V4TJLRFZD3JSG', name: 'Colegio San Vicente de Paul', lat: -34.90335049405157, lon: -57.94831605582217 },
-            { id: null, key: null, name: 'Tiempoentuescuela (ILAPLA66)', lat: -34.991, lon: -57.867, wunderground: true }
+            { id: 2218687, key: 'TH3V4TJLRFZD3JSG', name: 'Colegio San Vicente de Paul', lat: -34.90335049405157, lon: -57.94831605582217 }
         ];
 
-        // Primero agregamos los marcadores de las estaciones (excepto Tiempoentuescuela)
-        estaciones.filter(estacion => !estacion.wunderground).forEach(estacion => {
-            fetch(`https://api.thingspeak.com/channels/${estacion.id}/feeds.json?api_key=${estacion.key}&results=168`)
+        estaciones.forEach(estacion => {
+            fetch(`https://api.thingspeak.com/channels/${estacion.id}/feeds.json?api_key=${estacion.key}&results=1`)
                 .then(response => response.json())
                 .then(data => {
-                    const feeds = data.feeds;
                     let estado = 'Sin datos disponibles';
-                    let maxTemp = '--';
-                    let minTemp = '--';
+                    let fechaMedicion = '--';
                     let variables = '';
 
-                    if (feeds && feeds.length > 0) {
-                        let maxTempVal = -Infinity;
-                        let minTempVal = Infinity;
+                    if (data.feeds.length > 0) {
+                        let feed = data.feeds[0];
+                        let fecha = new Date(feed.created_at);
+                        fechaMedicion = fecha.toLocaleString();
 
-                        feeds.forEach(feed => {
-                            let temp = parseFloat(feed.field1);
-                            let humedad = feed.field2;
-                            let presion = feed.field3;
-                            let precipitacion = feed.field4;
-                            let fecha = new Date(feed.created_at);
-                            variables = `
-                                Temp: ${temp ? temp + '°C' : '--'}<br>
-                                Humedad: ${humedad ? humedad + '%' : '--'}<br>
-                                Presion: ${presion ? presion + 'hPa' : '--'}<br>
-                                Precipitacion: ${precipitacion ? precipitacion + 'mm' : '--'}<br>
-                            `;
+                        let temp = parseFloat(feed.field1);
+                        let humedad = feed.field2;
+                        let presion = feed.field3;
+                        let precipitacion = feed.field4;
 
-                            if (!isNaN(temp)) {
-                                maxTempVal = Math.max(maxTempVal, temp);
-                                minTempVal = Math.min(minTempVal, temp);
-                            }
-                        });
+                        variables = `
+                            Temp: ${temp ? temp + '°C' : '--'}<br>
+                            Humedad: ${humedad ? humedad + '%' : '--'}<br>
+                            Presión: ${presion ? presion + 'hPa' : '--'}<br>
+                            Precipitación: ${precipitacion ? precipitacion + 'mm' : '--'}<br>
+                        `;
 
-                        maxTemp = maxTempVal === -Infinity ? '--' : maxTempVal + '°C';
-                        minTemp = minTempVal === Infinity ? '--' : minTempVal + '°C';
-
-                        estado = `Última medición: ${maxTemp} / ${minTemp}`;
-                    } else {
-                        estado = 'Sin datos disponibles';
+                        estado = `Última medición: ${fechaMedicion}`;
                     }
 
-                    // Agregar marcador en el mapa
                     let marker = L.marker([estacion.lat, estacion.lon]).addTo(map);
                     marker.bindPopup(`<b>${estacion.name}</b><br>${estado}<br><br>${variables}`);
 
-                    // Agregar cuadrantes
                     document.getElementById('estacion-stats').innerHTML += `
                         <div class='stat-box ${estado === 'Sin datos disponibles' ? 'red' : ''}'>
-                            <b>${estacion.name}</b><br>${estado}
-                            <br>${variables}
+                            <b>${estacion.name}</b><br>${estado}<br>${variables}
                         </div>
                     `;
 
-                    // Agregar máximas y mínimas
-                    let weekStats = `<div><b>Temperaturas máximas y mínimas de la última semana</b></div>`;
-                    for (let i = 0; i < 7; i++) {
-                        let day = new Date();
-                        day.setDate(day.getDate() - i);
-                        let dayString = day.toLocaleDateString();
-
-                        let dayData = feeds.filter(feed => {
-                            let feedDate = new Date(feed.created_at);
-                            return feedDate.toLocaleDateString() === dayString;
-                        });
-
-                        let dailyMax = '--';
-                        let dailyMin = '--';
-
-                        if (dayData.length > 0) {
-                            let dailyMaxTemp = -Infinity;
-                            let dailyMinTemp = Infinity;
-
-                            dayData.forEach(feed => {
-                                let temp = parseFloat(feed.field1);
-                                if (!isNaN(temp)) {
-                                    dailyMaxTemp = Math.max(dailyMaxTemp, temp);
-                                    dailyMinTemp = Math.min(dailyMinTemp, temp);
-                                }
-                            });
-
-                            dailyMax = dailyMaxTemp === -Infinity ? '--' : dailyMaxTemp + '°C';
-                            dailyMin = dailyMinTemp === Infinity ? '--' : dailyMinTemp + '°C';
-                        }
-
-                        weekStats += `
-                            <div>${dayString}: Max: ${dailyMax} / Min: ${dailyMin}</div>
-                        `;
-                    }
-
-                    document.getElementById('estacion-stats').innerHTML += `<div class="max-min">${weekStats}</div>`;
-
+                    obtenerMaxMin(estacion);
                 })
                 .catch(error => {
                     console.error(`Error obteniendo datos de ${estacion.name}:`, error);
-                    document.getElementById('estacion-stats').innerHTML += `<div class='stat-box ${estado === 'Sin datos disponibles' ? 'red' : ''}'>${estacion.name}<br>Fuera de servicio</div>`;
+                    document.getElementById('estacion-stats').innerHTML += `
+                        <div class='stat-box red'>
+                            <b>${estacion.name}</b><br>Fuera de servicio
+                        </div>
+                    `;
                 });
         });
 
-        // Luego agregamos Tiempoentuescuela al final
-        estaciones.filter(estacion => estacion.wunderground).forEach(estacion => {
-            L.marker([estacion.lat, estacion.lon]).addTo(map)
-                .bindPopup(`<b>${estacion.name}</b><br><a href='https://www.wunderground.com/dashboard/pws/ILAPLA66' target='_blank'>Ver datos en vivo</a>`);
+        function obtenerMaxMin(estacion) {
+            fetch(`https://api.thingspeak.com/channels/${estacion.id}/feeds.json?api_key=${estacion.key}&results=100`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.feeds.length > 0) {
+                        let temperaturas = data.feeds
+                            .map(feed => parseFloat(feed.field1))
+                            .filter(temp => !isNaN(temp));
 
-            document.getElementById('estacion-stats').innerHTML += `
-                <div class='stat-box'>
-                    <b>${estacion.name}</b><br>
-                    <a href='https://www.wunderground.com/dashboard/pws/ILAPLA66' target='_blank'>Ver datos en vivo</a>
-                </div>
-            `;
-        });
+                        if (temperaturas.length > 0) {
+                            let tempMax = Math.max(...temperaturas);
+                            let tempMin = Math.min(...temperaturas);
+
+                            document.getElementById('temp-stats').innerHTML += `
+                                <div class='temp-box'>
+                                    <b>${estacion.name}</b><br>
+                                    Máx: ${tempMax}°C<br>
+                                    Mín: ${tempMin}°C
+                                </div>
+                            `;
+                        }
+                    }
+                })
+                .catch(error => console.error(`Error obteniendo temperaturas de ${estacion.name}:`, error));
+        }
     </script>
 </body>
 </html>
-
