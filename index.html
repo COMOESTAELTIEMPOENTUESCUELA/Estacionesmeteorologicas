@@ -128,7 +128,6 @@
 
     const estaciones = [
         { id: 2218686, key: 'JUXJQRZMFFAS037Z', name: 'Escuela 23', lat: -35.025972, lon: -57.752972 },
-        { id: 2685796, key: 'XKV09A27AXZ35IEA', name: 'Estación Esp32', lat: -34.9438126377134, lon: -57.89444617313153 },
         { id: 2218689, key: 'ZLNOSLZJPQM3H7SD', name: 'Escuela 34', lat: -35.072583, lon: -57.865778 },
         { id: 2218687, key: 'TH3V4TJLRFZD3JSG', name: 'Colegio San Vicente de Paul', lat: -34.90335049405157, lon: -57.94831605582217 },
         { id: 'IARANA2', key: 'fWumWJx3', name: 'Mi Estación Personal', lat: -34.9214, lon: -57.9544, source: 'wunderground' }
@@ -137,16 +136,11 @@
     estaciones.forEach(estacion => {
         let apiUrl = '';
         if (estacion.source === 'wunderground') {
-            // URL para la API de Weather Underground
             apiUrl = `https://api.weather.com/v2/pws/observations/current?stationId=${estacion.id}&format=json&units=m&apiKey=${estacion.key}`;
         } else {
-            // URL para la API de ThingSpeak
             apiUrl = `https://api.thingspeak.com/channels/${estacion.id}/feeds.json?api_key=${estacion.key}&results=1`;
         }
         
-        // Uso del proxy para evitar el error de CORS si es necesario.
-        // Si las APIs de ThingSpeak no dan error, no es necesario,
-        // pero se mantiene por si vuelve a ocurrir el problema.
         const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
         const finalUrl = `${proxyUrl}${apiUrl}`;
         
@@ -221,12 +215,8 @@
             });
     });
 
-    // La función `obtenerTemperaturasUltimos7Dias` se mantiene para las estaciones de ThingSpeak,
-    // pero no funcionará para la estación de Weather Underground con la API gratuita.
     function obtenerTemperaturasUltimos7Dias(estacion) {
         if (estacion.source === 'wunderground') {
-            // La API gratuita de Weather Underground no proporciona datos históricos de 7 días.
-            // Se debe usar la API de datos históricos, la cual no está disponible con una clave de PWS.
             return;
         }
 
