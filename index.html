@@ -46,9 +46,7 @@
             width: 200px;
             text-align: center;
         }
-        .red {
-            background-color: red;
-        }
+        .red { background-color: red; }
         table {
             width: 100%;
             margin: 20px auto;
@@ -63,44 +61,28 @@
             border: 1px solid #ddd;
             white-space: nowrap;
         }
-        th {
-            background-color: #007bff;
-            color: white;
-        }
+        th { background-color: #007bff; color: white; }
         @media (max-width: 768px) {
-            #map {
-                height: 400px;
-            }
-            .stat-box, .temp-box {
-                width: 90%;
-            }
-            table {
-                font-size: 0.8em;
-            }
-            th, td {
-                padding: 8px;
-            }
+            #map { height: 400px; }
+            .stat-box, .temp-box { width: 90%; }
+            table { font-size: 0.8em; }
+            th, td { padding: 8px; }
         }
         @media (max-width: 480px) {
-            table {
-                font-size: 0.7em;
-            }
-            th, td {
-                padding: 5px;
-            }
+            table { font-size: 0.7em; }
+            th, td { padding: 5px; }
         }
-        .table-container {
-            width: 90%;
-            margin: auto;
-            overflow-x: auto;
-        }
+        .table-container { width: 90%; margin: auto; overflow-x: auto; }
     </style>
 </head>
 <body>
+
     <img src="https://drive.google.com/uc?export=view&id=1Si5qBOsQiFPGyYMiQ8mXPEYJE-YLbhd5" class="logo" alt="">
     <h2>Estaciones Meteorológicas</h2>
+
     <div id="map"></div>
     <div class="stats" id="estacion-stats"></div>
+
     <h2>Temperaturas Máximas y Mínimas Últimos 7 Días</h2>
     <div class="table-container">
         <table id="temp-table">
@@ -120,145 +102,133 @@
         </table>
     </div>
 
-    <script>
+<script>
     var map = L.map('map').setView([-34.9214, -57.9544], 10);
+
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
     const estaciones = [
-        { id: 2218686, key: 'JUXJQRZMFFAS037Z', name: 'Escuela 23', lat: -35.025972, lon: -57.752972 },
-        { id: 2218689, key: 'ZLNOSLZJPQM3H7SD', name: 'Escuela 34', lat: -35.072583, lon: -57.865778 },
-        { id: 2218687, key: 'TH3V4TJLRFZD3JSG', name: 'Colegio San Vicente de Paul', lat: -34.90335049405157, lon: -57.94831605582217 },
-        { id: 'IARANA2', key: 'fWumWJx3', name: 'Mi Estación Personal', lat: -34.9214, lon: -57.9544, source: 'wunderground' }
+        { id: 2218686, key: 'JUXJQRZMFFAS037Z', name: 'Escuela 23', lat: -35.025972, lon: -57.752972, tipo: 'thingspeak' },
+        { id: 2685796, key: 'XKV09A27AXZ35IEA', name: 'Estación Esp32', lat: -34.9438126377134, lon: -57.89444617313153, tipo: 'thingspeak' },
+        { id: 2218689, key: 'ZLNOSLZJPQM3H7SD', name: 'Escuela 34', lat: -35.072583, lon: -57.865778, tipo: 'thingspeak' },
+        { id: 2218687, key: 'TH3V4TJLRFZD3JSG', name: 'Colegio San Vicente de Paul', lat: -34.90335049405157, lon: -57.94831605582217, tipo: 'thingspeak' },
+        { id: 'IARANA2', key: 'TU_API_KEY_WEATHER', name: 'Estación WU IARANA2', lat: -34.92, lon: -57.95, tipo: 'wunderground' }
     ];
 
     estaciones.forEach(estacion => {
-        let apiUrl = '';
-        if (estacion.source === 'wunderground') {
-            apiUrl = `https://api.weather.com/v2/pws/observations/current?stationId=${estacion.id}&format=json&units=m&apiKey=${estacion.key}`;
-        } else {
-            apiUrl = `https://api.thingspeak.com/channels/${estacion.id}/feeds.json?api_key=${estacion.key}&results=1`;
-        }
-        
-        const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
-        const finalUrl = `${proxyUrl}${apiUrl}`;
-        
-        fetch(finalUrl)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`Error de red: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                let estado = 'Sin datos disponibles';
-                let fechaMedicion = '--';
-                let variables = '';
-                let temp, humedad, presion, precipitacion;
+        if (estacion.tipo === 'thingspeak') {
+            fetch(`https://api.thingspeak.com/channels/${estacion.id}/feeds.json?api_key=${estacion.key}&results=1`)
+                .then(response => response.json())
+                .then(data => {
+                    let estado = 'Sin datos disponibles';
+                    let fechaMedicion = '--';
+                    let variables = '';
 
-                if (estacion.source === 'wunderground') {
-                    if (data.observations && data.observations.length > 0) {
-                        const obs = data.observations[0];
-                        const metric = obs.metric;
-
-                        const fecha = new Date(obs.obsTimeUtc);
-                        fechaMedicion = fecha.toLocaleString();
-
-                        temp = metric.temp || '--';
-                        humedad = metric.humidity || '--';
-                        presion = metric.pressureAltimeter || '--';
-                        precipitacion = metric.precipTotal || '--';
-                    }
-                } else {
-                    if (data.feeds && data.feeds.length > 0) {
+                    if (data.feeds.length > 0) {
                         let feed = data.feeds[0];
                         let fecha = new Date(feed.created_at);
                         fechaMedicion = fecha.toLocaleString();
 
-                        temp = parseFloat(feed.field1);
-                        humedad = feed.field2;
-                        presion = feed.field3;
-                        precipitacion = feed.field4;
+                        let temp = parseFloat(feed.field1);
+                        let humedad = feed.field2;
+                        let presion = feed.field3;
+                        let precipitacion = feed.field4;
+
+                        variables = `
+                            Temp: ${temp ? temp + '°C' : '--'}<br>
+                            Humedad: ${humedad ? humedad + '%' : '--'}<br>
+                            Presión: ${presion ? presion + 'hPa' : '--'}<br>
+                            Precipitación: ${precipitacion ? precipitacion + 'mm' : '--'}<br>
+                        `;
+                        estado = `Última medición: ${fechaMedicion}`;
                     }
-                }
 
-                variables = `
-                    Temp: ${temp ? temp + '°C' : '--'}<br>
-                    Humedad: ${humedad ? humedad + '%' : '--'}<br>
-                    Presión: ${presion ? presion + 'hPa' : '--'}<br>
-                    Precipitación: ${precipitacion ? precipitacion + 'mm' : '--'}<br>
-                `;
+                    let marker = L.marker([estacion.lat, estacion.lon]).addTo(map);
+                    marker.bindPopup(`<b>${estacion.name}</b><br>${estado}<br><br>${variables}`);
 
-                if (fechaMedicion !== '--') {
-                    estado = `Última medición: ${fechaMedicion}`;
-                }
+                    document.getElementById('estacion-stats').innerHTML += `
+                        <div class='stat-box ${estado === 'Sin datos disponibles' ? 'red' : ''}'>
+                            <b>${estacion.name}</b><br>${estado}<br>${variables}
+                        </div>
+                    `;
 
-                let marker = L.marker([estacion.lat, estacion.lon]).addTo(map);
-                marker.bindPopup(`<b>${estacion.name}</b><br>${estado}<br><br>${variables}`);
+                    obtenerTemperaturasUltimos7Dias(estacion);
+                })
+                .catch(error => {
+                    console.error(`Error obteniendo datos de ${estacion.name}:`, error);
+                    document.getElementById('estacion-stats').innerHTML += `
+                        <div class='stat-box red'>
+                            <b>${estacion.name}</b><br>Fuera de servicio
+                        </div>
+                    `;
+                });
 
-                document.getElementById('estacion-stats').innerHTML += `
-                    <div class='stat-box ${estado === 'Sin datos disponibles' ? 'red' : ''}'>
-                        <b>${estacion.name}</b><br>${estado}<br>${variables}
-                    </div>
-                `;
+        } else if (estacion.tipo === 'wunderground') {
+            fetch(`https://api.weather.com/v2/pws/observations/current?stationId=${estacion.id}&format=json&units=m&apiKey=${estacion.key}`)
+                .then(response => response.json())
+                .then(data => {
+                    let obs = data.observations[0];
+                    let temp = obs.metric.temp;
+                    let humedad = obs.humidity;
+                    let presion = obs.metric.pressure;
+                    let precipitacion = obs.metric.precipTotal;
+                    let fechaMedicion = new Date(obs.obsTimeUtc).toLocaleString();
 
-                obtenerTemperaturasUltimos7Dias(estacion);
-            })
-            .catch(error => {
-                console.error(`Error obteniendo datos de ${estacion.name}:`, error);
-                document.getElementById('estacion-stats').innerHTML += `
-                    <div class='stat-box red'>
-                        <b>${estacion.name}</b><br>Fuera de servicio
-                    </div>
-                `;
-            });
+                    let variables = `
+                        Temp: ${temp}°C<br>
+                        Humedad: ${humedad}%<br>
+                        Presión: ${presion} hPa<br>
+                        Precipitación: ${precipitacion} mm
+                    `;
+
+                    let marker = L.marker([estacion.lat, estacion.lon]).addTo(map);
+                    marker.bindPopup(`<b>${estacion.name}</b><br>Última medición: ${fechaMedicion}<br><br>${variables}`);
+
+                    document.getElementById('estacion-stats').innerHTML += `
+                        <div class='stat-box'>
+                            <b>${estacion.name}</b><br>Última medición: ${fechaMedicion}<br>${variables}
+                        </div>
+                    `;
+                })
+                .catch(error => {
+                    console.error(`Error obteniendo datos de ${estacion.name}:`, error);
+                    document.getElementById('estacion-stats').innerHTML += `
+                        <div class='stat-box red'>
+                            <b>${estacion.name}</b><br>Fuera de servicio
+                        </div>
+                    `;
+                });
+        }
     });
 
     function obtenerTemperaturasUltimos7Dias(estacion) {
-        if (estacion.source === 'wunderground') {
-            return;
-        }
+        if (estacion.tipo !== 'thingspeak') return; // solo aplica a ThingSpeak
 
-        const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
-        const apiUrl = `${proxyUrl}https://api.thingspeak.com/channels/${estacion.id}/feeds.json?api_key=${estacion.key}&results=100`;
-
-        fetch(apiUrl)
+        fetch(`https://api.thingspeak.com/channels/${estacion.id}/feeds.json?api_key=${estacion.key}&results=100`)
             .then(response => response.json())
             .then(data => {
-                if (data.feeds && data.feeds.length > 0) {
+                if (data.feeds.length > 0) {
                     let temperaturasPorDia = {
-                        Lunes: [],
-                        Martes: [],
-                        Miércoles: [],
-                        Jueves: [],
-                        Viernes: [],
-                        Sábado: [],
-                        Domingo: []
+                        Lunes: [], Martes: [], Miércoles: [], Jueves: [], Viernes: [], Sábado: [], Domingo: []
                     };
-
                     let fechaActual = new Date();
                     fechaActual.setHours(0, 0, 0, 0);
 
                     data.feeds.forEach(feed => {
                         let fechaRegistro = new Date(feed.created_at);
                         fechaRegistro.setHours(0, 0, 0, 0);
-
                         let diferenciaDias = Math.floor((fechaActual - fechaRegistro) / (1000 * 60 * 60 * 24));
-
                         if (diferenciaDias >= 0 && diferenciaDias < 7) {
                             let diaSemana = obtenerDiaSemana(fechaRegistro);
                             let temp = parseFloat(feed.field1);
-
-                            if (!isNaN(temp)) {
-                                temperaturasPorDia[diaSemana].push(temp);
-                            }
+                            if (!isNaN(temp)) temperaturasPorDia[diaSemana].push(temp);
                         }
                     });
 
                     let fila = document.createElement('tr');
                     fila.innerHTML = `<td>${estacion.name}</td>`;
-
                     Object.keys(temperaturasPorDia).forEach(dia => {
                         let temps = temperaturasPorDia[dia];
                         if (temps.length > 0) {
@@ -269,7 +239,6 @@
                             fila.innerHTML += `<td>--</td>`;
                         }
                     });
-
                     document.getElementById('temp-body').appendChild(fila);
                 }
             })
@@ -277,9 +246,9 @@
     }
 
     function obtenerDiaSemana(fecha) {
-        const dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+        const dias = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
         return dias[fecha.getDay()];
     }
-    </script>
+</script>
 </body>
 </html>
