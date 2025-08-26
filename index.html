@@ -61,7 +61,7 @@
         th, td {
             padding: 10px;
             border: 1px solid #ddd;
-            white-space: nowrap; /* Evita que el texto se divida en varias líneas */
+            white-space: nowrap;
         }
         th {
             background-color: #007bff;
@@ -75,24 +75,24 @@
                 width: 90%;
             }
             table {
-                font-size: 0.8em; /* Reduce el tamaño de la fuente en móviles */
+                font-size: 0.8em;
             }
             th, td {
-                padding: 8px; /* Reduce el padding en móviles */
+                padding: 8px;
             }
         }
         @media (max-width: 480px) {
             table {
-                font-size: 0.7em; /* Reduce aún más el tamaño de la fuente en móviles pequeños */
+                font-size: 0.7em;
             }
             th, td {
-                padding: 5px; /* Reduce el padding en móviles pequeños */
+                padding: 5px;
             }
         }
         .table-container {
             width: 90%;
             margin: auto;
-            overflow-x: auto; /* Permite el desplazamiento horizontal */
+            overflow-x: auto;
         }
     </style>
 </head>
@@ -121,128 +121,94 @@
     </div>
 
     <script>
-    var map = L.map('map').setView([-34.9214, -57.9544], 10);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
+        var map = L.map('map').setView([-34.9214, -57.9544], 10);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
 
-    const estaciones = [
-        { id: 2218686, key: 'JUXJQRZMFFAS037Z', name: 'Escuela 23', lat: -35.025972, lon: -57.752972 },
-        { id: 2685796, key: 'XKV09A27AXZ35IEA', name: 'Estación Esp32', lat: -34.9438126377134, lon: -57.89444617313153 },
-        { id: 2218689, key: 'ZLNOSLZJPQM3H7SD', name: 'Escuela 34', lat: -35.072583, lon: -57.865778 },
-        { id: 2218687, key: 'TH3V4TJLRFZD3JSG', name: 'Colegio San Vicente de Paul', lat: -34.90335049405157, lon: -57.94831605582217 }
-    ];
+        const estaciones = [
+            // Tu estación personal de Weather Underground.
+            // Asegúrate de que la latitud y longitud son correctas.
+            { 
+                stationID: 'IARANA2', 
+                apiKey: 'fWumWJx3', 
+                name: 'Mi Estación Personal', 
+                lat: -34.9214, 
+                lon: -57.9544 
+            },
+            // Aquí puedes agregar más estaciones de Weather Underground si tienes
+            // { stationID: 'OTRO_ID', apiKey: 'OTRA_CLAVE', name: 'Otra Estación', lat: 0, lon: 0 },
+        ];
 
-    estaciones.forEach(estacion => {
-        fetch(`https://api.thingspeak.com/channels/${estacion.id}/feeds.json?api_key=${estacion.key}&results=1`)
-            .then(response => response.json())
-            .then(data => {
-                let estado = 'Sin datos disponibles';
-                let fechaMedicion = '--';
-                let variables = '';
+        estaciones.forEach(estacion => {
+            // URL de la API de Weather Underground para las observaciones actuales
+            const apiUrl = `https://api.weather.com/v2/pws/observations/current?stationId=${estacion.stationID}&format=json&units=m&apiKey=${estacion.apiKey}`;
+            
+            fetch(apiUrl)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('No se pudo obtener la respuesta de la API');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Verifica si hay observaciones
+                    if (data.observations && data.observations.length > 0) {
+                        const obs = data.observations[0];
+                        const metric = obs.metric;
 
-                if (data.feeds.length > 0) {
-                    let feed = data.feeds[0];
-                    let fecha = new Date(feed.created_at);
-                    fechaMedicion = fecha.toLocaleString();
+                        const fecha = new Date(obs.obsTimeUtc);
+                        const fechaMedicion = fecha.toLocaleString();
 
-                    let temp = parseFloat(feed.field1);
-                    let humedad = feed.field2;
-                    let presion = feed.field3;
-                    let precipitacion = feed.field4;
+                        const temp = metric.temp || '--';
+                        const humedad = metric.humidity || '--';
+                        const presion = metric.pressureAltimeter || '--';
+                        const precipitacion = metric.precipTotal || '--';
+                        const viento = metric.windspeedAvg || '--';
+                        
+                        const variables = `
+                            Temp: ${temp}°C<br>
+                            Humedad: ${humedad}%<br>
+                            Presión: ${presion} hPa<br>
+                            Viento: ${viento} km/h<br>
+                            Precipitación (1h): ${precipitacion} mm
+                        `;
 
-                    variables = `
-                        Temp: ${temp ? temp + '°C' : '--'}<br>
-                        Humedad: ${humedad ? humedad + '%' : '--'}<br>
-                        Presión: ${presion ? presion + 'hPa' : '--'}<br>
-                        Precipitación: ${precipitacion ? precipitacion + 'mm' : '--'}<br>
+                        const estado = `Última medición: ${fechaMedicion}`;
+
+                        let marker = L.marker([estacion.lat, estacion.lon]).addTo(map);
+                        marker.bindPopup(`<b>${estacion.name}</b><br>${estado}<br><br>${variables}`);
+
+                        document.getElementById('estacion-stats').innerHTML += `
+                            <div class='stat-box'>
+                                <b>${estacion.name}</b><br>${estado}<br>${variables}
+                            </div>
+                        `;
+                    } else {
+                        // Si no hay datos, muestra que la estación está fuera de servicio
+                        document.getElementById('estacion-stats').innerHTML += `
+                            <div class='stat-box red'>
+                                <b>${estacion.name}</b><br>Sin datos disponibles
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error(`Error obteniendo datos de ${estacion.name}:`, error);
+                    document.getElementById('estacion-stats').innerHTML += `
+                        <div class='stat-box red'>
+                            <b>${estacion.name}</b><br>Fuera de servicio
+                        </div>
                     `;
+                });
+        });
 
-                    estado = `Última medición: ${fechaMedicion}`;
-                }
-
-                let marker = L.marker([estacion.lat, estacion.lon]).addTo(map);
-                marker.bindPopup(`<b>${estacion.name}</b><br>${estado}<br><br>${variables}`);
-
-                document.getElementById('estacion-stats').innerHTML += `
-                    <div class='stat-box ${estado === 'Sin datos disponibles' ? 'red' : ''}'>
-                        <b>${estacion.name}</b><br>${estado}<br>${variables}
-                    </div>
-                `;
-
-                obtenerTemperaturasUltimos7Dias(estacion);
-            })
-            .catch(error => {
-                console.error(`Error obteniendo datos de ${estacion.name}:`, error);
-                document.getElementById('estacion-stats').innerHTML += `
-                    <div class='stat-box red'>
-                        <b>${estacion.name}</b><br>Fuera de servicio
-                    </div>
-                `;
-            });
-    });
-
-    function obtenerTemperaturasUltimos7Dias(estacion) {
-        fetch(`https://api.thingspeak.com/channels/${estacion.id}/feeds.json?api_key=${estacion.key}&results=100`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.feeds.length > 0) {
-                    let temperaturasPorDia = {
-                        Lunes: [],
-                        Martes: [],
-                        Miércoles: [],
-                        Jueves: [],
-                        Viernes: [],
-                        Sábado: [],
-                        Domingo: []
-                    };
-
-                    // Obtener la fecha actual
-                    let fechaActual = new Date();
-                    fechaActual.setHours(0, 0, 0, 0); // Normalizar la fecha a medianoche
-
-                    data.feeds.forEach(feed => {
-                        let fechaRegistro = new Date(feed.created_at);
-                        fechaRegistro.setHours(0, 0, 0, 0); // Normalizar la fecha a medianoche
-
-                        // Calcular la diferencia en días entre la fecha actual y la fecha del registro
-                        let diferenciaDias = Math.floor((fechaActual - fechaRegistro) / (1000 * 60 * 60 * 24));
-
-                        // Solo considerar registros de los últimos 7 días
-                        if (diferenciaDias >= 0 && diferenciaDias < 7) {
-                            let diaSemana = obtenerDiaSemana(fechaRegistro);
-                            let temp = parseFloat(feed.field1);
-
-                            if (!isNaN(temp)) {
-                                temperaturasPorDia[diaSemana].push(temp);
-                            }
-                        }
-                    });
-
-                    let fila = document.createElement('tr');
-                    fila.innerHTML = `<td>${estacion.name}</td>`;
-
-                    Object.keys(temperaturasPorDia).forEach(dia => {
-                        let temps = temperaturasPorDia[dia];
-                        if (temps.length > 0) {
-                            let max = Math.max(...temps).toFixed(1);
-                            let min = Math.min(...temps).toFixed(1);
-                            fila.innerHTML += `<td>Máx: ${max}°C<br>Mín: ${min}°C</td>`;
-                        } else {
-                            fila.innerHTML += `<td>--</td>`;
-                        }
-                    });
-
-                    document.getElementById('temp-body').appendChild(fila);
-                }
-            })
-            .catch(error => console.error(`Error obteniendo temperaturas de ${estacion.name}:`, error));
-    }
-
-    function obtenerDiaSemana(fecha) {
-        const dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-        return dias[fecha.getDay()];
-    }
-</script>
+        // NOTA: El siguiente código para obtener las temperaturas de los últimos 7 días
+        // no es compatible con la API gratuita de Weather Underground.
+        // La funcionalidad ha sido comentada.
+        // function obtenerTemperaturasUltimos7Dias(estacion) {
+        //     // ... código de ThingSpeak, no compatible con WU
+        // }
+    </script>
 </body>
 </html>
