@@ -2,142 +2,109 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Red de Estaciones Meteorológicas</title>
+  <title>Mapa de Estaciones Meteorológicas</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 0;
-    }
-    #map {
-      height: 70vh;
-      width: 100%;
-    }
-    #estacion-stats {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 20px;
-      padding: 20px;
-    }
+    #map { height: 500px; margin-bottom: 20px; }
+    #estacion-stats { display: flex; flex-wrap: wrap; gap: 15px; }
     .stat-box {
-      flex: 1 1 200px;
-      background: #f8f9fa;
-      padding: 15px;
-      border-radius: 10px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-    }
-    iframe {
-      border: none;
-      border-radius: 10px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 10px;
+      width: 250px;
+      background: #f9f9f9;
+      box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
     }
   </style>
 </head>
 <body>
-  <h2 style="text-align:center; padding:10px; background:#0078D7; color:white;">
-    🌦️ Red de Estaciones Meteorológicas
-  </h2>
+  <h2>Mapa de Estaciones Meteorológicas</h2>
   <div id="map"></div>
   <div id="estacion-stats"></div>
 
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script>
-    // Lista de estaciones
+    const map = L.map('map').setView([-34.921, -57.955], 11);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap'
+    }).addTo(map);
+
     const estaciones = [
       {
         name: "Estación UNLP",
-        tipo: "thingspeak",
-        channel: "123456",
-        apiKey: "API_KEY_TS_1",
-        lat: -34.9205,
-        lon: -57.9536
-      },
-      {
-        name: "Estación Mar del Plata",
-        tipo: "thingspeak",
-        channel: "234567",
-        apiKey: "API_KEY_TS_2",
-        lat: -38.0055,
-        lon: -57.5426
-      },
-      {
-        name: "Estación Junín",
-        tipo: "thingspeak",
-        channel: "345678",
-        apiKey: "API_KEY_TS_3",
-        lat: -34.5833,
-        lon: -60.95
-      },
-      {
-        name: "Estación La Plata 2",
-        tipo: "thingspeak",
-        channel: "456789",
-        apiKey: "API_KEY_TS_4",
+        id: "123456",
         lat: -34.921,
-        lon: -57.95
+        lon: -57.955,
+        tipo: "thingspeak",
+        api_url: "https://api.thingspeak.com/channels/123456/feeds.json?results=1"
       },
       {
-        name: "Estación IARANA2 (WU)",
-        tipo: "wunderground",
+        name: "Estación Bosque",
+        id: "654321",
+        lat: -34.905,
+        lon: -57.950,
+        tipo: "thingspeak",
+        api_url: "https://api.thingspeak.com/channels/654321/feeds.json?results=1"
+      },
+      {
+        name: "Estación City Bell",
+        id: "789012",
+        lat: -34.875,
+        lon: -58.05,
+        tipo: "thingspeak",
+        api_url: "https://api.thingspeak.com/channels/789012/feeds.json?results=1"
+      },
+      {
+        name: "Estación Villa Elvira",
+        id: "345678",
+        lat: -34.950,
+        lon: -57.90,
+        tipo: "thingspeak",
+        api_url: "https://api.thingspeak.com/channels/345678/feeds.json?results=1"
+      },
+      {
+        name: "Estación Ranelagh (WU)",
         id: "IARANA2",
-        lat: -34.65,
-        lon: -58.62
+        lat: -34.799,
+        lon: -58.219,
+        tipo: "wunderground"
       }
     ];
 
-    // Inicializar mapa
-    const map = L.map('map').setView([-34.92, -57.95], 6);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap'
-    }).addTo(map);
-
-    // Renderizar estaciones
     estaciones.forEach(estacion => {
-      if (estacion.tipo === 'thingspeak') {
-        let url = `https://api.thingspeak.com/channels/${estacion.channel}/feeds.json?api_key=${estacion.apiKey}&results=1`;
-        fetch(url)
-          .then(r => r.json())
+      if (estacion.tipo === "thingspeak") {
+        fetch(estacion.api_url)
+          .then(resp => resp.json())
           .then(data => {
-            let feed = data.feeds[0];
-            let temp = feed.field1;
-            let hum = feed.field2;
+            if (data.feeds && data.feeds.length > 0) {
+              let feed = data.feeds[0];
+              let temp = feed.field1 || "--";
+              let hum = feed.field2 || "--";
 
-            let marker = L.marker([estacion.lat, estacion.lon]).addTo(map);
-            marker.bindPopup(`<b>${estacion.name}</b><br>🌡️ Temp: ${temp}°C<br>💧 Hum: ${hum}%`);
+              let marker = L.marker([estacion.lat, estacion.lon]).addTo(map);
+              marker.bindPopup(`<b>${estacion.name}</b><br>Temp: ${temp} °C<br>Humedad: ${hum} %`);
 
-            document.getElementById('estacion-stats').innerHTML += `
-              <div class='stat-box'>
-                <b>${estacion.name}</b><br>
-                🌡️ Temp: ${temp}°C<br>
-                💧 Hum: ${hum}%
-              </div>
-            `;
-          })
-          .catch(() => {
-            let marker = L.marker([estacion.lat, estacion.lon]).addTo(map);
-            marker.bindPopup(`<b>${estacion.name}</b><br>❌ Fuera de servicio`);
-
-            document.getElementById('estacion-stats').innerHTML += `
-              <div class='stat-box'>
-                <b>${estacion.name}</b><br>
-                ❌ Fuera de servicio
-              </div>
-            `;
+              document.getElementById("estacion-stats").innerHTML += `
+                <div class="stat-box">
+                  <b>${estacion.name}</b><br>
+                  🌡️ Temp: ${temp} °C<br>
+                  💧 Humedad: ${hum} %
+                </div>
+              `;
+            }
           });
-      } else if (estacion.tipo === 'wunderground') {
-        // 🔹 Provisorio con iframe
+      }
+      else if (estacion.tipo === "wunderground") {
+        // Mostrar la estación WU con iframe
         let marker = L.marker([estacion.lat, estacion.lon]).addTo(map);
-        marker.bindPopup(`
-          <b>${estacion.name}</b><br>
-          <iframe src="https://www.wunderground.com/dashboard/pws/${estacion.id}" 
-                  width="250" height="150"></iframe>
-        `);
+        marker.bindPopup(`<b>${estacion.name}</b><br>
+          <iframe src="https://www.wunderground.com/dashboard/pws/${estacion.id}" width="250" height="150"></iframe>`);
 
-        document.getElementById('estacion-stats').innerHTML += `
-          <div class='stat-box'>
+        document.getElementById("estacion-stats").innerHTML += `
+          <div class="stat-box">
             <b>${estacion.name}</b><br>
-            <iframe src="https://www.wunderground.com/dashboard/pws/${estacion.id}" 
-                    width="100%" height="200"></iframe>
+            <iframe src="https://www.wunderground.com/dashboard/pws/${estacion.id}" width="100%" height="200"></iframe>
           </div>
         `;
       }
@@ -145,4 +112,3 @@
   </script>
 </body>
 </html>
-
