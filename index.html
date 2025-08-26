@@ -1,254 +1,148 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapa de Estaciones</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-    <style>
-        body {
-            font-family: 'Arial', sans-serif;
-            background-color: #f4f4f4;
-            margin: 0;
-            padding: 0;
-            text-align: center;
-        }
-        .logo {
-            width: 150px;
-            margin: 20px auto;
-            display: block;
-        }
-        h2 {
-            font-size: 2em;
-            color: #007bff;
-        }
-        #map {
-            height: 500px;
-            width: 90%;
-            margin: auto;
-            border-radius: 10px;
-            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
-        }
-        .stats, .max-min, .temp-table {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            margin: 20px auto;
-        }
-        .stat-box, .temp-box {
-            padding: 15px;
-            margin: 5px;
-            background: #007bff;
-            color: white;
-            border-radius: 5px;
-            font-weight: bold;
-            width: 200px;
-            text-align: center;
-        }
-        .red { background-color: red; }
-        table {
-            width: 100%;
-            margin: 20px auto;
-            border-collapse: collapse;
-            background-color: white;
-            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
-            overflow-x: auto;
-            display: block;
-        }
-        th, td {
-            padding: 10px;
-            border: 1px solid #ddd;
-            white-space: nowrap;
-        }
-        th { background-color: #007bff; color: white; }
-        @media (max-width: 768px) {
-            #map { height: 400px; }
-            .stat-box, .temp-box { width: 90%; }
-            table { font-size: 0.8em; }
-            th, td { padding: 8px; }
-        }
-        @media (max-width: 480px) {
-            table { font-size: 0.7em; }
-            th, td { padding: 5px; }
-        }
-        .table-container { width: 90%; margin: auto; overflow-x: auto; }
-    </style>
+  <meta charset="UTF-8">
+  <title>Red de Estaciones Meteorológicas</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    #map {
+      height: 70vh;
+      width: 100%;
+    }
+    #estacion-stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      padding: 20px;
+    }
+    .stat-box {
+      flex: 1 1 200px;
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    }
+    iframe {
+      border: none;
+      border-radius: 10px;
+    }
+  </style>
 </head>
 <body>
+  <h2 style="text-align:center; padding:10px; background:#0078D7; color:white;">
+    🌦️ Red de Estaciones Meteorológicas
+  </h2>
+  <div id="map"></div>
+  <div id="estacion-stats"></div>
 
-    <img src="https://drive.google.com/uc?export=view&id=1Si5qBOsQiFPGyYMiQ8mXPEYJE-YLbhd5" class="logo" alt="">
-    <h2>Estaciones Meteorológicas</h2>
-
-    <div id="map"></div>
-    <div class="stats" id="estacion-stats"></div>
-
-    <h2>Temperaturas Máximas y Mínimas Últimos 7 Días</h2>
-    <div class="table-container">
-        <table id="temp-table">
-            <thead>
-                <tr>
-                    <th>Estación</th>
-                    <th>Lunes</th>
-                    <th>Martes</th>
-                    <th>Miércoles</th>
-                    <th>Jueves</th>
-                    <th>Viernes</th>
-                    <th>Sábado</th>
-                    <th>Domingo</th>
-                </tr>
-            </thead>
-            <tbody id="temp-body"></tbody>
-        </table>
-    </div>
-
-<script>
-    var map = L.map('map').setView([-34.9214, -57.9544], 10);
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
-
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    // Lista de estaciones
     const estaciones = [
-        { id: 2218686, key: 'JUXJQRZMFFAS037Z', name: 'Escuela 23', lat: -35.025972, lon: -57.752972, tipo: 'thingspeak' },
-        { id: 2685796, key: 'XKV09A27AXZ35IEA', name: 'Estación Esp32', lat: -34.9438126377134, lon: -57.89444617313153, tipo: 'thingspeak' },
-        { id: 2218689, key: 'ZLNOSLZJPQM3H7SD', name: 'Escuela 34', lat: -35.072583, lon: -57.865778, tipo: 'thingspeak' },
-        { id: 2218687, key: 'TH3V4TJLRFZD3JSG', name: 'Colegio San Vicente de Paul', lat: -34.90335049405157, lon: -57.94831605582217, tipo: 'thingspeak' },
-        { id: 'IARANA2', key: 'TU_API_KEY_WEATHER', name: 'Estación WU IARANA2', lat: -34.92, lon: -57.95, tipo: 'wunderground' }
+      {
+        name: "Estación UNLP",
+        tipo: "thingspeak",
+        channel: "123456",
+        apiKey: "API_KEY_TS_1",
+        lat: -34.9205,
+        lon: -57.9536
+      },
+      {
+        name: "Estación Mar del Plata",
+        tipo: "thingspeak",
+        channel: "234567",
+        apiKey: "API_KEY_TS_2",
+        lat: -38.0055,
+        lon: -57.5426
+      },
+      {
+        name: "Estación Junín",
+        tipo: "thingspeak",
+        channel: "345678",
+        apiKey: "API_KEY_TS_3",
+        lat: -34.5833,
+        lon: -60.95
+      },
+      {
+        name: "Estación La Plata 2",
+        tipo: "thingspeak",
+        channel: "456789",
+        apiKey: "API_KEY_TS_4",
+        lat: -34.921,
+        lon: -57.95
+      },
+      {
+        name: "Estación IARANA2 (WU)",
+        tipo: "wunderground",
+        id: "IARANA2",
+        lat: -34.65,
+        lon: -58.62
+      }
     ];
 
+    // Inicializar mapa
+    const map = L.map('map').setView([-34.92, -57.95], 6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
+
+    // Renderizar estaciones
     estaciones.forEach(estacion => {
-        if (estacion.tipo === 'thingspeak') {
-            fetch(`https://api.thingspeak.com/channels/${estacion.id}/feeds.json?api_key=${estacion.key}&results=1`)
-                .then(response => response.json())
-                .then(data => {
-                    let estado = 'Sin datos disponibles';
-                    let fechaMedicion = '--';
-                    let variables = '';
+      if (estacion.tipo === 'thingspeak') {
+        let url = `https://api.thingspeak.com/channels/${estacion.channel}/feeds.json?api_key=${estacion.apiKey}&results=1`;
+        fetch(url)
+          .then(r => r.json())
+          .then(data => {
+            let feed = data.feeds[0];
+            let temp = feed.field1;
+            let hum = feed.field2;
 
-                    if (data.feeds.length > 0) {
-                        let feed = data.feeds[0];
-                        let fecha = new Date(feed.created_at);
-                        fechaMedicion = fecha.toLocaleString();
+            let marker = L.marker([estacion.lat, estacion.lon]).addTo(map);
+            marker.bindPopup(`<b>${estacion.name}</b><br>🌡️ Temp: ${temp}°C<br>💧 Hum: ${hum}%`);
 
-                        let temp = parseFloat(feed.field1);
-                        let humedad = feed.field2;
-                        let presion = feed.field3;
-                        let precipitacion = feed.field4;
+            document.getElementById('estacion-stats').innerHTML += `
+              <div class='stat-box'>
+                <b>${estacion.name}</b><br>
+                🌡️ Temp: ${temp}°C<br>
+                💧 Hum: ${hum}%
+              </div>
+            `;
+          })
+          .catch(() => {
+            let marker = L.marker([estacion.lat, estacion.lon]).addTo(map);
+            marker.bindPopup(`<b>${estacion.name}</b><br>❌ Fuera de servicio`);
 
-                        variables = `
-                            Temp: ${temp ? temp + '°C' : '--'}<br>
-                            Humedad: ${humedad ? humedad + '%' : '--'}<br>
-                            Presión: ${presion ? presion + 'hPa' : '--'}<br>
-                            Precipitación: ${precipitacion ? precipitacion + 'mm' : '--'}<br>
-                        `;
-                        estado = `Última medición: ${fechaMedicion}`;
-                    }
+            document.getElementById('estacion-stats').innerHTML += `
+              <div class='stat-box'>
+                <b>${estacion.name}</b><br>
+                ❌ Fuera de servicio
+              </div>
+            `;
+          });
+      } else if (estacion.tipo === 'wunderground') {
+        // 🔹 Provisorio con iframe
+        let marker = L.marker([estacion.lat, estacion.lon]).addTo(map);
+        marker.bindPopup(`
+          <b>${estacion.name}</b><br>
+          <iframe src="https://www.wunderground.com/dashboard/pws/${estacion.id}" 
+                  width="250" height="150"></iframe>
+        `);
 
-                    let marker = L.marker([estacion.lat, estacion.lon]).addTo(map);
-                    marker.bindPopup(`<b>${estacion.name}</b><br>${estado}<br><br>${variables}`);
-
-                    document.getElementById('estacion-stats').innerHTML += `
-                        <div class='stat-box ${estado === 'Sin datos disponibles' ? 'red' : ''}'>
-                            <b>${estacion.name}</b><br>${estado}<br>${variables}
-                        </div>
-                    `;
-
-                    obtenerTemperaturasUltimos7Dias(estacion);
-                })
-                .catch(error => {
-                    console.error(`Error obteniendo datos de ${estacion.name}:`, error);
-                    document.getElementById('estacion-stats').innerHTML += `
-                        <div class='stat-box red'>
-                            <b>${estacion.name}</b><br>Fuera de servicio
-                        </div>
-                    `;
-                });
-
-        } else if (estacion.tipo === 'wunderground') {
-            fetch(`https://api.weather.com/v2/pws/observations/current?stationId=${estacion.id}&format=json&units=m&apiKey=${estacion.key}`)
-                .then(response => response.json())
-                .then(data => {
-                    let obs = data.observations[0];
-                    let temp = obs.metric.temp;
-                    let humedad = obs.humidity;
-                    let presion = obs.metric.pressure;
-                    let precipitacion = obs.metric.precipTotal;
-                    let fechaMedicion = new Date(obs.obsTimeUtc).toLocaleString();
-
-                    let variables = `
-                        Temp: ${temp}°C<br>
-                        Humedad: ${humedad}%<br>
-                        Presión: ${presion} hPa<br>
-                        Precipitación: ${precipitacion} mm
-                    `;
-
-                    let marker = L.marker([estacion.lat, estacion.lon]).addTo(map);
-                    marker.bindPopup(`<b>${estacion.name}</b><br>Última medición: ${fechaMedicion}<br><br>${variables}`);
-
-                    document.getElementById('estacion-stats').innerHTML += `
-                        <div class='stat-box'>
-                            <b>${estacion.name}</b><br>Última medición: ${fechaMedicion}<br>${variables}
-                        </div>
-                    `;
-                })
-                .catch(error => {
-                    console.error(`Error obteniendo datos de ${estacion.name}:`, error);
-                    document.getElementById('estacion-stats').innerHTML += `
-                        <div class='stat-box red'>
-                            <b>${estacion.name}</b><br>Fuera de servicio
-                        </div>
-                    `;
-                });
-        }
+        document.getElementById('estacion-stats').innerHTML += `
+          <div class='stat-box'>
+            <b>${estacion.name}</b><br>
+            <iframe src="https://www.wunderground.com/dashboard/pws/${estacion.id}" 
+                    width="100%" height="200"></iframe>
+          </div>
+        `;
+      }
     });
-
-    function obtenerTemperaturasUltimos7Dias(estacion) {
-        if (estacion.tipo !== 'thingspeak') return; // solo aplica a ThingSpeak
-
-        fetch(`https://api.thingspeak.com/channels/${estacion.id}/feeds.json?api_key=${estacion.key}&results=100`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.feeds.length > 0) {
-                    let temperaturasPorDia = {
-                        Lunes: [], Martes: [], Miércoles: [], Jueves: [], Viernes: [], Sábado: [], Domingo: []
-                    };
-                    let fechaActual = new Date();
-                    fechaActual.setHours(0, 0, 0, 0);
-
-                    data.feeds.forEach(feed => {
-                        let fechaRegistro = new Date(feed.created_at);
-                        fechaRegistro.setHours(0, 0, 0, 0);
-                        let diferenciaDias = Math.floor((fechaActual - fechaRegistro) / (1000 * 60 * 60 * 24));
-                        if (diferenciaDias >= 0 && diferenciaDias < 7) {
-                            let diaSemana = obtenerDiaSemana(fechaRegistro);
-                            let temp = parseFloat(feed.field1);
-                            if (!isNaN(temp)) temperaturasPorDia[diaSemana].push(temp);
-                        }
-                    });
-
-                    let fila = document.createElement('tr');
-                    fila.innerHTML = `<td>${estacion.name}</td>`;
-                    Object.keys(temperaturasPorDia).forEach(dia => {
-                        let temps = temperaturasPorDia[dia];
-                        if (temps.length > 0) {
-                            let max = Math.max(...temps).toFixed(1);
-                            let min = Math.min(...temps).toFixed(1);
-                            fila.innerHTML += `<td>Máx: ${max}°C<br>Mín: ${min}°C</td>`;
-                        } else {
-                            fila.innerHTML += `<td>--</td>`;
-                        }
-                    });
-                    document.getElementById('temp-body').appendChild(fila);
-                }
-            })
-            .catch(error => console.error(`Error obteniendo temperaturas de ${estacion.name}:`, error));
-    }
-
-    function obtenerDiaSemana(fecha) {
-        const dias = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-        return dias[fecha.getDay()];
-    }
-</script>
+  </script>
 </body>
 </html>
+
