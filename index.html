@@ -128,7 +128,7 @@
 
         const estaciones = [
             // Tu estación personal de Weather Underground.
-            // Asegúrate de que la latitud y longitud son correctas.
+            // Asegúrate de que la latitud y longitud sean correctas.
             { 
                 stationID: 'IARANA2', 
                 apiKey: 'fWumWJx3', 
@@ -136,23 +136,21 @@
                 lat: -34.9214, 
                 lon: -57.9544 
             },
-            // Aquí puedes agregar más estaciones de Weather Underground si tienes
-            // { stationID: 'OTRO_ID', apiKey: 'OTRA_CLAVE', name: 'Otra Estación', lat: 0, lon: 0 },
         ];
 
         estaciones.forEach(estacion => {
-            // URL de la API de Weather Underground para las observaciones actuales
-            const apiUrl = `https://api.weather.com/v2/pws/observations/current?stationId=${estacion.stationID}&format=json&units=m&apiKey=${estacion.apiKey}`;
+            // Usamos un proxy para evitar el error de CORS
+            const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
+            const apiUrl = `${proxyUrl}https://api.weather.com/v2/pws/observations/current?stationId=${estacion.stationID}&format=json&units=m&apiKey=${estacion.apiKey}`;
             
             fetch(apiUrl)
                 .then(response => {
                     if (!response.ok) {
-                        throw new Error('No se pudo obtener la respuesta de la API');
+                        throw new Error(`Error de red: ${response.status}`);
                     }
                     return response.json();
                 })
                 .then(data => {
-                    // Verifica si hay observaciones
                     if (data.observations && data.observations.length > 0) {
                         const obs = data.observations[0];
                         const metric = obs.metric;
@@ -185,7 +183,6 @@
                             </div>
                         `;
                     } else {
-                        // Si no hay datos, muestra que la estación está fuera de servicio
                         document.getElementById('estacion-stats').innerHTML += `
                             <div class='stat-box red'>
                                 <b>${estacion.name}</b><br>Sin datos disponibles
@@ -206,9 +203,6 @@
         // NOTA: El siguiente código para obtener las temperaturas de los últimos 7 días
         // no es compatible con la API gratuita de Weather Underground.
         // La funcionalidad ha sido comentada.
-        // function obtenerTemperaturasUltimos7Dias(estacion) {
-        //     // ... código de ThingSpeak, no compatible con WU
-        // }
     </script>
 </body>
 </html>
