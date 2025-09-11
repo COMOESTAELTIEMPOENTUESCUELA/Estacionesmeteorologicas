@@ -1,114 +1,99 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Mapa de Estaciones Meteorológicas</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-  <style>
-    #map { height: 500px; margin-bottom: 20px; }
-    #estacion-stats { display: flex; flex-wrap: wrap; gap: 15px; }
-    .stat-box {
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      padding: 10px;
-      width: 250px;
-      background: #f9f9f9;
-      box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
-    }
-  </style>
+  <meta charset="UTF-8">
+  <title>Mapa de Estaciones Meteorológicas</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    #map { height: 500px; margin-bottom: 20px; }
+    #estacion-stats { display: flex; flex-wrap: wrap; gap: 15px; }
+    .stat-box {
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 10px;
+      width: 250px;
+      background: #f9f9f9;
+      box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+    }
+  </style>
 </head>
 <body>
-  <h2>Mapa de Estaciones Meteorológicas</h2>
-  <div id="map"></div>
-  <div id="estacion-stats"></div>
+  <h2>Mapa de Estaciones Meteorológicas</h2>
+  <div id="map"></div>
+  <div id="estacion-stats"></div>
 
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-  <script>
-    const map = L.map('map').setView([-34.921, -57.955], 11);
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <!-- Importa las bibliotecas de Firebase que necesitas -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  
+  <script>
+    // Tu configuración de Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyATmTQp3YQVfifKoiP32tlSHI6oJ6YHlfc",
+      authDomain: "pagina-comoestaeltiempo.firebaseapp.com",
+      databaseURL: "https://pagina-comoestaeltiempo-default-rtdb.firebaseio.com",
+      projectId: "pagina-comoestaeltiempo",
+      storageBucket: "pagina-comoestaeltiempo.firebasestorage.app",
+      messagingSenderId: "199504545352",
+      appId: "1:199504545352:web:199240334c0f96ce983a7d",
+      measurementId: "G-5V1XR8TMN5"
+    };
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap'
-    }).addTo(map);
+    // Inicializa Firebase
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
 
-    const estaciones = [
-      {
-        name: "Estación UNLP",
-        id: "123456",
-        lat: -34.921,
-        lon: -57.955,
-        tipo: "thingspeak",
-        api_url: "https://api.thingspeak.com/channels/123456/feeds.json?results=1"
-      },
-      {
-        name: "Estación Bosque",
-        id: "654321",
-        lat: -34.905,
-        lon: -57.950,
-        tipo: "thingspeak",
-        api_url: "https://api.thingspeak.com/channels/654321/feeds.json?results=1"
-      },
-      {
-        name: "Estación City Bell",
-        id: "789012",
-        lat: -34.875,
-        lon: -58.05,
-        tipo: "thingspeak",
-        api_url: "https://api.thingspeak.com/channels/789012/feeds.json?results=1"
-      },
-      {
-        name: "Estación Villa Elvira",
-        id: "345678",
-        lat: -34.950,
-        lon: -57.90,
-        tipo: "thingspeak",
-        api_url: "https://api.thingspeak.com/channels/345678/feeds.json?results=1"
-      },
-      {
-        name: "Estación Ranelagh (WU)",
-        id: "IARANA2",
-        lat: -34.799,
-        lon: -58.219,
-        tipo: "wunderground"
-      }
-    ];
+    const map = L.map('map').setView([-34.921, -57.955], 11);
 
-    estaciones.forEach(estacion => {
-      if (estacion.tipo === "thingspeak") {
-        fetch(estacion.api_url)
-          .then(resp => resp.json())
-          .then(data => {
-            if (data.feeds && data.feeds.length > 0) {
-              let feed = data.feeds[0];
-              let temp = feed.field1 || "--";
-              let hum = feed.field2 || "--";
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap'
+    }).addTo(map);
 
-              let marker = L.marker([estacion.lat, estacion.lon]).addTo(map);
-              marker.bindPopup(`<b>${estacion.name}</b><br>Temp: ${temp} °C<br>Humedad: ${hum} %`);
+    // Referencia a la raíz de tus datos de estaciones en Firebase
+    // Asume que la estructura en Firebase será similar a:
+    // estaciones/
+    //   - estacion1/
+    //     - nombre: "Estación UNLP"
+    //     - lat: -34.921
+    //     - lon: -57.955
+    //     - temperatura: 25.5
+    //     - humedad: 70
+    const estacionesRef = database.ref('estaciones');
 
-              document.getElementById("estacion-stats").innerHTML += `
-                <div class="stat-box">
-                  <b>${estacion.name}</b><br>
-                  🌡️ Temp: ${temp} °C<br>
-                  💧 Humedad: ${hum} %
-                </div>
-              `;
-            }
-          });
-      }
-      else if (estacion.tipo === "wunderground") {
-        // Mostrar la estación WU con iframe
-        let marker = L.marker([estacion.lat, estacion.lon]).addTo(map);
-        marker.bindPopup(`<b>${estacion.name}</b><br>
-          <iframe src="https://www.wunderground.com/dashboard/pws/${estacion.id}" width="250" height="150"></iframe>`);
+    // Escucha en tiempo real los cambios en la base de datos
+    estacionesRef.on('value', (snapshot) => {
+      // Obtiene todos los datos de las estaciones
+      const estacionesData = snapshot.val();
+      if (estacionesData) {
+        // Limpia los marcadores y las estadísticas para evitar duplicados
+        document.getElementById("estacion-stats").innerHTML = "";
+        map.eachLayer((layer) => {
+          if (layer instanceof L.Marker) {
+            map.removeLayer(layer);
+          }
+        });
 
-        document.getElementById("estacion-stats").innerHTML += `
-          <div class="stat-box">
-            <b>${estacion.name}</b><br>
-            <iframe src="https://www.wunderground.com/dashboard/pws/${estacion.id}" width="100%" height="200"></iframe>
-          </div>
-        `;
-      }
-    });
-  </script>
+        // Itera sobre cada estación y agrega los marcadores y las estadísticas
+        Object.keys(estacionesData).forEach(estacionId => {
+          const estacion = estacionesData[estacionId];
+          
+          // Asegúrate de que los datos tienen latitud y longitud
+          if (estacion.lat && estacion.lon) {
+            const marker = L.marker([estacion.lat, estacion.lon]).addTo(map);
+            marker.bindPopup(`<b>${estacion.nombre}</b><br>Temp: ${estacion.temperatura} °C<br>Humedad: ${estacion.humedad} %`);
+            
+            document.getElementById("estacion-stats").innerHTML += `
+              <div class="stat-box">
+                <b>${estacion.nombre}</b><br>
+                🌡️ Temp: ${estacion.temperatura} °C<br>
+                💧 Humedad: ${estacion.humedad} %
+              </div>
+            `;
+          }
+        });
+      }
+    });
+  </script>
 </body>
 </html>
