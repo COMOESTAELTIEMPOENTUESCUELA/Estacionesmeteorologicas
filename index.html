@@ -1,99 +1,175 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Mapa de Estaciones Meteorológicas</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-  <style>
-    #map { height: 500px; margin-bottom: 20px; }
-    #estacion-stats { display: flex; flex-wrap: wrap; gap: 15px; }
-    .stat-box {
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      padding: 10px;
-      width: 250px;
-      background: #f9f9f9;
-      box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estación Meteorológica La Plata</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAo9jU8Q2wV5cQ6T6f6L6w3dJ6Q4w3B6L6W9B6F6w="
+        crossorigin=""/>
+
+    <style>
+        #map {
+            height: 500px;
+            width: 100%;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        .chart-container {
+            width: 80%;
+            margin-top: 40px;
+        }
+    </style>
 </head>
 <body>
-  <h2>Mapa de Estaciones Meteorológicas</h2>
-  <div id="map"></div>
-  <div id="estacion-stats"></div>
+    <div class="container">
+        <h1>Datos de Estación Meteorológica</h1>
+        <div id="map"></div>
 
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-  <!-- Importa las bibliotecas de Firebase que necesitas -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  
-  <script>
-    // Tu configuración de Firebase
-    const firebaseConfig = {
-      apiKey: "AIzaSyATmTQp3YQVfifKoiP32tlSHI6oJ6YHlfc",
-      authDomain: "pagina-comoestaeltiempo.firebaseapp.com",
-      databaseURL: "https://pagina-comoestaeltiempo-default-rtdb.firebaseio.com",
-      projectId: "pagina-comoestaeltiempo",
-      storageBucket: "pagina-comoestaeltiempo.firebasestorage.app",
-      messagingSenderId: "199504545352",
-      appId: "1:199504545352:web:199240334c0f96ce983a7d",
-      measurementId: "G-5V1XR8TMN5"
-    };
+        <div class="chart-container">
+            <h2>Temperatura</h2>
+            <canvas id="temperaturaChart"></canvas>
+        </div>
 
-    // Inicializa Firebase
-    firebase.initializeApp(firebaseConfig);
-    const database = firebase.database();
+        <div class="chart-container">
+            <h2>Humedad</h2>
+            <canvas id="humedadChart"></canvas>
+        </div>
+    </div>
 
-    const map = L.map('map').setView([-34.921, -57.955], 11);
+    <script src="https://www.gstatic.com/firebasejs/9.16.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.16.0/firebase-database-compat.js"></script>
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap'
-    }).addTo(map);
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+        crossorigin=""></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    // Referencia a la raíz de tus datos de estaciones en Firebase
-    // Asume que la estructura en Firebase será similar a:
-    // estaciones/
-    //   - estacion1/
-    //     - nombre: "Estación UNLP"
-    //     - lat: -34.921
-    //     - lon: -57.955
-    //     - temperatura: 25.5
-    //     - humedad: 70
-    const estacionesRef = database.ref('estaciones');
+    <script>
+        // Configuración de Firebase (debes usar la tuya)
+        const firebaseConfig = {
+            // Reemplaza con tu propia configuración
+            databaseURL: "https://pagina-comoestaeltiempo-default-rtdb.firebaseio.com",
+        };
 
-    // Escucha en tiempo real los cambios en la base de datos
-    estacionesRef.on('value', (snapshot) => {
-      // Obtiene todos los datos de las estaciones
-      const estacionesData = snapshot.val();
-      if (estacionesData) {
-        // Limpia los marcadores y las estadísticas para evitar duplicados
-        document.getElementById("estacion-stats").innerHTML = "";
-        map.eachLayer((layer) => {
-          if (layer instanceof L.Marker) {
-            map.removeLayer(layer);
-          }
-        });
+        // Inicializar Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
 
-        // Itera sobre cada estación y agrega los marcadores y las estadísticas
-        Object.keys(estacionesData).forEach(estacionId => {
-          const estacion = estacionesData[estacionId];
-          
-          // Asegúrate de que los datos tienen latitud y longitud
-          if (estacion.lat && estacion.lon) {
-            const marker = L.marker([estacion.lat, estacion.lon]).addTo(map);
-            marker.bindPopup(`<b>${estacion.nombre}</b><br>Temp: ${estacion.temperatura} °C<br>Humedad: ${estacion.humedad} %`);
-            
-            document.getElementById("estacion-stats").innerHTML += `
-              <div class="stat-box">
-                <b>${estacion.nombre}</b><br>
-                🌡️ Temp: ${estacion.temperatura} °C<br>
-                💧 Humedad: ${estacion.humedad} %
-              </div>
-            `;
-          }
-        });
-      }
-    });
-  </script>
+        // Configuración de la estación (la misma que en tu script de Python)
+        const ESTACIONES = {
+            "estacion1": {
+                "api_url": "https://api.thingspeak.com/channels/2667267/feeds.json?results=100&api_key=UF1X79VA5C55SROZ",
+                "lat": -34.965,
+                "lon": -57.947,
+                "nombre": "Estación UNLP", 
+                "campo_temp": "field1",
+                "campo_hum": "field2"
+            }
+        };
+
+        // Inicializar el mapa de Leaflet
+        const map = L.map('map').setView([ESTACIONES.estacion1.lat, ESTACIONES.estacion1.lon], 13);
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        const markers = {};
+
+        // Escuchar cambios en la base de datos de Firebase
+        db.ref('estaciones').on('value', (snapshot) => {
+            const estaciones = snapshot.val();
+            if (estaciones) {
+                for (const key in estaciones) {
+                    const estacion = estaciones[key];
+                    if (markers[key]) {
+                        // Actualizar la posición y el popup si el marcador ya existe
+                        markers[key].setLatLng([estacion.lat, estacion.lon])
+                            .setPopupContent(`<b>${estacion.nombre}</b><br>Temperatura: ${estacion.temperatura}°C<br>Humedad: ${estacion.humedad}%`);
+                    } else {
+                        // Crear un nuevo marcador si no existe
+                        const marker = L.marker([estacion.lat, estacion.lon]).addTo(map);
+                        marker.bindPopup(`<b>${estacion.nombre}</b><br>Temperatura: ${estacion.temperatura}°C<br>Humedad: ${estacion.humedad}%`);
+                        markers[key] = marker;
+                    }
+                }
+            }
+        });
+
+        // Gráficos de Chart.js
+        const temperaturaCtx = document.getElementById('temperaturaChart').getContext('2d');
+        const humedadCtx = document.getElementById('humedadChart').getContext('2d');
+        let temperaturaChart, humedadChart;
+
+        async function cargarGraficos() {
+            const estacion = ESTACIONES.estacion1;
+            try {
+                const response = await fetch(estacion.api_url);
+                const data = await response.json();
+                const feeds = data.feeds;
+                
+                const labels = feeds.map(feed => new Date(feed.created_at).toLocaleString());
+                const temperaturas = feeds.map(feed => feed[estacion.campo_temp]);
+                const humedades = feeds.map(feed => feed[estacion.campo_hum]);
+
+                // Destruir gráficos anteriores para evitar duplicados
+                if (temperaturaChart) temperaturaChart.destroy();
+                if (humedadChart) humedadChart.destroy();
+
+                temperaturaChart = new Chart(temperaturaCtx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Temperatura (°C)',
+                            data: temperaturas,
+                            borderColor: 'rgb(255, 99, 132)',
+                            tension: 0.1
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            y: {
+                                beginAtZero: false
+                            }
+                        }
+                    }
+                });
+
+                humedadChart = new Chart(humedadCtx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Humedad (%)',
+                            data: humedades,
+                            borderColor: 'rgb(54, 162, 235)',
+                            tension: 0.1
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 100
+                            }
+                        }
+                    }
+                });
+
+            } catch (error) {
+                console.error("Error al cargar los datos de ThingSpeak:", error);
+            }
+        }
+
+        // Cargar gráficos cuando la página esté lista
+        document.addEventListener('DOMContentLoaded', cargarGraficos);
+    </script>
 </body>
 </html>
