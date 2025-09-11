@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -6,47 +5,68 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>El Tiempo en tu Escuela | Proyecto de Extensión</title>
 
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
     <style>
+        :root {
+            /* Paleta de colores */
+            --color-primary-blue: #3AA5E6;
+            --color-secondary-yellow: #FFB300;
+            --color-accent-red: #FF4C4C;
+            --color-text-dark: #333;
+            --color-bg-light: #f4f4f4;
+            --color-card-bg: #fff;
+        }
+
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Poppins', sans-serif;
             margin: 0;
             padding: 0;
-            background-color: #f4f4f4;
-            color: #333;
+            background-color: var(--color-bg-light);
+            color: var(--color-text-dark);
             line-height: 1.6;
         }
         .container {
             max-width: 900px;
             margin: 20px auto;
-            background-color: #fff;
+            background-color: var(--color-card-bg);
             padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
         }
         .header {
             text-align: center;
+            padding-bottom: 20px;
+            border-bottom: 2px solid var(--color-bg-light);
             margin-bottom: 20px;
         }
         .header img {
-            max-width: 150px; /* Tamaño del logo del proyecto */
+            max-width: 150px;
             height: auto;
         }
         h1, h2 {
             text-align: center;
-            color: #0056b3;
+            color: var(--color-primary-blue);
+            font-weight: 600;
             margin-bottom: 20px;
         }
         nav {
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 30px;
         }
         nav a {
             margin: 0 15px;
             text-decoration: none;
-            color: #007bff;
-            font-weight: bold;
+            color: var(--color-text-dark);
+            font-weight: 600;
+            transition: color 0.3s ease;
+        }
+        nav a:hover {
+            color: var(--color-primary-blue);
         }
         section {
             padding: 20px 0;
@@ -59,54 +79,66 @@
             text-align: justify;
         }
         #lista-escuelas {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 20px;
+            justify-content: center;
+            padding: 0;
         }
         .escuela-card {
-            background: #f0f8ff;
-            border: 1px solid #b0e0e6;
+            background: #fff;
+            border: 1px solid #ddd;
             padding: 15px;
-            border-radius: 8px;
+            border-radius: 10px;
             text-align: center;
-            width: 250px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s ease;
+        }
+        .escuela-card:hover {
+            transform: translateY(-5px);
         }
         .escuela-card img {
             width: 100%;
             height: auto;
-            border-radius: 5px;
+            border-radius: 8px;
             margin-bottom: 10px;
         }
         #map {
             height: 400px;
             width: 100%;
-            border-radius: 8px;
+            border-radius: 10px;
             margin-bottom: 30px;
         }
         .chart-container {
             width: 100%;
             max-width: 800px;
             margin: 0 auto 30px auto;
-            background-color: #f9f9f9;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 0 5px rgba(0, 0, 0, 0.05);
+            background-color: var(--color-card-bg);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
         }
         .data-card {
-            background-color: #f0f8ff;
-            border: 1px solid #b0e0e6;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 15px;
+            background-color: var(--color-bg-light);
+            border: 1px solid #ddd;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
             text-align: center;
+        }
+        .data-card p {
+            font-size: 1.1em;
+            margin: 5px 0;
+        }
+        .data-card strong {
+            color: var(--color-accent-red);
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-           <img src="imagenes/Logo1.jpg" alt="Logo del Proyecto">
+            <img src="imagenes/Logo1.jpg" alt="Logo del Proyecto">
             <h1>Proyecto de Extensión: ¿Cómo está el tiempo en tu Escuela?</h1>
         </div>
         
@@ -144,7 +176,7 @@
             </div>
             
             <div class="data-card">
-                <h3>Resumen de la Última Jornada</h3>
+                <h3>Resumen Histórico</h3>
                 <p><strong>Temperatura Máxima:</strong> <span id="temp-max">--</span> °C</p>
                 <p><strong>Temperatura Mínima:</strong> <span id="temp-min">--</span> °C</p>
                 <p><strong>Precipitación Acumulada:</strong> <span id="precipitacion">--</span> mm</p>
@@ -186,7 +218,7 @@
                 "campo_temp": "field1",
                 "campo_hum": "field2",
                 "campo_precip": "field3",
-                "foto_url": "https://via.placeholder.com/250x150?text=Foto+Escuela+1" // Reemplaza esta URL
+                "foto_url": "imagenes/foto_escuela_1.jpg" // Reemplaza esta URL
             },
             "estacion2": {
                 "api_url": "URL_DE_API_DE_THINGSPEAK_2",
@@ -196,7 +228,7 @@
                 "campo_temp": "field1",
                 "campo_hum": "field2",
                 "campo_precip": "field3",
-                "foto_url": "https://via.placeholder.com/250x150?text=Foto+Escuela+2" // Reemplaza esta URL
+                "foto_url": "imagenes/foto_escuela_2.jpg" // Reemplaza esta URL
             }
             // Agrega tus 5 escuelas restantes aquí
         };
@@ -211,27 +243,24 @@
 
         // Función para poblar la lista de escuelas y el selector
         function poblarSelectyLista() {
-            // Limpiar select y lista
             estacionSelect.innerHTML = '';
             listaEscuelas.innerHTML = '';
 
             for (const key in ESTACIONES) {
                 const estacion = ESTACIONES[key];
                 
-                // Agregar al selector (dropdown)
                 const option = document.createElement('option');
                 option.value = key;
                 option.textContent = estacion.nombre;
                 estacionSelect.appendChild(option);
 
-                // Agregar a la lista de escuelas
                 const divCard = document.createElement('div');
                 divCard.className = 'escuela-card';
                 divCard.innerHTML = `<img src="${estacion.foto_url}" alt="Foto de ${estacion.nombre}"><h4>${estacion.nombre}</h4>`;
                 listaEscuelas.appendChild(divCard);
             }
         }
-        poblarSelectyLista(); // Llamar al cargar la página
+        poblarSelectyLista();
 
         // Escuchar datos en tiempo real de Firebase para actualizar el mapa
         db.ref('estaciones').on('value', (snapshot) => {
@@ -239,7 +268,7 @@
             if (estaciones) {
                 for (const key in estaciones) {
                     const estacion = estaciones[key];
-                    const configEstacion = ESTACIONES[key]; // Usar la configuración local
+                    const configEstacion = ESTACIONES[key];
                     if (markers[key]) {
                         markers[key].setLatLng([configEstacion.lat, configEstacion.lon])
                             .setPopupContent(`<b>${configEstacion.nombre}</b><br>Temp: ${estacion.temperatura}°C<br>Humedad: ${estacion.humedad}%`);
@@ -286,13 +315,13 @@
 
                 temperaturaChart = new Chart(temperaturaCtx, {
                     type: 'line',
-                    data: { labels: labels, datasets: [{ label: 'Temperatura (°C)', data: temperaturas, borderColor: 'rgb(255, 99, 132)', backgroundColor: 'rgba(255, 99, 132, 0.2)', tension: 0.3, fill: true }] },
+                    data: { labels: labels, datasets: [{ label: 'Temperatura (°C)', data: temperaturas, borderColor: var(--color-accent-red), backgroundColor: 'rgba(255, 76, 76, 0.2)', tension: 0.3, fill: true }] },
                     options: { responsive: true, scales: { y: { beginAtZero: false } } }
                 });
 
                 humedadChart = new Chart(humedadCtx, {
                     type: 'line',
-                    data: { labels: labels, datasets: [{ label: 'Humedad (%)', data: humedades, borderColor: 'rgb(54, 162, 235)', backgroundColor: 'rgba(54, 162, 235, 0.2)', tension: 0.3, fill: true }] },
+                    data: { labels: labels, datasets: [{ label: 'Humedad (%)', data: humedades, borderColor: var(--color-primary-blue), backgroundColor: 'rgba(58, 165, 230, 0.2)', tension: 0.3, fill: true }] },
                     options: { responsive: true, scales: { y: { beginAtZero: true, max: 100 } } }
                 });
             } catch (error) {
@@ -300,20 +329,17 @@
             }
         }
 
-        // Función que se llama cuando el usuario cambia la selección
         function cargarGraficosDeSeleccion() {
             const selectedKey = estacionSelect.value;
             cargarGraficos(selectedKey);
         }
 
-        // Cargar gráficos de la primera estación por defecto al cargar la página
         document.addEventListener('DOMContentLoaded', () => {
             const primeraEstacionKey = Object.keys(ESTACIONES)[0];
             if (primeraEstacionKey) {
                 cargarGraficos(primeraEstacionKey);
             }
         });
-        
     </script>
 </body>
 </html>
