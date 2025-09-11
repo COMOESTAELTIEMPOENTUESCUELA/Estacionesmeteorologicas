@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -24,6 +25,14 @@
             border-radius: 8px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .header img {
+            max-width: 150px; /* Tamaño del logo del proyecto */
+            height: auto;
+        }
         h1, h2 {
             text-align: center;
             color: #0056b3;
@@ -49,18 +58,25 @@
         p {
             text-align: justify;
         }
-        ul {
-            list-style-type: none;
-            padding: 0;
-            text-align: center;
+        #lista-escuelas {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
         }
-        li {
-            background: #eee;
-            margin: 5px 0;
-            padding: 10px;
+        .escuela-card {
+            background: #f0f8ff;
+            border: 1px solid #b0e0e6;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            width: 250px;
+        }
+        .escuela-card img {
+            width: 100%;
+            height: auto;
             border-radius: 5px;
-            display: inline-block;
-            margin: 5px;
+            margin-bottom: 10px;
         }
         #map {
             height: 400px;
@@ -89,7 +105,11 @@
 </head>
 <body>
     <div class="container">
-        <h1>Proyecto de Extensión: ¿Cómo está el tiempo en tu Escuela?</h1>
+        <div class="header">
+            <img src="URL_DEL_LOGO_DE_TU_PROYECTO.png" alt="Logo del Proyecto">
+            <h1>Proyecto de Extensión: ¿Cómo está el tiempo en tu Escuela?</h1>
+        </div>
+        
         <nav>
             <a href="#proyecto">Sobre el Proyecto</a>
             <a href="#escuelas">Escuelas Participantes</a>
@@ -106,20 +126,22 @@
         <section id="escuelas">
             <h2>Escuelas Participantes</h2>
             <p>A continuación, se listan los colegios que forman parte de nuestra red de estaciones:</p>
-            <ul id="lista-escuelas">
-                </ul>
+            <div id="lista-escuelas">
+                </div>
         </section>
 
         <section id="datos">
             <h2>Datos en Tiempo Real y Mapa</h2>
             <p>Explora el mapa para ver la ubicación de las estaciones y sus datos más recientes. Puedes hacer clic en los marcadores para ver la información actualizada.</p>
             <div id="map"></div>
-            <p class="data-card">Si los datos de las estaciones no se muestran, puede que el script en el servidor esté inactivo.</p>
         </section>
 
         <section id="comparativas">
             <h2>Datos Históricos y Comparativas</h2>
-            <p>Aquí puedes analizar el historial de las variables climáticas de cada estación y compararlas.</p>
+            <div style="text-align: center; margin-bottom: 20px;">
+                <label for="estacion-select">Selecciona una escuela para ver sus gráficos:</label>
+                <select id="estacion-select" onchange="cargarGraficosDeSeleccion()"></select>
+            </div>
             
             <div class="data-card">
                 <h3>Resumen de la Última Jornada</h3>
@@ -147,14 +169,14 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <script>
-        // Configuración de Firebase (asegúrate de que sea tu databaseURL)
+        // Configuración de Firebase
         const firebaseConfig = {
             databaseURL: "https://pagina-comoestaeltiempo-default-rtdb.firebaseio.com",
         };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        // Configuración de las estaciones (puedes agregar más aquí)
+        // Configuración de las estaciones (puedes agregar tus 7 escuelas aquí)
         const ESTACIONES = {
             "estacion1": {
                 "api_url": "https://api.thingspeak.com/channels/2667267/feeds.json?results=100&api_key=UF1X79VA5C55SROZ",
@@ -163,10 +185,20 @@
                 "nombre": "Estación UNLP", 
                 "campo_temp": "field1",
                 "campo_hum": "field2",
-                "campo_precip": "field3" // Asume un campo para precipitación
+                "campo_precip": "field3",
+                "foto_url": "https://via.placeholder.com/250x150?text=Foto+Escuela+1" // Reemplaza esta URL
+            },
+            "estacion2": {
+                "api_url": "URL_DE_API_DE_THINGSPEAK_2",
+                "lat": -34.96,
+                "lon": -57.90,
+                "nombre": "Colegio Ejemplo 2", 
+                "campo_temp": "field1",
+                "campo_hum": "field2",
+                "campo_precip": "field3",
+                "foto_url": "https://via.placeholder.com/250x150?text=Foto+Escuela+2" // Reemplaza esta URL
             }
-            // Agrega más estaciones si las instalas en el futuro.
-            // "estacion2": { ... }
+            // Agrega tus 5 escuelas restantes aquí
         };
 
         const map = L.map('map').setView([ESTACIONES.estacion1.lat, ESTACIONES.estacion1.lon], 13);
@@ -175,38 +207,62 @@
         }).addTo(map);
         const markers = {};
         const listaEscuelas = document.getElementById('lista-escuelas');
+        const estacionSelect = document.getElementById('estacion-select');
 
-        // Escuchar datos en tiempo real de Firebase y actualizar el mapa
+        // Función para poblar la lista de escuelas y el selector
+        function poblarSelectyLista() {
+            // Limpiar select y lista
+            estacionSelect.innerHTML = '';
+            listaEscuelas.innerHTML = '';
+
+            for (const key in ESTACIONES) {
+                const estacion = ESTACIONES[key];
+                
+                // Agregar al selector (dropdown)
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = estacion.nombre;
+                estacionSelect.appendChild(option);
+
+                // Agregar a la lista de escuelas
+                const divCard = document.createElement('div');
+                divCard.className = 'escuela-card';
+                divCard.innerHTML = `<img src="${estacion.foto_url}" alt="Foto de ${estacion.nombre}"><h4>${estacion.nombre}</h4>`;
+                listaEscuelas.appendChild(divCard);
+            }
+        }
+        poblarSelectyLista(); // Llamar al cargar la página
+
+        // Escuchar datos en tiempo real de Firebase para actualizar el mapa
         db.ref('estaciones').on('value', (snapshot) => {
             const estaciones = snapshot.val();
             if (estaciones) {
-                // Limpiar la lista de escuelas para evitar duplicados
-                listaEscuelas.innerHTML = '';
                 for (const key in estaciones) {
                     const estacion = estaciones[key];
+                    const configEstacion = ESTACIONES[key]; // Usar la configuración local
                     if (markers[key]) {
-                        markers[key].setLatLng([estacion.lat, estacion.lon])
-                            .setPopupContent(`<b>${estacion.nombre}</b><br>Temp: ${estacion.temperatura}°C<br>Humedad: ${estacion.humedad}%`);
+                        markers[key].setLatLng([configEstacion.lat, configEstacion.lon])
+                            .setPopupContent(`<b>${configEstacion.nombre}</b><br>Temp: ${estacion.temperatura}°C<br>Humedad: ${estacion.humedad}%`);
                     } else {
-                        const marker = L.marker([estacion.lat, estacion.lon]).addTo(map);
-                        marker.bindPopup(`<b>${estacion.nombre}</b><br>Temp: ${estacion.temperatura}°C<br>Humedad: ${estacion.humedad}%`);
+                        const marker = L.marker([configEstacion.lat, configEstacion.lon]).addTo(map);
+                        marker.bindPopup(`<b>${configEstacion.nombre}</b><br>Temp: ${estacion.temperatura}°C<br>Humedad: ${estacion.humedad}%`);
                         markers[key] = marker;
                     }
-                    // Agregar la escuela a la lista
-                    const li = document.createElement('li');
-                    li.textContent = estacion.nombre;
-                    listaEscuelas.appendChild(li);
                 }
             }
         });
 
-        // Gráficos de Chart.js y datos históricos
         const temperaturaCtx = document.getElementById('temperaturaChart').getContext('2d');
         const humedadCtx = document.getElementById('humedadChart').getContext('2d');
         let temperaturaChart, humedadChart;
 
-        async function cargarDatosHistoricos() {
-            const estacion = ESTACIONES.estacion1;
+        async function cargarGraficos(estacionKey) {
+            const estacion = ESTACIONES[estacionKey];
+            if (!estacion) {
+                console.error("Estación no encontrada:", estacionKey);
+                return;
+            }
+
             try {
                 const response = await fetch(estacion.api_url);
                 const data = await response.json();
@@ -215,11 +271,10 @@
                 const labels = feeds.map(feed => new Date(feed.created_at).toLocaleString());
                 const temperaturas = feeds.map(feed => parseFloat(feed[estacion.campo_temp])).filter(val => !isNaN(val));
                 const humedades = feeds.map(feed => parseFloat(feed[estacion.campo_hum])).filter(val => !isNaN(val));
-                const precipitaciones = feeds.map(feed => parseFloat(feed[estacion.campo_precip])).filter(val => !isNaN(val));
+                const precipitaciones = feeds.map(feed => parseFloat(feed[estacion.campo_precip] || 0)).filter(val => !isNaN(val));
 
-                // Calcular máximos, mínimos y acumulados
-                const maxTemp = Math.max(...temperaturas);
-                const minTemp = Math.min(...temperaturas);
+                const maxTemp = Math.max(...temperaturas).toFixed(2);
+                const minTemp = Math.min(...temperaturas).toFixed(2);
                 const totalPrecip = precipitaciones.reduce((sum, val) => sum + val, 0).toFixed(2);
 
                 document.getElementById('temp-max').textContent = maxTemp;
@@ -231,33 +286,13 @@
 
                 temperaturaChart = new Chart(temperaturaCtx, {
                     type: 'line',
-                    data: {
-                        labels: labels,
-                        datasets: [{
-                            label: 'Temperatura (°C)',
-                            data: temperaturas,
-                            borderColor: 'rgb(255, 99, 132)',
-                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                            tension: 0.3,
-                            fill: true
-                        }]
-                    },
+                    data: { labels: labels, datasets: [{ label: 'Temperatura (°C)', data: temperaturas, borderColor: 'rgb(255, 99, 132)', backgroundColor: 'rgba(255, 99, 132, 0.2)', tension: 0.3, fill: true }] },
                     options: { responsive: true, scales: { y: { beginAtZero: false } } }
                 });
 
                 humedadChart = new Chart(humedadCtx, {
                     type: 'line',
-                    data: {
-                        labels: labels,
-                        datasets: [{
-                            label: 'Humedad (%)',
-                            data: humedades,
-                            borderColor: 'rgb(54, 162, 235)',
-                            backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                            tension: 0.3,
-                            fill: true
-                        }]
-                    },
+                    data: { labels: labels, datasets: [{ label: 'Humedad (%)', data: humedades, borderColor: 'rgb(54, 162, 235)', backgroundColor: 'rgba(54, 162, 235, 0.2)', tension: 0.3, fill: true }] },
                     options: { responsive: true, scales: { y: { beginAtZero: true, max: 100 } } }
                 });
             } catch (error) {
@@ -265,9 +300,20 @@
             }
         }
 
-        document.addEventListener('DOMContentLoaded', cargarDatosHistoricos);
-        setInterval(cargarDatosHistoricos, 5 * 60 * 1000); 
+        // Función que se llama cuando el usuario cambia la selección
+        function cargarGraficosDeSeleccion() {
+            const selectedKey = estacionSelect.value;
+            cargarGraficos(selectedKey);
+        }
 
+        // Cargar gráficos de la primera estación por defecto al cargar la página
+        document.addEventListener('DOMContentLoaded', () => {
+            const primeraEstacionKey = Object.keys(ESTACIONES)[0];
+            if (primeraEstacionKey) {
+                cargarGraficos(primeraEstacionKey);
+            }
+        });
+        
     </script>
 </body>
 </html>
