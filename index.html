@@ -5,39 +5,62 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Estación Meteorológica La Plata</title>
 
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-        integrity="sha256-p4NxAo9jU8Q2wV5cQ6T6f6L6w3dJ6Q4w3B6L6W9B6F6w="
-        crossorigin=""/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
     <style>
-        #map {
-            height: 500px;
-            width: 100%;
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            color: #333;
         }
         .container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+            max-width: 900px;
+            margin: 20px auto;
+            background-color: #fff;
             padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        h1, h2 {
+            text-align: center;
+            color: #0056b3;
+            margin-bottom: 20px;
+        }
+        #map {
+            height: 400px; /* Tamaño fijo para el mapa */
+            width: 100%;
+            border-radius: 8px;
+            margin-bottom: 30px;
         }
         .chart-container {
-            width: 80%;
-            margin-top: 40px;
+            width: 100%;
+            max-width: 800px; /* Ancho máximo para los gráficos */
+            margin: 0 auto 30px auto; /* Centrar y espaciar gráficos */
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.05);
+        }
+        canvas {
+            max-width: 100%;
+            height: auto;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Datos de Estación Meteorológica</h1>
+        <h1>Estación Meteorológica UNLP</h1>
         <div id="map"></div>
 
         <div class="chart-container">
-            <h2>Temperatura</h2>
+            <h2>Temperatura (°C)</h2>
             <canvas id="temperaturaChart"></canvas>
         </div>
 
         <div class="chart-container">
-            <h2>Humedad</h2>
+            <h2>Humedad (%)</h2>
             <canvas id="humedadChart"></canvas>
         </div>
     </div>
@@ -45,16 +68,13 @@
     <script src="https://www.gstatic.com/firebasejs/9.16.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.16.0/firebase-database-compat.js"></script>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-        crossorigin=""></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <script>
-        // Configuración de Firebase (debes usar la tuya)
+        // Configuración de Firebase (asegúrate de que sea tu databaseURL)
         const firebaseConfig = {
-            // Reemplaza con tu propia configuración
             databaseURL: "https://pagina-comoestaeltiempo-default-rtdb.firebaseio.com",
         };
 
@@ -65,12 +85,13 @@
         // Configuración de la estación (la misma que en tu script de Python)
         const ESTACIONES = {
             "estacion1": {
+                // api_key: UF1X79VA5C55SROZ
                 "api_url": "https://api.thingspeak.com/channels/2667267/feeds.json?results=100&api_key=UF1X79VA5C55SROZ",
-                "lat": -34.965,
-                "lon": -57.947,
+                "lat": -34.965, // Latitud de Calle 600 y 115, La Plata
+                "lon": -57.947, // Longitud de Calle 600 y 115, La Plata
                 "nombre": "Estación UNLP", 
-                "campo_temp": "field1",
-                "campo_hum": "field2"
+                "campo_temp": "field1", // Revisa tus campos en ThingSpeak
+                "campo_hum": "field2"  // Revisa tus campos en ThingSpeak
             }
         };
 
@@ -82,7 +103,7 @@
 
         const markers = {};
 
-        // Escuchar cambios en la base de datos de Firebase
+        // Escuchar cambios en la base de datos de Firebase para actualizar el mapa
         db.ref('estaciones').on('value', (snapshot) => {
             const estaciones = snapshot.val();
             if (estaciones) {
@@ -91,11 +112,11 @@
                     if (markers[key]) {
                         // Actualizar la posición y el popup si el marcador ya existe
                         markers[key].setLatLng([estacion.lat, estacion.lon])
-                            .setPopupContent(`<b>${estacion.nombre}</b><br>Temperatura: ${estacion.temperatura}°C<br>Humedad: ${estacion.humedad}%`);
+                            .setPopupContent(`<b>${estacion.nombre}</b><br>Temperatura: ${estacion.temperatura}°C<br>Humedad: ${estacion.humedad}%<br>Última actualización: ${new Date(estacion.timestamp).toLocaleTimeString()}`);
                     } else {
                         // Crear un nuevo marcador si no existe
                         const marker = L.marker([estacion.lat, estacion.lon]).addTo(map);
-                        marker.bindPopup(`<b>${estacion.nombre}</b><br>Temperatura: ${estacion.temperatura}°C<br>Humedad: ${estacion.humedad}%`);
+                        marker.bindPopup(`<b>${estacion.nombre}</b><br>Temperatura: ${estacion.temperatura}°C<br>Humedad: ${estacion.humedad}%<br>Última actualización: ${new Date(estacion.timestamp).toLocaleTimeString()}`);
                         markers[key] = marker;
                     }
                 }
@@ -105,7 +126,7 @@
         // Gráficos de Chart.js
         const temperaturaCtx = document.getElementById('temperaturaChart').getContext('2d');
         const humedadCtx = document.getElementById('humedadChart').getContext('2d');
-        let temperaturaChart, humedadChart;
+        let temperaturaChart, humedadChart; // Declarar aquí para que sean accesibles globalmente
 
         async function cargarGraficos() {
             const estacion = ESTACIONES.estacion1;
@@ -114,11 +135,12 @@
                 const data = await response.json();
                 const feeds = data.feeds;
                 
+                // Asegurarse de que los datos no son nulos y están ordenados por tiempo
                 const labels = feeds.map(feed => new Date(feed.created_at).toLocaleString());
-                const temperaturas = feeds.map(feed => feed[estacion.campo_temp]);
-                const humedades = feeds.map(feed => feed[estacion.campo_hum]);
+                const temperaturas = feeds.map(feed => parseFloat(feed[estacion.campo_temp])).filter(val => !isNaN(val));
+                const humedades = feeds.map(feed => parseFloat(feed[estacion.campo_hum])).filter(val => !isNaN(val));
 
-                // Destruir gráficos anteriores para evitar duplicados
+                // Destruir gráficos anteriores para evitar duplicados si se recarga
                 if (temperaturaChart) temperaturaChart.destroy();
                 if (humedadChart) humedadChart.destroy();
 
@@ -130,13 +152,32 @@
                             label: 'Temperatura (°C)',
                             data: temperaturas,
                             borderColor: 'rgb(255, 99, 132)',
-                            tension: 0.1
+                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                            tension: 0.3,
+                            fill: true
                         }]
                     },
                     options: {
+                        responsive: true,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Historial de Temperatura'
+                            }
+                        },
                         scales: {
                             y: {
-                                beginAtZero: false
+                                beginAtZero: false,
+                                title: {
+                                    display: true,
+                                    text: 'Temperatura (°C)'
+                                }
+                            },
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Fecha y Hora'
+                                }
                             }
                         }
                     }
@@ -150,26 +191,48 @@
                             label: 'Humedad (%)',
                             data: humedades,
                             borderColor: 'rgb(54, 162, 235)',
-                            tension: 0.1
+                            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                            tension: 0.3,
+                            fill: true
                         }]
                     },
                     options: {
+                        responsive: true,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Historial de Humedad'
+                            }
+                        },
                         scales: {
                             y: {
                                 beginAtZero: true,
-                                max: 100
+                                max: 100,
+                                title: {
+                                    display: true,
+                                    text: 'Humedad (%)'
+                                }
+                            },
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Fecha y Hora'
+                                }
                             }
                         }
                     }
                 });
 
             } catch (error) {
-                console.error("Error al cargar los datos de ThingSpeak:", error);
+                console.error("Error al cargar los datos de ThingSpeak para gráficos:", error);
             }
         }
 
         // Cargar gráficos cuando la página esté lista
         document.addEventListener('DOMContentLoaded', cargarGraficos);
+        // También recargar gráficos cada cierto tiempo (ej. 5 minutos, ThingSpeak tiene un límite de 15s)
+        setInterval(cargarGraficos, 5 * 60 * 1000); 
+
     </script>
 </body>
 </html>
