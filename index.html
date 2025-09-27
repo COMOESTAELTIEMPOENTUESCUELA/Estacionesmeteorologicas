@@ -1,345 +1,358 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>El Tiempo en tu Escuela | Proyecto de Extensión</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>El Tiempo en tu Escuela | Proyecto de Extensión</title>
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
-    <style>
-        :root {
-            /* Paleta de colores */
-            --color-primary-blue: #3AA5E6;
-            --color-secondary-yellow: #FFB300;
-            --color-accent-red: #FF4C4C;
-            --color-text-dark: #333;
-            --color-bg-light: #f4f4f4;
-            --color-card-bg: #fff;
-        }
+    <style>
+        :root {
+            /* Paleta de colores */
+            --color-primary-blue: #3AA5E6;
+            --color-secondary-yellow: #FFB300;
+            --color-accent-red: #FF4C4C;
+            --color-text-dark: #333;
+            --color-bg-light: #f4f4f4;
+            --color-card-bg: #fff;
+        }
 
-        body {
-            font-family: 'Poppins', sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: var(--color-bg-light);
-            color: var(--color-text-dark);
-            line-height: 1.6;
-        }
-        .container {
-            max-width: 900px;
-            margin: 20px auto;
-            background-color: var(--color-card-bg);
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-        }
-        .header {
-            text-align: center;
-            padding-bottom: 20px;
-            border-bottom: 2px solid var(--color-bg-light);
-            margin-bottom: 20px;
-        }
-        .header img {
-            max-width: 150px;
-            height: auto;
-        }
-        h1, h2 {
-            text-align: center;
-            color: var(--color-primary-blue);
-            font-weight: 600;
-            margin-bottom: 20px;
-        }
-        nav {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        nav a {
-            margin: 0 15px;
-            text-decoration: none;
-            color: var(--color-text-dark);
-            font-weight: 600;
-            transition: color 0.3s ease;
-        }
-        nav a:hover {
-            color: var(--color-primary-blue);
-        }
-        section {
-            padding: 20px 0;
-            border-bottom: 1px solid #eee;
-        }
-        section:last-child {
-            border-bottom: none;
-        }
-        p {
-            text-align: justify;
-        }
-        #lista-escuelas {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            justify-content: center;
-            padding: 0;
-        }
-        .escuela-card {
-            background: #fff;
-            border: 1px solid #ddd;
-            padding: 15px;
-            border-radius: 10px;
-            text-align: center;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-            transition: transform 0.3s ease;
-        }
-        .escuela-card:hover {
-            transform: translateY(-5px);
-        }
-        .escuela-card img {
-            width: 100%;
-            height: auto;
-            border-radius: 8px;
-            margin-bottom: 10px;
-        }
-        #map {
-            height: 400px;
-            width: 100%;
-            border-radius: 10px;
-            margin-bottom: 30px;
-        }
-        .chart-container {
-            width: 100%;
-            max-width: 800px;
-            margin: 0 auto 30px auto;
-            background-color: var(--color-card-bg);
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-        }
-        .data-card {
-            background-color: var(--color-bg-light);
-            border: 1px solid #ddd;
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        .data-card p {
-            font-size: 1.1em;
-            margin: 5px 0;
-        }
-        .data-card strong {
-            color: var(--color-accent-red);
-        }
-    </style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--color-bg-light);
+            color: var(--color-text-dark);
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 900px;
+            margin: 20px auto;
+            background-color: var(--color-card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+        .header {
+            text-align: center;
+            padding-bottom: 20px;
+            border-bottom: 2px solid var(--color-bg-light);
+            margin-bottom: 20px;
+        }
+        .header img {
+            max-width: 150px;
+            height: auto;
+        }
+        h1, h2 {
+            text-align: center;
+            color: var(--color-primary-blue);
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+        nav {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        nav a {
+            margin: 0 15px;
+            text-decoration: none;
+            color: var(--color-text-dark);
+            font-weight: 600;
+            transition: color 0.3s ease;
+        }
+        nav a:hover {
+            color: var(--color-primary-blue);
+        }
+        section {
+            padding: 20px 0;
+            border-bottom: 1px solid #eee;
+        }
+        section:last-child {
+            border-bottom: none;
+        }
+        p {
+            text-align: justify;
+        }
+        #lista-escuelas {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            justify-content: center;
+            padding: 0;
+        }
+        .escuela-card {
+            background: #fff;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s ease;
+        }
+        .escuela-card:hover {
+            transform: translateY(-5px);
+        }
+        .escuela-card img {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        #map {
+            height: 400px;
+            width: 100%;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        .chart-container {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto 30px auto;
+            background-color: var(--color-card-bg);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+        .data-card {
+            background-color: var(--color-bg-light);
+            border: 1px solid #ddd;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .data-card p {
+            font-size: 1.1em;
+            margin: 5px 0;
+        }
+        .data-card strong {
+            color: var(--color-accent-red);
+        }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <img src="imagenes/Logo1.jpg" alt="Logo del Proyecto">
-            <h1>Proyecto de Extensión: ¿Cómo está el tiempo en tu Escuela?</h1>
-        </div>
-        
-        <nav>
-            <a href="#proyecto">Sobre el Proyecto</a>
-            <a href="#escuelas">Escuelas Participantes</a>
-            <a href="#datos">Datos en Tiempo Real</a>
-            <a href="#comparativas">Datos Históricos y Comparativas</a>
-        </nav>
+    <div class="container">
+        <div class="header">
+            <img src="imagenes/Logo1.jpg" alt="Logo del Proyecto">
+            <h1>Proyecto de Extensión: ¿Cómo está el tiempo en tu Escuela?</h1>
+        </div>
+        
+        <nav>
+            <a href="#proyecto">Sobre el Proyecto</a>
+            <a href="#escuelas">Escuelas Participantes</a>
+            <a href="#datos">Datos en Tiempo Real</a>
+            <a href="#comparativas">Datos Históricos y Comparativas</a>
+        </nav>
 
-        <section id="proyecto">
-            <h2>Sobre el Proyecto</h2>
-            <p>Este proyecto de extensión de la [Tu Facultad o Universidad] busca integrar a la comunidad educativa en el monitoreo del clima local. A través de la instalación de estaciones meteorológicas caseras con Arduino y sensores en escuelas de zonas rurales, brindamos a estudiantes y docentes una herramienta práctica para aprender sobre la ciencia del clima, la electrónica y la programación.</p>
-            <p>Los datos recopilados por las estaciones son accesibles en tiempo real por toda la comunidad, fomentando la curiosidad y el análisis de la información.</p>
-        </section>
+        <section id="proyecto">
+            <h2>Sobre el Proyecto</h2>
+            <p>Este proyecto de extensión de la [Tu Facultad o Universidad] busca integrar a la comunidad educativa en el monitoreo del clima local. A través de la instalación de estaciones meteorológicas caseras con Arduino y sensores en escuelas de zonas rurales, brindamos a estudiantes y docentes una herramienta práctica para aprender sobre la ciencia del clima, la electrónica y la programación.</p>
+            <p>Los datos recopilados por las estaciones son accesibles en tiempo real por toda la comunidad, fomentando la curiosidad y el análisis de la información.</p>
+        </section>
 
-        <section id="escuelas">
-            <h2>Escuelas Participantes</h2>
-            <p>A continuación, se listan los colegios que forman parte de nuestra red de estaciones:</p>
-            <div id="lista-escuelas">
-                </div>
-        </section>
+        <section id="escuelas">
+            <h2>Escuelas Participantes</h2>
+            <p>A continuación, se listan los colegios que forman parte de nuestra red de estaciones:</p>
+            <div id="lista-escuelas">
+                </div>
+        </section>
 
-        <section id="datos">
-            <h2>Datos en Tiempo Real y Mapa</h2>
-            <p>Explora el mapa para ver la ubicación de las estaciones y sus datos más recientes. Puedes hacer clic en los marcadores para ver la información actualizada.</p>
-            <div id="map"></div>
-        </section>
+        <section id="datos">
+            <h2>Datos en Tiempo Real y Mapa</h2>
+            <p>Explora el mapa para ver la ubicación de las estaciones y sus datos más recientes. Puedes hacer clic en los marcadores para ver la información actualizada.</p>
+            <div id="map"></div>
+        </section>
 
-        <section id="comparativas">
-            <h2>Datos Históricos y Comparativas</h2>
-            <div style="text-align: center; margin-bottom: 20px;">
-                <label for="estacion-select">Selecciona una escuela para ver sus gráficos:</label>
-                <select id="estacion-select" onchange="cargarGraficosDeSeleccion()"></select>
-            </div>
-            
-            <div class="data-card">
-                <h3>Resumen Histórico</h3>
-                <p><strong>Temperatura Máxima:</strong> <span id="temp-max">--</span> °C</p>
-                <p><strong>Temperatura Mínima:</strong> <span id="temp-min">--</span> °C</p>
-                <p><strong>Precipitación Acumulada:</strong> <span id="precipitacion">--</span> mm</p>
-            </div>
+        <section id="comparativas">
+            <h2>Datos Históricos y Comparativas</h2>
+            <div style="text-align: center; margin-bottom: 20px;">
+                <label for="estacion-select">Selecciona una escuela para ver sus gráficos:</label>
+                <select id="estacion-select" onchange="cargarGraficosDeSeleccion()"></select>
+            </div>
+            
+            <div class="data-card">
+                <h3>Resumen Histórico</h3>
+                <p><strong>Temperatura Máxima:</strong> <span id="temp-max">--</span> °C</p>
+                <p><strong>Temperatura Mínima:</strong> <span id="temp-min">--</span> °C</p>
+                <p><strong>Precipitación Acumulada:</strong> <span id="precipitacion">--</span> mm</p>
+            </div>
 
-            <div class="chart-container">
-                <h2>Historial de Temperatura</h2>
-                <canvas id="temperaturaChart"></canvas>
-            </div>
+            <div class="chart-container">
+                <h2>Historial de Temperatura</h2>
+                <canvas id="temperaturaChart"></canvas>
+            </div>
 
-            <div class="chart-container">
-                <h2>Historial de Humedad</h2>
-                <canvas id="humedadChart"></canvas>
-            </div>
-        </section>
+            <div class="chart-container">
+                <h2>Historial de Humedad</h2>
+                <canvas id="humedadChart"></canvas>
+            </div>
+        </section>
 
-    </div>
+    </div>
 
-    <script src="https://www.gstatic.com/firebasejs/9.16.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.16.0/firebase-database-compat.js"></script>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.16.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.16.0/firebase-database-compat.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    <script>
-        // Configuración de Firebase
-        const firebaseConfig = {
-            databaseURL: "https://pagina-comoestaeltiempo-default-rtdb.firebaseio.com",
-        };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
+    <script>
+        // Configuración de Firebase
+        const firebaseConfig = {
+            databaseURL: "https://pagina-comoestaeltiempo-default-rtdb.firebaseio.com",
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
 
-        // Configuración de las estaciones (puedes agregar tus 7 escuelas aquí)
-        const ESTACIONES = {
-            "estacion1": {
-                "api_url": "https://api.thingspeak.com/channels/2667267/feeds.json?results=100&api_key=UF1X79VA5C55SROZ",
-                "lat": -34.965,
-                "lon": -57.947,
-                "nombre": "Estación UNLP", 
-                "campo_temp": "field1",
-                "campo_hum": "field2",
-                "campo_precip": "field3",
-                "foto_url": "imagenes/foto_escuela_1.jpg" // Reemplaza esta URL
-            },
-            "estacion2": {
-                "api_url": "URL_DE_API_DE_THINGSPEAK_2",
-                "lat": -34.96,
-                "lon": -57.90,
-                "nombre": "Colegio Ejemplo 2", 
-                "campo_temp": "field1",
-                "campo_hum": "field2",
-                "campo_precip": "field3",
-                "foto_url": "imagenes/foto_escuela_2.jpg" // Reemplaza esta URL
-            }
-            // Agrega tus 5 escuelas restantes aquí
-        };
+        // Configuración de las estaciones (puedes agregar tus 7 escuelas aquí)
+        const ESTACIONES = {
+            "estacion1": {
+                "api_url": "https://api.thingspeak.com/channels/2667267/feeds.json?results=100&api_key=UF1X79VA5C55SROZ",
+                "lat": -34.965,
+                "lon": -57.947,
+                "nombre": "Estación UNLP", 
+                "campo_temp": "field1",
+                "campo_hum": "field2",
+                "campo_precip": "field3",
+                "foto_url": "imagenes/foto_escuela_1.jpg" // Reemplaza esta URL
+            },
+            "estacion2": {
+                "api_url": "URL_DE_API_DE_THINGSPEAK_2", // ¡Asegúrate de cambiar esta URL!
+                "lat": -34.96,
+                "lon": -57.90,
+                "nombre": "Colegio Ejemplo 2", 
+                "campo_temp": "field1",
+                "campo_hum": "field2",
+                "campo_precip": "field3",
+                "foto_url": "imagenes/foto_escuela_2.jpg" // Reemplaza esta URL
+            },
+            // ******************************************************
+            // *** ESTACIÓN NUEVA AÑADIDA ***
+            // ******************************************************
+            "estacion3": {
+                "api_url": "https://api.thingspeak.com/channels/2667267/feeds.json?results=100&api_key=d325ae34959d4853a5ae34959d1853ea", // URL con tu nueva API Key. **CAMBIA EL NÚMERO DE CHANNEL** si es diferente a 2667267.
+                "lat": -35.00, // CAMBIA por la latitud real de la estación 3
+                "lon": -57.85, // CAMBIA por la longitud real de la estación 3
+                "nombre": "Escuela Rural N°3",  // CAMBIA por el nombre real de la escuela
+                "campo_temp": "field1", // Ajusta si la temperatura está en otro campo (field2, field3, etc.)
+                "campo_hum": "field2", // Ajusta si la humedad está en otro campo
+                "campo_precip": "field3", // Ajusta si la precipitación está en otro campo
+                "foto_url": "imagenes/foto_escuela_3.jpg" // CAMBIA por la URL de la foto de la escuela
+            }
+            // Agrega tus 4 escuelas restantes aquí
+        };
 
-        const map = L.map('map').setView([ESTACIONES.estacion1.lat, ESTACIONES.estacion1.lon], 13);
-        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        }).addTo(map);
-        const markers = {};
-        const listaEscuelas = document.getElementById('lista-escuelas');
-        const estacionSelect = document.getElementById('estacion-select');
+        const map = L.map('map').setView([ESTACIONES.estacion1.lat, ESTACIONES.estacion1.lon], 13);
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+        const markers = {};
+        const listaEscuelas = document.getElementById('lista-escuelas');
+        const estacionSelect = document.getElementById('estacion-select');
 
-        // Función para poblar la lista de escuelas y el selector
-        function poblarSelectyLista() {
-            estacionSelect.innerHTML = '';
-            listaEscuelas.innerHTML = '';
+        // Función para poblar la lista de escuelas y el selector
+        function poblarSelectyLista() {
+            estacionSelect.innerHTML = '';
+            listaEscuelas.innerHTML = '';
 
-            for (const key in ESTACIONES) {
-                const estacion = ESTACIONES[key];
-                
-                const option = document.createElement('option');
-                option.value = key;
-                option.textContent = estacion.nombre;
-                estacionSelect.appendChild(option);
+            for (const key in ESTACIONES) {
+                const estacion = ESTACIONES[key];
+                
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = estacion.nombre;
+                estacionSelect.appendChild(option);
 
-                const divCard = document.createElement('div');
-                divCard.className = 'escuela-card';
-                divCard.innerHTML = `<img src="${estacion.foto_url}" alt="Foto de ${estacion.nombre}"><h4>${estacion.nombre}</h4>`;
-                listaEscuelas.appendChild(divCard);
-            }
-        }
-        poblarSelectyLista();
+                const divCard = document.createElement('div');
+                divCard.className = 'escuela-card';
+                divCard.innerHTML = `<img src="${estacion.foto_url}" alt="Foto de ${estacion.nombre}"><h4>${estacion.nombre}</h4>`;
+                listaEscuelas.appendChild(divCard);
+            }
+        }
+        poblarSelectyLista();
 
-        // Escuchar datos en tiempo real de Firebase para actualizar el mapa
-        db.ref('estaciones').on('value', (snapshot) => {
-            const estaciones = snapshot.val();
-            if (estaciones) {
-                for (const key in estaciones) {
-                    const estacion = estaciones[key];
-                    const configEstacion = ESTACIONES[key];
-                    if (markers[key]) {
-                        markers[key].setLatLng([configEstacion.lat, configEstacion.lon])
-                            .setPopupContent(`<b>${configEstacion.nombre}</b><br>Temp: ${estacion.temperatura}°C<br>Humedad: ${estacion.humedad}%`);
-                    } else {
-                        const marker = L.marker([configEstacion.lat, configEstacion.lon]).addTo(map);
-                        marker.bindPopup(`<b>${configEstacion.nombre}</b><br>Temp: ${estacion.temperatura}°C<br>Humedad: ${estacion.humedad}%`);
-                        markers[key] = marker;
-                    }
-                }
-            }
-        });
+        // Escuchar datos en tiempo real de Firebase para actualizar el mapa
+        db.ref('estaciones').on('value', (snapshot) => {
+            const estaciones = snapshot.val();
+            if (estaciones) {
+                for (const key in estaciones) {
+                    const estacion = estaciones[key];
+                    const configEstacion = ESTACIONES[key];
+                    if (markers[key]) {
+                        markers[key].setLatLng([configEstacion.lat, configEstacion.lon])
+                            .setPopupContent(`<b>${configEstacion.nombre}</b><br>Temp: ${estacion.temperatura}°C<br>Humedad: ${estacion.humedad}%`);
+                    } else {
+                        const marker = L.marker([configEstacion.lat, configEstacion.lon]).addTo(map);
+                        marker.bindPopup(`<b>${configEstacion.nombre}</b><br>Temp: ${estacion.temperatura}°C<br>Humedad: ${estacion.humedad}%`);
+                        markers[key] = marker;
+                    }
+                }
+            }
+        });
 
-        const temperaturaCtx = document.getElementById('temperaturaChart').getContext('2d');
-        const humedadCtx = document.getElementById('humedadChart').getContext('2d');
-        let temperaturaChart, humedadChart;
+        const temperaturaCtx = document.getElementById('temperaturaChart').getContext('2d');
+        const humedadCtx = document.getElementById('humedadChart').getContext('2d');
+        let temperaturaChart, humedadChart;
 
-        async function cargarGraficos(estacionKey) {
-            const estacion = ESTACIONES[estacionKey];
-            if (!estacion) {
-                console.error("Estación no encontrada:", estacionKey);
-                return;
-            }
+        async function cargarGraficos(estacionKey) {
+            const estacion = ESTACIONES[estacionKey];
+            if (!estacion) {
+                console.error("Estación no encontrada:", estacionKey);
+                return;
+            }
 
-            try {
-                const response = await fetch(estacion.api_url);
-                const data = await response.json();
-                const feeds = data.feeds;
-                
-                const labels = feeds.map(feed => new Date(feed.created_at).toLocaleString());
-                const temperaturas = feeds.map(feed => parseFloat(feed[estacion.campo_temp])).filter(val => !isNaN(val));
-                const humedades = feeds.map(feed => parseFloat(feed[estacion.campo_hum])).filter(val => !isNaN(val));
-                const precipitaciones = feeds.map(feed => parseFloat(feed[estacion.campo_precip] || 0)).filter(val => !isNaN(val));
+            try {
+                const response = await fetch(estacion.api_url);
+                const data = await response.json();
+                const feeds = data.feeds;
+                
+                const labels = feeds.map(feed => new Date(feed.created_at).toLocaleString());
+                const temperaturas = feeds.map(feed => parseFloat(feed[estacion.campo_temp])).filter(val => !isNaN(val));
+                const humedades = feeds.map(feed => parseFloat(feed[estacion.campo_hum])).filter(val => !isNaN(val));
+                const precipitaciones = feeds.map(feed => parseFloat(feed[estacion.campo_precip] || 0)).filter(val => !isNaN(val));
 
-                const maxTemp = Math.max(...temperaturas).toFixed(2);
-                const minTemp = Math.min(...temperaturas).toFixed(2);
-                const totalPrecip = precipitaciones.reduce((sum, val) => sum + val, 0).toFixed(2);
+                const maxTemp = Math.max(...temperaturas).toFixed(2);
+                const minTemp = Math.min(...temperaturas).toFixed(2);
+                const totalPrecip = precipitaciones.reduce((sum, val) => sum + val, 0).toFixed(2);
 
-                document.getElementById('temp-max').textContent = maxTemp;
-                document.getElementById('temp-min').textContent = minTemp;
-                document.getElementById('precipitacion').textContent = totalPrecip;
-                
-                if (temperaturaChart) temperaturaChart.destroy();
-                if (humedadChart) humedadChart.destroy();
+                document.getElementById('temp-max').textContent = maxTemp;
+                document.getElementById('temp-min').textContent = minTemp;
+                document.getElementById('precipitacion').textContent = totalPrecip;
+                
+                if (temperaturaChart) temperaturaChart.destroy();
+                if (humedadChart) humedadChart.destroy();
 
-                temperaturaChart = new Chart(temperaturaCtx, {
-                    type: 'line',
-                    data: { labels: labels, datasets: [{ label: 'Temperatura (°C)', data: temperaturas, borderColor: var(--color-accent-red), backgroundColor: 'rgba(255, 76, 76, 0.2)', tension: 0.3, fill: true }] },
-                    options: { responsive: true, scales: { y: { beginAtZero: false } } }
-                });
+                temperaturaChart = new Chart(temperaturaCtx, {
+                    type: 'line',
+                    data: { labels: labels, datasets: [{ label: 'Temperatura (°C)', data: temperaturas, borderColor: var(--color-accent-red), backgroundColor: 'rgba(255, 76, 76, 0.2)', tension: 0.3, fill: true }] },
+                    options: { responsive: true, scales: { y: { beginAtZero: false } } }
+                });
 
-                humedadChart = new Chart(humedadCtx, {
-                    type: 'line',
-                    data: { labels: labels, datasets: [{ label: 'Humedad (%)', data: humedades, borderColor: var(--color-primary-blue), backgroundColor: 'rgba(58, 165, 230, 0.2)', tension: 0.3, fill: true }] },
-                    options: { responsive: true, scales: { y: { beginAtZero: true, max: 100 } } }
-                });
-            } catch (error) {
-                console.error("Error al cargar datos históricos:", error);
-            }
-        }
+                humedadChart = new Chart(humedadCtx, {
+                    type: 'line',
+                    data: { labels: labels, datasets: [{ label: 'Humedad (%)', data: humedades, borderColor: var(--color-primary-blue), backgroundColor: 'rgba(58, 165, 230, 0.2)', tension: 0.3, fill: true }] },
+                    options: { responsive: true, scales: { y: { beginAtZero: true, max: 100 } } }
+                });
+            } catch (error) {
+                console.error("Error al cargar datos históricos:", error);
+            }
+        }
 
-        function cargarGraficosDeSeleccion() {
-            const selectedKey = estacionSelect.value;
-            cargarGraficos(selectedKey);
-        }
+        function cargarGraficosDeSeleccion() {
+            const selectedKey = estacionSelect.value;
+            cargarGraficos(selectedKey);
+        }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            const primeraEstacionKey = Object.keys(ESTACIONES)[0];
-            if (primeraEstacionKey) {
-                cargarGraficos(primeraEstacionKey);
-            }
-        });
-    </script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const primeraEstacionKey = Object.keys(ESTACIONES)[0];
+            if (primeraEstacionKey) {
+                cargarGraficos(primeraEstacionKey);
+            }
+        });
+    </script>
 </body>
 </html>
