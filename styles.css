@@ -1,0 +1,245 @@
+/* Variables de color */
+:root {
+    --color-primary-blue: #3aa5e6;
+    --color-accent-red: #ff4c4c;
+    --color-background: #f4f7f9;
+    --color-text: #333;
+    --color-light-gray: #e9ecef;
+    --color-card-bg: #ffffff;
+}
+
+/* Estilos Globales y Tipografía */
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: var(--color-background);
+    color: var(--color-text);
+    margin: 0;
+    padding: 0;
+}
+
+header {
+    background-color: var(--color-primary-blue);
+    color: white;
+    padding: 20px 5%;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+header h1 {
+    margin: 0;
+    font-size: 2em;
+}
+
+nav {
+    margin-top: 10px;
+}
+
+nav a {
+    color: white;
+    text-decoration: none;
+    margin: 0 15px;
+    font-weight: bold;
+    transition: color 0.3s;
+}
+
+nav a:hover {
+    color: var(--color-light-gray);
+}
+
+/* Estilo General de Secciones */
+section {
+    padding: 40px 5%;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+section h2 {
+    color: var(--color-primary-blue);
+    border-bottom: 2px solid var(--color-light-gray);
+    padding-bottom: 10px;
+    margin-bottom: 30px;
+}
+
+hr {
+    border: 0;
+    height: 1px;
+    background-image: linear-gradient(to right, rgba(0, 0, 0, 0), var(--color-light-gray), rgba(0, 0, 0, 0));
+    margin: 20px 0;
+}
+
+/* Diseño del Mapa y Datos */
+.mapa-y-datos {
+    display: flex;
+    gap: 30px;
+    flex-wrap: wrap; /* Para hacerlo responsivo */
+}
+
+#map {
+    flex-grow: 1;
+    min-width: 300px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.datos-actuales {
+    flex-basis: 300px;
+    background-color: var(--color-card-bg);
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.resumen-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.dato-card {
+    background-color: var(--color-light-gray);
+    padding: 10px;
+    border-radius: 6px;
+    text-align: center;
+}
+
+.dato-card h4 {
+    margin: 0 0 5px 0;
+    font-size: 0.9em;
+    color: var(--color-text);
+}
+
+.dato-card .valor {
+    font-size: 1.4em;
+    font-weight: bold;
+    color: var(--color-primary-blue);
+    margin: 0;
+}
+
+/* Lista de Escuelas (Cards con Fotos) */
+#lista-escuelas {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.escuela-card {
+    display: flex;
+    align-items: center;
+    background-color: var(--color-light-gray);
+    border-radius: 8px;
+    overflow: hidden;
+    padding: 5px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.escuela-card img {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 4px;
+    margin-right: 10px;
+}
+
+.escuela-card h4 {
+    margin: 0;
+    font-size: 1em;
+    color: var(--color-text);
+}
+
+/* Sección de Análisis/Gráficos */
+.controles {
+    margin-bottom: 30px;
+    padding: 15px;
+    background-color: var(--color-card-bg);
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+#estacion-select {
+    padding: 10px;
+    border: 1px solid var(--color-light-gray);
+    border-radius: 4px;
+    min-width: 250px;
+}
+
+.graficos-container {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-top: 30px;
+}
+
+.grafico {
+    flex: 1 1 calc(50% - 10px); /* 50% de ancho con un espacio de 20px */
+    min-width: 300px;
+    background-color: var(--color-card-bg);
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Sección de Talleres y Reportes */
+.galeria-reportes {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 25px;
+}
+
+.reporte-card {
+    background-color: var(--color-card-bg);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s;
+}
+
+.reporte-card:hover {
+    transform: translateY(-5px);
+}
+
+.reporte-card img {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+}
+
+.reporte-card h4 {
+    color: var(--color-primary-blue);
+    margin: 15px 15px 5px 15px;
+}
+
+.reporte-card p {
+    margin: 0 15px 10px 15px;
+    font-size: 0.9em;
+}
+
+.reporte-card a {
+    display: block;
+    background-color: var(--color-accent-red);
+    color: white;
+    text-align: center;
+    padding: 10px;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+/* Footer */
+footer {
+    text-align: center;
+    padding: 20px;
+    background-color: var(--color-text);
+    color: white;
+    margin-top: 40px;
+}
+
+/* Media Queries para Responsividad */
+@media (max-width: 768px) {
+    .mapa-y-datos {
+        flex-direction: column;
+    }
+    
+    .grafico {
+        flex: 1 1 100%;
+    }
+}
