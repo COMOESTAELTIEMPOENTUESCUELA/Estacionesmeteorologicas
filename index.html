@@ -41,9 +41,9 @@
                         <h4>Estación 1</h4>
                         <p class="valor" id="temp-est1">--°C</p>
                     </div>
-                    </div>
+                </div>
                 <div id="lista-escuelas">
-                    </div>
+                </div>
             </div>
         </div>
     </section>
@@ -94,18 +94,7 @@
         <p>Aquí se publicarán las actividades de coordinación y los reportes fotográficos de nuestros colaboradores.</p>
         
         <div class="galeria-reportes" id="galeria-reportes">
-            <div class="reporte-card">
-                <img src="imagenes/taller_ejemplo_1.jpg" alt="Taller en la Escuela N°5">
-                <h4>Instalación de la Estación N°5</h4>
-                <p>Fecha: 15/09/2025. El equipo de coordinadores completó la instalación y capacitación inicial.</p>
-                <a href="#">Ver Reporte Completo</a>
-            </div>
-             <div class="reporte-card">
-                <img src="imagenes/reporte_ejemplo_2.jpg" alt="Reporte fotográfico de alumnos">
-                <h4>Uso de instrumentos en el aula</h4>
-                <p>Fecha: 20/09/2025. Los alumnos aprendieron a medir la humedad y la temperatura en el salón.</p>
-                <a href="#">Ver Reporte Completo</a>
-            </div>
+            <p>Cargando reportes...</p>
         </div>
     </section>
 
@@ -164,6 +153,42 @@
         const markers = {};
         const listaEscuelas = document.getElementById('lista-escuelas');
         const estacionSelect = document.getElementById('estacion-select');
+        const galeriaReportes = document.getElementById('galeria-reportes');
+
+        // *** FUNCIÓN PARA CARGAR REPORTES DESDE EL CMS ***
+        async function cargarReportes() {
+            try {
+                // Busca el archivo index.json que Decap CMS crea en la carpeta _data/reportes
+                const response = await fetch('/_data/reportes/index.json'); 
+                const reportes = await response.json();
+
+                galeriaReportes.innerHTML = ''; // Limpia el contenido "Cargando reportes..."
+                
+                // Ordenar por fecha (más reciente primero)
+                reportes.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                reportes.forEach(reporte => {
+                    const divCard = document.createElement('div');
+                    divCard.className = 'reporte-card';
+                    const imgSrc = reporte.image || 'imagenes/placeholder.jpg'; // Usa una imagen por defecto si no hay
+                    
+                    divCard.innerHTML = `
+                        <img src="${imgSrc}" alt="${reporte.title}">
+                        <h4>${reporte.title}</h4>
+                        <p>Fecha: ${reporte.date} | Escuela: ${reporte.school || 'General'}</p>
+                        <p>${reporte.summary}</p>
+                        <a href="#">Ver Detalles</a>
+                    `;
+                    galeriaReportes.appendChild(divCard);
+                });
+
+            } catch (error) {
+                // Esto es común si la página se carga antes de que se cree el primer archivo index.json por el CMS.
+                console.warn("No se pudo cargar la lista de reportes, el CMS aún no ha publicado contenido o la ruta es incorrecta.");
+                galeriaReportes.innerHTML = `<p>El contenido dinámico de Talleres y Reportes se cargará aquí cuando los coordinadores publiquen el primer artículo a través del CMS.</p>`;
+            }
+        }
+        // *************************************************
 
         // Función para poblar la lista de escuelas y el selector
         function poblarSelectyLista() {
@@ -184,8 +209,7 @@
                 listaEscuelas.appendChild(divCard);
             }
         }
-        poblarSelectyLista();
-
+        
         // Escuchar datos en tiempo real de Firebase para actualizar el mapa
         db.ref('estaciones').on('value', (snapshot) => {
             const estaciones = snapshot.val();
@@ -204,8 +228,6 @@
                         }
                     }
                 }
-                // Aquí puedes agregar lógica para actualizar el resumen global si los datos de Firebase tienen el mismo formato
-                // Por simplicidad, esta parte del código se deja como estaba para no introducir errores.
             }
         });
 
@@ -224,15 +246,12 @@
                 const response = await fetch(estacion.api_url);
                 const data = await response.json();
                 
-                // Lógica para manejar la diferencia de formato entre ThingSpeak y WunderMap
                 let feeds = data.feeds;
                 
                 if (estacionKey.includes("estacion3")) { 
-                    // WunderMap usa "observations" en lugar de "feeds"
                     if (data.observations && data.observations.length > 0) {
                         feeds = data.observations; 
                     } else {
-                        console.error("No se encontraron datos de historial (observations) para la estación WunderMap. Se mostrarán campos vacíos.");
                         document.getElementById('temp-max').textContent = '--';
                         document.getElementById('temp-min').textContent = '--';
                         document.getElementById('precipitacion').textContent = '--';
@@ -242,7 +261,6 @@
                     }
                 }
 
-                // Función auxiliar para obtener el valor del campo (ThingSpeak vs WunderMap)
                 function getFieldValue(feed, path) {
                     if (estacionKey.includes("estacion3")) {
                         const parts = path.split('.');
@@ -262,9 +280,9 @@
 
                 const labels = feeds.map(feed => {
                     if (estacionKey.includes("estacion3")) {
-                        return new Date(feed.obsTimeUtc).toLocaleString(); // WunderMap usa 'obsTimeUtc'
+                        return new Date(feed.obsTimeUtc).toLocaleString();
                     } else {
-                        return new Date(feed.created_at).toLocaleString(); // ThingSpeak usa 'created_at'
+                        return new Date(feed.created_at).toLocaleString();
                     }
                 });
                 
@@ -272,7 +290,6 @@
                 const humedades = feeds.map(feed => parseFloat(getFieldValue(feed, estacion.campo_hum))).filter(val => !isNaN(val));
                 const precipitaciones = feeds.map(feed => parseFloat(getFieldValue(feed, estacion.campo_precip) || 0)).filter(val => !isNaN(val));
                 
-                // Resumen Histórico
                 const maxTemp = temperaturas.length > 0 ? Math.max(...temperaturas).toFixed(2) : '--';
                 const minTemp = temperaturas.length > 0 ? Math.min(...temperaturas).toFixed(2) : '--';
                 const totalPrecip = precipitaciones.length > 0 ? precipitaciones.reduce((sum, val) => sum + val, 0).toFixed(2) : '--';
@@ -307,6 +324,9 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            poblarSelectyLista(); // Carga las tarjetas de escuelas
+            cargarReportes();     // LLAMADA A LA NUEVA FUNCIÓN DEL CMS
+            
             const primeraEstacionKey = Object.keys(ESTACIONES)[0];
             if (primeraEstacionKey) {
                 cargarGraficos(primeraEstacionKey);
