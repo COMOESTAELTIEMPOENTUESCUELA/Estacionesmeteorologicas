@@ -106,7 +106,7 @@
                 <p>Fecha: 20/09/2025. Los alumnos aprendieron a medir la humedad y la temperatura en el salón.</p>
                 <a href="#">Ver Reporte Completo</a>
             </div>
-            </div>
+        </div>
     </section>
 
     <footer>
@@ -114,9 +114,204 @@
     </footer>
 
     <script>
-        // Pega el código JavaScript que me enviaste, incluyendo la configuración de ESTACIONES.
-        // NOTA: El script está completo, pero agregaremos una línea para actualizar el resumen global
-        // si lo necesitas. Por ahora, pegamos el código tal cual está.
+        // Configuración de Firebase
+        const firebaseConfig = {
+            databaseURL: "https://pagina-comoestaeltiempo-default-rtdb.firebaseio.com",
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // Configuración de las estaciones
+        const ESTACIONES = {
+            "estacion1": {
+                "api_url": "https://api.thingspeak.com/channels/2667267/feeds.json?results=100&api_key=UF1X79VA5C55SROZ",
+                "lat": -34.965,
+                "lon": -57.947,
+                "nombre": "Estación UNLP (ThingSpeak)",
+                "campo_temp": "field1",
+                "campo_hum": "field2",
+                "campo_precip": "field3",
+                "foto_url": "imagenes/foto_escuela_1.jpg"
+            },
+            "estacion2": {
+                // ** IMPORTANTE: REEMPLAZAR ESTA URL **
+                "api_url": "URL_DE_API_DE_THINGSPEAK_2", 
+                "lat": -34.96,
+                "lon": -57.90,
+                "nombre": "Colegio Ejemplo 2 (ThingSpeak)",
+                "campo_temp": "field1",
+                "campo_hum": "field2",
+                "campo_precip": "field3",
+                "foto_url": "imagenes/foto_escuela_2.jpg"
+            },
+            "estacion3": {
+                // ** ESTACIÓN WUNDERMAP (Mantiene la URL compleja para la lógica JS) **
+                "api_url": "https://api.weather.com/v2/pws/observations/all?stationId=IARANA2&format=json&units=m&numericPrecision=decimal&apiKey=d325ae34959d4853a5ae34959d1853ea",
+                "lat": -34.9680, 
+                "lon": -57.9450, 
+                "nombre": "Escuela IARANA2 (WunderMap)",
+                "campo_temp": "metric.temp", 
+                "campo_hum": "humidity", 
+                "campo_precip": "metric.precipTotal",
+                "foto_url": "imagenes/foto_escuela_3.jpg"
+            }
+        };
+
+        const map = L.map('map').setView([ESTACIONES.estacion1.lat, ESTACIONES.estacion1.lon], 13);
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+        const markers = {};
+        const listaEscuelas = document.getElementById('lista-escuelas');
+        const estacionSelect = document.getElementById('estacion-select');
+
+        // Función para poblar la lista de escuelas y el selector
+        function poblarSelectyLista() {
+            estacionSelect.innerHTML = '';
+            listaEscuelas.innerHTML = '';
+
+            for (const key in ESTACIONES) {
+                const estacion = ESTACIONES[key];
+                
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = estacion.nombre;
+                estacionSelect.appendChild(option);
+
+                const divCard = document.createElement('div');
+                divCard.className = 'escuela-card';
+                divCard.innerHTML = `<img src="${estacion.foto_url}" alt="Foto de ${estacion.nombre}"><h4>${estacion.nombre}</h4>`;
+                listaEscuelas.appendChild(divCard);
+            }
+        }
+        poblarSelectyLista();
+
+        // Escuchar datos en tiempo real de Firebase para actualizar el mapa
+        db.ref('estaciones').on('value', (snapshot) => {
+            const estaciones = snapshot.val();
+            if (estaciones) {
+                for (const key in estaciones) {
+                    const estacion = estaciones[key];
+                    const configEstacion = ESTACIONES[key];
+                    if (configEstacion) {
+                        if (markers[key]) {
+                            markers[key].setLatLng([configEstacion.lat, configEstacion.lon])
+                                .setPopupContent(`<b>${configEstacion.nombre}</b><br>Temp: ${estacion.temperatura}°C<br>Humedad: ${estacion.humedad}%`);
+                        } else {
+                            const marker = L.marker([configEstacion.lat, configEstacion.lon]).addTo(map);
+                            marker.bindPopup(`<b>${configEstacion.nombre}</b><br>Temp: ${estacion.temperatura}°C<br>Humedad: ${estacion.humedad}%`);
+                            markers[key] = marker;
+                        }
+                    }
+                }
+                // Aquí puedes agregar lógica para actualizar el resumen global si los datos de Firebase tienen el mismo formato
+                // Por simplicidad, esta parte del código se deja como estaba para no introducir errores.
+            }
+        });
+
+        const temperaturaCtx = document.getElementById('temperaturaChart').getContext('2d');
+        const humedadCtx = document.getElementById('humedadChart').getContext('2d');
+        let temperaturaChart, humedadChart;
+
+        async function cargarGraficos(estacionKey) {
+            const estacion = ESTACIONES[estacionKey];
+            if (!estacion) {
+                console.error("Estación no encontrada:", estacionKey);
+                return;
+            }
+
+            try {
+                const response = await fetch(estacion.api_url);
+                const data = await response.json();
+                
+                // Lógica para manejar la diferencia de formato entre ThingSpeak y WunderMap
+                let feeds = data.feeds;
+                
+                if (estacionKey.includes("estacion3")) { 
+                    // WunderMap usa "observations" en lugar de "feeds"
+                    if (data.observations && data.observations.length > 0) {
+                        feeds = data.observations; 
+                    } else {
+                        console.error("No se encontraron datos de historial (observations) para la estación WunderMap. Se mostrarán campos vacíos.");
+                        document.getElementById('temp-max').textContent = '--';
+                        document.getElementById('temp-min').textContent = '--';
+                        document.getElementById('precipitacion').textContent = '--';
+                        if (temperaturaChart) temperaturaChart.destroy();
+                        if (humedadChart) humedadChart.destroy();
+                        return;
+                    }
+                }
+
+                // Función auxiliar para obtener el valor del campo (ThingSpeak vs WunderMap)
+                function getFieldValue(feed, path) {
+                    if (estacionKey.includes("estacion3")) {
+                        const parts = path.split('.');
+                        let value = feed;
+                        for (const part of parts) {
+                            if (value && value[part] !== undefined) {
+                                value = value[part];
+                            } else {
+                                return undefined;
+                            }
+                        }
+                        return value;
+                    } else {
+                        return feed[path];
+                    }
+                }
+
+                const labels = feeds.map(feed => {
+                    if (estacionKey.includes("estacion3")) {
+                        return new Date(feed.obsTimeUtc).toLocaleString(); // WunderMap usa 'obsTimeUtc'
+                    } else {
+                        return new Date(feed.created_at).toLocaleString(); // ThingSpeak usa 'created_at'
+                    }
+                });
+                
+                const temperaturas = feeds.map(feed => parseFloat(getFieldValue(feed, estacion.campo_temp))).filter(val => !isNaN(val));
+                const humedades = feeds.map(feed => parseFloat(getFieldValue(feed, estacion.campo_hum))).filter(val => !isNaN(val));
+                const precipitaciones = feeds.map(feed => parseFloat(getFieldValue(feed, estacion.campo_precip) || 0)).filter(val => !isNaN(val));
+                
+                // Resumen Histórico
+                const maxTemp = temperaturas.length > 0 ? Math.max(...temperaturas).toFixed(2) : '--';
+                const minTemp = temperaturas.length > 0 ? Math.min(...temperaturas).toFixed(2) : '--';
+                const totalPrecip = precipitaciones.length > 0 ? precipitaciones.reduce((sum, val) => sum + val, 0).toFixed(2) : '--';
+
+                document.getElementById('temp-max').textContent = maxTemp;
+                document.getElementById('temp-min').textContent = minTemp;
+                document.getElementById('precipitacion').textContent = totalPrecip;
+                
+                if (temperaturaChart) temperaturaChart.destroy();
+                if (humedadChart) humedadChart.destroy();
+
+                temperaturaChart = new Chart(temperaturaCtx, {
+                    type: 'line',
+                    data: { labels: labels, datasets: [{ label: 'Temperatura (°C)', data: temperaturas, borderColor: 'var(--color-accent-red)', backgroundColor: 'rgba(255, 76, 76, 0.2)', tension: 0.3, fill: true }] },
+                    options: { responsive: true, scales: { y: { beginAtZero: false } } }
+                });
+
+                humedadChart = new Chart(humedadCtx, {
+                    type: 'line',
+                    data: { labels: labels, datasets: [{ label: 'Humedad (%)', data: humedades, borderColor: 'var(--color-primary-blue)', backgroundColor: 'rgba(58, 165, 230, 0.2)', tension: 0.3, fill: true }] },
+                    options: { responsive: true, scales: { y: { beginAtZero: true, max: 100 } } }
+                });
+
+            } catch (error) {
+                console.error("Error al cargar datos históricos (Revisa la configuración de la API):", error);
+            }
+        }
+
+        function cargarGraficosDeSeleccion() {
+            const selectedKey = estacionSelect.value;
+            cargarGraficos(selectedKey);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const primeraEstacionKey = Object.keys(ESTACIONES)[0];
+            if (primeraEstacionKey) {
+                cargarGraficos(primeraEstacionKey);
+            }
+        });
     </script>
 </body>
 </html>
