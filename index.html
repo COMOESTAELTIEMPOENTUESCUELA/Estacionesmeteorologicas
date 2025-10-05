@@ -136,9 +136,9 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        // Configuración de las estaciones (Mantenemos los IDs y Coordenadas correctas)
+        // Configuración de las estaciones
         const ESTACIONES = {
-            // *** EMA FACULTAD (Coordenadas actualizadas) ***
+            // *** EMA FACULTAD ***
             "ema_facultad": {
                 "api_url": "https://api.thingspeak.com/channels/2667267/feeds.json?results=100&api_key=UF1X79VA5C55SROZ",
                 "lat": -34.90704185408143,
@@ -150,7 +150,7 @@
                 "foto_url": "imagenes/foto_escuela_1.jpg"
             },
 
-            // *** EP 23 (Coordenadas actualizadas) ***
+            // *** EP 23 ***
             "escuela23": {
                 "api_url": "https://api.thingspeak.com/channels/2218686/feeds.json?results=100&api_key=JUXJQRZMFFASO37Z", 
                 "lat": -35.028220624725385, 
@@ -162,7 +162,7 @@
                 "foto_url": "imagenes/foto_escuela_23.jpg" 
             },
 
-            // *** SAN VICENTE DE PAUL (Coordenadas ACTUALIZADAS) ***
+            // *** SAN VICENTE DE PAUL ***
             "sanvicente": {
                 "api_url": "https://api.thingspeak.com/channels/2218687/feeds.json?results=100&api_key=TH3V4TJLPRFZD3JSG", 
                 "lat": -34.90315315209218, 
@@ -174,7 +174,7 @@
                 "foto_url": "imagenes/foto_san_vicente.jpg" 
             },
 
-            // *** EP 34 (Coordenadas actualizadas) ***
+            // *** EP 34 ***
             "escuela34": {
                 "api_url": "https://api.thingspeak.com/channels/2667270/feeds.json?results=100&api_key=ZLNOSLZJPQM3H7SD", 
                 "lat": -35.07345166939612, 
@@ -187,12 +187,12 @@
             },
 
 
-            // Estación Wundermap (Manteniendo coordenadas de ejemplo)
+            // *** ESTACIÓN WUNDERMAP (IARANA2) - CLAVE API ACTUALIZADA ***
             "estacion3": {
                 "api_url": "https://api.weather.com/v2/pws/observations/all?stationId=IARANA2&format=json&units=m&numericPrecision=decimal&apiKey=d325ae34959d4853a5ae34959d1853ea",
                 "lat": -34.9680, 
                 "lon": -57.9450, 
-                "nombre": "Escuela IARANA2 (WunderMap)",
+                "nombre": "EMA IARANA2 (WunderMap)",
                 "campo_temp": "metric.temp", 
                 "campo_hum": "humidity", 
                 "campo_precip": "metric.precipTotal",
@@ -247,7 +247,7 @@
             }
         }
         
-        // Función para inicializar los marcadores de Leaflet
+        // Función para inicializar los marcadores de Leaflet (SIN CAMBIOS)
         function inicializarMarcadores() {
             for (const key in ESTACIONES) {
                 const configEstacion = ESTACIONES[key];
@@ -271,9 +271,8 @@
             map.setView([ESTACIONES[Object.keys(ESTACIONES)[0]].lat, ESTACIONES[Object.keys(ESTACIONES)[0]].lon], 13);
         }
 
-        // Función para actualizar los Tooltips del mapa con la variable seleccionada
+        // Función para actualizar los Tooltips del mapa con la variable seleccionada (SIN CAMBIOS)
         function actualizarMapaYTooltips(variable = variableSelect.value, data = null) {
-            // Recorre solo los marcadores que ya existen
             for (const key in markers) {
                 const configEstacion = ESTACIONES[key];
                 const marker = markers[key];
@@ -289,11 +288,10 @@
             }
         }
         
-        // Escuchar datos en tiempo real de Firebase para actualizar el mapa (MODIFICADO: Solo actualiza el contenido, no crea marcadores)
+        // Escuchar datos en tiempo real de Firebase para actualizar el mapa (SIN CAMBIOS)
         db.ref('estaciones').on('value', (snapshot) => {
             const estaciones = snapshot.val();
             if (estaciones) {
-                // Llama a la función para actualizar todos los tooltips con los nuevos datos
                 actualizarMapaYTooltips(variableSelect.value, estaciones);
             }
         });
@@ -323,7 +321,6 @@
         let temperaturaChart, humedadChart;
 
         async function cargarGraficos(estacionKey) {
-            // ... (el resto de la función cargarGraficos permanece sin cambios) ...
             const estacion = ESTACIONES[estacionKey];
             if (!estacion) {
                 console.error("Estación no encontrada:", estacionKey);
@@ -335,12 +332,14 @@
                 const data = await response.json();
                 
                 let feeds = data.feeds;
-                let isWunderMap = estacionKey.includes("estacion3");
-                
+                let isWunderMap = estacionKey.includes("estacion3"); // Usamos "estacion3" para IARANA2
+
+                // La lógica para WunderMap ya está aquí y ahora usará tu API Key
                 if (isWunderMap) { 
                     if (data.observations && data.observations.length > 0) {
                         feeds = data.observations; 
                     } else {
+                        // Si no hay observaciones para WunderMap, no hace nada
                         return; 
                     }
                 }
@@ -427,7 +426,7 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            inicializarMarcadores(); // <-- NUEVA FUNCIÓN AÑADIDA
+            inicializarMarcadores(); 
             poblarSelectyLista(); 
             cargarReportes();     
             
