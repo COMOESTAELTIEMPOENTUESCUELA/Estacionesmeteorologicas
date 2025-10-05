@@ -5,12 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>¿Cómo Está el Tiempo? - UNLP</title>
     
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-          integrity="sha256-p4NxAoJBhIINfBTxTRj3iTTGAWpIBl8EQAylAUdbSPls="
-          crossorigin=""/>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-            integrity="sha256-20n6a9c8b98zI26kO2aK9C3J6B9A34C48F/k0M7wE4Kz0="
-            crossorigin=""></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -115,8 +111,8 @@
             // Estación de ejemplo existente (Verificar si el ID de canal 2667267 es correcto)
             "estacion1": {
                 "api_url": "https://api.thingspeak.com/channels/2667267/feeds.json?results=100&api_key=UF1X79VA5C55SROZ",
-                "lat": -34.965, // Latitud de ejemplo
-                "lon": -57.947, // Longitud de ejemplo
+                "lat": -34.965, // Latitud de ejemplo (REEMPLAZAR)
+                "lon": -57.947, // Longitud de ejemplo (REEMPLAZAR)
                 "nombre": "Estación UNLP (ThingSpeak)",
                 "campo_temp": "field1",
                 "campo_hum": "field2",
@@ -124,7 +120,7 @@
                 "foto_url": "imagenes/foto_escuela_1.jpg"
             },
 
-            // *** ESTACIÓN ACTUALIZADA: Escuela 23 ***
+            // *** ESTACIÓN Escuela 23 ***
             "escuela23": {
                 // ID de canal actualizado: 2218686
                 "api_url": "https://api.thingspeak.com/channels/2218686/feeds.json?results=100&api_key=JUXJQRZMFFASO37Z", 
@@ -137,7 +133,7 @@
                 "foto_url": "imagenes/foto_escuela_23.jpg" // Cambiar a la foto real
             },
 
-            // *** ESTACIÓN ACTUALIZADA: San Vicente de Paul ***
+            // *** ESTACIÓN San Vicente de Paul ***
             "sanvicente": {
                 // ID de canal actualizado: 2218687
                 "api_url": "https://api.thingspeak.com/channels/2218687/feeds.json?results=100&api_key=TH3V4TJLPRFZD3JSG", 
@@ -150,7 +146,7 @@
                 "foto_url": "imagenes/foto_san_vicente.jpg" // Cambiar a la foto real
             },
 
-            // *** ESTACIÓN EXISTENTE: Escuela 34 (Verificar si el ID de canal 2667270 es correcto) ***
+            // *** ESTACIÓN Escuela 34 (Verificar si el ID de canal 2667270 es correcto) ***
             "escuela34": {
                 "api_url": "https://api.thingspeak.com/channels/2667270/feeds.json?results=100&api_key=ZLNOSLZJPQM3H7SD", 
                 "lat": -34.95, // Latitud de ejemplo (REEMPLAZAR)
@@ -163,7 +159,7 @@
             },
 
 
-            // Estación Wundermap de ejemplo (Mantiene la URL compleja para la lógica JS)
+            // Estación Wundermap de ejemplo 
             "estacion3": {
                 "api_url": "https://api.weather.com/v2/pws/observations/all?stationId=IARANA2&format=json&units=m&numericPrecision=decimal&apiKey=d325ae34959d4853a5ae34959d1853ea",
                 "lat": -34.9680, 
