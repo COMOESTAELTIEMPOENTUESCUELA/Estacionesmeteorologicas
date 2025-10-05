@@ -138,12 +138,13 @@
 
         // Configuración de las estaciones
         const ESTACIONES = {
-            // *** EMA FACULTAD ***
-            "ema_facultad": {
-                "api_url": "https://api.thingspeak.com/channels/2667267/feeds.json?results=100&api_key=UF1X79VA5C55SROZ",
-                "lat": -34.90704185408143,
-                "lon": -57.93214462900617,
-                "nombre": "EMA Facultad (ThingSpeak)",
+            // *** ESTACIÓN 1 (RENOMBRADA Y COORDENADAS DE FIREBASE) ***
+            "estacion1": { // Clave renombrada para coincidir con tu Firebase
+                // Asumo que esta API de ThingSpeak sigue alimentando los datos históricos de esta estación
+                "api_url": "https://api.thingspeak.com/channels/2667267/feeds.json?results=100&api_key=UF1X79VA5C55SROZ", 
+                "lat": -34.965, // Coordenada leída de tu Firebase
+                "lon": -57.947, // Coordenada leída de tu Firebase
+                "nombre": "Estación UNLP (Firebase)", // Nombre actualizado
                 "campo_temp": "field1",
                 "campo_hum": "field2",
                 "campo_precip": "field3",
@@ -187,7 +188,7 @@
             },
 
 
-            // *** ESTACIÓN WUNDERMAP (IARANA2) - CLAVE API ACTUALIZADA ***
+            // *** ESTACIÓN WUNDERMAP (IARANA2) - API KEY ACTUALIZADA ***
             "estacion3": {
                 "api_url": "https://api.weather.com/v2/pws/observations/all?stationId=IARANA2&format=json&units=m&numericPrecision=decimal&apiKey=d325ae34959d4853a5ae34959d1853ea",
                 "lat": -34.9680, 
@@ -200,7 +201,8 @@
             }
         };
 
-        const map = L.map('map').setView([ESTACIONES.ema_facultad.lat, ESTACIONES.ema_facultad.lon], 13);
+        // Cambio el setView para usar la nueva clave 'estacion1'
+        const map = L.map('map').setView([ESTACIONES.estacion1.lat, ESTACIONES.estacion1.lon], 13);
         L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
@@ -277,10 +279,18 @@
                 const configEstacion = ESTACIONES[key];
                 const marker = markers[key];
                 
+                // Aquí usamos data[key] que ahora coincidirá con 'estacion1'
                 const estacionData = data && data[key] ? data[key] : { temperatura: '--', humedad: '--' }; 
+                
+                // Usamos la clave correcta para acceder a los datos
                 let valor = estacionData[variable] !== undefined ? estacionData[variable] : '--';
                 let unidad = variable === 'temperatura' ? '°C' : '%';
                 
+                // Si el valor es una cadena (como en tu Firebase: "23.00000"), lo acortamos.
+                if (typeof valor === 'string') {
+                    valor = parseFloat(valor).toFixed(1);
+                }
+
                 const tooltipContent = `${configEstacion.nombre}<br><b>${variable.charAt(0).toUpperCase() + variable.slice(1)}: ${valor}${unidad}</b>`;
 
                 marker.getTooltip().setContent(tooltipContent);
@@ -332,18 +342,21 @@
                 const data = await response.json();
                 
                 let feeds = data.feeds;
-                let isWunderMap = estacionKey.includes("estacion3"); // Usamos "estacion3" para IARANA2
+                // Usamos "estacion3" para IARANA2. Si añades más de WunderMap, deberás usar la clave aquí.
+                let isWunderMap = estacionKey === "estacion3"; 
 
-                // La lógica para WunderMap ya está aquí y ahora usará tu API Key
+                // Lógica para WunderMap: comprueba si la API Key funciona y obtiene los datos.
                 if (isWunderMap) { 
                     if (data.observations && data.observations.length > 0) {
                         feeds = data.observations; 
                     } else {
-                        // Si no hay observaciones para WunderMap, no hace nada
+                        // Si falla o no hay datos, mostramos un error en la consola
+                        console.error(`Error: No se pudo obtener el historial para ${estacionKey}. Verifica la API Key y el ID de la estación.`);
                         return; 
                     }
                 }
                 
+                // Resto de la lógica de gráficos...
                 function getFieldValue(feed, path) {
                     if (isWunderMap) {
                         const parts = path.split('.');
@@ -416,7 +429,7 @@
                 });
 
             } catch (error) {
-                console.error("Error al cargar datos históricos (Revisa la configuración de la API):", error);
+                console.error("Error al cargar datos históricos (Revisa la configuración de la API o la conexión a internet):", error);
             }
         }
 
