@@ -136,7 +136,7 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        // Configuración de las estaciones
+        // Configuración de las estaciones (Mantenemos los IDs y Coordenadas correctas)
         const ESTACIONES = {
             // *** EMA FACULTAD (Coordenadas actualizadas) ***
             "ema_facultad": {
@@ -165,8 +165,8 @@
             // *** SAN VICENTE DE PAUL (Coordenadas ACTUALIZADAS) ***
             "sanvicente": {
                 "api_url": "https://api.thingspeak.com/channels/2218687/feeds.json?results=100&api_key=TH3V4TJLPRFZD3JSG", 
-                "lat": -34.90315315209218, // Latitud de San Vicente de Paul
-                "lon": -57.94890339765153, // Longitud de San Vicente de Paul
+                "lat": -34.90315315209218, 
+                "lon": -57.94890339765153, 
                 "nombre": "San Vicente de Paul (ThingSpeak)",
                 "campo_temp": "field1",
                 "campo_hum": "field2",
@@ -247,52 +247,52 @@
             }
         }
         
+        // Función para inicializar los marcadores de Leaflet
+        function inicializarMarcadores() {
+            for (const key in ESTACIONES) {
+                const configEstacion = ESTACIONES[key];
+                
+                // 1. Crear el marcador en la coordenada fija
+                const marker = L.marker([configEstacion.lat, configEstacion.lon]).addTo(map);
+                markers[key] = marker;
+                
+                // 2. Asignar Tooltip y Popup con texto de "Cargando..."
+                const initialContent = `${configEstacion.nombre}<br><b>Cargando...</b>`;
+                
+                marker.bindTooltip(initialContent, {
+                    permanent: true,
+                    direction: 'top',
+                    className: 'weather-tooltip'
+                }).openTooltip();
+                
+                marker.bindPopup(initialContent);
+            }
+            // Centrar el mapa en la primera estación
+            map.setView([ESTACIONES[Object.keys(ESTACIONES)[0]].lat, ESTACIONES[Object.keys(ESTACIONES)[0]].lon], 13);
+        }
+
         // Función para actualizar los Tooltips del mapa con la variable seleccionada
         function actualizarMapaYTooltips(variable = variableSelect.value, data = null) {
-            // Recorre todas las estaciones y actualiza el tooltip/popup
-            for (const key in ESTACIONES) {
+            // Recorre solo los marcadores que ya existen
+            for (const key in markers) {
                 const configEstacion = ESTACIONES[key];
                 const marker = markers[key];
                 
-                if (!marker) continue;
-
-                const estacionData = data ? data[key] : { temperatura: '--', humedad: '--' }; 
+                const estacionData = data && data[key] ? data[key] : { temperatura: '--', humedad: '--' }; 
                 let valor = estacionData[variable] !== undefined ? estacionData[variable] : '--';
                 let unidad = variable === 'temperatura' ? '°C' : '%';
                 
                 const tooltipContent = `${configEstacion.nombre}<br><b>${variable.charAt(0).toUpperCase() + variable.slice(1)}: ${valor}${unidad}</b>`;
 
-                // 1. Mostrar datos en Tooltip (visible sin click)
-                if (!marker.getTooltip()) {
-                    marker.bindTooltip(`Cargando...`, {
-                        permanent: true,
-                        direction: 'top',
-                        className: 'weather-tooltip'
-                    }).openTooltip();
-                }
                 marker.getTooltip().setContent(tooltipContent);
-                
-                // 2. Mantener Popup para detalles (si es necesario)
                 marker.setPopupContent(`<b>${configEstacion.nombre}</b><br>Temp: ${estacionData.temperatura}°C<br>Humedad: ${estacionData.humedad}%`);
             }
         }
         
-        // Escuchar datos en tiempo real de Firebase para actualizar el mapa (MODIFICADO)
+        // Escuchar datos en tiempo real de Firebase para actualizar el mapa (MODIFICADO: Solo actualiza el contenido, no crea marcadores)
         db.ref('estaciones').on('value', (snapshot) => {
             const estaciones = snapshot.val();
             if (estaciones) {
-                for (const key in estaciones) {
-                    const estacion = estaciones[key];
-                    const configEstacion = ESTACIONES[key];
-                    if (configEstacion) {
-                        if (markers[key]) {
-                            markers[key].setLatLng([configEstacion.lat, configEstacion.lon]);
-                        } else {
-                            const marker = L.marker([configEstacion.lat, configEstacion.lon]).addTo(map);
-                            markers[key] = marker;
-                        }
-                    }
-                }
                 // Llama a la función para actualizar todos los tooltips con los nuevos datos
                 actualizarMapaYTooltips(variableSelect.value, estaciones);
             }
@@ -323,6 +323,7 @@
         let temperaturaChart, humedadChart;
 
         async function cargarGraficos(estacionKey) {
+            // ... (el resto de la función cargarGraficos permanece sin cambios) ...
             const estacion = ESTACIONES[estacionKey];
             if (!estacion) {
                 console.error("Estación no encontrada:", estacionKey);
@@ -340,7 +341,6 @@
                     if (data.observations && data.observations.length > 0) {
                         feeds = data.observations; 
                     } else {
-                        // Manejo de error para WunderMap
                         return; 
                     }
                 }
@@ -362,7 +362,6 @@
                     }
                 }
                 
-                // Formateo de etiquetas del Eje X: solo hora (HH:MM)
                 const labels = feeds.map(feed => {
                     const dateString = isWunderMap ? feed.obsTimeUtc : feed.created_at;
                     return formatTime(dateString, isWunderMap);
@@ -380,7 +379,6 @@
                 document.getElementById('temp-min').textContent = minTemp;
                 document.getElementById('precipitacion').textContent = totalPrecip;
                 
-                // *** Actualizar rango de fechas para los títulos ***
                 let dateRangeText = '';
                 if (feeds.length > 0) {
                     const firstDate = isWunderMap ? new Date(feeds[0].obsTimeUtc) : new Date(feeds[0].created_at);
@@ -390,7 +388,6 @@
                 }
                 document.getElementById('temp-date-range').textContent = dateRangeText;
                 document.getElementById('hum-date-range').textContent = dateRangeText;
-                // ****************************************************
 
                 if (temperaturaChart) temperaturaChart.destroy();
                 if (humedadChart) humedadChart.destroy();
@@ -402,7 +399,7 @@
                         responsive: true, 
                         scales: { 
                             y: { beginAtZero: false },
-                            x: { title: { display: true, text: 'Hora (HH:MM)'} } // Añadir título al eje X
+                            x: { title: { display: true, text: 'Hora (HH:MM)'} } 
                         } 
                     }
                 });
@@ -414,7 +411,7 @@
                         responsive: true, 
                         scales: { 
                             y: { beginAtZero: true, max: 100 },
-                            x: { title: { display: true, text: 'Hora (HH:MM)'} } // Añadir título al eje X
+                            x: { title: { display: true, text: 'Hora (HH:MM)'} } 
                         } 
                     }
                 });
@@ -430,6 +427,7 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            inicializarMarcadores(); // <-- NUEVA FUNCIÓN AÑADIDA
             poblarSelectyLista(); 
             cargarReportes();     
             
