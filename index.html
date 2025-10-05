@@ -138,13 +138,13 @@
 
         // Configuración de las estaciones
         const ESTACIONES = {
-            // *** ESTACIÓN 1 (RENOMBRADA Y COORDENADAS DE FIREBASE) ***
-            "estacion1": { // Clave renombrada para coincidir con tu Firebase
-                // Asumo que esta API de ThingSpeak sigue alimentando los datos históricos de esta estación
+            // *** ESTACIÓN 1 (UNLP - COORDENADAS ACTUALIZADAS) ***
+            "estacion1": { 
                 "api_url": "https://api.thingspeak.com/channels/2667267/feeds.json?results=100&api_key=UF1X79VA5C55SROZ", 
-                "lat": -34.965, // Coordenada leída de tu Firebase
-                "lon": -57.947, // Coordenada leída de tu Firebase
-                "nombre": "Estación UNLP (Firebase)", // Nombre actualizado
+                // NUEVAS COORDENADAS: UNLP
+                "lat": -34.90700726957929, 
+                "lon": -57.93231180377215, 
+                "nombre": "Estación UNLP (Firebase)", 
                 "campo_temp": "field1",
                 "campo_hum": "field2",
                 "campo_precip": "field3",
@@ -188,11 +188,12 @@
             },
 
 
-            // *** ESTACIÓN WUNDERMAP (IARANA2) - API KEY ACTUALIZADA ***
+            // *** ESTACIÓN WUNDERMAP (IARANA2 - COORDENADAS ACTUALIZADAS) ***
             "estacion3": {
                 "api_url": "https://api.weather.com/v2/pws/observations/all?stationId=IARANA2&format=json&units=m&numericPrecision=decimal&apiKey=d325ae34959d4853a5ae34959d1853ea",
-                "lat": -34.9680, 
-                "lon": -57.9450, 
+                // NUEVAS COORDENADAS: IARANA
+                "lat": -34.95100438126944, 
+                "lon": -57.83513895065668, 
                 "nombre": "EMA IARANA2 (WunderMap)",
                 "campo_temp": "metric.temp", 
                 "campo_hum": "humidity", 
@@ -200,8 +201,8 @@
                 "foto_url": "imagenes/foto_escuela_3.jpg"
             }
         };
-
-        // Cambio el setView para usar la nueva clave 'estacion1'
+        
+        // Se mantiene el setView en la primera estación, ahora 'estacion1'
         const map = L.map('map').setView([ESTACIONES.estacion1.lat, ESTACIONES.estacion1.lon], 13);
         L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -279,14 +280,14 @@
                 const configEstacion = ESTACIONES[key];
                 const marker = markers[key];
                 
-                // Aquí usamos data[key] que ahora coincidirá con 'estacion1'
+                // Aquí usamos data[key] que ahora coincidirá con 'estacion1', 'escuela23', etc.
                 const estacionData = data && data[key] ? data[key] : { temperatura: '--', humedad: '--' }; 
                 
                 // Usamos la clave correcta para acceder a los datos
                 let valor = estacionData[variable] !== undefined ? estacionData[variable] : '--';
                 let unidad = variable === 'temperatura' ? '°C' : '%';
                 
-                // Si el valor es una cadena (como en tu Firebase: "23.00000"), lo acortamos.
+                // Si el valor es una cadena, lo acortamos.
                 if (typeof valor === 'string') {
                     valor = parseFloat(valor).toFixed(1);
                 }
@@ -342,16 +343,16 @@
                 const data = await response.json();
                 
                 let feeds = data.feeds;
-                // Usamos "estacion3" para IARANA2. Si añades más de WunderMap, deberás usar la clave aquí.
+                // Usamos "estacion3" para IARANA2 (WunderMap)
                 let isWunderMap = estacionKey === "estacion3"; 
 
-                // Lógica para WunderMap: comprueba si la API Key funciona y obtiene los datos.
+                // Lógica para WunderMap
                 if (isWunderMap) { 
                     if (data.observations && data.observations.length > 0) {
                         feeds = data.observations; 
                     } else {
-                        // Si falla o no hay datos, mostramos un error en la consola
                         console.error(`Error: No se pudo obtener el historial para ${estacionKey}. Verifica la API Key y el ID de la estación.`);
+                        // Aquí podrías mostrar un mensaje de error en la interfaz si lo deseas
                         return; 
                     }
                 }
