@@ -112,29 +112,59 @@
 
         // Configuración de las estaciones
         const ESTACIONES = {
+            // Estación de ejemplo existente (Verificar si el ID de canal 2667267 es correcto)
             "estacion1": {
                 "api_url": "https://api.thingspeak.com/channels/2667267/feeds.json?results=100&api_key=UF1X79VA5C55SROZ",
-                "lat": -34.965,
-                "lon": -57.947,
+                "lat": -34.965, // Latitud de ejemplo
+                "lon": -57.947, // Longitud de ejemplo
                 "nombre": "Estación UNLP (ThingSpeak)",
                 "campo_temp": "field1",
                 "campo_hum": "field2",
                 "campo_precip": "field3",
                 "foto_url": "imagenes/foto_escuela_1.jpg"
             },
-            "estacion2": {
-                // ** IMPORTANTE: REEMPLAZAR ESTA URL **
-                "api_url": "URL_DE_API_DE_THINGSPEAK_2", 
-                "lat": -34.96,
-                "lon": -57.90,
-                "nombre": "Colegio Ejemplo 2 (ThingSpeak)",
+
+            // *** ESTACIÓN ACTUALIZADA: Escuela 23 ***
+            "escuela23": {
+                // ID de canal actualizado: 2218686
+                "api_url": "https://api.thingspeak.com/channels/2218686/feeds.json?results=100&api_key=JUXJQRZMFFASO37Z", 
+                "lat": -34.93, // Latitud de ejemplo (REEMPLAZAR)
+                "lon": -57.92, // Longitud de ejemplo (REEMPLAZAR)
+                "nombre": "Escuela 23 (ThingSpeak)",
                 "campo_temp": "field1",
                 "campo_hum": "field2",
                 "campo_precip": "field3",
-                "foto_url": "imagenes/foto_escuela_2.jpg"
+                "foto_url": "imagenes/foto_escuela_23.jpg" // Cambiar a la foto real
             },
+
+            // *** ESTACIÓN ACTUALIZADA: San Vicente de Paul ***
+            "sanvicente": {
+                // ID de canal actualizado: 2218687
+                "api_url": "https://api.thingspeak.com/channels/2218687/feeds.json?results=100&api_key=TH3V4TJLPRFZD3JSG", 
+                "lat": -34.98, // Latitud de ejemplo (REEMPLAZAR)
+                "lon": -57.96, // Longitud de ejemplo (REEMPLAZAR)
+                "nombre": "San Vicente de Paul (ThingSpeak)",
+                "campo_temp": "field1",
+                "campo_hum": "field2",
+                "campo_precip": "field3",
+                "foto_url": "imagenes/foto_san_vicente.jpg" // Cambiar a la foto real
+            },
+
+            // *** ESTACIÓN EXISTENTE: Escuela 34 (Verificar si el ID de canal 2667270 es correcto) ***
+            "escuela34": {
+                "api_url": "https://api.thingspeak.com/channels/2667270/feeds.json?results=100&api_key=ZLNOSLZJPQM3H7SD", 
+                "lat": -34.95, // Latitud de ejemplo (REEMPLAZAR)
+                "lon": -57.91, // Longitud de ejemplo (REEMPLAZAR)
+                "nombre": "Escuela 34 (ThingSpeak)",
+                "campo_temp": "field1",
+                "campo_hum": "field2",
+                "campo_precip": "field3",
+                "foto_url": "imagenes/foto_escuela_34.jpg" // Cambiar a la foto real
+            },
+
+
+            // Estación Wundermap de ejemplo (Mantiene la URL compleja para la lógica JS)
             "estacion3": {
-                // ** ESTACIÓN WUNDERMAP (Mantiene la URL compleja para la lógica JS) **
                 "api_url": "https://api.weather.com/v2/pws/observations/all?stationId=IARANA2&format=json&units=m&numericPrecision=decimal&apiKey=d325ae34959d4853a5ae34959d1853ea",
                 "lat": -34.9680, 
                 "lon": -57.9450, 
@@ -155,7 +185,7 @@
         const estacionSelect = document.getElementById('estacion-select');
         const galeriaReportes = document.getElementById('galeria-reportes');
 
-        // *** FUNCIÓN PARA CARGAR REPORTES DESDE EL CMS ***
+        // *** FUNCIÓN PARA CARGAR REPORTES DESDE EL CMS (SIN CAMBIOS) ***
         async function cargarReportes() {
             try {
                 // Busca el archivo index.json que Decap CMS crea en la carpeta _data/reportes
@@ -190,7 +220,7 @@
         }
         // *************************************************
 
-        // Función para poblar la lista de escuelas y el selector
+        // Función para poblar la lista de escuelas y el selector (SIN CAMBIOS)
         function poblarSelectyLista() {
             estacionSelect.innerHTML = '';
             listaEscuelas.innerHTML = '';
@@ -210,7 +240,7 @@
             }
         }
         
-        // Escuchar datos en tiempo real de Firebase para actualizar el mapa
+        // Escuchar datos en tiempo real de Firebase para actualizar el mapa (SIN CAMBIOS)
         db.ref('estaciones').on('value', (snapshot) => {
             const estaciones = snapshot.val();
             if (estaciones) {
@@ -235,6 +265,7 @@
         const humedadCtx = document.getElementById('humedadChart').getContext('2d');
         let temperaturaChart, humedadChart;
 
+        // Función para cargar gráficos (SIN CAMBIOS en la lógica de ThingSpeak)
         async function cargarGraficos(estacionKey) {
             const estacion = ESTACIONES[estacionKey];
             if (!estacion) {
