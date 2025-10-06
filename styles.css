@@ -99,16 +99,27 @@ hr {
 /* Diseño del Mapa y Datos */
 .mapa-y-datos {
     display: flex;
-    gap: 30px;
+    /* Cambia la dirección del flujo a columna (uno debajo del otro) */
+    flex-direction: column; 
+    gap: 30px; /* Mantén el espacio entre el mapa y el resumen */
     flex-wrap: wrap; 
 }
 
 #map {
-    flex-grow: 1;
-    min-width: 300px;
-    height: 400px; /* Altura definida para el mapa */
+    /* Ocupa todo el ancho disponible */
+    width: 100%; 
+    height: 400px; 
     border-radius: 10px; 
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15); 
+}
+
+.datos-actuales {
+    /* Ocupa todo el ancho (ya no necesita flex-basis) */
+    width: 100%; 
+    background-color: var(--color-card-bg);
+    padding: 25px; 
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08); 
 }
 
 .datos-actuales {
