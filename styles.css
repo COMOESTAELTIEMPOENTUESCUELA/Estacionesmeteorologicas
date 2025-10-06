@@ -247,6 +247,7 @@ hr {
     /* Reducimos la altura para que sean más chicas */
     height: 180px; 
     object-fit: cover; 
+    object-position: center center; 
     
     /* Agregamos el Recuadro Moderno */
     border: 5px solid var(--color-card-bg); /* Marco blanco */
