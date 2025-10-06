@@ -1,18 +1,19 @@
 backend:
   name: github
-  repo: COMOESTAELTIEMPOENTUESCUELA/Estacionesmeteorologicas # EJEMPLO: TuUsuario/Estacionesmeteorologicas
-  branch: main # O master, dependiendo de tu rama principal
+  repo: COMOESTAELTIEMPOENTUESCUELA/Estacionesmeteorologicas # Usa tu usuario/repo
+  branch: main 
 
-media_folder: "imagenes/reportes" # Dónde se guardarán las imágenes subidas por el CMS
-public_folder: "/imagenes/reportes"
+# Rutas de Archivos
+media_folder: "imagenes/reportes" 
+public_folder: "imagenes/reportes" # <<-- CORREGIDO: SE QUITÓ LA BARRA INCLINADA INICIAL
 
 collections:
-  - name: "reportes" # ID de la colección para el CMS
-    label: "Talleres y Reportes" # Título en el menú del CMS
-    folder: "_data/reportes" # Carpeta donde se guardarán los archivos de datos
-    create: true # Permite crear nuevos reportes
-    slug: "{{title}}-{{month}}-{{day}}" # Formato del nombre del archivo (ej: Taller-Escuela-09-27.json)
-    fields: # Los campos que verá el coordinador en el formulario
+  - name: "reportes"
+    label: "Talleres y Reportes" 
+    folder: "_data/reportes" 
+    create: true 
+    slug: "{{title}}-{{month}}-{{day}}"
+    fields:
       - {label: "Título del Reporte", name: "title", widget: "string", required: true}
       - {label: "Fecha de Publicación", name: "date", widget: "date", required: true, format: "DD/MM/YYYY"}
       - {label: "Descripción Corta", name: "summary", widget: "text", required: true, hint: "Máximo 2-3 frases"}
