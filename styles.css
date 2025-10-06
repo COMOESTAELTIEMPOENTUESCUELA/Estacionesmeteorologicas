@@ -232,6 +232,48 @@ hr {
 }
 
 /* Sección de Talleres y Reportes */
+.galeria-proyecto {
+    /* Usamos Grid y forzamos 2 columnas de igual tamaño */
+    display: grid;
+    /* La clave es repeat(2, 1fr): crea 2 columnas, cada una ocupando la mitad del espacio */
+    grid-template-columns: repeat(2, 1fr); 
+    gap: 25px; /* Aumentamos el espacio entre las imágenes */
+    margin-top: 30px;
+    padding: 0 10px; /* Un poco de padding lateral opcional */
+}
+
+.galeria-proyecto img {
+    width: 100%;
+    /* Reducimos la altura para que sean más chicas */
+    height: 180px; 
+    object-fit: cover; 
+    
+    /* Agregamos el Recuadro Moderno */
+    border: 5px solid var(--color-card-bg); /* Marco blanco */
+    border-radius: 12px; /* Bordes más redondeados */
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15); /* Sombra más fuerte de elevación */
+    
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.galeria-proyecto img:hover {
+    transform: scale(1.05); /* Efecto zoom más pronunciado */
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+}
+
+/* ------------------------------------------- */
+/* AJUSTE PARA MÓVILES (Responsiveness) */
+/* ------------------------------------------- */
+
+@media (max-width: 600px) {
+    /* En pantallas pequeñas, volvemos a una sola columna para que se vean bien */
+    .galeria-proyecto {
+        grid-template-columns: 1fr;
+    }
+    .galeria-proyecto img {
+        height: 250px; /* Les damos más altura en móvil */
+    }
+}
 .galeria-reportes {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
