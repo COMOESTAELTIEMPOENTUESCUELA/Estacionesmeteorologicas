@@ -48,8 +48,8 @@
     </div>
 
     <nav>
-        <a href="#mapa">Mapa</a>
-        <a href="#analisis">Análisis</a>
+        <a href="#mapa-section">Mapa</a>
+        <a href="#analisis-section">Análisis</a>
         <a href="#escuelas">Estaciones</a>
         <a href="#reportes">Reportes</a>
     </nav>
@@ -214,7 +214,9 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                 "campo_temp": "metric.temp", 
                 "campo_hum": "humidity", 
                 "campo_precip": "metric.precipTotal",
-                "foto_url": "imagenes/foto_escuela_3.jpg"
+                "foto_url": "imagenes/foto_escuela_3.jpg",
+                // AÑADIDO: URL de redirección a Wunderground
+                "wunderground_url": "https://www.wunderground.com/dashboard/pws/IARANA2" 
             }
         };
         
@@ -304,7 +306,7 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                 let unidad = variable === 'temperatura' ? '°C' : '%';
                 
                 // Si el valor es una cadena, lo acortamos.
-                if (typeof valor === 'string') {
+                if (typeof valor === 'string' && valor !== '--') {
                     valor = parseFloat(valor).toFixed(1);
                 }
 
@@ -349,6 +351,21 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
 
         async function cargarGraficos(estacionKey) {
             const estacion = ESTACIONES[estacionKey];
+            
+            // Si la estación es la de Wunderground, evitamos el intento de carga de gráficos y limpieza.
+            if (estacionKey === "estacion3") {
+                console.warn(`La estación ${estacion.nombre} utiliza un enlace externo para su información histórica.`);
+                // Limpiar el área de resumen si se selecciona esta opción (aunque esto ya se hace en cargarGraficosDeSeleccion)
+                document.getElementById('temp-max').textContent = '--';
+                document.getElementById('temp-min').textContent = '--';
+                document.getElementById('precipitacion').textContent = '--';
+                document.getElementById('temp-date-range').textContent = '';
+                document.getElementById('hum-date-range').textContent = '';
+                if (temperaturaChart) temperaturaChart.destroy();
+                if (humedadChart) humedadChart.destroy();
+                return;
+            }
+
             if (!estacion) {
                 console.error("Estación no encontrada:", estacionKey);
                 return;
@@ -359,23 +376,14 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                 const data = await response.json();
                 
                 let feeds = data.feeds;
-                // Usamos "estacion3" para IARANA2 (WunderMap)
-                let isWunderMap = estacionKey === "estacion3"; 
+                // NOTA: isWunderMap ya no es necesario aquí para la lógica de redirección, 
+                // pero se mantiene la lógica de WunderMap para el parsing, si se quisiera 
+                // usar en el futuro (aunque no es recomendado si la API falla).
+                let isWunderMap = false; // Asumiendo que el código superior ya manejó la redirección para estacion3.
 
-                // Lógica para WunderMap
-                if (isWunderMap) { 
-                    if (data.observations && data.observations.length > 0) {
-                        feeds = data.observations; 
-                    } else {
-                        console.error(`Error: No se pudo obtener el historial para ${estacionKey}. Verifica la API Key y el ID de la estación.`);
-                        // Aquí podrías mostrar un mensaje de error en la interfaz si lo deseas
-                        return; 
-                    }
-                }
-                
                 // Resto de la lógica de gráficos...
                 function getFieldValue(feed, path) {
-                    if (isWunderMap) {
+                    if (isWunderMap) { // Esto solo se aplica si se añaden más WunderMaps que no redirigen
                         const parts = path.split('.');
                         let value = feed;
                         for (const part of parts) {
@@ -394,26 +402,29 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                 const labels = feeds.map(feed => {
                     const dateString = isWunderMap ? feed.obsTimeUtc : feed.created_at;
                     return formatTime(dateString, isWunderMap);
-                });
+                }).reverse(); // Se invierte para que el tiempo sea ascendente en el gráfico
                 
-                const temperaturas = feeds.map(feed => parseFloat(getFieldValue(feed, estacion.campo_temp))).filter(val => !isNaN(val));
-                const humedades = feeds.map(feed => parseFloat(getFieldValue(feed, estacion.campo_hum))).filter(val => !isNaN(val));
-                const precipitaciones = feeds.map(feed => parseFloat(getFieldValue(feed, estacion.campo_precip) || 0)).filter(val => !isNaN(val));
-                
+                const temperaturas = feeds.map(feed => parseFloat(getFieldValue(feed, estacion.campo_temp))).filter(val => !isNaN(val)).reverse();
+                const humedades = feeds.map(feed => parseFloat(getFieldValue(feed, estacion.campo_hum))).filter(val => !isNaN(val)).reverse();
+                const precipitaciones = feeds.map(feed => parseFloat(getFieldValue(feed, estacion.campo_precip) || 0)).filter(val => !isNaN(val)); // No invertir para sumar total
+
+                // Cálculo de Resumen Histórico
                 const maxTemp = temperaturas.length > 0 ? Math.max(...temperaturas).toFixed(2) : '--';
                 const minTemp = temperaturas.length > 0 ? Math.min(...temperaturas).toFixed(2) : '--';
+                // La suma de precipitación se hace sobre el arreglo original (no invertido)
                 const totalPrecip = precipitaciones.length > 0 ? precipitaciones.reduce((sum, val) => sum + val, 0).toFixed(2) : '--';
 
-                document.getElementById('temp-max').textContent = maxTemp;
-                document.getElementById('temp-min').textContent = minTemp;
-                document.getElementById('precipitacion').textContent = totalPrecip;
+                document.getElementById('temp-max').textContent = `${maxTemp} °C`;
+                document.getElementById('temp-min').textContent = `${minTemp} °C`;
+                document.getElementById('precipitacion').textContent = `${totalPrecip} mm`;
                 
                 let dateRangeText = '';
                 if (feeds.length > 0) {
-                    const firstDate = isWunderMap ? new Date(feeds[0].obsTimeUtc) : new Date(feeds[0].created_at);
-                    const lastDate = isWunderMap ? new Date(feeds[feeds.length - 1].obsTimeUtc) : new Date(feeds[feeds.length - 1].created_at);
+                    // Usar las versiones invertidas para las etiquetas de hora
+                    const firstDate = new Date(data.feeds[data.feeds.length - 1].created_at); // Primer registro
+                    const lastDate = new Date(data.feeds[0].created_at); // Último registro
                     const dateFormat = { day: '2-digit', month: 'short' };
-                    dateRangeText = `(${lastDate.toLocaleDateString('es-AR', dateFormat)} - ${firstDate.toLocaleDateString('es-AR', dateFormat)})`;
+                    dateRangeText = `(${firstDate.toLocaleDateString('es-AR', dateFormat)} - ${lastDate.toLocaleDateString('es-AR', dateFormat)})`;
                 }
                 document.getElementById('temp-date-range').textContent = dateRangeText;
                 document.getElementById('hum-date-range').textContent = dateRangeText;
@@ -423,7 +434,7 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
 
                 temperaturaChart = new Chart(temperaturaCtx, {
                     type: 'line',
-                    data: { labels: labels, datasets: [{ label: 'Temperatura (°C)', data: temperaturas, borderColor: 'var(--color-accent-red)', backgroundColor: 'rgba(255, 76, 76, 0.2)', tension: 0.3, fill: true }] },
+                    data: { labels: labels, datasets: [{ label: 'Temperatura (°C)', data: temperaturas, borderColor: 'orange', backgroundColor: 'rgba(255, 165, 0, 0.2)', tension: 0.3, fill: true }] },
                     options: { 
                         responsive: true, 
                         scales: { 
@@ -435,7 +446,7 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
 
                 humedadChart = new Chart(humedadCtx, {
                     type: 'line',
-                    data: { labels: labels, datasets: [{ label: 'Humedad (%)', data: humedades, borderColor: 'var(--color-primary-blue)', backgroundColor: 'rgba(58, 165, 230, 0.2)', tension: 0.3, fill: true }] },
+                    data: { labels: labels, datasets: [{ label: 'Humedad (%)', data: humedades, borderColor: 'blue', backgroundColor: 'rgba(58, 165, 230, 0.2)', tension: 0.3, fill: true }] },
                     options: { 
                         responsive: true, 
                         scales: { 
@@ -450,15 +461,41 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
             }
         }
 
+        // FUNCIÓN MODIFICADA: Ahora redirige si se selecciona la EMA IARANA2
         function cargarGraficosDeSeleccion() {
             const selectedKey = estacionSelect.value;
+            const estacion = ESTACIONES[selectedKey];
+
+            // 1. Verificar si es la estación de Wunderground (estacion3)
+            if (selectedKey === "estacion3" && estacion.wunderground_url) {
+                
+                // 2. Limpiar la visualización y notificar al usuario
+                document.getElementById('temp-max').textContent = '-- °C';
+                document.getElementById('temp-min').textContent = '-- °C';
+                document.getElementById('precipitacion').textContent = '-- mm';
+                alert(`Abriendo el panel de la estación ${estacion.nombre} en Wunderground...`);
+
+                // 3. Abrir la URL en una nueva pestaña
+                window.open(estacion.wunderground_url, '_blank'); 
+
+                // 4. (Opcional) Restablecer la selección del dropdown a la primera estación
+                const primeraEstacionKey = Object.keys(ESTACIONES)[0];
+                estacionSelect.value = primeraEstacionKey;
+                
+                // 5. Cargar los gráficos de la primera estación nuevamente
+                cargarGraficos(primeraEstacionKey); 
+
+                return; 
+            }
+            
+            // 6. Si no es la estación de Wunderground, cargar los gráficos normalmente
             cargarGraficos(selectedKey);
         }
 
         document.addEventListener('DOMContentLoaded', () => {
             inicializarMarcadores(); 
             poblarSelectyLista(); 
-            cargarReportes();     
+            cargarReportes(); 
             
             const primeraEstacionKey = Object.keys(ESTACIONES)[0];
             if (primeraEstacionKey) {
