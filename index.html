@@ -50,7 +50,7 @@
 
     <header>
     <div class="logo"> 
-        <img src="Logo1.jpg" alt="Logo del Proyecto Estaciones Meteorológicas">
+        <img src="imagenes/logo.png" alt="Logo del Proyecto Estaciones Meteorológicas">
     </div>
 
     <nav>
@@ -178,7 +178,7 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                 "api_url": "https://api.thingspeak.com/channels/2218686/feeds.json?results=100&api_key=JUXJQRZMFFASO37Z", 
                 "lat": -35.028220624725385, 
                 "lon": -57.75292481051298, 
-                "nombre": "Escuela 23 ",
+                "nombre": "Escuela N°23 ",
                 "campo_temp": "field1",
                 "campo_hum": "field2",
                 "campo_precip": "field3",
@@ -202,7 +202,7 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                 "api_url": "https://api.thingspeak.com/channels/2667270/feeds.json?results=100&api_key=ZLNOSLZJPQM3H7SD", 
                 "lat": -35.07345166939612, 
                 "lon": -57.87082581096881, 
-                "nombre": "Escuela 34",
+                "nombre": "Escuela N°34",
                 "campo_temp": "field1",
                 "campo_hum": "field2",
                 "campo_precip": "field3",
@@ -214,11 +214,11 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                 "api_url": "https://api.weather.com/v2/pws/observations/all?stationId=IARANA2&format=json&units=m&numericPrecision=decimal&apiKey=d325ae34959d4853a5ae34959d1853ea",
                 "lat": -34.95100438126944, 
                 "lon": -57.83513895065668, 
-                "nombre": "EMA IARANA2 ",
+                "nombre": "Escuela N°20 ",
                 "campo_temp": "metric.temp", 
                 "campo_hum": "humidity", 
                 "campo_precip": "metric.precipTotal",
-                "foto_url": "imagenes/ep20.png",
+                "foto_url": "imagenes/ep20",
                 "wunderground_url": "https://www.wunderground.com/dashboard/pws/IARANA2" 
             }
         };
@@ -235,13 +235,11 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
         const galeriaReportes = document.getElementById('galeria-reportes');
         const variableSelect = document.getElementById('variable-select');
 
-        // 🆕 FUNCIÓN AUXILIAR PARA DAR FORMATO A LA FECHA Y HORA
+        // FUNCIÓN AUXILIAR PARA DAR FORMATO A LA FECHA Y HORA
         function formatDateTime(dateString) {
             if (!dateString) return 'Desconocida';
-            // ThingSpeak y Firebase usan el formato ISO 8601 (UTC)
             const date = new Date(dateString); 
             
-            // Opciones de formato (hora local de Argentina -AR)
             const timeOptions = { hour: '2-digit', minute: '2-digit' };
             const dateOptions = { day: '2-digit', month: 'short' };
             
@@ -302,19 +300,17 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
             map.setView([ESTACIONES[Object.keys(ESTACIONES)[0]].lat, ESTACIONES[Object.keys(ESTACIONES)[0]].lon], 13);
         }
 
-        // 🆕 FUNCIÓN PARA ACTUALIZAR TOOLTIPS (MODIFICADA para incluir hora)
+        // FUNCIÓN PARA ACTUALIZAR TOOLTIPS (Incluye hora)
         function actualizarMapaYTooltips(variable = variableSelect.value, data = null) {
             for (const key in markers) {
                 const configEstacion = ESTACIONES[key];
                 const marker = markers[key];
                 
-                // Aseguramos que data[key] tenga el campo ultima_actualizacion
                 const estacionData = data && data[key] ? data[key] : { temperatura: '--', humedad: '--', ultima_actualizacion: null }; 
                 
                 let valor = estacionData[variable] !== undefined ? estacionData[variable] : '--';
                 let unidad = variable === 'temperatura' ? '°C' : '%';
                 
-                // Formateamos la hora de actualización
                 const horaFormateada = formatDateTime(estacionData.ultima_actualizacion);
 
                 if (typeof valor === 'string' && valor !== '--') {
