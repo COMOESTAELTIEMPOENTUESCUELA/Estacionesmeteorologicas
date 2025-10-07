@@ -51,6 +51,7 @@
         <a href="#mapa-section">Mapa</a>
         <a href="#analisis-section">Análisis</a>
         <a href="#escuelas">Estaciones</a>
+        <a href="#acerca-section">Nosotros</a>
         <a href="#reportes">Reportes</a>
     </nav>
 </header>
@@ -121,7 +122,7 @@
 
     <hr>
 
-    <section id="talleres-section" class="data-container">
+    <section id="acerca-section" class="data-container">
         <h2>¿Quienes somos?</h2>
         <p>Somos un proyecto de extensión de la Facultad de Cs. Astronómicas y Geofísicas (FCAG-UNLP), formado por estudiantes avanzados de la carrera de Meteorología. Visitamos escuelas rurales y secundarias brindando talleres de meteorología, y también recibimos a las escuelas que nos visitan en nuestra facultad.
 
@@ -201,6 +202,19 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                 "campo_hum": "field2",
                 "campo_precip": "field3",
                 "foto_url": "imagenes/escuela34.jpg" 
+            },
+            
+            // *** CAMPBELL OBSERVATORIO (NUEVA ESTACIÓN) ***
+            "observatorio": {
+                "api_url": "https://api.thingspeak.com/channels/2823820/feeds.json?results=100&api_key=FFI1HK80ZKDNS6V8", 
+                // Coordenadas aproximadas del Observatorio Astronómico UNLP
+                "lat": -34.90848, 
+                "lon": -57.93510, 
+                "nombre": "Campbell Observatorio ",
+                "campo_temp": "field1",
+                "campo_hum": "field2",
+                "campo_precip": "field3",
+                "foto_url": "imagenes/foto_observatorio.jpg" // Necesitas crear esta imagen
             },
 
 
