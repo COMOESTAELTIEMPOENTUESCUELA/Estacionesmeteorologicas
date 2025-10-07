@@ -42,19 +42,47 @@
 </head>
 <body>
 
-    <header>
-    <div class="logo"> 
-        <img src="Logo1.jpg" alt="Logo del Proyecto Estaciones Meteorológicas">
-    </div>
+    <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>¿Cómo está el tiempo en tu escuela? - UNLP</title>
+    
+    <link rel="icon" type="image/jpeg" href="imagenes/Logo1.jpg">
+    <link rel="shortcut icon" type="image/jpeg" href="imagenes/Logo1.jpg">
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-    <nav>
-        <a href="#mapa-section">Mapa</a>
-        <a href="#analisis-section">Análisis</a>
-        <a href="#escuelas">Estaciones</a>
-        <a href="#acerca-section">Nosotros</a>
-        <a href="#reportes">Reportes</a>
-    </nav>
-</header>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/7.19.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/7.19.1/firebase-database.js"></script>
+    
+    <link rel="stylesheet" href="styles.css">
+    
+    <style>
+        /* Estilos CSS para el control de selección de variables */
+        #mapa-controles {
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #f8f8f8;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        .leaflet-tooltip.weather-tooltip {
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+            font-weight: bold;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+    </style>
+</head>
 
     <section id="mapa-section" class="data-container">
         <h2>Mapa de Estaciones y Datos Actuales</h2>
