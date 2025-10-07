@@ -4,48 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>¿Cómo está el tiempo en tu escuela? - UNLP</title>
-    <link rel="icon" type="image/jpeg" href="Logo1.jpg">
-    <link rel="shortcut icon" type="image/jpeg" href="Logo1.jpg">
-    
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-    <script src="https://www.gstatic.com/firebasejs/7.19.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/7.19.1/firebase-database.js"></script>
-    
-    <link rel="stylesheet" href="styles.css">
-    
-    <style>
-        /* Estilos CSS para el control de selección de variables */
-        #mapa-controles {
-            margin-bottom: 15px;
-            padding: 10px;
-            background-color: #f8f8f8;
-            border-radius: 5px;
-            border: 1px solid #ddd;
-            display: flex;
-            gap: 15px;
-            align-items: center;
-        }
-        .leaflet-tooltip.weather-tooltip {
-            background-color: rgba(0, 0, 0, 0.7);
-            color: white;
-            border: none;
-            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
-            font-weight: bold;
-            font-size: 14px;
-            white-space: nowrap;
-        }
-    </style>
-</head>
-<body>
-
-    <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>¿Cómo está el tiempo en tu escuela? - UNLP</title>
     
     <link rel="icon" type="image/jpeg" href="imagenes/Logo1.jpg">
     <link rel="shortcut icon" type="image/jpeg" href="imagenes/Logo1.jpg">
@@ -81,8 +39,28 @@
             font-size: 14px;
             white-space: nowrap;
         }
+        .leaflet-tooltip small {
+            font-size: 10px; /* Estilo para la hora de actualización */
+            opacity: 0.8;
+            font-weight: normal;
+        }
     </style>
 </head>
+<body>
+
+    <header>
+    <div class="logo"> 
+        <img src="Logo1.jpg" alt="Logo del Proyecto Estaciones Meteorológicas">
+    </div>
+
+    <nav>
+        <a href="#mapa-section">Mapa</a>
+        <a href="#analisis-section">Análisis</a>
+        <a href="#escuelas">Estaciones</a>
+        <a href="#acerca-section">Nosotros</a>
+        <a href="#reportes">Reportes</a>
+    </nav>
+</header>
 
     <section id="mapa-section" class="data-container">
         <h2>Mapa de Estaciones y Datos Actuales</h2>
@@ -183,11 +161,9 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
 
         // Configuración de las estaciones
         const ESTACIONES = {
-            // *** REEMPLAZO: ESTACIÓN UNLP A OBSERVATORIO CAMPBELL ***
-            // Usamos 'observatorio' como clave para coincidir con Firebase
+            // *** ESTACIÓN OBSERVATORIO CAMPBELL ***
             "observatorio": { 
                 "api_url": "https://api.thingspeak.com/channels/2823820/feeds.json?results=100&api_key=FFI1HK80ZKDNS6V8", 
-                // COORDENADAS PRECISAS: Observatorio Campbell (La Plata)
                 "lat": -34.90483, 
                 "lon": -57.93570, 
                 "nombre": "Observatorio Campbell ", 
@@ -202,7 +178,7 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                 "api_url": "https://api.thingspeak.com/channels/2218686/feeds.json?results=100&api_key=JUXJQRZMFFASO37Z", 
                 "lat": -35.028220624725385, 
                 "lon": -57.75292481051298, 
-                "nombre": "Escuela N°23 ",
+                "nombre": "Escuela 23 ",
                 "campo_temp": "field1",
                 "campo_hum": "field2",
                 "campo_precip": "field3",
@@ -226,30 +202,28 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                 "api_url": "https://api.thingspeak.com/channels/2667270/feeds.json?results=100&api_key=ZLNOSLZJPQM3H7SD", 
                 "lat": -35.07345166939612, 
                 "lon": -57.87082581096881, 
-                "nombre": "Escuela N°34",
+                "nombre": "Escuela 34",
                 "campo_temp": "field1",
                 "campo_hum": "field2",
                 "campo_precip": "field3",
                 "foto_url": "imagenes/escuela34.jpg" 
             },
             
-            // *** ESTACIÓN WUNDERMAP (IARANA2 - COORDENADAS ACTUALIZADAS) ***
+            // *** ESTACIÓN WUNDERMAP (IARANA2) ***
             "estacion3": {
                 "api_url": "https://api.weather.com/v2/pws/observations/all?stationId=IARANA2&format=json&units=m&numericPrecision=decimal&apiKey=d325ae34959d4853a5ae34959d1853ea",
-                // NUEVAS COORDENADAS: IARANA
                 "lat": -34.95100438126944, 
                 "lon": -57.83513895065668, 
-                "nombre": "Escuela N°20",
+                "nombre": "EMA IARANA2 ",
                 "campo_temp": "metric.temp", 
                 "campo_hum": "humidity", 
                 "campo_precip": "metric.precipTotal",
                 "foto_url": "imagenes/foto_escuela_3.jpg",
-                // AÑADIDO: URL de redirección a Wunderground
                 "wunderground_url": "https://www.wunderground.com/dashboard/pws/IARANA2" 
             }
         };
         
-        // Se inicializa el mapa usando la nueva clave 'observatorio'
+        // Se inicializa el mapa usando la clave 'observatorio'
         const map = L.map('map').setView([ESTACIONES.observatorio.lat, ESTACIONES.observatorio.lon], 13);
         L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -261,13 +235,13 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
         const galeriaReportes = document.getElementById('galeria-reportes');
         const variableSelect = document.getElementById('variable-select');
 
-        // Función auxiliar para formatear la fecha a solo HH:MM (¡ELIMINADA!)
-        // 🆕 NUEVA FUNCIÓN auxiliar para formatear la fecha y hora
+        // 🆕 FUNCIÓN AUXILIAR PARA DAR FORMATO A LA FECHA Y HORA
         function formatDateTime(dateString) {
             if (!dateString) return 'Desconocida';
-            const date = new Date(dateString);
+            // ThingSpeak y Firebase usan el formato ISO 8601 (UTC)
+            const date = new Date(dateString); 
             
-            // Opciones de formato
+            // Opciones de formato (hora local de Argentina -AR)
             const timeOptions = { hour: '2-digit', minute: '2-digit' };
             const dateOptions = { day: '2-digit', month: 'short' };
             
@@ -312,11 +286,9 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
             for (const key in ESTACIONES) {
                 const configEstacion = ESTACIONES[key];
                 
-                // 1. Crear el marcador en la coordenada fija
                 const marker = L.marker([configEstacion.lat, configEstacion.lon]).addTo(map);
                 markers[key] = marker;
                 
-                // 2. Asignar Tooltip y Popup con texto de "Cargando..."
                 const initialContent = `${configEstacion.nombre}<br><b>Cargando...</b>`;
                 
                 marker.bindTooltip(initialContent, {
@@ -327,35 +299,32 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                 
                 marker.bindPopup(initialContent);
             }
-            // Centrar el mapa en la primera estación
             map.setView([ESTACIONES[Object.keys(ESTACIONES)[0]].lat, ESTACIONES[Object.keys(ESTACIONES)[0]].lon], 13);
         }
 
-        // 🆕 Función para actualizar los Tooltips del mapa con la variable seleccionada (MODIFICADA para incluir hora)
+        // 🆕 FUNCIÓN PARA ACTUALIZAR TOOLTIPS (MODIFICADA para incluir hora)
         function actualizarMapaYTooltips(variable = variableSelect.value, data = null) {
             for (const key in markers) {
                 const configEstacion = ESTACIONES[key];
                 const marker = markers[key];
                 
-                // Agregamos ultima_actualizacion a los valores por defecto
+                // Aseguramos que data[key] tenga el campo ultima_actualizacion
                 const estacionData = data && data[key] ? data[key] : { temperatura: '--', humedad: '--', ultima_actualizacion: null }; 
                 
-                // Usamos la clave correcta para acceder a los datos
                 let valor = estacionData[variable] !== undefined ? estacionData[variable] : '--';
                 let unidad = variable === 'temperatura' ? '°C' : '%';
                 
                 // Formateamos la hora de actualización
                 const horaFormateada = formatDateTime(estacionData.ultima_actualizacion);
 
-                // Si el valor es una cadena, lo acortamos.
                 if (typeof valor === 'string' && valor !== '--') {
                     valor = parseFloat(valor).toFixed(1);
                 }
 
-                // 🆕 CONTENIDO DEL TOOLTIP MODIFICADO
+                // CONTENIDO DEL TOOLTIP MODIFICADO
                 const tooltipContent = `${configEstacion.nombre}<br><b>${variable.charAt(0).toUpperCase() + variable.slice(1)}: ${valor}${unidad}</b><br><small>Actualizado: ${horaFormateada}</small>`;
                 
-                // 🆕 CONTENIDO DEL POPUP MODIFICADO
+                // CONTENIDO DEL POPUP MODIFICADO
                 const popupContent = `
                     <b>${configEstacion.nombre}</b><br>
                     Temp: ${estacionData.temperatura}°C<br>
@@ -403,10 +372,8 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
         async function cargarGraficos(estacionKey) {
             const estacion = ESTACIONES[estacionKey];
             
-            // Si la estación es la de Wunderground, evitamos el intento de carga de gráficos y limpieza.
             if (estacionKey === "estacion3") {
                 console.warn(`La estación ${estacion.nombre} utiliza un enlace externo para su información histórica.`);
-                // Limpiar el área de resumen si se selecciona esta opción (aunque esto ya se hace en cargarGraficosDeSeleccion)
                 document.getElementById('temp-max').textContent = '--';
                 document.getElementById('temp-min').textContent = '--';
                 document.getElementById('precipitacion').textContent = '--';
@@ -427,10 +394,8 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                 const data = await response.json();
                 
                 let feeds = data.feeds;
-                // NOTA: isWunderMap ya no es necesario aquí para la lógica de redirección.
                 let isWunderMap = false; 
 
-                // Resto de la lógica de gráficos...
                 function getFieldValue(feed, path) {
                     if (isWunderMap) { 
                         const parts = path.split('.');
@@ -449,18 +414,14 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                 }
                 
                 const labels = feeds.map(feed => {
-                    // Usamos el campo creado_at de ThingSpeak
                     const dateString = isWunderMap ? feed.obsTimeUtc : feed.created_at; 
-                    // Usamos la antigua función formatTime que ya no existe, la reemplazamos con formatDateTime
-                    // Sin embargo, para los gráficos históricos, necesitamos una versión simple de la hora (HH:MM)
-                    // Volvemos a crear una función simple aquí para los gráficos, ya que ThingSpeak es más simple.
                     const date = new Date(dateString);
                     return date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
-                }).reverse(); // Se invierte para que el tiempo sea ascendente en el gráfico
+                }).reverse(); 
                 
                 const temperaturas = feeds.map(feed => parseFloat(getFieldValue(feed, estacion.campo_temp))).filter(val => !isNaN(val)).reverse();
                 const humedades = feeds.map(feed => parseFloat(getFieldValue(feed, estacion.campo_hum))).filter(val => !isNaN(val)).reverse();
-                const precipitaciones = feeds.map(feed => parseFloat(getFieldValue(feed, estacion.campo_precip) || 0)).filter(val => !isNaN(val)); // No invertir para sumar total
+                const precipitaciones = feeds.map(feed => parseFloat(getFieldValue(feed, estacion.campo_precip) || 0)).filter(val => !isNaN(val)); 
 
                 // Cálculo de Resumen Histórico
                 const maxTemp = temperaturas.length > 0 ? Math.max(...temperaturas).toFixed(2) : '--';
@@ -473,8 +434,8 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                 
                 let dateRangeText = '';
                 if (feeds.length > 0) {
-                    const firstDate = new Date(data.feeds[data.feeds.length - 1].created_at); // Primer registro
-                    const lastDate = new Date(data.feeds[0].created_at); // Último registro
+                    const firstDate = new Date(data.feeds[data.feeds.length - 1].created_at); 
+                    const lastDate = new Date(data.feeds[0].created_at); 
                     const dateFormat = { day: '2-digit', month: 'short' };
                     dateRangeText = `(${firstDate.toLocaleDateString('es-AR', dateFormat)} - ${lastDate.toLocaleDateString('es-AR', dateFormat)})`;
                 }
@@ -518,29 +479,23 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
             const selectedKey = estacionSelect.value;
             const estacion = ESTACIONES[selectedKey];
 
-            // 1. Verificar si es la estación de Wunderground (estacion3)
             if (selectedKey === "estacion3" && estacion.wunderground_url) {
                 
-                // 2. Limpiar la visualización y notificar al usuario
                 document.getElementById('temp-max').textContent = '-- °C';
                 document.getElementById('temp-min').textContent = '-- °C';
                 document.getElementById('precipitacion').textContent = '-- mm';
                 alert(`Abriendo el panel de la estación ${estacion.nombre} en Wunderground...`);
 
-                // 3. Abrir la URL en una nueva pestaña
                 window.open(estacion.wunderground_url, '_blank'); 
 
-                // 4. (Opcional) Restablecer la selección del dropdown a la primera estación
                 const primeraEstacionKey = Object.keys(ESTACIONES)[0];
                 estacionSelect.value = primeraEstacionKey;
                 
-                // 5. Cargar los gráficos de la primera estación nuevamente
                 cargarGraficos(primeraEstacionKey); 
 
                 return; 
             }
             
-            // 6. Si no es la estación de Wunderground, cargar los gráficos normalmente
             cargarGraficos(selectedKey);
         }
 
