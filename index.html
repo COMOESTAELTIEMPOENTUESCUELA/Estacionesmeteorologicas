@@ -170,7 +170,7 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                 "campo_temp": "field1",
                 "campo_hum": "field2",
                 "campo_precip": "field5", // Corregido a field5 (Rain_mm_Total)
-                "foto_url": "imagenes/observatorio.png"
+                "foto_url": "imagenes/foto_escuela_1.jpg"
             },
             
             // Estación con canal separado para precipitación (¡REEMPLAZA LOS EJEMPLOS!)
@@ -419,32 +419,37 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                      feedsPrecipitacion = dataPrincipal.feeds;
                 }
 
-                let feeds = dataPrincipal.feeds; // Feeds completos para el filtrado
+                let feeds = dataPrincipal.feeds; // Feeds completos (ThingSpeak es newest first)
 
                 
                 // 🛑 LÓGICA DE TIEMPO BASE
                 const now = new Date();
                 const startOfTodayUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0));
                 
-                // ----------------------------------------------------------------------------------
-                // 🛑 FILTRADO DE FEEDS PARA GRÁFICO Y CÁLCULOS DE MAX/MIN (DÍA CALENDARIO: 00z-Actual)
+                // RANGO PARA GRÁFICO: Últimas 24 horas
+                const startOfLast24Hours = new Date(now.getTime() - (24 * 60 * 60 * 1000)); 
                 
-                const feedsDelDia = [];
-                const tempsHoy = [];
-                const humsHoy = [];
+                // ----------------------------------------------------------------------------------
+                // 🛑 FILTRADO DE DATOS EN ARRAYS DISTINTOS
+                
+                const tempsHoy = [];          // Para Max/Min (00z-now)
+                const humsHoy = [];           // Para Max/Min (00z-now)
+                const feedsParaGrafico = [];  // Para Gráfico (Last 24 hours)
 
                 for (const feed of feeds) {
                     const timestamp = new Date(feed.created_at);
                     const tempValue = parseFloat(getFieldValue(feed, estacion.campo_temp));
                     const humValue = parseFloat(getFieldValue(feed, estacion.campo_hum));
                     
+                    // 1. Filtrado para Max/Min (00z a now)
                     if (timestamp >= startOfTodayUtc && timestamp <= now) {
-                        // 1. Guardamos el feed completo para usarlo en la gráfica
-                        feedsDelDia.push(feed); 
-                        
-                        // 2. Guardamos los valores para calcular Máx/Mín
                         if (!isNaN(tempValue)) tempsHoy.push(tempValue);
                         if (!isNaN(humValue)) humsHoy.push(humValue);
+                    }
+
+                    // 2. Filtrado para el Gráfico (Últimas 24 horas)
+                    if (timestamp >= startOfLast24Hours && timestamp <= now) {
+                        feedsParaGrafico.push(feed); 
                     }
                 }
                 
@@ -464,12 +469,10 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                 let endRangePrecip = new Date(startOfTodayUtc); 
                 endRangePrecip.setUTCHours(doceUtc); 
                 
-                // Si la hora actual en UTC es ANTES de las 12 UTC, el día meteorológico terminó a las 12 UTC de AYER.
                 if (now.getUTCHours() < doceUtc) {
                     endRangePrecip.setUTCDate(endRangePrecip.getUTCDate() - 1); 
                 }
                 
-                // El inicio es exactamente 24 horas antes del final.
                 let startRangePrecip = new Date(endRangePrecip);
                 startRangePrecip.setUTCDate(startRangePrecip.getUTCDate() - 1);
 
@@ -500,24 +503,36 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                 
                 // ----------------------------------------------------------------------------------
                 
-                // CREACIÓN DE DATOS PARA GRÁFICOS (USA feedsDelDia)
-                const labels = feedsDelDia.map(feed => {
+                // CREACIÓN DE DATOS PARA GRÁFICOS (USA feedsParaGrafico)
+                
+                // Invertimos el array para que el gráfico sea cronológico (de más antiguo a más reciente).
+                const feedsParaGrafico_chronological = feedsParaGrafico.reverse();
+
+                const labels = feedsParaGrafico_chronological.map(feed => {
                     const date = new Date(feed.created_at);
+                    // Usamos hora local (es-AR) para las etiquetas
                     return date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
                 }); 
                 
-                const temperaturas = tempsHoy; 
-                const humedades = humsHoy; 
+                const temperaturas = feedsParaGrafico_chronological.map(feed => parseFloat(getFieldValue(feed, estacion.campo_temp))).filter(val => !isNaN(val));
+                const humedades = feedsParaGrafico_chronological.map(feed => parseFloat(getFieldValue(feed, estacion.campo_hum))).filter(val => !isNaN(val));
 
                 
                 let dateRangeText = '';
-                if (feedsDelDia.length > 0) {
-                    // Muestra solo la fecha del día actual
-                    const todayDate = new Date(feedsDelDia[0].created_at); 
+                if (feedsParaGrafico_chronological.length > 0) {
+                    // Muestra el rango de 24 horas (desde el punto más antiguo hasta el más reciente)
+                    const firstDate = new Date(feedsParaGrafico_chronological[0].created_at); 
+                    const lastDate = new Date(feedsParaGrafico_chronological[feedsParaGrafico_chronological.length - 1].created_at);
+                    
+                    const timeFormat = { hour: '2-digit', minute: '2-digit' };
                     const dateFormat = { day: '2-digit', month: 'short' };
-                    dateRangeText = `(${todayDate.toLocaleDateString('es-AR', dateFormat)})`;
+                    
+                    const startLabel = `${firstDate.toLocaleDateString('es-AR', dateFormat)} ${firstDate.toLocaleTimeString('es-AR', timeFormat)}`;
+                    const endLabel = `${lastDate.toLocaleDateString('es-AR', dateFormat)} ${lastDate.toLocaleTimeString('es-AR', timeFormat)}`;
+
+                    dateRangeText = `(${startLabel} - ${endLabel})`;
                 } else {
-                     dateRangeText = `(Sin datos del día)`;
+                     dateRangeText = `(Sin datos en las últimas 24hs)`;
                 }
                 document.getElementById('temp-date-range').textContent = dateRangeText;
                 document.getElementById('hum-date-range').textContent = dateRangeText;
