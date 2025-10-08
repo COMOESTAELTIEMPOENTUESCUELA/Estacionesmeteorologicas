@@ -173,7 +173,7 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                 "foto_url": "imagenes/foto_escuela_1.jpg"
             },
             
-            // Estación con canal separado para precipitación (EJEMPLO)
+            // Estación con canal separado para precipitación (¡REEMPLAZA LOS EJEMPLOS!)
             "escuela23": {
                 // API principal (Temp/Hum)
                 "api_url": "https://api.thingspeak.com/channels/2218686/feeds.json?results=1000&api_key=JUXJQRZMFFASO37Z", 
@@ -200,7 +200,7 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                 "foto_url": "imagenes/Sanvicentedepaul.png" 
             },
 
-            // Estación con canal separado para precipitación (EJEMPLO)
+            // Estación con canal separado para precipitación (¡REEMPLAZA LOS EJEMPLOS!)
             "escuela34": {
                 // API principal (Temp/Hum)
                 "api_url": "https://api.thingspeak.com/channels/2667270/feeds.json?results=1000&api_key=ZLNOSLZJPQM3H7SD", 
@@ -215,7 +215,7 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                 "foto_url": "imagenes/escuela34.jpg" 
             },
             
-            // Estación Wunderground (se maneja diferente en cargarGraficosDeSeleccion)
+            // Estación Wunderground 
             "estacion3": {
                 "api_url": "https://api.weather.com/v2/pws/observations/all?stationId=IARANA2&format=json&units=m&numericPrecision=decimal&apiKey=d325ae34959d4853a5ae34959d1853ea",
                 "lat": -34.95100438126944, 
@@ -258,7 +258,6 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
         // Función para cargar reportes desde el CMS (SIN CAMBIOS)
         async function cargarReportes() {
             try {
-                // Nota: La URL /_data/reportes/index.json asume que estás usando un CMS como Netlify CMS/Decap CMS con GitHub
                 const response = await fetch('/_data/reportes/index.json'); 
                 const reportes = await response.json();
 
@@ -268,7 +267,6 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                 reportes.forEach(reporte => {
                     const divCard = document.createElement('div');
                     divCard.className = 'reporte-card';
-                    // La URL de la imagen debe ser relativa al proyecto base
                     const imgSrc = reporte.image || 'imagenes/placeholder.jpg'; 
                     
                     divCard.innerHTML = `
@@ -325,10 +323,8 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                     valor = parseFloat(valor).toFixed(1);
                 }
 
-                // CONTENIDO DEL TOOLTIP 
                 const tooltipContent = `${configEstacion.nombre}<br><b>${variable.charAt(0).toUpperCase() + variable.slice(1)}: ${valor}${unidad}</b><br><small>Actualizado: ${horaFormateada}</small>`;
                 
-                // CONTENIDO DEL POPUP 
                 const popupContent = `
                     <b>${configEstacion.nombre}</b><br>
                     Temp: ${estacionData.temperatura}°C<br>
@@ -374,8 +370,6 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
         let temperaturaChart, humedadChart;
 
         function getFieldValue(feed, path) {
-            // Nota: Esta función asume que la estructura no es WunderMap, sino ThingSpeak.
-            // Si necesitaras un soporte más robusto para WunderMap, se debería expandir aquí.
             const parts = path.split('.');
             let value = feed;
             for (const part of parts) {
@@ -422,22 +416,20 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                      const dataPrecip = await responsePrecip.json();
                      feedsPrecipitacion = dataPrecip.feeds;
                 } else {
-                     // Si no hay URL de precipitación separada, usamos los feeds principales
                      feedsPrecipitacion = dataPrincipal.feeds;
                 }
 
-                let feeds = dataPrincipal.feeds; // Feeds para Temp/Hum (usados para los gráficos)
+                let feeds = dataPrincipal.feeds; // Feeds completos para el filtrado
 
                 
-                // 🛑 LÓGICA PARA CÁLCULO DE MÁXIMA/MÍNIMA (DÍA CALENDARIO: 00z-Actual)
-
-                // 1. Definir el rango de tiempo del día calendario (00:00 UTC de hoy a 00:00 UTC de mañana)
+                // 🛑 LÓGICA DE TIEMPO BASE
                 const now = new Date();
-                
-                // Inicio: 00:00 UTC de hoy
                 const startOfTodayUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0));
                 
-                // 2. Filtrar solo los datos de Temperatura y Humedad dentro del rango 00z-Actual
+                // ----------------------------------------------------------------------------------
+                // 🛑 FILTRADO DE FEEDS PARA GRÁFICO Y CÁLCULOS DE MAX/MIN (DÍA CALENDARIO: 00z-Actual)
+                
+                const feedsDelDia = [];
                 const tempsHoy = [];
                 const humsHoy = [];
 
@@ -446,21 +438,27 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                     const tempValue = parseFloat(getFieldValue(feed, estacion.campo_temp));
                     const humValue = parseFloat(getFieldValue(feed, estacion.campo_hum));
                     
-                    // Filtramos los datos dentro del rango [startOfTodayUtc, now] (datos hasta ahora)
                     if (timestamp >= startOfTodayUtc && timestamp <= now) {
+                        // 1. Guardamos el feed completo para usarlo en la gráfica
+                        feedsDelDia.push(feed); 
+                        
+                        // 2. Guardamos los valores para calcular Máx/Mín
                         if (!isNaN(tempValue)) tempsHoy.push(tempValue);
                         if (!isNaN(humValue)) humsHoy.push(humValue);
                     }
                 }
-
+                
                 // 3. Cálculo de Máx/Mín de Temp/Humedad del día calendario (00z-Actual)
                 const maxTemp = tempsHoy.length > 0 ? Math.max(...tempsHoy).toFixed(2) : '--';
                 const minTemp = tempsHoy.length > 0 ? Math.min(...tempsHoy).toFixed(2) : '--';
 
+                // Actualización de Máx/Mín en el DOM
+                document.getElementById('temp-max').textContent = `${maxTemp} °C`;
+                document.getElementById('temp-min').textContent = `${minTemp} °C`;
+
                 // ----------------------------------------------------------------------------------
                 // 🛑 LÓGICA PARA CÁLCULO DE PRECIPITACIÓN (DÍA METEOROLÓGICO: 12z-12z)
                 
-                // 1. Determinar el rango de tiempo (12 UTC de ayer a 12 UTC de hoy)
                 const doceUtc = 12;
 
                 let endRangePrecip = new Date(startOfTodayUtc); 
@@ -494,34 +492,32 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                     const maxPrecip = Math.max(...valoresPrecipitacion);
                     const minPrecip = Math.min(...valoresPrecipitacion);
                     
-                    // Si la precipitación es un acumulado total, la lluvia es la diferencia entre el máximo y el mínimo.
                     totalPrecip = (maxPrecip - minPrecip).toFixed(2);
                 }
                 
-                // ----------------------------------------------------------------------------------
-                
-                // Actualización de los valores en el DOM con los nuevos cálculos
-                document.getElementById('temp-max').textContent = `${maxTemp} °C`;
-                document.getElementById('temp-min').textContent = `${minTemp} °C`;
+                // Actualización de Precipitación en el DOM
                 document.getElementById('precipitacion').textContent = `${totalPrecip} mm`; 
                 
-                // Preparación de datos para los gráficos (usa los últimos 1000 feeds)
-                const labels = feeds.map(feed => {
+                // ----------------------------------------------------------------------------------
+                
+                // CREACIÓN DE DATOS PARA GRÁFICOS (USA feedsDelDia)
+                const labels = feedsDelDia.map(feed => {
                     const date = new Date(feed.created_at);
                     return date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
-                }).reverse(); 
+                }); 
                 
-                const temperaturas = feeds.map(feed => parseFloat(getFieldValue(feed, estacion.campo_temp))).filter(val => !isNaN(val)).reverse();
-                const humedades = feeds.map(feed => parseFloat(getFieldValue(feed, estacion.campo_hum))).filter(val => !isNaN(val)).reverse();
-                
+                const temperaturas = tempsHoy; 
+                const humedades = humsHoy; 
+
                 
                 let dateRangeText = '';
-                if (feeds.length > 0) {
-                    // Muestra el rango de los feeds que se grafican
-                    const firstDate = new Date(dataPrincipal.feeds[dataPrincipal.feeds.length - 1].created_at); 
-                    const lastDate = new Date(dataPrincipal.feeds[0].created_at); 
+                if (feedsDelDia.length > 0) {
+                    // Muestra solo la fecha del día actual
+                    const todayDate = new Date(feedsDelDia[0].created_at); 
                     const dateFormat = { day: '2-digit', month: 'short' };
-                    dateRangeText = `(${firstDate.toLocaleDateString('es-AR', dateFormat)} - ${lastDate.toLocaleDateString('es-AR', dateFormat)})`;
+                    dateRangeText = `(${todayDate.toLocaleDateString('es-AR', dateFormat)})`;
+                } else {
+                     dateRangeText = `(Sin datos del día)`;
                 }
                 document.getElementById('temp-date-range').textContent = dateRangeText;
                 document.getElementById('hum-date-range').textContent = dateRangeText;
@@ -570,12 +566,11 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                 document.getElementById('precipitacion').textContent = '-- mm';
                 alert(`Abriendo el panel de la estación ${estacion.nombre} en Wunderground...`);
 
-                window.open(estacion.wunderground_url, '_blank'); 
-
                 const primeraEstacionKey = Object.keys(ESTACIONES).find(key => key !== "estacion3");
                 estacionSelect.value = primeraEstacionKey;
                 
                 cargarGraficos(primeraEstacionKey); 
+                window.open(estacion.wunderground_url, '_blank'); 
 
                 return; 
             }
