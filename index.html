@@ -108,7 +108,7 @@
                     <p class="valor" id="temp-min">-- °C</p>
                 </div>
                 <div class="dato-card">
-                    <h4>Precipitación</h4>
+                    <h4>Precipitación<br><small>(Día Met. 12z)</small></h4>
                     <p class="valor" id="precipitacion">-- mm</p>
                 </div>
             </div>
@@ -161,9 +161,9 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
 
         // Configuración de las estaciones
         const ESTACIONES = {
-            // *** ESTACIÓN OBSERVATORIO CAMPBELL ***
+            // Se cambia results=100 a results=1000 para obtener datos suficientes para el cálculo de 24h
             "observatorio": { 
-                "api_url": "https://api.thingspeak.com/channels/2823820/feeds.json?results=100&api_key=FFI1HK80ZKDNS6V8", 
+                "api_url": "https://api.thingspeak.com/channels/2823820/feeds.json?results=1000&api_key=FFI1HK80ZKDNS6V8", 
                 "lat": -34.90483, 
                 "lon": -57.93570, 
                 "nombre": "Observatorio Campbell ", 
@@ -172,10 +172,9 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                 "campo_precip": "field3",
                 "foto_url": "imagenes/foto_escuela_1.jpg"
             },
-
-            // *** EP 23 ***
+            // Se actualizan nombres y se cambia results=100 a results=1000
             "escuela23": {
-                "api_url": "https://api.thingspeak.com/channels/2218686/feeds.json?results=100&api_key=JUXJQRZMFFASO37Z", 
+                "api_url": "https://api.thingspeak.com/channels/2218686/feeds.json?results=1000&api_key=JUXJQRZMFFASO37Z", 
                 "lat": -35.028220624725385, 
                 "lon": -57.75292481051298, 
                 "nombre": "Escuela N°23 ",
@@ -184,10 +183,9 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                 "campo_precip": "field3",
                 "foto_url": "imagenes/escuela23.jpg" 
             },
-
-            // *** SAN VICENTE DE PAUL ***
+            // Se actualizan nombres y se cambia results=100 a results=1000
             "sanvicente": {
-                "api_url": "https://api.thingspeak.com/channels/2218687/feeds.json?results=100&api_key=TH3V4TJLPRFZD3JSG", 
+                "api_url": "https://api.thingspeak.com/channels/2218687/feeds.json?results=1000&api_key=TH3V4TJLPRFZD3JSG", 
                 "lat": -34.90315315209218, 
                 "lon": -57.94890339765153, 
                 "nombre": "San Vicente de Paul",
@@ -196,10 +194,9 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                 "campo_precip": "field3",
                 "foto_url": "imagenes/Sanvicentedepaul.png" 
             },
-
-            // *** EP 34 ***
+            // Se actualizan nombres y se cambia results=100 a results=1000
             "escuela34": {
-                "api_url": "https://api.thingspeak.com/channels/2667270/feeds.json?results=100&api_key=ZLNOSLZJPQM3H7SD", 
+                "api_url": "https://api.thingspeak.com/channels/2667270/feeds.json?results=1000&api_key=ZLNOSLZJPQM3H7SD", 
                 "lat": -35.07345166939612, 
                 "lon": -57.87082581096881, 
                 "nombre": "Escuela N°34",
@@ -208,8 +205,7 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                 "campo_precip": "field3",
                 "foto_url": "imagenes/escuela34.jpg" 
             },
-            
-            // *** ESTACIÓN WUNDERMAP (IARANA2) ***
+            // Se actualizan nombres de la estación 3
             "estacion3": {
                 "api_url": "https://api.weather.com/v2/pws/observations/all?stationId=IARANA2&format=json&units=m&numericPrecision=decimal&apiKey=d325ae34959d4853a5ae34959d1853ea",
                 "lat": -34.95100438126944, 
@@ -409,6 +405,51 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                     }
                 }
                 
+                // 🛑 LÓGICA PARA CALCULAR EL DÍA METEOROLÓGICO (12 UTC a 12 UTC)
+                
+                // 1. Determinar el rango de tiempo (HOY a las 12 UTC hasta MAÑANA a las 12 UTC)
+                const now = new Date();
+                
+                // Obtenemos la fecha actual en UTC
+                const todayUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0));
+                
+                // Determinamos la hora del día meteorológico (12z)
+                const doceUtc = 12;
+
+                let startRange, endRange;
+                
+                // El rango de tiempo es el período de 24 horas que termina a las 12 UTC de hoy.
+                endRange = new Date(todayUtc);
+                endRange.setUTCHours(doceUtc); 
+                
+                // Si la hora actual en UTC es ANTES de las 12 UTC, el día meteorológico terminó a las 12 UTC de AYER.
+                if (now.getUTCHours() < doceUtc) {
+                    endRange.setUTCDate(endRange.getUTCDate() - 1); // El final es 12 UTC de ayer
+                }
+                
+                // El inicio es exactamente 24 horas antes del final.
+                startRange = new Date(endRange);
+                startRange.setUTCDate(startRange.getUTCDate() - 1);
+
+
+                // 2. Filtrar solo los datos dentro del rango de precipitación
+                const precipitacionesFiltradas = [];
+
+                for (const feed of feeds) {
+                    const timestamp = new Date(feed.created_at);
+                    const precipValue = parseFloat(getFieldValue(feed, estacion.campo_precip) || 0);
+
+                    // Filtramos los datos que están dentro del rango [startRange, endRange]
+                    if (timestamp >= startRange && timestamp <= endRange && !isNaN(precipValue)) {
+                        precipitacionesFiltradas.push(precipValue);
+                    }
+                }
+                
+                // 3. Suma de la precipitación filtrada
+                const totalPrecip = precipitacionesFiltradas.length > 0 ? precipitacionesFiltradas.reduce((sum, val) => sum + val, 0).toFixed(2) : '--';
+                
+                // ----------------------------------------------------------------------------------
+                
                 const labels = feeds.map(feed => {
                     const dateString = isWunderMap ? feed.obsTimeUtc : feed.created_at; 
                     const date = new Date(dateString);
@@ -417,16 +458,15 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                 
                 const temperaturas = feeds.map(feed => parseFloat(getFieldValue(feed, estacion.campo_temp))).filter(val => !isNaN(val)).reverse();
                 const humedades = feeds.map(feed => parseFloat(getFieldValue(feed, estacion.campo_hum))).filter(val => !isNaN(val)).reverse();
-                const precipitaciones = feeds.map(feed => parseFloat(getFieldValue(feed, estacion.campo_precip) || 0)).filter(val => !isNaN(val)); 
+                // NOTA: Los gráficos de Temp/Humedad seguirán usando los últimos 1000 feeds.
 
-                // Cálculo de Resumen Histórico
+                // Cálculo de Máx/Mín de Temp/Humedad (usando los últimos 1000 feeds)
                 const maxTemp = temperaturas.length > 0 ? Math.max(...temperaturas).toFixed(2) : '--';
                 const minTemp = temperaturas.length > 0 ? Math.min(...temperaturas).toFixed(2) : '--';
-                const totalPrecip = precipitaciones.length > 0 ? precipitaciones.reduce((sum, val) => sum + val, 0).toFixed(2) : '--';
 
                 document.getElementById('temp-max').textContent = `${maxTemp} °C`;
                 document.getElementById('temp-min').textContent = `${minTemp} °C`;
-                document.getElementById('precipitacion').textContent = `${totalPrecip} mm`;
+                document.getElementById('precipitacion').textContent = `${totalPrecip} mm`; // Usamos el valor filtrado
                 
                 let dateRangeText = '';
                 if (feeds.length > 0) {
