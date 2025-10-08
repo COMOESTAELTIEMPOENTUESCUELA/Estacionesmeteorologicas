@@ -424,6 +424,7 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                 
                 // 🛑 LÓGICA DE TIEMPO BASE
                 const now = new Date();
+                // 00:00 UTC del día de hoy
                 const startOfTodayUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0));
                 
                 // RANGO PARA GRÁFICO: Últimas 24 horas
@@ -432,30 +433,27 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                 // ----------------------------------------------------------------------------------
                 // 🛑 FILTRADO DE DATOS EN ARRAYS DISTINTOS
                 
-                const tempsHoy = [];          // Para Max/Min (00z-now)
-                const humsHoy = [];           // Para Max/Min (00z-now)
-                const feedsParaGrafico = [];  // Para Gráfico (Last 24 hours)
+                const tempsDelDiaCalendario = [];  // Para Max/Min (00z-now)
+                const feedsParaGrafico_ReverseOrder = [];  // Para Gráfico (Last 24 hours - Newest first)
 
                 for (const feed of feeds) {
                     const timestamp = new Date(feed.created_at);
                     const tempValue = parseFloat(getFieldValue(feed, estacion.campo_temp));
-                    const humValue = parseFloat(getFieldValue(feed, estacion.campo_hum));
                     
-                    // 1. Filtrado para Max/Min (00z a now)
+                    // 1. Filtrado para Máx/Mín del Día Calendario (00z a now)
                     if (timestamp >= startOfTodayUtc && timestamp <= now) {
-                        if (!isNaN(tempValue)) tempsHoy.push(tempValue);
-                        if (!isNaN(humValue)) humsHoy.push(humValue);
+                        if (!isNaN(tempValue)) tempsDelDiaCalendario.push(tempValue);
                     }
 
                     // 2. Filtrado para el Gráfico (Últimas 24 horas)
                     if (timestamp >= startOfLast24Hours && timestamp <= now) {
-                        feedsParaGrafico.push(feed); 
+                        feedsParaGrafico_ReverseOrder.push(feed); 
                     }
                 }
                 
-                // 3. Cálculo de Máx/Mín de Temp/Humedad del día calendario (00z-Actual)
-                const maxTemp = tempsHoy.length > 0 ? Math.max(...tempsHoy).toFixed(2) : '--';
-                const minTemp = tempsHoy.length > 0 ? Math.min(...tempsHoy).toFixed(2) : '--';
+                // 3. CÁLCULO de Máx/Mín: Usa SÓLO los datos del Día Calendario (00z-actual)
+                const maxTemp = tempsDelDiaCalendario.length > 0 ? Math.max(...tempsDelDiaCalendario).toFixed(2) : '--';
+                const minTemp = tempsDelDiaCalendario.length > 0 ? Math.min(...tempsDelDiaCalendario).toFixed(2) : '--';
 
                 // Actualización de Máx/Mín en el DOM
                 document.getElementById('temp-max').textContent = `${maxTemp} °C`;
@@ -470,6 +468,7 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                 endRangePrecip.setUTCHours(doceUtc); 
                 
                 if (now.getUTCHours() < doceUtc) {
+                    // Si aún no son las 12 UTC, el día meteorológico terminó a las 12 UTC de ayer.
                     endRangePrecip.setUTCDate(endRangePrecip.getUTCDate() - 1); 
                 }
                 
@@ -506,7 +505,7 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                 // CREACIÓN DE DATOS PARA GRÁFICOS (USA feedsParaGrafico)
                 
                 // Invertimos el array para que el gráfico sea cronológico (de más antiguo a más reciente).
-                const feedsParaGrafico_chronological = feedsParaGrafico.reverse();
+                const feedsParaGrafico_chronological = feedsParaGrafico_ReverseOrder.reverse();
 
                 const labels = feedsParaGrafico_chronological.map(feed => {
                     const date = new Date(feed.created_at);
