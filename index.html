@@ -536,9 +536,6 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                 document.getElementById('temp-date-range').textContent = dateRangeText;
                 document.getElementById('hum-date-range').textContent = dateRangeText;
 
-                if (temperaturaChart) temperaturaChart.destroy();
-                if (humedadChart) humedadChart.destroy();
-
                 temperaturaChart = new Chart(temperaturaCtx, {
                     type: 'line',
                     data: { labels: labels, datasets: [{ label: 'Temperatura (°C)', data: temperaturas, borderColor: 'orange', backgroundColor: 'rgba(255, 165, 0, 0.2)', tension: 0.3, fill: true }] },
@@ -546,7 +543,11 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                         responsive: true, 
                         scales: { 
                             y: { beginAtZero: false },
-                            x: { title: { display: true, text: 'Hora (HH:MM)'} } 
+                            x: { 
+                                title: { display: true, text: 'Hora (HH:MM)'},
+                                // *** CORRECCIÓN APLICADA AQUÍ ***
+                                reverse: false // Asegura que el tiempo avance de izquierda (pasado) a derecha (presente)
+                            } 
                         } 
                     }
                 });
@@ -558,7 +559,11 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                         responsive: true, 
                         scales: { 
                             y: { beginAtZero: true, max: 100 },
-                            x: { title: { display: true, text: 'Hora (HH:MM)'} } 
+                            x: { 
+                                title: { display: true, text: 'Hora (HH:MM)'},
+                                // *** CORRECCIÓN APLICADA AQUÍ ***
+                                reverse: false // Asegura que el tiempo avance de izquierda (pasado) a derecha (presente)
+                            } 
                         } 
                     }
                 });
