@@ -395,175 +395,193 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
             return value;
         }
 
-        async function cargarGraficos(estacionKey) {
-            const estacion = ESTACIONES[estacionKey];
-            
-            if (estacionKey === "estacion3") {
-                console.warn(`La estación ${estacion.nombre} utiliza un enlace externo para su información histórica.`);
-                document.getElementById('temp-max').textContent = '--';
-                document.getElementById('temp-min').textContent = '--';
-                document.getElementById('precipitacion').textContent = '--';
-                document.getElementById('temp-date-range').textContent = '';
-                document.getElementById('hum-date-range').textContent = '';
-                if (temperaturaChart) temperaturaChart.destroy();
-                if (humedadChart) humedadChart.destroy();
-                return;
-            }
+        // =========================================================================
+// FUNCIÓN CORREGIDA: Incluye la destrucción de gráficos y la corrección de datos.
+// =========================================================================
+async function cargarGraficos(estacionKey) {
+    const estacion = ESTACIONES[estacionKey];
+    
+    // Si se selecciona la estación Wunderground
+    if (estacionKey === "estacion3") {
+        console.warn(`La estación ${estacion.nombre} utiliza un enlace externo para su información histórica.`);
+        document.getElementById('temp-max').textContent = '--';
+        document.getElementById('temp-min').textContent = '--';
+        document.getElementById('precipitacion').textContent = '--';
+        document.getElementById('temp-date-range').textContent = '';
+        document.getElementById('hum-date-range').textContent = '';
+        // Los gráficos ya fueron destruidos en cargarGraficosDeSeleccion()
+        return;
+    }
 
-            if (!estacion) {
-                console.error("Estación no encontrada:", estacionKey);
-                return;
-            }
+    if (!estacion) {
+        console.error("Estación no encontrada:", estacionKey);
+        return;
+    }
 
-            try {
-                // 1. Fetch de datos principales (Temperatura/Humedad)
-                const responsePrincipal = await fetch(estacion.api_url);
-                const dataPrincipal = await responsePrincipal.json();
-                
-                // 2. Fetch de datos de Precipitación (Si existe una URL separada)
-                let feedsPrecipitacion = [];
-                let campoPrecipitacion = estacion.campo_precip;
+    try {
+        // 1. Fetch de datos principales (Temperatura/Humedad)
+        const responsePrincipal = await fetch(estacion.api_url);
+        const dataPrincipal = await responsePrincipal.json();
+        
+        // 2. Fetch de datos de Precipitación
+        let feedsPrecipitacion = [];
+        let campoPrecipitacion = estacion.campo_precip;
 
-                if (estacion.api_url_precip) {
-                     const responsePrecip = await fetch(estacion.api_url_precip);
-                     const dataPrecip = await responsePrecip.json();
-                     feedsPrecipitacion = dataPrecip.feeds;
-                } else {
-                     feedsPrecipitacion = dataPrincipal.feeds;
-                }
+        if (estacion.api_url_precip) {
+             const responsePrecip = await fetch(estacion.api_url_precip);
+             const dataPrecip = await responsePrecip.json();
+             feedsPrecipitacion = dataPrecip.feeds;
+        } else {
+             feedsPrecipitacion = dataPrincipal.feeds;
+        }
 
-                let feeds = dataPrincipal.feeds; // Feeds completos (ThingSpeak es newest first)
+        let feeds = dataPrincipal.feeds; // Feeds completos (ThingSpeak es newest first)
 
-                
-                // 🛑 LÓGICA DE TIEMPO BASE
-                const now = new Date();
-                // 00:00 UTC del día de hoy
-                const startOfTodayUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0));
-                
-                // RANGO PARA GRÁFICO: Últimas 24 horas
-                const startOfLast24Hours = new Date(now.getTime() - (24 * 60 * 60 * 1000)); 
-                
-                // ----------------------------------------------------------------------------------
-                // 🛑 FILTRADO DE DATOS EN ARRAYS DISTINTOS
-                
-                const tempsDelDiaCalendario = [];  // Para Max/Min (00z-now)
-                const feedsParaGrafico_ReverseOrder = [];  // Para Gráfico (Last 24 hours - Newest first)
+        
+        // 🛑 LÓGICA DE TIEMPO BASE
+        const now = new Date();
+        const startOfTodayUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0));
+        const startOfLast24Hours = new Date(now.getTime() - (24 * 60 * 60 * 1000)); 
+        
+        // ----------------------------------------------------------------------------------
+        // FILTRADO DE DATOS
+        
+        const tempsDelDiaCalendario = [];  // Para Max/Min (00z-now)
+        const feedsParaGrafico_ReverseOrder = [];  // Para Gráfico (Last 24 hours - Newest first)
 
-                for (const feed of feeds) {
-                    const timestamp = new Date(feed.created_at);
-                    const tempValue = parseFloat(getFieldValue(feed, estacion.campo_temp));
-                    
-                    // 1. Filtrado para Máx/Mín del Día Calendario (00z a now)
-                    if (timestamp >= startOfTodayUtc && timestamp <= now) {
-                        if (!isNaN(tempValue)) tempsDelDiaCalendario.push(tempValue);
-                    }
+        for (const feed of feeds) {
+            const timestamp = new Date(feed.created_at);
+            const tempValue = parseFloat(getFieldValue(feed, estacion.campo_temp));
+            
+            // 1. Filtrado para Máx/Mín del Día Calendario (00z a now)
+            if (timestamp >= startOfTodayUtc && timestamp <= now) {
+                if (!isNaN(tempValue)) tempsDelDiaCalendario.push(tempValue);
+            }
 
-                    // 2. Filtrado para el Gráfico (Últimas 24 horas)
-                    if (timestamp >= startOfLast24Hours && timestamp <= now) {
-                        feedsParaGrafico_ReverseOrder.push(feed); 
-                    }
-                }
-                
-                // 3. CÁLCULO de Máx/Mín: Usa SÓLO los datos del Día Calendario (00z-actual)
-                const maxTemp = tempsDelDiaCalendario.length > 0 ? Math.max(...tempsDelDiaCalendario).toFixed(2) : '--';
-                const minTemp = tempsDelDiaCalendario.length > 0 ? Math.min(...tempsDelDiaCalendario).toFixed(2) : '--';
+            // 2. Filtrado para el Gráfico (Últimas 24 horas)
+            if (timestamp >= startOfLast24Hours && timestamp <= now) {
+                 // SÓLO agregamos el feed, NO lo invertimos aquí.
+                 feedsParaGrafico_ReverseOrder.push(feed); 
+            }
+        }
+        
+        // 3. CÁLCULO de Máx/Mín
+        const maxTemp = tempsDelDiaCalendario.length > 0 ? Math.max(...tempsDelDiaCalendario).toFixed(2) : '--';
+        const minTemp = tempsDelDiaCalendario.length > 0 ? Math.min(...tempsDelDiaCalendario).toFixed(2) : '--';
 
-                // Actualización de Máx/Mín en el DOM
-                document.getElementById('temp-max').textContent = `${maxTemp} °C`;
-                document.getElementById('temp-min').textContent = `${minTemp} °C`;
+        document.getElementById('temp-max').textContent = `${maxTemp} °C`;
+        document.getElementById('temp-min').textContent = `${minTemp} °C`;
 
-                // ----------------------------------------------------------------------------------
-                // 🛑 LÓGICA PARA CÁLCULO DE PRECIPITACIÓN (DÍA METEOROLÓGICO: 12z-12z)
-                
-                const doceUtc = 12;
+        // ----------------------------------------------------------------------------------
+        // LÓGICA PARA CÁLCULO DE PRECIPITACIÓN (DÍA METEOROLÓGICO: 12z-12z)
+        const doceUtc = 12;
 
-                let endRangePrecip = new Date(startOfTodayUtc); 
-                endRangePrecip.setUTCHours(doceUtc); 
-                
-                if (now.getUTCHours() < doceUtc) {
-                    // Si aún no son las 12 UTC, el día meteorológico terminó a las 12 UTC de ayer.
-                    endRangePrecip.setUTCDate(endRangePrecip.getUTCDate() - 1); 
-                }
-                
-                let startRangePrecip = new Date(endRangePrecip);
-                startRangePrecip.setUTCDate(startRangePrecip.getUTCDate() - 1);
+        let endRangePrecip = new Date(startOfTodayUtc); 
+        endRangePrecip.setUTCHours(doceUtc); 
+        
+        if (now.getUTCHours() < doceUtc) {
+            endRangePrecip.setUTCDate(endRangePrecip.getUTCDate() - 1); 
+        }
+        
+        let startRangePrecip = new Date(endRangePrecip);
+        startRangePrecip.setUTCDate(startRangePrecip.getUTCDate() - 1);
 
-                // 2. Filtrar solo los datos de PRECIPITACIÓN dentro del rango 12z-12z
-                const valoresPrecipitacion = [];
+        const valoresPrecipitacion = [];
 
-                for (const feed of feedsPrecipitacion) {
-                    const timestamp = new Date(feed.created_at);
-                    const precipValue = parseFloat(getFieldValue(feed, campoPrecipitacion)); 
+        for (const feed of feedsPrecipitacion) {
+            const timestamp = new Date(feed.created_at);
+            const precipValue = parseFloat(getFieldValue(feed, campoPrecipitacion)); 
 
-                    if (timestamp >= startRangePrecip && timestamp <= endRangePrecip && !isNaN(precipValue) && precipValue !== null) {
-                        valoresPrecipitacion.push(precipValue);
-                    }
-                }
-                
-                // 3. CÁLCULO DE PRECIPITACIÓN COMO DIFERENCIA (MAX - MIN)
-                let totalPrecip = '--';
+            if (timestamp >= startRangePrecip && timestamp <= endRangePrecip && !isNaN(precipValue) && precipValue !== null) {
+                valoresPrecipitacion.push(precipValue);
+            }
+        }
+        
+        // 3. CÁLCULO DE PRECIPITACIÓN COMO DIFERENCIA (MAX - MIN)
+        let totalPrecip = '--';
 
-                if (valoresPrecipitacion.length > 0) {
-                    const maxPrecip = Math.max(...valoresPrecipitacion);
-                    const minPrecip = Math.min(...valoresPrecipitacion);
-                    
-                    totalPrecip = (maxPrecip - minPrecip).toFixed(2);
-                }
-                
-                // Actualización de Precipitación en el DOM
-                document.getElementById('precipitacion').textContent = `${totalPrecip} mm`; 
-                
-                // ----------------------------------------------------------------------------------
-                
-                // CREACIÓN DE DATOS PARA GRÁFICOS (USA feedsParaGrafico)
-                
-                // Invertimos el array para que el gráfico sea cronológico (de más antiguo a más reciente).
-                const feedsParaGrafico_chronological = feedsParaGrafico_ReverseOrder.reverse();
+        if (valoresPrecipitacion.length > 0) {
+            const maxPrecip = Math.max(...valoresPrecipitacion);
+            const minPrecip = Math.min(...valoresPrecipitacion);
+            
+            totalPrecip = (maxPrecip - minPrecip).toFixed(2);
+        }
+        
+        document.getElementById('precipitacion').textContent = `${totalPrecip} mm`; 
+        
+        // ----------------------------------------------------------------------------------
+        
+        // CREACIÓN DE DATOS PARA GRÁFICOS
+        
+        // 🛑 SOLUCIÓN CRUCIAL: Creamos una copia antes de invertirla.
+        // Esto asegura que el array original filtrado (feedsParaGrafico_ReverseOrder) no se altere
+        // y que la inversión sea para que el tiempo corra de izquierda a derecha.
+        const feedsParaGrafico_chronological = [...feedsParaGrafico_ReverseOrder].reverse(); 
 
-                const labels = feedsParaGrafico_chronological.map(feed => {
-                    const date = new Date(feed.created_at);
-                    // Usamos hora local (es-AR) para las etiquetas
-                    return date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
-                }); 
-                
-                const temperaturas = feedsParaGrafico_chronological.map(feed => parseFloat(getFieldValue(feed, estacion.campo_temp))).filter(val => !isNaN(val));
-                const humedades = feedsParaGrafico_chronological.map(feed => parseFloat(getFieldValue(feed, estacion.campo_hum))).filter(val => !isNaN(val));
+        const labels = feedsParaGrafico_chronological.map(feed => {
+            const date = new Date(feed.created_at);
+            return date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+        }); 
+        
+        const temperaturas = feedsParaGrafico_chronological.map(feed => parseFloat(getFieldValue(feed, estacion.campo_temp))).filter(val => !isNaN(val));
+        const humedades = feedsParaGrafico_chronological.map(feed => parseFloat(getFieldValue(feed, estacion.campo_hum))).filter(val => !isNaN(val));
 
-                
-                let dateRangeText = '';
-                if (feedsParaGrafico_chronological.length > 0) {
-                    // Muestra el rango de 24 horas (desde el punto más antiguo hasta el más reciente)
-                    const firstDate = new Date(feedsParaGrafico_chronological[0].created_at); 
-                    const lastDate = new Date(feedsParaGrafico_chronological[feedsParaGrafico_chronological.length - 1].created_at);
-                    
-                    const timeFormat = { hour: '2-digit', minute: '2-digit' };
-                    const dateFormat = { day: '2-digit', month: 'short' };
-                    
-                    const startLabel = `${firstDate.toLocaleDateString('es-AR', dateFormat)} ${firstDate.toLocaleTimeString('es-AR', timeFormat)}`;
-                    const endLabel = `${lastDate.toLocaleDateString('es-AR', dateFormat)} ${lastDate.toLocaleTimeString('es-AR', timeFormat)}`;
+        
+        let dateRangeText = '';
+        if (feedsParaGrafico_chronological.length > 0) {
+            const firstDate = new Date(feedsParaGrafico_chronological[0].created_at); 
+            const lastDate = new Date(feedsParaGrafico_chronological[feedsParaGrafico_chronological.length - 1].created_at);
+            
+            const timeFormat = { hour: '2-digit', minute: '2-digit' };
+            const dateFormat = { day: '2-digit', month: 'short' };
+            
+            const startLabel = `${firstDate.toLocaleDateString('es-AR', dateFormat)} ${firstDate.toLocaleTimeString('es-AR', timeFormat)}`;
+            const endLabel = `${lastDate.toLocaleDateString('es-AR', dateFormat)} ${lastDate.toLocaleTimeString('es-AR', timeFormat)}`;
 
-                    dateRangeText = `(${startLabel} - ${endLabel})`;
-                } else {
-                     dateRangeText = `(Sin datos en las últimas 24hs)`;
-                }
-                document.getElementById('temp-date-range').textContent = dateRangeText;
-                document.getElementById('hum-date-range').textContent = dateRangeText;
+            dateRangeText = `(${startLabel} - ${endLabel})`;
+        } else {
+             dateRangeText = `(Sin datos en las últimas 24hs)`;
+        }
+        document.getElementById('temp-date-range').textContent = dateRangeText;
+        document.getElementById('hum-date-range').textContent = dateRangeText;
 
-                temperaturaChart = new Chart(temperaturaCtx, {
-                    type: 'line',
-                    data: { labels: labels, datasets: [{ label: 'Temperatura (°C)', data: temperaturas, borderColor: 'orange', backgroundColor: 'rgba(255, 165, 0, 0.2)', tension: 0.3, fill: true }] },
-                    options: { 
-                        responsive: true, 
-                        scales: { 
-                            y: { beginAtZero: false },
-                            x: { 
-                                title: { display: true, text: 'Hora (HH:MM)'},
-                                // *** CORRECCIÓN APLICADA AQUÍ ***
-                                reverse: false // Asegura que el tiempo avance de izquierda (pasado) a derecha (presente)
-                            } 
-                        } 
-                    }
-                });
+        // ** Chart.js - Temperatura **
+        temperaturaChart = new Chart(temperaturaCtx, {
+            type: 'line',
+            data: { labels: labels, datasets: [{ label: 'Temperatura (°C)', data: temperaturas, borderColor: 'orange', backgroundColor: 'rgba(255, 165, 0, 0.2)', tension: 0.3, fill: true }] },
+            options: { 
+                responsive: true, 
+                scales: { 
+                    y: { beginAtZero: false },
+                    x: { 
+                        title: { display: true, text: 'Hora (HH:MM)'},
+                        reverse: false // Correcto: tiempo avanza de izquierda a derecha
+                    } 
+                } 
+            }
+        });
+
+        // ** Chart.js - Humedad **
+        humedadChart = new Chart(humedadCtx, {
+            type: 'line',
+            data: { labels: labels, datasets: [{ label: 'Humedad (%)', data: humedades, borderColor: 'blue', backgroundColor: 'rgba(58, 165, 230, 0.2)', tension: 0.3, fill: true }] },
+            options: { 
+                responsive: true, 
+                scales: { 
+                    y: { beginAtZero: true, max: 100 },
+                    x: { 
+                        title: { display: true, text: 'Hora (HH:MM)'},
+                        reverse: false // Correcto: tiempo avanza de izquierda a derecha
+                    } 
+                } 
+            }
+        });
+
+    } catch (error) {
+        console.error("Error al cargar datos históricos (Revisa la configuración de la API o la conexión a internet):", error);
+    }
+}
+// =========================================================================
 
                 humedadChart = new Chart(humedadCtx, {
                     type: 'line',
