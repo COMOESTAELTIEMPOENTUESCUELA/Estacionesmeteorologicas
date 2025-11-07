@@ -396,7 +396,8 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
         }
 
 // =========================================================================
-// FUNCIÓN CORREGIDA: Cambio de estación y orden cronológico del tiempo
+// FUNCIÓN CORREGIDA: Incluye la destrucción de gráficos, orden cronológico 
+// y el arreglo del tamaño de la página (maintainAspectRatio: false)
 // =========================================================================
 async function cargarGraficos(estacionKey) {
     const estacion = ESTACIONES[estacionKey];
@@ -462,7 +463,6 @@ async function cargarGraficos(estacionKey) {
 
             // 2. Filtrado para el Gráfico (Últimas 24 horas)
             if (timestamp >= startOfLast24Hours && timestamp <= now) {
-                 // SÓLO agregamos el feed, no se modifica el orden aquí.
                  feedsParaGrafico_ReverseOrder.push(feed); 
             }
         }
@@ -514,93 +514,88 @@ async function cargarGraficos(estacionKey) {
         
         // ----------------------------------------------------------------------------------
         
-        // ----------------------------------------------------------------------------------
-// CREACIÓN DE DATOS PARA GRÁFICOS
+        // CREACIÓN DE DATOS PARA GRÁFICOS (con corrección de orden cronológico)
+        
+        const feedsParaGrafico_chronological = [...feedsParaGrafico_ReverseOrder].reverse(); 
 
-// 🛑 CORRECCIÓN CLAVE: Usamos el operador spread ([...]) para copiar el array
-// y luego lo invertimos (Pasado -> Presente). Esto garantiza el orden cronológico.
-const feedsParaGrafico_chronological = [...feedsParaGrafico_ReverseOrder].reverse();
+        const labels = feedsParaGrafico_chronological.map(feed => {
+            const date = new Date(feed.created_at);
+            return date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+        }); 
+        
+        const temperaturas = feedsParaGrafico_chronological.map(feed => parseFloat(getFieldValue(feed, estacion.campo_temp))).filter(val => !isNaN(val));
+        const humedades = feedsParaGrafico_chronological.map(feed => parseFloat(getFieldValue(feed, estacion.campo_hum))).filter(val => !isNaN(val));
 
-const labels = feedsParaGrafico_chronological.map(feed => {
-    const date = new Date(feed.created_at);
-    // Formato de hora local para el eje X
-    return date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
-});
+        
+        let dateRangeText = '';
+        if (feedsParaGrafico_chronological.length > 0) {
+            const firstDate = new Date(feedsParaGrafico_chronological[0].created_at); 
+            const lastDate = new Date(feedsParaGrafico_chronological[feedsParaGrafico_chronological.length - 1].created_at);
+            
+            const timeFormat = { hour: '2-digit', minute: '2-digit' };
+            const dateFormat = { day: '2-digit', month: 'short' };
+            
+            const startLabel = `${firstDate.toLocaleDateString('es-AR', dateFormat)} ${firstDate.toLocaleTimeString('es-AR', timeFormat)}`;
+            const endLabel = `${lastDate.toLocaleDateString('es-AR', dateFormat)} ${lastDate.toLocaleTimeString('es-AR', timeFormat)}`;
 
-// Los datos de temperatura y humedad se mapean usando el array YA INVERTIDO
-const temperaturas = feedsParaGrafico_chronological.map(feed => parseFloat(getFieldValue(feed, estacion.campo_temp))).filter(val => !isNaN(val));
-const humedades = feedsParaGrafico_chronological.map(feed => parseFloat(getFieldValue(feed, estacion.campo_hum))).filter(val => !isNaN(val));
-
-
-let dateRangeText = '';
-if (feedsParaGrafico_chronological.length > 0) {
-    const firstDate = new Date(feedsParaGrafico_chronological[0].created_at);
-    const lastDate = new Date(feedsParaGrafico_chronological[feedsParaGrafico_chronological.length - 1].created_at);
-
-    const timeFormat = { hour: '2-digit', minute: '2-digit' };
-    const dateFormat = { day: '2-digit', month: 'short' };
-
-    const startLabel = `${firstDate.toLocaleDateString('es-AR', dateFormat)} ${firstDate.toLocaleTimeString('es-AR', timeFormat)}`;
-    const endLabel = `${lastDate.toLocaleDateString('es-AR', dateFormat)} ${lastDate.toLocaleTimeString('es-AR', timeFormat)}`;
-
-    dateRangeText = `(${startLabel} - ${endLabel})`;
-} else {
-     dateRangeText = `(Sin datos en las últimas 24hs)`;
-}
-document.getElementById('temp-date-range').textContent = dateRangeText;
-document.getElementById('hum-date-range').textContent = dateRangeText;
-
-// ** Chart.js - Temperatura **
-temperaturaChart = new Chart(temperaturaCtx, {
-    type: 'line',
-    data: { labels: labels, datasets: [{ label: 'Temperatura (°C)', data: temperaturas, borderColor: 'orange', backgroundColor: 'rgba(255, 165, 0, 0.2)', tension: 0.3, fill: true }] },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false, // Asegura que el contenedor respete el tamaño si se ajusta
-        scales: {
-            y: { beginAtZero: false },
-            x: {
-                title: { display: true, text: 'Hora (HH:MM)'},
-                // 🛑 Aseguramos que NO se invierta el eje.
-                reverse: false 
-            }
-        },
-        plugins: {
-            tooltip: {
-                mode: 'index',
-                intersect: false
-            }
+            dateRangeText = `(${startLabel} - ${endLabel})`;
+        } else {
+             dateRangeText = `(Sin datos en las últimas 24hs)`;
         }
-    }
-});
+        document.getElementById('temp-date-range').textContent = dateRangeText;
+        document.getElementById('hum-date-range').textContent = dateRangeText;
 
-// ** Chart.js - Humedad **
-humedadChart = new Chart(humedadCtx, {
-    type: 'line',
-    data: { labels: labels, datasets: [{ label: 'Humedad (%)', data: humedades, borderColor: 'blue', backgroundColor: 'rgba(58, 165, 230, 0.2)', tension: 0.3, fill: true }] },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false, // Asegura que el contenedor respete el tamaño si se ajusta
-        scales: {
-            y: { beginAtZero: true, max: 100 },
-            x: {
-                title: { display: true, text: 'Hora (HH:MM)'},
-                // 🛑 Aseguramos que NO se invierta el eje.
-                reverse: false
+        // ** Chart.js - Temperatura **
+        temperaturaChart = new Chart(temperaturaCtx, {
+            type: 'line',
+            data: { labels: labels, datasets: [{ label: 'Temperatura (°C)', data: temperaturas, borderColor: 'orange', backgroundColor: 'rgba(255, 165, 0, 0.2)', tension: 0.3, fill: true }] },
+            options: { 
+                responsive: true,
+                // 🛑 CORRECCIÓN DE TAMAÑO: EVITA QUE EL GRÁFICO SE ESTIRE
+                maintainAspectRatio: false, 
+                scales: { 
+                    y: { beginAtZero: false },
+                    x: { 
+                        title: { display: true, text: 'Hora (HH:MM)'},
+                        reverse: false
+                    } 
+                },
+                plugins: {
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false
+                    }
+                }
             }
-        },
-        plugins: {
-            tooltip: {
-                mode: 'index',
-                intersect: false
-            }
-        }
-    }
-});
+        });
 
-} catch (error) {
-    console.error("Error al cargar datos históricos (Revisa la configuración de la API o la conexión a internet):", error);
-}
+        // ** Chart.js - Humedad **
+        humedadChart = new Chart(humedadCtx, {
+            type: 'line',
+            data: { labels: labels, datasets: [{ label: 'Humedad (%)', data: humedades, borderColor: 'blue', backgroundColor: 'rgba(58, 165, 230, 0.2)', tension: 0.3, fill: true }] },
+            options: { 
+                responsive: true, 
+                // 🛑 CORRECCIÓN DE TAMAÑO: EVITA QUE EL GRÁFICO SE ESTIRE
+                maintainAspectRatio: false,
+                scales: { 
+                    y: { beginAtZero: true, max: 100 },
+                    x: { 
+                        title: { display: true, text: 'Hora (HH:MM)'},
+                        reverse: false
+                    } 
+                },
+                plugins: {
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false
+                    }
+                }
+            }
+        });
+
+    } catch (error) {
+        console.error("Error al cargar datos históricos (Revisa la configuración de la API o la conexión a internet):", error);
+    }
 }
 // =========================================================================
 
