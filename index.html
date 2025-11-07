@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>¿Cómo está el tiempo en tu escuela? - UNLP</title>
-    
+    
     <link rel="icon" type="image/png" href="imagenes/logo.png">
     <link rel="shortcut icon" type="image/png" href="imagenes/logo.png">
-    
+    
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -15,9 +15,9 @@
 
     <script src="https://www.gstatic.com/firebasejs/7.19.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/7.19.1/firebase-database.js"></script>
-    
+    
     <link rel="stylesheet" href="styles.css">
-    
+    
     <style>
         /* Estilos CSS para el control de selección de variables */
         #mapa-controles {
@@ -95,7 +95,7 @@
             <label for="estacion-select">Selecciona la Estación:</label>
             <select id="estacion-select" onchange="cargarGraficosDeSeleccion()"></select>
         </div>
-        
+        
         <div class="resumen-historico">
             <h3>Resumen Histórico de la Selección</h3>
             <div class="resumen-grid">
@@ -206,8 +206,8 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                 "lat": -35.28,  // Latitud aproximada para Punta Indio, ¡AJUSTA SI ES NECESARIO!
                 "lon": -57.26,  // Longitud aproximada para Punta Indio, ¡AJUSTA SI ES NECESARIO!
                 "nombre": "EMA Punta Indio",
-                "campo_temp": "field1", 
-                "campo_hum": "field3", 
+                "campo_temp": "field1", 
+                "campo_hum": "field3", 
                 "campo_precip": "field6",
                 "foto_url": "imagenes/puntaindio.png" // Recuerda agregar esta imagen
             },
@@ -395,13 +395,13 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
             return value;
         }
 
-        // =========================================================================
-// FUNCIÓN CORREGIDA: Incluye la destrucción de gráficos y la corrección de datos.
+// =========================================================================
+// FUNCIÓN CORREGIDA: Cambio de estación y orden cronológico del tiempo
 // =========================================================================
 async function cargarGraficos(estacionKey) {
     const estacion = ESTACIONES[estacionKey];
     
-    // Si se selecciona la estación Wunderground
+    // Si se selecciona la estación Wunderground (estacion3)
     if (estacionKey === "estacion3") {
         console.warn(`La estación ${estacion.nombre} utiliza un enlace externo para su información histórica.`);
         document.getElementById('temp-max').textContent = '--';
@@ -440,7 +440,9 @@ async function cargarGraficos(estacionKey) {
         
         // 🛑 LÓGICA DE TIEMPO BASE
         const now = new Date();
+        // 00:00 UTC del día de hoy (para Máx/Mín Diario)
         const startOfTodayUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0));
+        // Hace 24 horas (para el Gráfico)
         const startOfLast24Hours = new Date(now.getTime() - (24 * 60 * 60 * 1000)); 
         
         // ----------------------------------------------------------------------------------
@@ -460,7 +462,7 @@ async function cargarGraficos(estacionKey) {
 
             // 2. Filtrado para el Gráfico (Últimas 24 horas)
             if (timestamp >= startOfLast24Hours && timestamp <= now) {
-                 // SÓLO agregamos el feed, NO lo invertimos aquí.
+                 // SÓLO agregamos el feed, no se modifica el orden aquí.
                  feedsParaGrafico_ReverseOrder.push(feed); 
             }
         }
@@ -480,11 +482,12 @@ async function cargarGraficos(estacionKey) {
         endRangePrecip.setUTCHours(doceUtc); 
         
         if (now.getUTCHours() < doceUtc) {
+            // Si la hora actual es antes de las 12 UTC, el día meteorológico terminó a las 12 UTC de ayer.
             endRangePrecip.setUTCDate(endRangePrecip.getUTCDate() - 1); 
         }
         
         let startRangePrecip = new Date(endRangePrecip);
-        startRangePrecip.setUTCDate(startRangePrecip.getUTCDate() - 1);
+        startRangePrecip.setUTCDate(startRangePrecip.getUTCDate() - 1); // 24 horas antes del final
 
         const valoresPrecipitacion = [];
 
@@ -513,9 +516,8 @@ async function cargarGraficos(estacionKey) {
         
         // CREACIÓN DE DATOS PARA GRÁFICOS
         
-        // 🛑 SOLUCIÓN CRUCIAL: Creamos una copia antes de invertirla.
-        // Esto asegura que el array original filtrado (feedsParaGrafico_ReverseOrder) no se altere
-        // y que la inversión sea para que el tiempo corra de izquierda a derecha.
+        // 🛑 CORRECCIÓN CLAVE: Usamos el operador spread ([...]) para copiar el array
+        // y luego lo invertimos (Pasado -> Presente).
         const feedsParaGrafico_chronological = [...feedsParaGrafico_ReverseOrder].reverse(); 
 
         const labels = feedsParaGrafico_chronological.map(feed => {
@@ -583,62 +585,42 @@ async function cargarGraficos(estacionKey) {
 }
 // =========================================================================
 
-                humedadChart = new Chart(humedadCtx, {
-                    type: 'line',
-                    data: { labels: labels, datasets: [{ label: 'Humedad (%)', data: humedades, borderColor: 'blue', backgroundColor: 'rgba(58, 165, 230, 0.2)', tension: 0.3, fill: true }] },
-                    options: { 
-                        responsive: true, 
-                        scales: { 
-                            y: { beginAtZero: true, max: 100 },
-                            x: { 
-                                title: { display: true, text: 'Hora (HH:MM)'},
-                                // *** CORRECCIÓN APLICADA AQUÍ ***
-                                reverse: false // Asegura que el tiempo avance de izquierda (pasado) a derecha (presente)
-                            } 
-                        } 
-                    }
-                });
-
-            } catch (error) {
-                console.error("Error al cargar datos históricos (Revisa la configuración de la API o la conexión a internet):", error);
-            }
-        }
-
-        // FUNCIÓN MODIFICADA: Ahora redirige si se selecciona la EMA IARANA2 (SIN CAMBIOS)
+        // FUNCIÓN MODIFICADA: Ahora redirige si se selecciona la EMA IARANA2 (DESTRUYE GRÁFICOS)
         function cargarGraficosDeSeleccion() {
-    // 1. 🚨 DESTRUYE LOS GRÁFICOS PREVIOS AQUÍ 🚨
-    if (temperaturaChart) temperaturaChart.destroy();
-    if (humedadChart) humedadChart.destroy();
+            // 1. 🚨 DESTRUYE LOS GRÁFICOS PREVIOS AQUÍ 🚨
+            if (temperaturaChart) temperaturaChart.destroy();
+            if (humedadChart) humedadChart.destroy();
 
-    const selectedKey = estacionSelect.value;
-    const estacion = ESTACIONES[selectedKey];
+            const selectedKey = estacionSelect.value;
+            const estacion = ESTACIONES[selectedKey];
 
-    // Lógica de Redirección (para la estación Wunderground)
-    if (selectedKey === "estacion3" && estacion.wunderground_url) {
-        
-        document.getElementById('temp-max').textContent = '-- °C';
-        document.getElementById('temp-min').textContent = '-- °C';
-        document.getElementById('precipitacion').textContent = '-- mm';
-        alert(`Abriendo el panel de la estación ${estacion.nombre} en Wunderground...`);
+            // Lógica de Redirección (para la estación Wunderground)
+            if (selectedKey === "estacion3" && estacion.wunderground_url) {
+                
+                document.getElementById('temp-max').textContent = '-- °C';
+                document.getElementById('temp-min').textContent = '-- °C';
+                document.getElementById('precipitacion').textContent = '-- mm';
+                alert(`Abriendo el panel de la estación ${estacion.nombre} en Wunderground...`);
 
-        const primeraEstacionKey = Object.keys(ESTACIONES).find(key => key !== "estacion3");
-        estacionSelect.value = primeraEstacionKey;
-        
-        cargarGraficos(primeraEstacionKey); 
-        window.open(estacion.wunderground_url, '_blank'); 
+                const primeraEstacionKey = Object.keys(ESTACIONES).find(key => key !== "estacion3");
+                estacionSelect.value = primeraEstacionKey;
+                
+                cargarGraficos(primeraEstacionKey); 
+                window.open(estacion.wunderground_url, '_blank'); 
 
-        return; 
-    }
-    
-    // 2. Cargar los nuevos gráficos de la estación seleccionada
-    cargarGraficos(selectedKey);
-}
+                return; 
+            }
+            
+            // 2. Cargar los nuevos gráficos de la estación seleccionada
+            cargarGraficos(selectedKey);
+        }
 
         document.addEventListener('DOMContentLoaded', () => {
             inicializarMarcadores(); 
             poblarSelectyLista(); 
             cargarReportes(); 
             
+            // Carga el gráfico inicial (la primera estación que no sea 'estacion3')
             const primeraEstacionKey = Object.keys(ESTACIONES).find(key => key !== "estacion3");
             if (primeraEstacionKey) {
                 cargarGraficos(primeraEstacionKey);
