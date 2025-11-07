@@ -16,7 +16,7 @@
     <script src="https://www.gstatic.com/firebasejs/7.19.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/7.19.1/firebase-database.js"></script>
     
-        <link rel="stylesheet" href="styles.css"> 
+    <link rel="stylesheet" href="styles.css">
     
     <style>
         /* Estilos CSS para el control de selección de variables */
@@ -40,34 +40,10 @@
             white-space: nowrap;
         }
         .leaflet-tooltip small {
-            font-size: 10px; 
+            font-size: 10px; /* Estilo para la hora de actualización */
             opacity: 0.8;
             font-weight: normal;
         }
-
-        /* 🛑 ESTILOS PARA CORREGIR EL TAMAÑO EXCESIVO DEL GRÁFICO 🛑 */
-        .graficos-container {
-            display: flex; 
-            flex-wrap: wrap; 
-            gap: 20px;
-            margin-top: 20px;
-        }
-        .grafico {
-            flex: 1 1 45%; 
-            padding: 15px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            background-color: #fff;
-            height: 400px; /* ALTO FIJO NECESARIO PARA CHART.JS */
-            position: relative;
-        }
-        @media (max-width: 768px) {
-            .grafico {
-                flex-basis: 100%; 
-                height: 300px; /* ALTO PARA MÓVILES */
-            }
-        }
-        /* FIN ESTILOS CRÍTICOS */
     </style>
 </head>
 <body>
@@ -227,13 +203,13 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
             // 🆕 ESTACIÓN AGREGADA: EMA Punta Indio
             "puntaindio": {
                 "api_url": "https://api.thingspeak.com/channels/3149195/feeds.json?results=1000&api_key=8J0IFWSGB74Q8O54", 
-                "lat": -35.28, 
-                "lon": -57.26, 
+                "lat": -35.28,  // Latitud aproximada para Punta Indio, ¡AJUSTA SI ES NECESARIO!
+                "lon": -57.26,  // Longitud aproximada para Punta Indio, ¡AJUSTA SI ES NECESARIO!
                 "nombre": "EMA Punta Indio",
                 "campo_temp": "field1", 
                 "campo_hum": "field3", 
                 "campo_precip": "field6",
-                "foto_url": "imagenes/puntaindio.png" 
+                "foto_url": "imagenes/puntaindio.png" // Recuerda agregar esta imagen
             },
             // FIN DE LA NUEVA ESTACIÓN
 
@@ -420,7 +396,7 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
         }
 
 // =========================================================================
-// FUNCIÓN CORREGIDA FINAL
+// FUNCIÓN CORREGIDA: Cambio de estación y orden cronológico del tiempo
 // =========================================================================
 async function cargarGraficos(estacionKey) {
     const estacion = ESTACIONES[estacionKey];
@@ -433,6 +409,7 @@ async function cargarGraficos(estacionKey) {
         document.getElementById('precipitacion').textContent = '--';
         document.getElementById('temp-date-range').textContent = '';
         document.getElementById('hum-date-range').textContent = '';
+        // Los gráficos ya fueron destruidos en cargarGraficosDeSeleccion()
         return;
     }
 
@@ -463,7 +440,9 @@ async function cargarGraficos(estacionKey) {
         
         // 🛑 LÓGICA DE TIEMPO BASE
         const now = new Date();
+        // 00:00 UTC del día de hoy (para Máx/Mín Diario)
         const startOfTodayUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0));
+        // Hace 24 horas (para el Gráfico)
         const startOfLast24Hours = new Date(now.getTime() - (24 * 60 * 60 * 1000)); 
         
         // ----------------------------------------------------------------------------------
@@ -476,11 +455,14 @@ async function cargarGraficos(estacionKey) {
             const timestamp = new Date(feed.created_at);
             const tempValue = parseFloat(getFieldValue(feed, estacion.campo_temp));
             
+            // 1. Filtrado para Máx/Mín del Día Calendario (00z a now)
             if (timestamp >= startOfTodayUtc && timestamp <= now) {
                 if (!isNaN(tempValue)) tempsDelDiaCalendario.push(tempValue);
             }
 
+            // 2. Filtrado para el Gráfico (Últimas 24 horas)
             if (timestamp >= startOfLast24Hours && timestamp <= now) {
+                 // SÓLO agregamos el feed, no se modifica el orden aquí.
                  feedsParaGrafico_ReverseOrder.push(feed); 
             }
         }
@@ -500,11 +482,12 @@ async function cargarGraficos(estacionKey) {
         endRangePrecip.setUTCHours(doceUtc); 
         
         if (now.getUTCHours() < doceUtc) {
+            // Si la hora actual es antes de las 12 UTC, el día meteorológico terminó a las 12 UTC de ayer.
             endRangePrecip.setUTCDate(endRangePrecip.getUTCDate() - 1); 
         }
         
         let startRangePrecip = new Date(endRangePrecip);
-        startRangePrecip.setUTCDate(startRangePrecip.getUTCDate() - 1); 
+        startRangePrecip.setUTCDate(startRangePrecip.getUTCDate() - 1); // 24 horas antes del final
 
         const valoresPrecipitacion = [];
 
@@ -531,9 +514,10 @@ async function cargarGraficos(estacionKey) {
         
         // ----------------------------------------------------------------------------------
         
-        // CREACIÓN DE DATOS PARA GRÁFICOS (ORDEN CRONOLÓGICO: PASADO -> PRESENTE)
+        // CREACIÓN DE DATOS PARA GRÁFICOS
         
-        // Se invierte la lista para que el tiempo corra de izquierda (antiguo) a derecha (reciente)
+        // 🛑 CORRECCIÓN CLAVE: Usamos el operador spread ([...]) para copiar el array
+        // y luego lo invertimos (Pasado -> Presente).
         const feedsParaGrafico_chronological = [...feedsParaGrafico_ReverseOrder].reverse(); 
 
         const labels = feedsParaGrafico_chronological.map(feed => {
@@ -568,21 +552,14 @@ async function cargarGraficos(estacionKey) {
             type: 'line',
             data: { labels: labels, datasets: [{ label: 'Temperatura (°C)', data: temperaturas, borderColor: 'orange', backgroundColor: 'rgba(255, 165, 0, 0.2)', tension: 0.3, fill: true }] },
             options: { 
-                responsive: true,
-                maintainAspectRatio: false, // Solución a la expansión vertical
+                responsive: true, 
                 scales: { 
                     y: { beginAtZero: false },
                     x: { 
                         title: { display: true, text: 'Hora (HH:MM)'},
-                        reverse: false // Tiempo de izquierda a derecha
+                        reverse: false // Correcto: tiempo avanza de izquierda a derecha
                     } 
-                },
-                plugins: {
-                    tooltip: {
-                        mode: 'index',
-                        intersect: false
-                    }
-                }
+                } 
             }
         });
 
@@ -592,20 +569,13 @@ async function cargarGraficos(estacionKey) {
             data: { labels: labels, datasets: [{ label: 'Humedad (%)', data: humedades, borderColor: 'blue', backgroundColor: 'rgba(58, 165, 230, 0.2)', tension: 0.3, fill: true }] },
             options: { 
                 responsive: true, 
-                maintainAspectRatio: false, // Solución a la expansión vertical
                 scales: { 
                     y: { beginAtZero: true, max: 100 },
                     x: { 
                         title: { display: true, text: 'Hora (HH:MM)'},
-                        reverse: false // Tiempo de izquierda a derecha
+                        reverse: false // Correcto: tiempo avanza de izquierda a derecha
                     } 
-                },
-                plugins: {
-                    tooltip: {
-                        mode: 'index',
-                        intersect: false
-                    }
-                }
+                } 
             }
         });
 
