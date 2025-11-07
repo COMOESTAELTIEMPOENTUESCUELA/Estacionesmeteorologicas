@@ -31,21 +31,16 @@ header {
 }
 
 .logo {
-    flex-shrink: 0; 
+    display: flex;
+    align-items: center; /* Centra la imagen y el texto verticalmente entre sí */
+    gap: 15px; /* Espacio entre el icono y el texto */
 }
 
 .logo img {
-    /* Clave para el look circular y grande */
-    height: 75px; 
-    width: 75px; 
-    object-fit: cover;
-    border-radius: 50%; /* Forma Circular */
-    
-    /* Efecto de Resalte */
-    border: 3px solid white; 
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3); 
-    
-    transition: box-shadow 0.3s, transform 0.3s;
+    height: 60px; /* Ajusta la altura de tu imagen si es necesario */
+    width: 60px; /* Mantén las proporciones */
+    border-radius: 50%;
+    border: 3px solid white;
 }
 
 .logo img:hover {
