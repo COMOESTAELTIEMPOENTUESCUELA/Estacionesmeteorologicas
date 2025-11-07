@@ -588,27 +588,33 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
 
         // FUNCIÓN MODIFICADA: Ahora redirige si se selecciona la EMA IARANA2 (SIN CAMBIOS)
         function cargarGraficosDeSeleccion() {
-            const selectedKey = estacionSelect.value;
-            const estacion = ESTACIONES[selectedKey];
+    // 1. 🚨 DESTRUYE LOS GRÁFICOS PREVIOS AQUÍ 🚨
+    if (temperaturaChart) temperaturaChart.destroy();
+    if (humedadChart) humedadChart.destroy();
 
-            if (selectedKey === "estacion3" && estacion.wunderground_url) {
-                
-                document.getElementById('temp-max').textContent = '-- °C';
-                document.getElementById('temp-min').textContent = '-- °C';
-                document.getElementById('precipitacion').textContent = '-- mm';
-                alert(`Abriendo el panel de la estación ${estacion.nombre} en Wunderground...`);
+    const selectedKey = estacionSelect.value;
+    const estacion = ESTACIONES[selectedKey];
 
-                const primeraEstacionKey = Object.keys(ESTACIONES).find(key => key !== "estacion3");
-                estacionSelect.value = primeraEstacionKey;
-                
-                cargarGraficos(primeraEstacionKey); 
-                window.open(estacion.wunderground_url, '_blank'); 
+    // Lógica de Redirección (para la estación Wunderground)
+    if (selectedKey === "estacion3" && estacion.wunderground_url) {
+        
+        document.getElementById('temp-max').textContent = '-- °C';
+        document.getElementById('temp-min').textContent = '-- °C';
+        document.getElementById('precipitacion').textContent = '-- mm';
+        alert(`Abriendo el panel de la estación ${estacion.nombre} en Wunderground...`);
 
-                return; 
-            }
-            
-            cargarGraficos(selectedKey);
-        }
+        const primeraEstacionKey = Object.keys(ESTACIONES).find(key => key !== "estacion3");
+        estacionSelect.value = primeraEstacionKey;
+        
+        cargarGraficos(primeraEstacionKey); 
+        window.open(estacion.wunderground_url, '_blank'); 
+
+        return; 
+    }
+    
+    // 2. Cargar los nuevos gráficos de la estación seleccionada
+    cargarGraficos(selectedKey);
+}
 
         document.addEventListener('DOMContentLoaded', () => {
             inicializarMarcadores(); 
