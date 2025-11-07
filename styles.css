@@ -22,14 +22,12 @@ body {
 /* ENCABEZADO Y NAVEGACIÓN (Diseño Moderno) */
 /* ------------------------------------------- */
 header {
-    background-color: var(--color-primary-blue);
-    color: white;
-    padding: 10px 5%; /* Padding ajustado para el logo más grande */
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); 
-    
-    display: flex; 
-    justify-content: space-between; 
-    align-items: center; 
+    background-color: #38a7e5; /* El color azul de tu barra */
+    display: flex; /* Habilita Flexbox */
+    justify-content: space-between; /* Distribuye el espacio entre el logo y la navegación */
+    align-items: center; /* Centra verticalmente los elementos (logo y nav) */
+    padding: 10px 20px; /* Agrega espacio interno */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
 
 .logo {
