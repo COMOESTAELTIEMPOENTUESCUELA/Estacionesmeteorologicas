@@ -47,6 +47,12 @@ header {
     transform: scale(1.05);
     box-shadow: 0 6px 15px rgba(0, 0, 0, 0.4);
 }
+.titulo-principal {
+    color: white; /* Letra blanca */
+    font-size: 1.5em; /* Tamaño de fuente, ajusta si es muy grande */
+    margin: 0; /* Elimina márgenes predeterminados del h1 */
+    font-weight: bold;
+}
 
 header h1 {
     display: none; /* Ocultamos el H1 si se usa el logo como principal */
