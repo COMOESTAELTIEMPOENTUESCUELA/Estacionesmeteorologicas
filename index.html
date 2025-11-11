@@ -1,400 +1,403 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>¿Cómo está el tiempo en tu escuela? - UNLP</title>
-    
-    <link rel="icon" type="image/png" href="imagenes/logo.png">
-    <link rel="shortcut icon" type="image/png" href="imagenes/logo.png">
-    
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>¿Cómo está el tiempo en tu escuela? - UNLP</title>
+    
+    <link rel="icon" type="image/png" href="imagenes/logo.png">
+    <link rel="shortcut icon" type="image/png" href="imagenes/logo.png">
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    <script src="https://www.gstatic.com/firebasejs/7.19.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/7.19.1/firebase-database.js"></script>
-    
-    <link rel="stylesheet" href="styles.css">
-    
-    <style>
-        /* Estilos CSS para el control de selección de variables */
-        #mapa-controles {
-            margin-bottom: 15px;
-            padding: 10px;
-            background-color: #f8f8f8;
-            border-radius: 5px;
-            border: 1px solid #ddd;
-            display: flex;
-            gap: 15px;
-            align-items: center;
-        }
-        .leaflet-tooltip.weather-tooltip {
-            background-color: rgba(0, 0, 0, 0.7);
-            color: white;
-            border: none;
-            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
-            font-weight: bold;
-            font-size: 14px;
-            white-space: nowrap;
-        }
-        .leaflet-tooltip small {
-            font-size: 10px; /* Estilo para la hora de actualización */
-            opacity: 0.8;
-            font-weight: normal;
-        }
-    </style>
+    <script src="https://www.gstatic.com/firebasejs/7.19.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/7.19.1/firebase-database.js"></script>
+    
+    <link rel="stylesheet" href="styles.css">
+    
+    <style>
+        /* Estilos CSS para el control de selección de variables */
+        #mapa-controles {
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #f8f8f8;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        .leaflet-tooltip.weather-tooltip {
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+            font-weight: bold;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+        .leaflet-tooltip small {
+            font-size: 10px; /* Estilo para la hora de actualización */
+            opacity: 0.8;
+            font-weight: normal;
+        }
+    </style>
 </head>
 <body>
 
-    <header>
-    <div class="logo"> 
-        <img src="imagenes/logo.png" alt="Logo del Proyecto Estaciones Meteorológicas">
-                <h1 class="titulo-principal">Cómo está el tiempo en tu escuela</h1>
-    </div>
+    <header>
+    <div class="logo"> 
+        <img src="imagenes/logo.png" alt="Logo del Proyecto Estaciones Meteorológicas">
+                <h1 class="titulo-principal">Cómo está el tiempo en tu escuela</h1>
+    </div>
 
-    <nav>
-        <a href="#mapa-section">Mapa</a>
-        <a href="#analisis-section">Análisis</a>
-        <a href="#escuelas">Estaciones</a>
-        <a href="#acerca-section">Nosotros</a>
-        <a href="#reportes">Reportes</a>
-    </nav>
+    <nav>
+        <a href="#mapa-section">Mapa</a>
+        <a href="#analisis-section">Análisis</a>
+        <a href="#escuelas">Estaciones</a>
+        <a href="#acerca-section">Nosotros</a>
+        <a href="#reportes">Reportes</a>
+    </nav>
 </header>
 
-    <section id="mapa-section" class="data-container">
-        <h2>Mapa de Estaciones y Datos Actuales</h2>
-        <div id="mapa-controles">
-            <label for="variable-select">Mostrar en el mapa:</label>
-            <select id="variable-select" onchange="actualizarMapaYTooltips()">
-                <option value="temperatura">Temperatura</option>
-                <option value="humedad">Humedad</option>
-            </select>
-        </div>
-        <div class="mapa-y-datos">
-            <div id="map" style="height: 400px;"></div>
-            <div class="datos-actuales">
-                <h3>Resumen Rápido (Firebase)</h3>
-                <div class="resumen-grid" id="resumen-global">
-                    <div class="dato-card">
-                        <h4>Estación 1</h4>
-                        <p class="valor" id="temp-est1">--°C</p>
-                    </div>
-                </div>
-                <div id="lista-escuelas">
-                </div>
-            </div>
-        </div>
-    </section>
+    <section id="mapa-section" class="data-container">
+        <h2>Mapa de Estaciones y Datos Actuales</h2>
+        <div id="mapa-controles">
+            <label for="variable-select">Mostrar en el mapa:</label>
+            <select id="variable-select" onchange="actualizarMapaYTooltips()">
+                <option value="temperatura">Temperatura</option>
+                <option value="humedad">Humedad</option>
+            </select>
+        </div>
+        <div class="mapa-y-datos">
+            <div id="map" style="height: 400px;"></div>
+            <div class="datos-actuales">
+                <h3>Resumen Rápido (Firebase)</h3>
+                <div class="resumen-grid" id="resumen-global">
+                    <div class="dato-card">
+                        <h4>Estación 1</h4>
+                        <p class="valor" id="temp-est1">--°C</p>
+                    </div>
+                </div>
+                <div id="lista-escuelas">
+                </div>
+            </div>
+        </div>
+    </section>
 
-    <hr>
+    <hr>
 
-    <section id="analisis-section" class="data-container">
-        <h2>Análisis Histórico por Estación</h2>
-        <div class="controles">
-            <label for="estacion-select">Selecciona la Estación:</label>
-            <select id="estacion-select" onchange="cargarGraficosDeSeleccion()"></select>
-        </div>
-        
-        <div class="resumen-historico">
-            <h3>Resumen Histórico de la Selección</h3>
-            <div class="resumen-grid">
-                <div class="dato-card">
-                    <h4>Máx. Temp.<br><small>(Día Calendario 00z)</small></h4>
-                    <p class="valor" id="temp-max">-- °C</p>
-                </div>
-                <div class="dato-card">
-                    <h4>Min. Temp.<br><small>(Día Calendario 00z)</small></h4>
-                    <p class="valor" id="temp-min">-- °C</p>
-                </div>
-                <div class="dato-card">
-                    <h4>Precipitación<br><small>(Día Met. 12z)</small></h4>
-                    <p class="valor" id="precipitacion">-- mm</p>
-                </div>
-            </div>
-        </div>
+    <section id="analisis-section" class="data-container">
+        <h2>Análisis Histórico por Estación</h2>
+        <div class="controles">
+            <label for="estacion-select">Selecciona la Estación:</label>
+            <select id="estacion-select" onchange="cargarGraficosDeSeleccion()"></select>
+        </div>
+        
+        <div class="resumen-historico">
+            <h3>Resumen Histórico de la Selección</h3>
+            <div class="resumen-grid">
+                <div class="dato-card">
+                    <h4>Máx. Temp.<br><small>(Día Calendario 00z)</small></h4>
+                    <p class="valor" id="temp-max">-- °C</p>
+                </div>
+                <div class="dato-card">
+                    <h4>Min. Temp.<br><small>(Día Calendario 00z)</small></h4>
+                    <p class="valor" id="temp-min">-- °C</p>
+                </div>
+                <div class="dato-card">
+                    <h4>Precipitación<br><small>(Día Met. 12z)</small></h4>
+                    <p class="valor" id="precipitacion">-- mm</p>
+                </div>
+            </div>
+        </div>
 
-        <div class="graficos-container">
-            <div class="grafico">
-                <h3>Temperatura Reciente <span id="temp-date-range"></span></h3>
-                <canvas id="temperaturaChart"></canvas>
-            </div>
-            <div class="grafico">
-                <h3>Humedad Reciente <span id="hum-date-range"></span></h3>
-                <canvas id="humedadChart"></canvas>
-            </div>
-        </div>
-    </section>
+        <div class="graficos-container">
+            <div class="grafico">
+                <h3>Temperatura Reciente <span id="temp-date-range"></span></h3>
+                <canvas id="temperaturaChart"></canvas>
+            </div>
+            <div class="grafico">
+                <h3>Humedad Reciente <span id="hum-date-range"></span></h3>
+                <canvas id="humedadChart"></canvas>
+            </div>
+        </div>
+    </section>
 
-    <hr>
+    <hr>
 
-    <section id="acerca-section" class="data-container">
-        <h2>¿Quienes somos?</h2>
-        <p>Somos un proyecto de extensión de la Facultad de Cs. Astronómicas y Geofísicas (FCAG-UNLP), formado por estudiantes avanzados de la carrera de Meteorología. Visitamos escuelas rurales y secundarias brindando talleres de meteorología, y también recibimos a las escuelas que nos visitan en nuestra facultad.
+    <section id="acerca-section" class="data-container">
+        <h2>¿Quienes somos?</h2>
+        <p>Somos un proyecto de extensión de la Facultad de Cs. Astronómicas y Geofísicas (FCAG-UNLP), formado por estudiantes avanzados de la carrera de Meteorología. Visitamos escuelas rurales y secundarias brindando talleres de meteorología, y también recibimos a las escuelas que nos visitan en nuestra facultad.
 
 Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos experiencias educativas ¡Aprendemos y enseñamos con cada encuentro!.</p>
-        <hr>
-    <h3>Nuestros Talleres en Imágenes</h3>
-    <div class="galeria-proyecto">
-        <img src="imagenes/foto-taller-1.jpg" alt="Taller del proyecto en una escuela">
-        <img src="imagenes/foto-taller-2.jpg" alt="Estudiantes instalando una estación">
-        <img src="imagenes/foto-taller-3.jpg" alt="Interacción con estudiantes">
-        <img src="imagenes/foto-taller-4.jpg" alt="Interacción con estudiantes">
-        <img src="imagenes/foto-taller-5.jpg" alt="Interacción con estudiantes">
-        </div>
-        <div class="galeria-reportes" id="galeria-reportes">
-            <p>Cargando reportes...</p>
-        </div>
-    </section>
+        <hr>
+    <h3>Nuestros Talleres en Imágenes</h3>
+    <div class="galeria-proyecto">
+        <img src="imagenes/foto-taller-1.jpg" alt="Taller del proyecto en una escuela">
+        <img src="imagenes/foto-taller-2.jpg" alt="Estudiantes instalando una estación">
+        <img src="imagenes/foto-taller-3.jpg" alt="Interacción con estudiantes">
+        <img src="imagenes/foto-taller-4.jpg" alt="Interacción con estudiantes">
+        <img src="imagenes/foto-taller-5.jpg" alt="Interacción con estudiantes">
+        </div>
+        <div class="galeria-reportes" id="galeria-reportes">
+            <p>Cargando reportes...</p>
+        </div>
+    </section>
 
-    <footer>
-        <p>&copy; 2025 Proyecto UNLP | Contacto: tiempoentuescuela@gmail.com</p>
-    </footer>
+    <footer>
+        <p>&copy; 2025 Proyecto UNLP | Contacto: tiempoentuescuela@gmail.com</p>
+    </footer>
 
-    <script>
-        // Configuración de Firebase
-        const firebaseConfig = {
-            databaseURL: "https://pagina-comoestaeltiempo-default-rtdb.firebaseio.com",
-        };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
+    <script>
+        // Configuración de Firebase
+        const firebaseConfig = {
+            databaseURL: "https://pagina-comoestaeltiempo-default-rtdb.firebaseio.com",
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
 
-        // Configuración de las estaciones
-        const ESTACIONES = {
-            // Estación con un solo canal para todos los datos
-            "observatorio": { 
-                "api_url": "https://api.thingspeak.com/channels/2823820/feeds.json?results=1000&api_key=FFI1HK80ZKDNS6V8", 
-                "lat": -34.90483, 
-                "lon": -57.93570, 
-                "nombre": "Observatorio Campbell ", 
-                "campo_temp": "field1",
-                "campo_hum": "field2",
-                "campo_precip": "field5", // Corregido a field5 (Rain_mm_Total)
-                "foto_url": "imagenes/observatorio.png"
-            },
-            
-            // Estación con canal separado para precipitación (¡REEMPLAZA LOS EJEMPLOS!)
-            "escuela23": {
-                // API principal (Temp/Hum)
-                "api_url": "https://api.thingspeak.com/channels/2218686/feeds.json?results=1000&api_key=JUXJQRZMFFASO37Z", 
-                "lat": -35.028220624725385, 
-                "lon": -57.75292481051298, 
-                "nombre": "Escuela N°23 ",
-                "campo_temp": "field1",
-                "campo_hum": "field2",
-                // API de Precipitación (DEBES REEMPLAZAR ESTE EJEMPLO)
-                "api_url_precip": "https://api.thingspeak.com/channels/XXXXXX/feeds.json?results=1000&api_key=YYYYYYYYYYYYYY", 
-                "campo_precip": "field1", // Campo de precipitación en el canal secundario
-                "foto_url": "imagenes/escuela23.jpg" 
-            },
+        // Configuración de las estaciones
+        const ESTACIONES = {
+            // Estación con un solo canal para todos los datos
+            "observatorio": { 
+                "api_url": "https://api.thingspeak.com/channels/2823820/feeds.json?results=1000&api_key=FFI1HK80ZKDNS6V8", 
+                "lat": -34.90483, 
+                "lon": -57.93570, 
+                "nombre": "Observatorio Campbell ", 
+                "campo_temp": "field1",
+                "campo_hum": "field2",
+                "campo_precip": "field5", // Corregido a field5 (Rain_mm_Total)
+                "foto_url": "imagenes/observatorio.png"
+            },
+            
+            // Estación con canal separado para precipitación (¡REEMPLAZA LOS EJEMPLOS!)
+            "escuela23": {
+                // API principal (Temp/Hum)
+                "api_url": "https://api.thingspeak.com/channels/2218686/feeds.json?results=1000&api_key=JUXJQRZMFFASO37Z", 
+                "lat": -35.028220624725385, 
+                "lon": -57.75292481051298, 
+                "nombre": "Escuela N°23 ",
+                "campo_temp": "field1",
+                "campo_hum": "field2",
+                // API de Precipitación (DEBES REEMPLAZAR ESTE EJEMPLO)
+                "api_url_precip": "https://api.thingspeak.com/channels/XXXXXX/feeds.json?results=1000&api_key=YYYYYYYYYYYYYY", 
+                "campo_precip": "field1", // Campo de precipitación en el canal secundario
+                "foto_url": "imagenes/escuela23.jpg" 
+            },
 
-            // Estación con un solo canal para todos los datos
-            "sanvicente": {
-                "api_url": "https://api.thingspeak.com/channels/2218687/feeds.json?results=1000&api_key=TH3V4TJLPRFZD3JSG", 
-                "lat": -34.90315315209218, 
-                "lon": -57.94890339765153, 
-                "nombre": "San Vicente de Paul",
-                "campo_temp": "field1",
-                "campo_hum": "field2",
-                "campo_precip": "field3",
-                "foto_url": "imagenes/Sanvicentedepaul.png" 
-            },
+            // Estación con un solo canal para todos los datos
+            "sanvicente": {
+                "api_url": "https://api.thingspeak.com/channels/2218687/feeds.json?results=1000&api_key=TH3V4TJLPRFZD3JSG", 
+                "lat": -34.90315315209218, 
+                "lon": -57.94890339765153, 
+                "nombre": "San Vicente de Paul",
+                "campo_temp": "field1",
+                "campo_hum": "field2",
+                "campo_precip": "field3",
+                "foto_url": "imagenes/Sanvicentedepaul.png" 
+            },
 
-            // 🆕 ESTACIÓN AGREGADA: EMA Punta Indio
-            "puntaindio": {
-                "api_url": "https://api.thingspeak.com/channels/3149195/feeds.json?results=1000&api_key=8J0IFWSGB74Q8O54", 
-                "lat": -35.28,  // Latitud aproximada para Punta Indio, ¡AJUSTA SI ES NECESARIO!
-                "lon": -57.26,  // Longitud aproximada para Punta Indio, ¡AJUSTA SI ES NECESARIO!
-                "nombre": "EMA Punta Indio",
-                "campo_temp": "field1", 
-                "campo_hum": "field3", 
-                "campo_precip": "field6",
-                "foto_url": "imagenes/puntaindio.png" // Recuerda agregar esta imagen
-            },
-            // FIN DE LA NUEVA ESTACIÓN
+            // 🆕 ESTACIÓN AGREGADA: EMA Punta Indio
+            "puntaindio": {
+                "api_url": "https://api.thingspeak.com/channels/3149195/feeds.json?results=1000&api_key=8J0IFWSGB74Q8O54", 
+                "lat": -35.28,  // Latitud aproximada para Punta Indio, ¡AJUSTA SI ES NECESARIO!
+                "lon": -57.26,  // Longitud aproximada para Punta Indio, ¡AJUSTA SI ES NECESARIO!
+                "nombre": "EMA Punta Indio",
+                "campo_temp": "field1", 
+                "campo_hum": "field3", 
+                "campo_precip": "field6",
+                "foto_url": "imagenes/puntaindio.png" // Recuerda agregar esta imagen
+            },
+            // FIN DE LA NUEVA ESTACIÓN
 
-            // Estación con canal separado para precipitación (¡REEMPLAZA LOS EJEMPLOS!)
-            "escuela34": {
-                // API principal (Temp/Hum)
-                "api_url": "https://api.thingspeak.com/channels/2667270/feeds.json?results=1000&api_key=ZLNOSLZJPQM3H7SD", 
-                "lat": -35.07345166939612, 
-                "lon": -57.87082581096881, 
-                "nombre": "Escuela N°34",
-                "campo_temp": "field1",
-                "campo_hum": "field2",
-                // API de Precipitación (DEBES REEMPLAZAR ESTE EJEMPLO)
-                "api_url_precip": "https://api.thingspeak.com/channels/WWWWWW/feeds.json?results=1000&api_key=ZZZZZZZZZZZZZZ", 
-                "campo_precip": "field1", // Campo de precipitación en el canal secundario
-                "foto_url": "imagenes/escuela34.jpg" 
-            },
-            
-            // Estación Wunderground 
-            "estacion3": {
-                "api_url": "https://api.thingspeak.com/channels/3158942/feeds.json?results=1000&api_key=41C05TXQE8N5NRB2",
-                "lat": -34.95100438126944, 
-                "lon": -57.83513895065668, 
-                "nombre": "Escuela N°20 y ES 7 ",
-                "campo_temp": "metric.temp", 
-                "campo_hum": "humidity", 
-                "campo_precip": "metric.precipTotal",
-                "foto_url": "imagenes/ep20.png",
-                
-            }
-        };
-        
-        // Se inicializa el mapa usando la clave 'observatorio'
-        const map = L.map('map').setView([ESTACIONES.observatorio.lat, ESTACIONES.observatorio.lon], 13);
-        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        }).addTo(map);
+            // Estación con canal separado para precipitación (¡REEMPLAZA LOS EJEMPLOS!)
+            "escuela34": {
+                // API principal (Temp/Hum)
+                "api_url": "https://api.thingspeak.com/channels/2667270/feeds.json?results=1000&api_key=ZLNOSLZJPQM3H7SD", 
+                "lat": -35.07345166939612, 
+                "lon": -57.87082581096881, 
+                "nombre": "Escuela N°34",
+                "campo_temp": "field1",
+                "campo_hum": "field2",
+                // API de Precipitación (DEBES REEMPLAZAR ESTE EJEMPLO)
+                "api_url_precip": "https://api.thingspeak.com/channels/WWWWWW/feeds.json?results=1000&api_key=ZZZZZZZZZZZZZZ", 
+                "campo_precip": "field1", // Campo de precipitación en el canal secundario
+                "foto_url": "imagenes/escuela34.jpg" 
+            },
+            
+            // =========================================================================
+            // 🚨🚨🚨 CORRECCIÓN 1: Clave "estacion3" renombrada a "escuela20" 🚨🚨🚨
+            // Esto AHORA coincide con la clave que usa el script de Firebase.
+            // =========================================================================
+            "escuela20": {
+                "api_url": "https://api.thingspeak.com/channels/3158942/feeds.json?results=1000&api_key=41C05TXQE8N5NRB2",
+                "lat": -34.95100438126944, 
+                "lon": -57.83513895065668, 
+                "nombre": "Escuela N°20 y ES 7 ",
+                // 🚨 CORRECCIÓN 2: Campos ajustados a ThingSpeak (según tu Ema.py)
+                "campo_temp": "field2", // Era "OutTemp" en tu script Ema.py
+                "campo_hum": "field3", // Era "OutHumi" en tu script Ema.py
+                "campo_precip": "field6", // Era "Rain" en tu script Ema.py
+                "foto_url": "imagenes/ep20.png"
+            }
+        };
+        
+        // Se inicializa el mapa usando la clave 'observatorio'
+        const map = L.map('map').setView([ESTACIONES.observatorio.lat, ESTACIONES.observatorio.lon], 13);
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
 
-        const markers = {};
-        const listaEscuelas = document.getElementById('lista-escuelas');
-        const estacionSelect = document.getElementById('estacion-select');
-        const galeriaReportes = document.getElementById('galeria-reportes');
-        const variableSelect = document.getElementById('variable-select');
+        const markers = {};
+        const listaEscuelas = document.getElementById('lista-escuelas');
+        const estacionSelect = document.getElementById('estacion-select');
+        const galeriaReportes = document.getElementById('galeria-reportes');
+        const variableSelect = document.getElementById('variable-select');
 
-        // FUNCIÓN AUXILIAR PARA DAR FORMATO A LA FECHA Y HORA
-        function formatDateTime(dateString) {
-            if (!dateString) return 'Desconocida';
-            const date = new Date(dateString); 
-            
-            const timeOptions = { hour: '2-digit', minute: '2-digit' };
-            const dateOptions = { day: '2-digit', month: 'short' };
-            
-            const time = date.toLocaleTimeString('es-AR', timeOptions);
-            const dateOnly = date.toLocaleDateString('es-AR', dateOptions);
-            
-            return `${time} hs (${dateOnly})`;
-        }
-        
-        // Función para cargar reportes desde el CMS (SIN CAMBIOS)
-        async function cargarReportes() {
-            try {
-                const response = await fetch('/_data/reportes/index.json'); 
-                const reportes = await response.json();
+        // FUNCIÓN AUXILIAR PARA DAR FORMATO A LA FECHA Y HORA
+        function formatDateTime(dateString) {
+            if (!dateString) return 'Desconocida';
+            const date = new Date(dateString); 
+            
+            const timeOptions = { hour: '2-digit', minute: '2-digit' };
+            const dateOptions = { day: '2-digit', month: 'short' };
+            
+            const time = date.toLocaleTimeString('es-AR', timeOptions);
+            const dateOnly = date.toLocaleDateString('es-AR', dateOptions);
+            
+            return `${time} hs (${dateOnly})`;
+        }
+        
+        // Función para cargar reportes desde el CMS (SIN CAMBIOS)
+        async function cargarReportes() {
+            try {
+                const response = await fetch('/_data/reportes/index.json'); 
+                const reportes = await response.json();
 
-                galeriaReportes.innerHTML = ''; 
-                reportes.sort((a, b) => new Date(b.date) - new Date(a.date));
+                galeriaReportes.innerHTML = ''; 
+                reportes.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-                reportes.forEach(reporte => {
-                    const divCard = document.createElement('div');
-                    divCard.className = 'reporte-card';
-                    const imgSrc = reporte.image || 'imagenes/placeholder.jpg'; 
-                    
-                    divCard.innerHTML = `
-                        <img src="${imgSrc}" alt="${reporte.title}">
-                        <h4>${reporte.title}</h4>
-                        <p>Fecha: ${reporte.date} | Escuela: ${reporte.school || 'General'}</p>
-                        <p>${reporte.summary}</p>
-                        <a href="#">Ver Detalles</a>
-                    `;
-                    galeriaReportes.appendChild(divCard);
-                });
+                reportes.forEach(reporte => {
+                    const divCard = document.createElement('div');
+                    divCard.className = 'reporte-card';
+                    const imgSrc = reporte.image || 'imagenes/placeholder.jpg'; 
+                    
+                    divCard.innerHTML = `
+                        <img src="${imgSrc}" alt="${reporte.title}">
+                        <h4>${reporte.title}</h4>
+                        <p>Fecha: ${reporte.date} | Escuela: ${reporte.school || 'General'}</p>
+                        <p>${reporte.summary}</p>
+                        <a href="#">Ver Detalles</a>
+                    `;
+                    galeriaReportes.appendChild(divCard);
+                });
 
-            } catch (error) {
-                console.warn("No se pudo cargar la lista de reportes, el CMS aún no ha publicado contenido o la ruta es incorrecta.");
-                galeriaReportes.innerHTML = `<p>El contenido dinámico de Talleres y Reportes se cargará aquí cuando los coordinadores publiquen el primer artículo a través del CMS.</p>`;
-            }
-        }
-        
-        // Función para inicializar los marcadores de Leaflet (SIN CAMBIOS)
-        function inicializarMarcadores() {
-            for (const key in ESTACIONES) {
-                const configEstacion = ESTACIONES[key];
-                
-                const marker = L.marker([configEstacion.lat, configEstacion.lon]).addTo(map);
-                markers[key] = marker;
-                
-                const initialContent = `${configEstacion.nombre}<br><b>Cargando...</b>`;
-                
-                marker.bindTooltip(initialContent, {
-                    permanent: true,
-                    direction: 'top',
-                    className: 'weather-tooltip'
-                }).openTooltip();
-                
-                marker.bindPopup(initialContent);
-            }
-            map.setView([ESTACIONES[Object.keys(ESTACIONES)[0]].lat, ESTACIONES[Object.keys(ESTACIONES)[0]].lon], 13);
-        }
+            } catch (error) {
+                console.warn("No se pudo cargar la lista de reportes, el CMS aún no ha publicado contenido o la ruta es incorrecta.");
+                galeriaReportes.innerHTML = `<p>El contenido dinámico de Talleres y Reportes se cargará aquí cuando los coordinadores publiquen el primer artículo a través del CMS.</p>`;
+            }
+        }
+        
+        // Función para inicializar los marcadores de Leaflet (SIN CAMBIOS)
+        function inicializarMarcadores() {
+            for (const key in ESTACIONES) {
+                const configEstacion = ESTACIONES[key];
+                
+                const marker = L.marker([configEstacion.lat, configEstacion.lon]).addTo(map);
+                markers[key] = marker;
+                
+                const initialContent = `${configEstacion.nombre}<br><b>Cargando...</b>`;
+                
+                marker.bindTooltip(initialContent, {
+                    permanent: true,
+                    direction: 'top',
+                    className: 'weather-tooltip'
+                }).openTooltip();
+                
+                marker.bindPopup(initialContent);
+            }
+            map.setView([ESTACIONES[Object.keys(ESTACIONES)[0]].lat, ESTACIONES[Object.keys(ESTACIONES)[0]].lon], 13);
+        }
 
-        // FUNCIÓN PARA ACTUALIZAR TOOLTIPS (Incluye hora) - (SIN CAMBIOS)
-        function actualizarMapaYTooltips(variable = variableSelect.value, data = null) {
-            for (const key in markers) {
-                const configEstacion = ESTACIONES[key];
-                const marker = markers[key];
-                
-                const estacionData = data && data[key] ? data[key] : { temperatura: '--', humedad: '--', ultima_actualizacion: null }; 
-                
-                let valor = estacionData[variable] !== undefined ? estacionData[variable] : '--';
-                let unidad = variable === 'temperatura' ? '°C' : '%';
-                
-                const horaFormateada = formatDateTime(estacionData.ultima_actualizacion);
+        // FUNCIÓN PARA ACTUALIZAR TOOLTIPS (Incluye hora) - (SIN CAMBIOS)
+        function actualizarMapaYTooltips(variable = variableSelect.value, data = null) {
+            for (const key in markers) {
+                const configEstacion = ESTACIONES[key];
+                const marker = markers[key];
+                
+                const estacionData = data && data[key] ? data[key] : { temperatura: '--', humedad: '--', ultima_actualizacion: null }; 
+                
+                let valor = estacionData[variable] !== undefined ? estacionData[variable] : '--';
+                let unidad = variable === 'temperatura' ? '°C' : '%';
+                
+                const horaFormateada = formatDateTime(estacionData.ultima_actualizacion);
 
-                if (typeof valor === 'string' && valor !== '--') {
-                    valor = parseFloat(valor).toFixed(1);
-                }
+                if (typeof valor === 'string' && valor !== '--') {
+                    valor = parseFloat(valor).toFixed(1);
+                }
 
-                const tooltipContent = `${configEstacion.nombre}<br><b>${variable.charAt(0).toUpperCase() + variable.slice(1)}: ${valor}${unidad}</b><br><small>Actualizado: ${horaFormateada}</small>`;
-                
-                const popupContent = `
-                    <b>${configEstacion.nombre}</b><br>
-                    Temp: ${estacionData.temperatura}°C<br>
-                    Humedad: ${estacionData.humedad}%<br>
-                    <small>Último dato: ${horaFormateada}</small>
-                `;
+                const tooltipContent = `${configEstacion.nombre}<br><b>${variable.charAt(0).toUpperCase() + variable.slice(1)}: ${valor}${unidad}</b><br><small>Actualizado: ${horaFormateada}</small>`;
+                
+                const popupContent = `
+                    <b>${configEstacion.nombre}</b><br>
+                    Temp: ${estacionData.temperatura}°C<br>
+                    Humedad: ${estacionData.humedad}%<br>
+                    <small>Último dato: ${horaFormateada}</small>
+                `;
 
-                marker.getTooltip().setContent(tooltipContent);
-                marker.setPopupContent(popupContent);
-            }
-        }
-        
-        // Escuchar datos en tiempo real de Firebase para actualizar el mapa (SIN CAMBIOS)
-        db.ref('estaciones').on('value', (snapshot) => {
-            const estaciones = snapshot.val();
-            if (estaciones) {
-                actualizarMapaYTooltips(variableSelect.value, estaciones);
-            }
-        });
+                marker.getTooltip().setContent(tooltipContent);
+                marker.setPopupContent(popupContent);
+            }
+        }
+        
+        // Escuchar datos en tiempo real de Firebase para actualizar el mapa (SIN CAMBIOS)
+        db.ref('estaciones').on('value', (snapshot) => {
+            const estaciones = snapshot.val();
+            if (estaciones) {
+                actualizarMapaYTooltips(variableSelect.value, estaciones);
+            }
+        });
 
-        // Poblar select y lista (SIN CAMBIOS)
-        function poblarSelectyLista() {
-            estacionSelect.innerHTML = '';
-            listaEscuelas.innerHTML = '';
+        // Poblar select y lista (SIN CAMBIOS)
+        function poblarSelectyLista() {
+            estacionSelect.innerHTML = '';
+            listaEscuelas.innerHTML = '';
 
-            for (const key in ESTACIONES) {
-                const estacion = ESTACIONES[key];
-                
-                const option = document.createElement('option');
-                option.value = key;
-                option.textContent = estacion.nombre;
-                estacionSelect.appendChild(option);
+            for (const key in ESTACIONES) {
+                const estacion = ESTACIONES[key];
+                
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = estacion.nombre;
+                estacionSelect.appendChild(option);
 
-                const divCard = document.createElement('div');
-                divCard.className = 'escuela-card';
-                divCard.innerHTML = `<img src="${estacion.foto_url}" alt="Foto de ${estacion.nombre}"><h4>${estacion.nombre}</h4>`;
-                listaEscuelas.appendChild(divCard);
-            }
-        }
+                const divCard = document.createElement('div');
+                divCard.className = 'escuela-card';
+                divCard.innerHTML = `<img src="${estacion.foto_url}" alt="Foto de ${estacion.nombre}"><h4>${estacion.nombre}</h4>`;
+                listaEscuelas.appendChild(divCard);
+            }
+        }
 
-        const temperaturaCtx = document.getElementById('temperaturaChart').getContext('2d');
-        const humedadCtx = document.getElementById('humedadChart').getContext('2d');
-        let temperaturaChart, humedadChart;
+        const temperaturaCtx = document.getElementById('temperaturaChart').getContext('2d');
+        const humedadCtx = document.getElementById('humedadChart').getContext('2d');
+        let temperaturaChart, humedadChart;
 
-        function getFieldValue(feed, path) {
-            const parts = path.split('.');
-            let value = feed;
-            for (const part of parts) {
-                if (value && value[part] !== undefined) {
-                    value = value[part];
-                } else {
-                    return undefined;
-                }
-            }
-            return value;
-        }
+        function getFieldValue(feed, path) {
+            const parts = path.split('.');
+            let value = feed;
+            for (const part of parts) {
+                if (value && value[part] !== undefined) {
+                    value = value[part];
+                } else {
+                    return undefined;
+                }
+            }
+            return value;
+        }
 
 // =========================================================================
 // FUNCIÓN CORREGIDA: Cambio de estación y orden cronológico del tiempo
@@ -402,17 +405,8 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
 async function cargarGraficos(estacionKey) {
     const estacion = ESTACIONES[estacionKey];
     
-    // Si se selecciona la estación Wunderground (estacion3)
-    if (estacionKey === "estacion3") {
-        console.warn(`La estación ${estacion.nombre} utiliza un enlace externo para su información histórica.`);
-        document.getElementById('temp-max').textContent = '--';
-        document.getElementById('temp-min').textContent = '--';
-        document.getElementById('precipitacion').textContent = '--';
-        document.getElementById('temp-date-range').textContent = '';
-        document.getElementById('hum-date-range').textContent = '';
-        // Los gráficos ya fueron destruidos en cargarGraficosDeSeleccion()
-        return;
-    }
+    // 🚨🚨🚨 CORRECCIÓN 3: ELIMINADO el bloque `if (estacionKey === "estacion3")` 🚨🚨🚨
+    // Ya no es necesario, "escuela20" (antes "estacion3") es una estación normal.
 
     if (!estacion) {
         console.error("Estación no encontrada:", estacionKey);
@@ -586,47 +580,34 @@ async function cargarGraficos(estacionKey) {
 }
 // =========================================================================
 
-        // FUNCIÓN MODIFICADA: Ahora redirige si se selecciona la EMA IARANA2 (DESTRUYE GRÁFICOS)
-        function cargarGraficosDeSeleccion() {
-            // 1. 🚨 DESTRUYE LOS GRÁFICOS PREVIOS AQUÍ 🚨
-            if (temperaturaChart) temperaturaChart.destroy();
-            if (humedadChart) humedadChart.destroy();
+        // FUNCIÓN MODIFICADA: Ahora redirige si se selecciona la EMA IARANA2 (DESTRUYE GRÁFICOS)
+        function cargarGraficosDeSeleccion() {
+            // 1. 🚨 DESTRUYE LOS GRÁFICOS PREVIOS AQUÍ 🚨
+            if (temperaturaChart) temperaturaChart.destroy();
+            if (humedadChart) humedadChart.destroy();
 
-            const selectedKey = estacionSelect.value;
-            const estacion = ESTACIONES[selectedKey];
+            const selectedKey = estacionSelect.value;
+            const estacion = ESTACIONES[selectedKey];
 
-            // Lógica de Redirección (para la estación Wunderground)
-            if (selectedKey === "estacion3" && estacion.wunderground_url) {
-                
-                document.getElementById('temp-max').textContent = '-- °C';
-                document.getElementById('temp-min').textContent = '-- °C';
-                document.getElementById('precipitacion').textContent = '-- mm';
-                alert(`Abriendo el panel de la estación ${estacion.nombre} en Wunderground...`);
+            // 🚨🚨🚨 CORRECCIÓN 3: ELIMINADO el bloque `if (selectedKey === "estacion3")` 🚨🚨🚨
+            // Ya no es necesario, "escuela20" (antes "estacion3") es una estación normal.
+            
+            // 2. Cargar los nuevos gráficos de la estación seleccionada
+            cargarGraficos(selectedKey);
+        }
 
-                const primeraEstacionKey = Object.keys(ESTACIONES).find(key => key !== "estacion3");
-                estacionSelect.value = primeraEstacionKey;
-                
-                cargarGraficos(primeraEstacionKey); 
-                window.open(estacion.wunderground_url, '_blank'); 
-
-                return; 
-            }
-            
-            // 2. Cargar los nuevos gráficos de la estación seleccionada
-            cargarGraficos(selectedKey);
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            inicializarMarcadores(); 
-            poblarSelectyLista(); 
-            cargarReportes(); 
-            
-            // Carga el gráfico inicial (la primera estación que no sea 'estacion3')
-            const primeraEstacionKey = Object.keys(ESTACIONES).find(key => key !== "estacion3");
-            if (primeraEstacionKey) {
-                cargarGraficos(primeraEstacionKey);
-            }
-        });
-    </script>
+        document.addEventListener('DOMContentLoaded', () => {
+            inicializarMarcadores(); 
+            poblarSelectyLista(); 
+            cargarReportes(); 
+            
+            // Carga el gráfico inicial
+            // 🚨🚨🚨 CORRECCIÓN 3: Simplificada esta lógica 🚨🚨🚨
+            const primeraEstacionKey = Object.keys(ESTACIONES)[0]; // Simplemente carga la primera estación
+            if (primeraEstacionKey) {
+                cargarGraficos(primeraEstacionKey);
+            }
+        });
+    </script>
 </body>
 </html>
