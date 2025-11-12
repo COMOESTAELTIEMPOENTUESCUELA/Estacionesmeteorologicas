@@ -174,6 +174,20 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                 "foto_url": "imagenes/observatorio.png"
             },
             
+            // 💜 NUEVA ESTACIÓN: EMA VIOLETA (Ubicación en Campbell)
+            "emavioleta": {
+                "api_url": "https://api.thingspeak.com/channels/2626952/feeds.json?results=1000&api_key=AXYH56YSV64HE17H", 
+                // Misma latitud/longitud que el observatorio Campbell
+                "lat": -34.90483, 
+                "lon": -57.93570, 
+                "nombre": "Ema Violeta", 
+                "campo_temp": "field1",
+                "campo_hum": "field2",
+                "campo_precip": "field1", // Asumimos field1, ajusta si es otro campo de precipitación
+                "foto_url": "imagenes/emavioleta.png" // Agregar imagen si es necesario
+            },
+            // FIN DE LA NUEVA ESTACIÓN
+            
             // Estación con canal separado para precipitación (¡REEMPLAZA LOS EJEMPLOS!)
             "escuela23": {
                 // API principal (Temp/Hum)
@@ -204,13 +218,13 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
             // 🆕 ESTACIÓN AGREGADA: EMA Punta Indio
             "puntaindio": {
                 "api_url": "https://api.thingspeak.com/channels/3149195/feeds.json?results=1000&api_key=8J0IFWSGB74Q8O54", 
-                "lat": -35.28,  // Latitud aproximada para Punta Indio, ¡AJUSTA SI ES NECESARIO!
-                "lon": -57.26,  // Longitud aproximada para Punta Indio, ¡AJUSTA SI ES NECESARIO!
+                "lat": -35.28, 
+                "lon": -57.26, 
                 "nombre": "EMA Punta Indio",
                 "campo_temp": "field1", 
                 "campo_hum": "field3", 
                 "campo_precip": "field6",
-                "foto_url": "imagenes/puntaindio.png" // Recuerda agregar esta imagen
+                "foto_url": "imagenes/puntaindio.png" 
             },
             // FIN DE LA NUEVA ESTACIÓN
 
@@ -543,6 +557,7 @@ async function cargarGraficos(estacionKey) {
         document.getElementById('hum-date-range').textContent = dateRangeText;
 
         // ** Chart.js - Temperatura **
+        if (temperaturaChart) temperaturaChart.destroy(); // Asegurar destrucción si no se hizo antes
         temperaturaChart = new Chart(temperaturaCtx, {
             type: 'line',
             data: { labels: labels, datasets: [{ label: 'Temperatura (°C)', data: temperaturas, borderColor: 'orange', backgroundColor: 'rgba(255, 165, 0, 0.2)', tension: 0.3, fill: true }] },
@@ -559,6 +574,7 @@ async function cargarGraficos(estacionKey) {
         });
 
         // ** Chart.js - Humedad **
+        if (humedadChart) humedadChart.destroy(); // Asegurar destrucción si no se hizo antes
         humedadChart = new Chart(humedadCtx, {
             type: 'line',
             data: { labels: labels, datasets: [{ label: 'Humedad (%)', data: humedades, borderColor: 'blue', backgroundColor: 'rgba(58, 165, 230, 0.2)', tension: 0.3, fill: true }] },
