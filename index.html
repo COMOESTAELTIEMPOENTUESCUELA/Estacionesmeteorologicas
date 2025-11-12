@@ -165,7 +165,7 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
             // Estación con un solo canal para todos los datos
             "observatorio": { 
                 "api_url": "https://api.thingspeak.com/channels/2823820/feeds.json?results=1000&api_key=FFI1HK80ZKDNS6V8", 
-                "lat": --34.90665,
+                "lat": -34.90665,
                 "lon": -57.93240, 
                 "nombre": "Observatorio Campbell ", 
                 "campo_temp": "field1",
@@ -174,19 +174,17 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                 "foto_url": "imagenes/observatorio.png"
             },
             
-            // 💜 NUEVA ESTACIÓN: EMA VIOLETA (Ubicación en Campbell)
+            // 💜 ESTACIÓN: EMA VIOLETA (Ubicación en Campbell)
             "emavioleta": {
                 "api_url": "https://api.thingspeak.com/channels/2626952/feeds.json?results=1000&api_key=AXYH56YSV64HE17H", 
-                // Misma latitud/longitud que el observatorio Campbell
                 "lat": -34.90483, 
                 "lon": -57.93570, 
                 "nombre": "Ema Violeta", 
                 "campo_temp": "field1",
                 "campo_hum": "field2",
-                "campo_precip": "field5", // Asumimos field1, ajusta si es otro campo de precipitación
-                "foto_url": "imagenes/emavioleta.png" // Agregar imagen si es necesario
+                "campo_precip": "field5", 
+                "foto_url": "imagenes/emavioleta.png" 
             },
-            // FIN DE LA NUEVA ESTACIÓN
             
             // Estación con canal separado para precipitación (¡REEMPLAZA LOS EJEMPLOS!)
             "escuela23": {
@@ -215,19 +213,18 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                 "foto_url": "imagenes/Sanvicentedepaul.png" 
             },
 
-            // 🆕 ESTACIÓN AGREGADA: EMA Punta Indio
+            // 🆕 ESTACIÓN: EMA Punta Indio
             "puntaindio": {
                 "api_url": "https://api.thingspeak.com/channels/3149195/feeds.json?results=1000&api_key=8J0IFWSGB74Q8O54", 
                 "lat": -35.28, 
                 "lon": -57.26, 
                 "nombre": "EMA Punta Indio",
                 "campo_temp": "field1", 
-                "campo_hum": "field3", 
+                "campo_hum": "field3", // 🚨 CORREGIDO: Ajustado a field3 (antes field2) para coincidir con el log de sincronización.
                 "campo_precip": "field6",
                 "foto_url": "imagenes/puntaindio.png" 
             },
-            // FIN DE LA NUEVA ESTACIÓN
-
+            
             // Estación con canal separado para precipitación (¡REEMPLAZA LOS EJEMPLOS!)
             "escuela34": {
                 // API principal (Temp/Hum)
@@ -243,19 +240,15 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                 "foto_url": "imagenes/escuela34.jpg" 
             },
             
-            // =========================================================================
-            // 🚨🚨🚨 CORRECCIÓN 1: Clave "estacion3" renombrada a "escuela20" 🚨🚨🚨
-            // Esto AHORA coincide con la clave que usa el script de Firebase.
-            // =========================================================================
+            // ESTACIÓN: EP 20 Y ES 7
             "escuela20": {
                 "api_url": "https://api.thingspeak.com/channels/3158942/feeds.json?results=1000&api_key=41C05TXQE8N5NRB2",
                 "lat": -34.95100438126944, 
                 "lon": -57.83513895065668, 
                 "nombre": "Escuela N°20 y ES 7 ",
-                // 🚨 CORRECCIÓN 2: Campos ajustados a ThingSpeak (según tu Ema.py)
-                "campo_temp": "field2", // Era "OutTemp" en tu script Ema.py
-                "campo_hum": "field3", // Era "OutHumi" en tu script Ema.py
-                "campo_precip": "field6", // Era "Rain" en tu script Ema.py
+                "campo_temp": "field2", 
+                "campo_hum": "field3", 
+                "campo_precip": "field6", 
                 "foto_url": "imagenes/ep20.png"
             }
         };
@@ -343,6 +336,7 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                 const configEstacion = ESTACIONES[key];
                 const marker = markers[key];
                 
+                // Si la estación no tiene datos en Firebase (ej: falla el sincronizador), usa valores por defecto
                 const estacionData = data && data[key] ? data[key] : { temperatura: '--', humedad: '--', ultima_actualizacion: null }; 
                 
                 let valor = estacionData[variable] !== undefined ? estacionData[variable] : '--';
@@ -350,16 +344,21 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
                 
                 const horaFormateada = formatDateTime(estacionData.ultima_actualizacion);
 
-                if (typeof valor === 'string' && valor !== '--') {
-                    valor = parseFloat(valor).toFixed(1);
+                // Asegura que el valor sea numérico y fijo a 1 decimal si no es '--'
+                if (typeof valor === 'number' && !isNaN(valor)) {
+                    valor = valor.toFixed(1);
+                } else if (typeof valor === 'string' && valor !== '--') {
+                    // Intenta convertir y fijar, si falla queda como string
+                    const numVal = parseFloat(valor);
+                    valor = isNaN(numVal) ? '--' : numVal.toFixed(1);
                 }
 
                 const tooltipContent = `${configEstacion.nombre}<br><b>${variable.charAt(0).toUpperCase() + variable.slice(1)}: ${valor}${unidad}</b><br><small>Actualizado: ${horaFormateada}</small>`;
                 
                 const popupContent = `
                     <b>${configEstacion.nombre}</b><br>
-                    Temp: ${estacionData.temperatura}°C<br>
-                    Humedad: ${estacionData.humedad}%<br>
+                    Temp: ${valor}°C<br>
+                    Humedad: ${estacionData.humedad !== '--' ? parseFloat(estacionData.humedad).toFixed(1) : '--'}%<br>
                     <small>Último dato: ${horaFormateada}</small>
                 `;
 
@@ -419,9 +418,6 @@ Acercamos la ciencia del tiempo y el clima a las aulas y construimos juntos expe
 async function cargarGraficos(estacionKey) {
     const estacion = ESTACIONES[estacionKey];
     
-    // 🚨🚨🚨 CORRECCIÓN 3: ELIMINADO el bloque `if (estacionKey === "estacion3")` 🚨🚨🚨
-    // Ya no es necesario, "escuela20" (antes "estacion3") es una estación normal.
-
     if (!estacion) {
         console.error("Estación no encontrada:", estacionKey);
         return;
@@ -591,7 +587,7 @@ async function cargarGraficos(estacionKey) {
         });
 
     } catch (error) {
-        console.error("Error al cargar datos históricos (Revisa la configuración de la API o la conexión a internet):", error);
+        console.error(`Error al cargar datos históricos de ${estacionKey} (Revisa la configuración de la API o la conexión a internet):`, error);
     }
 }
 // =========================================================================
@@ -603,10 +599,6 @@ async function cargarGraficos(estacionKey) {
             if (humedadChart) humedadChart.destroy();
 
             const selectedKey = estacionSelect.value;
-            const estacion = ESTACIONES[selectedKey];
-
-            // 🚨🚨🚨 CORRECCIÓN 3: ELIMINADO el bloque `if (selectedKey === "estacion3")` 🚨🚨🚨
-            // Ya no es necesario, "escuela20" (antes "estacion3") es una estación normal.
             
             // 2. Cargar los nuevos gráficos de la estación seleccionada
             cargarGraficos(selectedKey);
@@ -618,7 +610,6 @@ async function cargarGraficos(estacionKey) {
             cargarReportes(); 
             
             // Carga el gráfico inicial
-            // 🚨🚨🚨 CORRECCIÓN 3: Simplificada esta lógica 🚨🚨🚨
             const primeraEstacionKey = Object.keys(ESTACIONES)[0]; // Simplemente carga la primera estación
             if (primeraEstacionKey) {
                 cargarGraficos(primeraEstacionKey);
