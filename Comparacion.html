@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Laboratorio de Intercomparación - UNLP</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #eceff1; padding: 20px; color: #37474f; }
+        .grid-status { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: center; border-top: 5px solid #607d8b; }
+        #card-violeta { border-top-color: #9c27b0; }
+        #card-verde { border-top-color: #4caf50; }
+        #card-blanca { border-top-color: #2196f3; }
+        .chart-section { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 30px; }
+        h1 { text-align: center; color: #263238; }
+        .valor { font-size: 24px; font-weight: bold; margin: 10px 0; }
+    </style>
+</head>
+<body>
+
+    <h1>Intercomparación de EMAs: Estabilidad y Sensores</h1>
+    
+    <div class="grid-status">
+        <div class="card" id="card-violeta">
+            <h3>EMA Violeta</h3>
+            <div class="valor" id="val-violeta">-- °C</div>
+            <div id="pres-violeta">Presión: -- hPa</div>
+            <small id="time-violeta">Sincronizando...</small>
+        </div>
+        <div class="card" id="card-verde">
+            <h3>EMA Verde</h3>
+            <div class="valor" id="val-verde">-- °C</div>
+            <div id="pres-verde">Presión: -- hPa</div>
+            <small id="time-verde">Sincronizando...</small>
+        </div>
+        <div class="card" id="card-blanca">
+            <h3>EMA Blanca</h3>
+            <div class="valor" id="val-blanca">-- °C</div>
+            <div id="pres-blanca">Presión: -- hPa</div>
+            <small id="time-blanca">Sincronizando...</small>
+        </div>
+    </div>
+
+    <div class="chart-section">
+        <h3>Comparativa de Temperatura (°C)</h3>
+        <div style="height: 350px;"><canvas id="chartTemp"></canvas></div>
+    </div>
+
+    <div class="chart-section">
+        <h3>Comparativa de Presión Atmosférica (hPa)</h3>
+        <div style="height: 350px;"><canvas id="chartPres"></canvas></div>
+    </div>
+
+<script>
+const EMAS = {
+    violeta: "https://api.thingspeak.com/channels/2626952/feeds.json?results=60&api_key=AXYH56YSV64HE17H",
+    verde: "https://api.thingspeak.com/channels/2218686/feeds.json?results=60&api_key=JUXJQRZMFFASO37Z",
+    blanca: "https://api.thingspeak.com/channels/2218689/feeds.json?results=60&api_key=ZLNOSLZJPQM3H7SD"
+};
+
+let chartT, chartP;
+
+async function cargarDatos() {
+    try {
+        const [resVio, resVer, resBla] = await Promise.all([
+            fetch(EMAS.violeta).then(r => r.json()),
+            fetch(EMAS.verde).then(r => r.json()),
+            fetch(EMAS.blanca).then(r => r.json())
+        ]);
+
+        actualizarCards('violeta', resVio.feeds, 1, 6); // Field 1: Temp, Field 6: Pres
+        actualizarCards('verde', resVer.feeds, 1, 6);
+        actualizarCards('blanca', resBla.feeds, 1, 6);
+
+        dibujarGraficos(resVio.feeds, resVer.feeds, resBla.feeds);
+    } catch (e) { console.error("Error en Fetch:", e); }
+}
+
+function actualizarCards(key, feeds, fTemp, fPres) {
+    const ultimo = feeds[feeds.length - 1];
+    document.getElementById(`val-${key}`).innerText = `${parseFloat(ultimo['field'+fTemp]).toFixed(1)} °C`;
+    document.getElementById(`pres-${key}`).innerText = `Presión: ${parseFloat(ultimo['field'+fPres]).toFixed(1)} hPa`;
+    document.getElementById(`time-${key}`).innerText = `Actualizado: ${new Date(ultimo.created_at).toLocaleTimeString()}`;
+}
+
+function dibujarGraficos(fVio, fVer, fBla) {
+    const labels = fVio.map(f => new Date(f.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}));
+    
+    if(chartT) chartT.destroy();
+    if(chartP) chartP.destroy();
+
+    // Gráfico de Temperatura
+    chartT = new Chart(document.getElementById('chartTemp'), {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                { label: 'Violeta (DHT22)', data: fVio.map(f => f.field1), borderColor: 'purple', tension: 0.2, pointRadius: 0 },
+                { label: 'Verde (DHT22)', data: fVer.map(f => f.field1), borderColor: 'green', tension: 0.2, pointRadius: 0 },
+                { label: 'Blanca (DHT11)', data: fBla.map(f => f.field1), borderColor: 'blue', tension: 0.2, pointRadius: 0 }
+            ]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+    });
+
+    // Gráfico de Presión
+    chartP = new Chart(document.getElementById('chartPres'), {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                { label: 'Violeta (BMP280)', data: fVio.map(f => f.field6), borderColor: 'purple', tension: 0.2, pointRadius: 0 },
+                { label: 'Verde (BMP280)', data: fVer.map(f => f.field6), borderColor: 'green', tension: 0.2, pointRadius: 0 },
+                { label: 'Blanca (BMP180)', data: fBla.map(f => f.field6), borderColor: 'blue', tension: 0.2, pointRadius: 0 }
+            ]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+    });
+}
+
+cargarDatos();
+setInterval(cargarDatos, 300000); // 5 min
+</script>
+</body>
+</html>
