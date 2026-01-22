@@ -16,61 +16,52 @@
         h1 { text-align: center; color: #263238; }
         .valor { font-size: 24px; font-weight: bold; margin: 10px 0; }
         .sub-dato { font-size: 0.9em; color: #607d8b; margin-bottom: 5px; }
+        .escuela-tag { font-size: 0.85em; font-weight: bold; color: #455a64; margin-bottom: 10px; display: block; }
     </style>
 </head>
 <body>
 
-    <h1>Intercomparación de EMAs: Diagnóstico de Sensores</h1>
+    <h1>Diagnóstico de EMAs - UNLP</h1>
     
     <div class="grid-status">
         <div class="card" id="card-violeta">
-            <h3>EMA Violeta</h3>
+            <span class="escuela-tag">📍 Campbell (Violeta)</span>
             <div class="valor" id="val-violeta">-- °C</div>
-            <div class="sub-dato" id="hum-violeta">Hum. Amb: -- %</div>
-            <div class="sub-dato" id="pres-violeta">Presión: -- hPa</div>
+            <div class="sub-dato" id="hum-violeta">Hum: -- %</div>
+            <div class="sub-dato" id="pres-violeta">Pres: -- hPa</div>
             <small id="time-violeta">Sincronizando...</small>
         </div>
         <div class="card" id="card-verde">
-            <h3>EMA Verde</h3>
+            <span class="escuela-tag">📍 Escuela 23 (Verde)</span>
             <div class="valor" id="val-verde">-- °C</div>
-            <div class="sub-dato" id="hum-verde">Hum. Amb: -- %</div>
-            <div class="sub-dato" id="pres-verde">Presión: -- hPa</div>
+            <div class="sub-dato" id="hum-verde">Hum: -- %</div>
+            <div class="sub-dato" id="pres-verde">Pres: -- hPa</div>
             <small id="time-verde">Sincronizando...</small>
         </div>
         <div class="card" id="card-blanca">
-            <h3>EMA Blanca</h3>
+            <span class="escuela-tag">📍 Manuel Dorrego (Blanca)</span>
             <div class="valor" id="val-blanca">-- °C</div>
-            <div class="sub-dato" id="hum-blanca">Hum. Amb: -- %</div>
-            <div class="sub-dato" id="pres-blanca">Presión: -- hPa</div>
+            <div class="sub-dato" id="hum-blanca">Hum: -- %</div>
+            <div class="sub-dato" id="pres-blanca">Pres: -- hPa</div>
             <small id="time-blanca">Sincronizando...</small>
         </div>
     </div>
 
     <div class="chart-section">
-        <h3>1. Temperatura (°C) - DHT22 vs DHT11</h3>
-        <div style="height: 300px;"><canvas id="chartTemp"></canvas></div>
+        <h3>Temperatura con Fecha y Hora</h3>
+        <div style="height: 350px;"><canvas id="chartTemp"></canvas></div>
     </div>
 
     <div class="chart-section">
-        <h3>2. Humedad Ambiente (%) - Resolución de Sensores</h3>
-        <div style="height: 300px;"><canvas id="chartHumAmb"></canvas></div>
-    </div>
-
-    <div class="chart-section">
-        <h3>3. Presión Atmosférica (hPa) - BMP280 vs BMP180</h3>
-        <div style="height: 300px;"><canvas id="chartPres"></canvas></div>
-    </div>
-
-    <div class="chart-section">
-        <h3>4. Humedad del Suelo (%) - Comparativa de Macetas</h3>
-        <div style="height: 300px;"><canvas id="chartSuelo"></canvas></div>
+        <h3>Humedad Ambiente (%)</h3>
+        <div style="height: 350px;"><canvas id="chartHum"></canvas></div>
     </div>
 
 <script>
 const EMAS = {
-    violeta: "https://api.thingspeak.com/channels/2626952/feeds.json?results=60&api_key=AXYH56YSV64HE17H",
-    verde: "https://api.thingspeak.com/channels/2218686/feeds.json?results=60&api_key=JUXJQRZMFFASO37Z",
-    blanca: "https://api.thingspeak.com/channels/2218689/feeds.json?results=60&api_key=ZLNOSLZJPQM3H7SD"
+    violeta: "https://api.thingspeak.com/channels/2626952/feeds.json?results=80&api_key=AXYH56YSV64HE17H",
+    verde: "https://api.thingspeak.com/channels/2218686/feeds.json?results=80&api_key=JUXJQRZMFFASO37Z",
+    blanca: "https://api.thingspeak.com/channels/2218689/feeds.json?results=80&api_key=ZLNOSLZJPQM3H7SD"
 };
 
 let charts = {};
@@ -82,61 +73,51 @@ async function cargarDatos() {
             fetch(EMAS.verde).then(r => r.json()),
             fetch(EMAS.blanca).then(r => r.json())
         ]);
-
         actualizarCards('violeta', resVio.feeds);
         actualizarCards('verde', resVer.feeds);
         actualizarCards('blanca', resBla.feeds);
-
         dibujarGraficos(resVio.feeds, resVer.feeds, resBla.feeds);
-    } catch (e) { console.error("Error en la carga de datos:", e); }
+    } catch (e) { console.error("Error:", e); }
 }
 
 function actualizarCards(key, feeds) {
     const ultimo = feeds[feeds.length - 1];
+    const fecha = new Date(ultimo.created_at);
     document.getElementById(`val-${key}`).innerText = `${parseFloat(ultimo.field1).toFixed(1)} °C`;
-    document.getElementById(`hum-${key}`).innerText = `Hum. Amb: ${parseFloat(ultimo.field2).toFixed(1)} %`;
-    document.getElementById(`pres-${key}`).innerText = `Presión: ${parseFloat(ultimo.field6).toFixed(1)} hPa`;
-    document.getElementById(`time-${key}`).innerText = `Act: ${new Date(ultimo.created_at).toLocaleTimeString()}`;
+    document.getElementById(`hum-${key}`).innerText = `Hum: ${parseFloat(ultimo.field2).toFixed(1)} %`;
+    document.getElementById(`pres-${key}`).innerText = `Pres: ${parseFloat(ultimo.field6).toFixed(1)} hPa`;
+    // Muestra Fecha y Hora en la tarjeta
+    document.getElementById(`time-${key}`).innerText = `Dato: ${fecha.toLocaleDateString()} ${fecha.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
 }
 
 function dibujarGraficos(fVio, fVer, fBla) {
-    const labels = fVio.map(f => new Date(f.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}));
+    // Etiquetas con día y mes para el eje X
+    const labels = fVio.map(f => {
+        const d = new Date(f.created_at);
+        return d.toLocaleDateString([], {day:'2-digit', month:'2-digit'}) + " " + d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    });
     
     const configBase = { 
         type: 'line', 
         options: { 
             responsive: true, 
-            maintainAspectRatio: false, 
-            elements: { 
-                point: { radius: 3, hoverRadius: 6 },
-                line: { borderWidth: 2 }
-            } 
+            maintainAspectRatio: false,
+            spanGaps: false, // NO une puntos si hay huecos temporales
+            elements: { point: { radius: 3 } }
         } 
     };
 
-    const crearDataset = (label, data, color) => ({
-        label, data, borderColor: color, backgroundColor: color, fill: false, tension: 0.1
-    });
-
-    const graficos = [
-        { id: 'chartTemp', field: 'field1', title: 'Temperatura' },
-        { id: 'chartHumAmb', field: 'field2', title: 'Humedad Ambiente' },
-        { id: 'chartPres', field: 'field6', title: 'Presión' },
-        { id: 'chartSuelo', field: 'field3', title: 'Suelo' }
+    const datasets = (field) => [
+        { label: 'Violeta', data: fVio.map(f => f[field]), borderColor: 'purple', backgroundColor: 'purple' },
+        { label: 'Verde', data: fVer.map(f => f[field]), borderColor: 'green', backgroundColor: 'green' },
+        { label: 'Blanca', data: fBla.map(f => f[field]), borderColor: 'blue', backgroundColor: 'blue' }
     ];
 
-    graficos.forEach(g => {
-        if(charts[g.id]) charts[g.id].destroy();
-        charts[g.id] = new Chart(document.getElementById(g.id), {
+    ['chartTemp', 'chartHum'].forEach((id, i) => {
+        if(charts[id]) charts[id].destroy();
+        charts[id] = new Chart(document.getElementById(id), {
             ...configBase,
-            data: {
-                labels,
-                datasets: [
-                    crearDataset('Violeta', fVio.map(f => f[g.field]), 'purple'),
-                    crearDataset('Verde', fVer.map(f => f[g.field]), 'green'),
-                    crearDataset('Blanca', fBla.map(f => f[g.field]), 'blue')
-                ]
-            }
+            data: { labels, datasets: datasets(i === 0 ? 'field1' : 'field2') }
         });
     });
 }
