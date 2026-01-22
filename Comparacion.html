@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Laboratorio de Intercomparación - UNLP</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -51,7 +52,7 @@
     </div>
 
     <div class="chart-section">
-        <h3>2. Humedad Ambiente (%) - DHT22 vs DHT11</h3>
+        <h3>2. Humedad Ambiente (%) - Resolución de Sensores</h3>
         <div style="height: 300px;"><canvas id="chartHumAmb"></canvas></div>
     </div>
 
@@ -61,7 +62,7 @@
     </div>
 
     <div class="chart-section">
-        <h3>4. Humedad del Suelo (%)</h3>
+        <h3>4. Humedad del Suelo (%) - Comparativa de Macetas</h3>
         <div style="height: 300px;"><canvas id="chartSuelo"></canvas></div>
     </div>
 
@@ -72,7 +73,7 @@ const EMAS = {
     blanca: "https://api.thingspeak.com/channels/2218689/feeds.json?results=60&api_key=ZLNOSLZJPQM3H7SD"
 };
 
-let chartT, chartH, chartP, chartS;
+let charts = {};
 
 async function cargarDatos() {
     try {
@@ -87,7 +88,7 @@ async function cargarDatos() {
         actualizarCards('blanca', resBla.feeds);
 
         dibujarGraficos(resVio.feeds, resVer.feeds, resBla.feeds);
-    } catch (e) { console.error("Error:", e); }
+    } catch (e) { console.error("Error en la carga de datos:", e); }
 }
 
 function actualizarCards(key, feeds) {
@@ -101,44 +102,43 @@ function actualizarCards(key, feeds) {
 function dibujarGraficos(fVio, fVer, fBla) {
     const labels = fVio.map(f => new Date(f.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}));
     
-    if(chartT) chartT.destroy();
-    if(chartH) chartH.destroy();
-    if(chartP) chartP.destroy();
-    if(chartS) chartS.destroy();
+    const configBase = { 
+        type: 'line', 
+        options: { 
+            responsive: true, 
+            maintainAspectRatio: false, 
+            elements: { 
+                point: { radius: 3, hoverRadius: 6 },
+                line: { borderWidth: 2 }
+            } 
+        } 
+    };
 
-    const configBase = { type: 'line', options: { responsive: true, maintainAspectRatio: false, elements: { point: { radius: 0 } } } };
+    const crearDataset = (label, data, color) => ({
+        label, data, borderColor: color, backgroundColor: color, fill: false, tension: 0.1
+    });
 
-    chartT = new Chart(document.getElementById('chartTemp'), { ...configBase, data: {
-        labels, datasets: [
-            { label: 'Violeta (DHT22)', data: fVio.map(f => f.field1), borderColor: 'purple' },
-            { label: 'Verde (DHT22)', data: fVer.map(f => f.field1), borderColor: 'green' },
-            { label: 'Blanca (DHT11)', data: fBla.map(f => f.field1), borderColor: 'blue' }
-        ]
-    }});
+    const graficos = [
+        { id: 'chartTemp', field: 'field1', title: 'Temperatura' },
+        { id: 'chartHumAmb', field: 'field2', title: 'Humedad Ambiente' },
+        { id: 'chartPres', field: 'field6', title: 'Presión' },
+        { id: 'chartSuelo', field: 'field3', title: 'Suelo' }
+    ];
 
-    chartH = new Chart(document.getElementById('chartHumAmb'), { ...configBase, data: {
-        labels, datasets: [
-            { label: 'Violeta (DHT22)', data: fVio.map(f => f.field2), borderColor: 'purple' },
-            { label: 'Verde (DHT22)', data: fVer.map(f => f.field2), borderColor: 'green' },
-            { label: 'Blanca (DHT11)', data: fBla.map(f => f.field2), borderColor: 'blue' }
-        ]
-    }});
-
-    chartP = new Chart(document.getElementById('chartPres'), { ...configBase, data: {
-        labels, datasets: [
-            { label: 'Violeta (BMP280)', data: fVio.map(f => f.field6), borderColor: 'purple' },
-            { label: 'Verde (BMP280)', data: fVer.map(f => f.field6), borderColor: 'green' },
-            { label: 'Blanca (BMP180)', data: fBla.map(f => f.field6), borderColor: 'blue' }
-        ]
-    }});
-
-    chartS = new Chart(document.getElementById('chartSuelo'), { ...configBase, data: {
-        labels, datasets: [
-            { label: 'Violeta', data: fVio.map(f => f.field3), borderColor: 'purple' },
-            { label: 'Verde', data: fVer.map(f => f.field3), borderColor: 'green' },
-            { label: 'Blanca', data: fBla.map(f => f.field3), borderColor: 'blue' }
-        ]
-    }});
+    graficos.forEach(g => {
+        if(charts[g.id]) charts[g.id].destroy();
+        charts[g.id] = new Chart(document.getElementById(g.id), {
+            ...configBase,
+            data: {
+                labels,
+                datasets: [
+                    crearDataset('Violeta', fVio.map(f => f[g.field]), 'purple'),
+                    crearDataset('Verde', fVer.map(f => f[g.field]), 'green'),
+                    crearDataset('Blanca', fBla.map(f => f[g.field]), 'blue')
+                ]
+            }
+        });
+    });
 }
 
 cargarDatos();
