@@ -25,7 +25,7 @@
     
     <div class="grid-status">
         <div class="card" id="card-violeta">
-            <span class="escuela-tag">📍 Violeta</span>
+            <span class="escuela-tag">📍 EMA Violeta</span>
             <div class="valor" id="val-violeta">-- °C</div>
             <div class="sub-dato" id="hum-violeta">Hum: -- %</div>
             <div class="sub-dato" id="pres-violeta">Pres: -- hPa</div>
@@ -48,13 +48,18 @@
     </div>
 
     <div class="chart-section">
-        <h3>Temperatura con Fecha y Hora</h3>
-        <div style="height: 350px;"><canvas id="chartTemp"></canvas></div>
+        <h3>1. Temperatura con Fecha y Hora</h3>
+        <div style="height: 300px;"><canvas id="chartTemp"></canvas></div>
     </div>
 
     <div class="chart-section">
-        <h3>Humedad Ambiente (%)</h3>
-        <div style="height: 350px;"><canvas id="chartHum"></canvas></div>
+        <h3>2. Humedad Ambiente (%)</h3>
+        <div style="height: 300px;"><canvas id="chartHum"></canvas></div>
+    </div>
+
+    <div class="chart-section">
+        <h3>3. Presión Atmosférica (hPa)</h3>
+        <div style="height: 300px;"><canvas id="chartPres"></canvas></div>
     </div>
 
 <script>
@@ -86,12 +91,10 @@ function actualizarCards(key, feeds) {
     document.getElementById(`val-${key}`).innerText = `${parseFloat(ultimo.field1).toFixed(1)} °C`;
     document.getElementById(`hum-${key}`).innerText = `Hum: ${parseFloat(ultimo.field2).toFixed(1)} %`;
     document.getElementById(`pres-${key}`).innerText = `Pres: ${parseFloat(ultimo.field6).toFixed(1)} hPa`;
-    // Muestra Fecha y Hora en la tarjeta
     document.getElementById(`time-${key}`).innerText = `Dato: ${fecha.toLocaleDateString()} ${fecha.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
 }
 
 function dibujarGraficos(fVio, fVer, fBla) {
-    // Etiquetas con día y mes para el eje X
     const labels = fVio.map(f => {
         const d = new Date(f.created_at);
         return d.toLocaleDateString([], {day:'2-digit', month:'2-digit'}) + " " + d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
@@ -102,22 +105,28 @@ function dibujarGraficos(fVio, fVer, fBla) {
         options: { 
             responsive: true, 
             maintainAspectRatio: false,
-            spanGaps: false, // NO une puntos si hay huecos temporales
+            spanGaps: false,
             elements: { point: { radius: 3 } }
         } 
     };
 
     const datasets = (field) => [
         { label: 'Violeta', data: fVio.map(f => f[field]), borderColor: 'purple', backgroundColor: 'purple' },
-        { label: 'Verde', data: fVer.map(f => f[field]), borderColor: 'green', backgroundColor: 'green' },
-        { label: 'Blanca', data: fBla.map(f => f[field]), borderColor: 'blue', backgroundColor: 'blue' }
+        { label: 'Verde (Esc. 23)', data: fVer.map(f => f[field]), borderColor: 'green', backgroundColor: 'green' },
+        { label: 'Blanca (Dorrego)', data: fBla.map(f => f[field]), borderColor: 'blue', backgroundColor: 'blue' }
     ];
 
-    ['chartTemp', 'chartHum'].forEach((id, i) => {
-        if(charts[id]) charts[id].destroy();
-        charts[id] = new Chart(document.getElementById(id), {
+    const chartConfigs = [
+        { id: 'chartTemp', field: 'field1' },
+        { id: 'chartHum', field: 'field2' },
+        { id: 'chartPres', field: 'field6' }
+    ];
+
+    chartConfigs.forEach(config => {
+        if(charts[config.id]) charts[config.id].destroy();
+        charts[config.id] = new Chart(document.getElementById(config.id), {
             ...configBase,
-            data: { labels, datasets: datasets(i === 0 ? 'field1' : 'field2') }
+            data: { labels, datasets: datasets(config.field) }
         });
     });
 }
