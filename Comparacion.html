@@ -78,23 +78,32 @@ async function cargarDatos() {
             fetch(EMAS.verde).then(r => r.json()),
             fetch(EMAS.blanca).then(r => r.json())
         ]);
+
+        // Buscamos el último dato válido para cada estación antes de actualizar
         actualizarCards('violeta', resVio.feeds);
         actualizarCards('verde', resVer.feeds);
         actualizarCards('blanca', resBla.feeds);
+
         dibujarGraficos(resVio.feeds, resVer.feeds, resBla.feeds);
     } catch (e) { console.error("Error:", e); }
 }
 
 function actualizarCards(key, feeds) {
-    const ultimo = feeds[feeds.length - 1];
+    // CORRECCIÓN: Filtramos para encontrar el último feed que tenga datos reales (no nulos)
+    const datosValidos = feeds.filter(f => f.field1 !== null && f.field1 !== undefined && f.field1 !== "");
+    const ultimo = datosValidos.length > 0 ? datosValidos[datosValidos.length - 1] : feeds[feeds.length - 1];
+    
     const fecha = new Date(ultimo.created_at);
-    document.getElementById(`val-${key}`).innerText = `${parseFloat(ultimo.field1).toFixed(1)} °C`;
-    document.getElementById(`hum-${key}`).innerText = `Hum: ${parseFloat(ultimo.field2).toFixed(1)} %`;
-    document.getElementById(`pres-${key}`).innerText = `Pres: ${parseFloat(ultimo.field6).toFixed(1)} hPa`;
+    
+    document.getElementById(`val-${key}`).innerText = ultimo.field1 ? `${parseFloat(ultimo.field1).toFixed(1)} °C` : "-- °C";
+    document.getElementById(`hum-${key}`).innerText = ultimo.field2 ? `Hum: ${parseFloat(ultimo.field2).toFixed(1)} %` : "Hum: -- %";
+    document.getElementById(`pres-${key}`).innerText = ultimo.field6 ? `Pres: ${parseFloat(ultimo.field6).toFixed(1)} hPa` : "Pres: -- hPa";
+    
     document.getElementById(`time-${key}`).innerText = `Dato: ${fecha.toLocaleDateString()} ${fecha.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
 }
 
 function dibujarGraficos(fVio, fVer, fBla) {
+    // Generar etiquetas de tiempo
     const labels = fVio.map(f => {
         const d = new Date(f.created_at);
         return d.toLocaleDateString([], {day:'2-digit', month:'2-digit'}) + " " + d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
@@ -105,7 +114,7 @@ function dibujarGraficos(fVio, fVer, fBla) {
         options: { 
             responsive: true, 
             maintainAspectRatio: false,
-            spanGaps: false,
+            spanGaps: false, // Mantiene los huecos visibles si la estación se apaga
             elements: { point: { radius: 3 } }
         } 
     };
