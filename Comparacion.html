@@ -25,38 +25,43 @@
         <div class="card" id="card-violeta">
             <h3>EMA Violeta</h3>
             <div class="valor" id="val-violeta">-- °C</div>
+            <div class="sub-dato" id="hum-violeta">Hum. Amb: -- %</div>
             <div class="sub-dato" id="pres-violeta">Presión: -- hPa</div>
-            <div class="sub-dato" id="suelo-violeta">Suelo: -- %</div>
             <small id="time-violeta">Sincronizando...</small>
         </div>
         <div class="card" id="card-verde">
             <h3>EMA Verde</h3>
             <div class="valor" id="val-verde">-- °C</div>
+            <div class="sub-dato" id="hum-verde">Hum. Amb: -- %</div>
             <div class="sub-dato" id="pres-verde">Presión: -- hPa</div>
-            <div class="sub-dato" id="suelo-verde">Suelo: -- %</div>
             <small id="time-verde">Sincronizando...</small>
         </div>
         <div class="card" id="card-blanca">
             <h3>EMA Blanca</h3>
             <div class="valor" id="val-blanca">-- °C</div>
+            <div class="sub-dato" id="hum-blanca">Hum. Amb: -- %</div>
             <div class="sub-dato" id="pres-blanca">Presión: -- hPa</div>
-            <div class="sub-dato" id="suelo-blanca">Suelo: -- %</div>
             <small id="time-blanca">Sincronizando...</small>
         </div>
     </div>
 
     <div class="chart-section">
-        <h3>1. Comparativa de Temperatura (°C) - DHT22 vs DHT11</h3>
+        <h3>1. Temperatura (°C) - DHT22 vs DHT11</h3>
         <div style="height: 300px;"><canvas id="chartTemp"></canvas></div>
     </div>
 
     <div class="chart-section">
-        <h3>2. Comparativa de Presión (hPa) - BMP280 vs BMP180</h3>
+        <h3>2. Humedad Ambiente (%) - DHT22 vs DHT11</h3>
+        <div style="height: 300px;"><canvas id="chartHumAmb"></canvas></div>
+    </div>
+
+    <div class="chart-section">
+        <h3>3. Presión Atmosférica (hPa) - BMP280 vs BMP180</h3>
         <div style="height: 300px;"><canvas id="chartPres"></canvas></div>
     </div>
 
     <div class="chart-section">
-        <h3>3. Humedad del Suelo (%)</h3>
+        <h3>4. Humedad del Suelo (%)</h3>
         <div style="height: 300px;"><canvas id="chartSuelo"></canvas></div>
     </div>
 
@@ -67,7 +72,7 @@ const EMAS = {
     blanca: "https://api.thingspeak.com/channels/2218689/feeds.json?results=60&api_key=ZLNOSLZJPQM3H7SD"
 };
 
-let chartT, chartP, chartS;
+let chartT, chartH, chartP, chartS;
 
 async function cargarDatos() {
     try {
@@ -82,27 +87,27 @@ async function cargarDatos() {
         actualizarCards('blanca', resBla.feeds);
 
         dibujarGraficos(resVio.feeds, resVer.feeds, resBla.feeds);
-    } catch (e) { console.error("Error cargando datos:", e); }
+    } catch (e) { console.error("Error:", e); }
 }
 
 function actualizarCards(key, feeds) {
     const ultimo = feeds[feeds.length - 1];
     document.getElementById(`val-${key}`).innerText = `${parseFloat(ultimo.field1).toFixed(1)} °C`;
+    document.getElementById(`hum-${key}`).innerText = `Hum. Amb: ${parseFloat(ultimo.field2).toFixed(1)} %`;
     document.getElementById(`pres-${key}`).innerText = `Presión: ${parseFloat(ultimo.field6).toFixed(1)} hPa`;
-    document.getElementById(`suelo-${key}`).innerText = `Suelo: ${parseFloat(ultimo.field3).toFixed(1)} %`;
-    document.getElementById(`time-${key}`).innerText = `Actualizado: ${new Date(ultimo.created_at).toLocaleTimeString()}`;
+    document.getElementById(`time-${key}`).innerText = `Act: ${new Date(ultimo.created_at).toLocaleTimeString()}`;
 }
 
 function dibujarGraficos(fVio, fVer, fBla) {
     const labels = fVio.map(f => new Date(f.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}));
     
     if(chartT) chartT.destroy();
+    if(chartH) chartH.destroy();
     if(chartP) chartP.destroy();
     if(chartS) chartS.destroy();
 
     const configBase = { type: 'line', options: { responsive: true, maintainAspectRatio: false, elements: { point: { radius: 0 } } } };
 
-    // Gráfico Temperatura
     chartT = new Chart(document.getElementById('chartTemp'), { ...configBase, data: {
         labels, datasets: [
             { label: 'Violeta (DHT22)', data: fVio.map(f => f.field1), borderColor: 'purple' },
@@ -111,7 +116,14 @@ function dibujarGraficos(fVio, fVer, fBla) {
         ]
     }});
 
-    // Gráfico Presión
+    chartH = new Chart(document.getElementById('chartHumAmb'), { ...configBase, data: {
+        labels, datasets: [
+            { label: 'Violeta (DHT22)', data: fVio.map(f => f.field2), borderColor: 'purple' },
+            { label: 'Verde (DHT22)', data: fVer.map(f => f.field2), borderColor: 'green' },
+            { label: 'Blanca (DHT11)', data: fBla.map(f => f.field2), borderColor: 'blue' }
+        ]
+    }});
+
     chartP = new Chart(document.getElementById('chartPres'), { ...configBase, data: {
         labels, datasets: [
             { label: 'Violeta (BMP280)', data: fVio.map(f => f.field6), borderColor: 'purple' },
@@ -120,7 +132,6 @@ function dibujarGraficos(fVio, fVer, fBla) {
         ]
     }});
 
-    // Gráfico Suelo
     chartS = new Chart(document.getElementById('chartSuelo'), { ...configBase, data: {
         labels, datasets: [
             { label: 'Violeta', data: fVio.map(f => f.field3), borderColor: 'purple' },
