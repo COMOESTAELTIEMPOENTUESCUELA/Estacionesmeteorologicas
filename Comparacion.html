@@ -3,83 +3,81 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Laboratorio de Intercomparación - UNLP</title>
+    <title>Análisis Histórico - UNLP</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #eceff1; padding: 20px; color: #37474f; }
+        .controles-fecha { background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; display: flex; gap: 15px; align-items: center; justify-content: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .grid-status { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px; }
         .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: center; border-top: 5px solid; }
         #card-violeta { border-top-color: #9c27b0; }
         #card-verde { border-top-color: #4caf50; }
         #card-blanca { border-top-color: #2196f3; }
         .chart-section { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 30px; }
-        h1 { text-align: center; color: #263238; }
+        button { background: #263238; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        button:hover { background: #455a64; }
+        h1 { text-align: center; }
         .valor { font-size: 24px; font-weight: bold; margin: 10px 0; }
-        .sub-dato { font-size: 0.9em; color: #607d8b; margin-bottom: 5px; }
-        .escuela-tag { font-size: 0.85em; font-weight: bold; color: #455a64; margin-bottom: 10px; display: block; }
     </style>
 </head>
 <body>
 
-    <h1>Diagnóstico de EMAs - UNLP</h1>
+    <h1>Análisis e Intercomparación de EMAs</h1>
+
+    <div class="controles-fecha">
+        <label>Desde: <input type="date" id="fechaInicio"></label>
+        <label>Hasta: <input type="date" id="fechaFin"></label>
+        <button onclick="cargarDatos()">Filtrar Datos</button>
+    </div>
     
     <div class="grid-status">
         <div class="card" id="card-violeta">
             <span class="escuela-tag">📍 EMA Violeta</span>
             <div class="valor" id="val-violeta">-- °C</div>
-            <div class="sub-dato" id="hum-violeta">Hum: -- %</div>
-            <div class="sub-dato" id="pres-violeta">Pres: -- hPa</div>
             <small id="time-violeta">Sincronizando...</small>
         </div>
         <div class="card" id="card-verde">
             <span class="escuela-tag">📍 Escuela 23 (Verde)</span>
             <div class="valor" id="val-verde">-- °C</div>
-            <div class="sub-dato" id="hum-verde">Hum: -- %</div>
-            <div class="sub-dato" id="pres-verde">Pres: -- hPa</div>
             <small id="time-verde">Sincronizando...</small>
         </div>
         <div class="card" id="card-blanca">
             <span class="escuela-tag">📍 Manuel Dorrego (Blanca)</span>
             <div class="valor" id="val-blanca">-- °C</div>
-            <div class="sub-dato" id="hum-blanca">Hum: -- %</div>
-            <div class="sub-dato" id="pres-blanca">Pres: -- hPa</div>
             <small id="time-blanca">Sincronizando...</small>
         </div>
     </div>
 
-    <div class="chart-section">
-        <h3>1. Temperatura con Fecha y Hora</h3>
-        <div style="height: 300px;"><canvas id="chartTemp"></canvas></div>
-    </div>
-
-    <div class="chart-section">
-        <h3>2. Humedad Ambiente (%)</h3>
-        <div style="height: 300px;"><canvas id="chartHum"></canvas></div>
-    </div>
-
-    <div class="chart-section">
-        <h3>3. Presión Atmosférica (hPa)</h3>
-        <div style="height: 300px;"><canvas id="chartPres"></canvas></div>
-    </div>
+    <div class="chart-section"><h3>Temperatura (°C)</h3><div style="height: 300px;"><canvas id="chartTemp"></canvas></div></div>
+    <div class="chart-section"><h3>Humedad Ambiente (%)</h3><div style="height: 300px;"><canvas id="chartHum"></canvas></div></div>
+    <div class="chart-section"><h3>Presión Atmosférica (hPa)</h3><div style="height: 300px;"><canvas id="chartPres"></canvas></div></div>
 
 <script>
-const EMAS = {
-    violeta: "https://api.thingspeak.com/channels/2626952/feeds.json?results=80&api_key=AXYH56YSV64HE17H",
-    verde: "https://api.thingspeak.com/channels/2218686/feeds.json?results=80&api_key=JUXJQRZMFFASO37Z",
-    blanca: "https://api.thingspeak.com/channels/2218689/feeds.json?results=80&api_key=ZLNOSLZJPQM3H7SD"
+const CONFIG = {
+    violeta: { id: 2626952, key: "AXYH56YSV64HE17H" },
+    verde: { id: 2218686, key: "JUXJQRZMFFASO37Z" },
+    blanca: { id: 2218689, key: "ZLNOSLZJPQM3H7SD" }
 };
 
 let charts = {};
 
 async function cargarDatos() {
-    try {
-        const [resVio, resVer, resBla] = await Promise.all([
-            fetch(EMAS.violeta).then(r => r.json()),
-            fetch(EMAS.verde).then(r => r.json()),
-            fetch(EMAS.blanca).then(r => r.json())
-        ]);
+    const inicio = document.getElementById('fechaInicio').value;
+    const fin = document.getElementById('fechaFin').value;
+    
+    // Si no hay fechas, carga los últimos 100 resultados por defecto
+    let query = "results=100";
+    if (inicio && fin) {
+        query = `start=${inicio}%2000:00:00&end=${fin}%2023:59:59`;
+    }
 
-        // Buscamos el último dato válido para cada estación antes de actualizar
+    try {
+        const [resVio, resVer, resBla] = await Promise.all(
+            Object.keys(CONFIG).map(k => 
+                fetch(`https://api.thingspeak.com/channels/${CONFIG[k].id}/feeds.json?${query}&api_key=${CONFIG[k].key}`).then(r => r.json())
+            )
+        );
+
         actualizarCards('violeta', resVio.feeds);
         actualizarCards('verde', resVer.feeds);
         actualizarCards('blanca', resBla.feeds);
@@ -89,59 +87,40 @@ async function cargarDatos() {
 }
 
 function actualizarCards(key, feeds) {
-    // CORRECCIÓN: Filtramos para encontrar el último feed que tenga datos reales (no nulos)
-    const datosValidos = feeds.filter(f => f.field1 !== null && f.field1 !== undefined && f.field1 !== "");
-    const ultimo = datosValidos.length > 0 ? datosValidos[datosValidos.length - 1] : feeds[feeds.length - 1];
-    
+    const validos = feeds.filter(f => f.field1 !== null);
+    if (validos.length === 0) return;
+    const ultimo = validos[validos.length - 1];
     const fecha = new Date(ultimo.created_at);
-    
-    document.getElementById(`val-${key}`).innerText = ultimo.field1 ? `${parseFloat(ultimo.field1).toFixed(1)} °C` : "-- °C";
-    document.getElementById(`hum-${key}`).innerText = ultimo.field2 ? `Hum: ${parseFloat(ultimo.field2).toFixed(1)} %` : "Hum: -- %";
-    document.getElementById(`pres-${key}`).innerText = ultimo.field6 ? `Pres: ${parseFloat(ultimo.field6).toFixed(1)} hPa` : "Pres: -- hPa";
-    
+    document.getElementById(`val-${key}`).innerText = `${parseFloat(ultimo.field1).toFixed(1)} °C`;
     document.getElementById(`time-${key}`).innerText = `Dato: ${fecha.toLocaleDateString()} ${fecha.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
 }
 
 function dibujarGraficos(fVio, fVer, fBla) {
-    // Generar etiquetas de tiempo
     const labels = fVio.map(f => {
         const d = new Date(f.created_at);
         return d.toLocaleDateString([], {day:'2-digit', month:'2-digit'}) + " " + d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
     });
     
-    const configBase = { 
-        type: 'line', 
-        options: { 
-            responsive: true, 
-            maintainAspectRatio: false,
-            spanGaps: false, // Mantiene los huecos visibles si la estación se apaga
-            elements: { point: { radius: 3 } }
-        } 
-    };
-
     const datasets = (field) => [
-        { label: 'Violeta', data: fVio.map(f => f[field]), borderColor: 'purple', backgroundColor: 'purple' },
-        { label: 'Verde (Esc. 23)', data: fVer.map(f => f[field]), borderColor: 'green', backgroundColor: 'green' },
-        { label: 'Blanca (Dorrego)', data: fBla.map(f => f[field]), borderColor: 'blue', backgroundColor: 'blue' }
+        { label: 'Violeta', data: fVio.map(f => f[field]), borderColor: 'purple', backgroundColor: 'purple', spanGaps: false },
+        { label: 'Verde', data: fVer.map(f => f[field]), borderColor: 'green', backgroundColor: 'green', spanGaps: false },
+        { label: 'Blanca', data: fBla.map(f => f[field]), borderColor: 'blue', backgroundColor: 'blue', spanGaps: false }
     ];
 
-    const chartConfigs = [
-        { id: 'chartTemp', field: 'field1' },
-        { id: 'chartHum', field: 'field2' },
-        { id: 'chartPres', field: 'field6' }
-    ];
-
-    chartConfigs.forEach(config => {
-        if(charts[config.id]) charts[config.id].destroy();
-        charts[config.id] = new Chart(document.getElementById(config.id), {
-            ...configBase,
-            data: { labels, datasets: datasets(config.field) }
+    [['chartTemp', 'field1'], ['chartHum', 'field2'], ['chartPres', 'field6']].forEach(([id, field]) => {
+        if(charts[id]) charts[id].destroy();
+        charts[id] = new Chart(document.getElementById(id), {
+            type: 'line',
+            data: { labels, datasets: datasets(field) },
+            options: { responsive: true, maintainAspectRatio: false, elements: { point: { radius: 3 } } }
         });
     });
 }
 
+// Carga inicial
+document.getElementById('fechaInicio').valueAsDate = new Date();
+document.getElementById('fechaFin').valueAsDate = new Date();
 cargarDatos();
-setInterval(cargarDatos, 300000); 
 </script>
 </body>
 </html>
