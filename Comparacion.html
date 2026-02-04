@@ -7,8 +7,8 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #eceff1; padding: 20px; color: #37474f; }
-        .controles-fecha { background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; display: flex; gap: 15px; align-items: center; justify-content: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .grid-status { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px; }
+        .controles-fecha { background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; display: flex; gap: 15px; align-items: center; justify-content: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); flex-wrap: wrap; }
+        .grid-status { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px; }
         .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: center; border-top: 5px solid; }
         #card-violeta { border-top-color: #9c27b0; }
         #card-verde { border-top-color: #4caf50; }
@@ -18,6 +18,7 @@
         button:hover { background: #455a64; }
         h1 { text-align: center; }
         .valor { font-size: 24px; font-weight: bold; margin: 10px 0; }
+        small { color: #78909c; display: block; margin-top: 5px; }
     </style>
 </head>
 <body>
@@ -65,61 +66,98 @@ async function cargarDatos() {
     const inicio = document.getElementById('fechaInicio').value;
     const fin = document.getElementById('fechaFin').value;
     
-    // Si no hay fechas, carga los últimos 100 resultados por defecto
-    let query = "results=100";
+    // Agregamos timezone para que coincida con Argentina (o tu zona local)
+    // ThingSpeak acepta el parámetro 'timezone'
+    let query = "results=8000"; // Aumentamos el límite para que no falten datos en el rango
     if (inicio && fin) {
-        query = `start=${inicio}%2000:00:00&end=${fin}%2023:59:59`;
+        query = `start=${inicio}%2000:00:00&end=${fin}%2023:59:59&timezone=America/Argentina/Buenos_Aires`;
     }
 
     try {
-        const [resVio, resVer, resBla] = await Promise.all(
-            Object.keys(CONFIG).map(k => 
-                fetch(`https://api.thingspeak.com/channels/${CONFIG[k].id}/feeds.json?${query}&api_key=${CONFIG[k].key}`).then(r => r.json())
-            )
+        const fetchPromises = Object.keys(CONFIG).map(k => 
+            fetch(`https://api.thingspeak.com/channels/${CONFIG[k].id}/feeds.json?${query}&api_key=${CONFIG[k].key}`)
+            .then(r => r.json())
         );
+
+        const [resVio, resVer, resBla] = await Promise.all(fetchPromises);
 
         actualizarCards('violeta', resVio.feeds);
         actualizarCards('verde', resVer.feeds);
         actualizarCards('blanca', resBla.feeds);
 
         dibujarGraficos(resVio.feeds, resVer.feeds, resBla.feeds);
-    } catch (e) { console.error("Error:", e); }
+    } catch (e) { 
+        console.error("Error cargando datos:", e); 
+    }
 }
 
 function actualizarCards(key, feeds) {
-    const validos = feeds.filter(f => f.field1 !== null);
-    if (validos.length === 0) return;
+    // Filtramos feeds que tengan datos válidos
+    const validos = feeds.filter(f => f.field1 !== null && f.field1 !== undefined);
+    if (validos.length === 0) {
+        document.getElementById(`val-${key}`).innerText = "Sin datos";
+        return;
+    }
+    
     const ultimo = validos[validos.length - 1];
     const fecha = new Date(ultimo.created_at);
+    
     document.getElementById(`val-${key}`).innerText = `${parseFloat(ultimo.field1).toFixed(1)} °C`;
-    document.getElementById(`time-${key}`).innerText = `Dato: ${fecha.toLocaleDateString()} ${fecha.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+    document.getElementById(`time-${key}`).innerText = `Último: ${fecha.toLocaleDateString()} ${fecha.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
 }
 
 function dibujarGraficos(fVio, fVer, fBla) {
-    const labels = fVio.map(f => {
+    // Usamos el set de datos más completo para las etiquetas del eje X
+    const todosLosFeeds = [fVio, fVer, fBla].sort((a, b) => b.length - a.length)[0];
+    
+    const labels = todosLosFeeds.map(f => {
         const d = new Date(f.created_at);
         return d.toLocaleDateString([], {day:'2-digit', month:'2-digit'}) + " " + d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
     });
     
-    const datasets = (field) => [
-        { label: 'Violeta', data: fVio.map(f => f[field]), borderColor: 'purple', backgroundColor: 'purple', spanGaps: false },
-        { label: 'Verde', data: fVer.map(f => f[field]), borderColor: 'green', backgroundColor: 'green', spanGaps: false },
-        { label: 'Blanca', data: fBla.map(f => f[field]), borderColor: 'blue', backgroundColor: 'blue', spanGaps: false }
-    ];
+    const crearDataset = (feeds, label, color, field) => ({
+        label: label,
+        data: feeds.map(f => f[field]),
+        borderColor: color,
+        backgroundColor: color + '33', // Color con transparencia para el punto
+        borderWidth: 2,
+        pointRadius: 1,
+        tension: 0.3,
+        spanGaps: true 
+    });
+
+    const configGrafico = (field) => ({
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                crearDataset(fVio, 'Violeta', '#9c27b0', field),
+                crearDataset(fVer, 'Verde', '#4caf50', field),
+                crearDataset(fBla, 'Blanca', '#2196f3', field)
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            scales: {
+                x: { ticks: { maxRotation: 45, minRotation: 45 } }
+            }
+        }
+    });
 
     [['chartTemp', 'field1'], ['chartHum', 'field2'], ['chartPres', 'field6']].forEach(([id, field]) => {
         if(charts[id]) charts[id].destroy();
-        charts[id] = new Chart(document.getElementById(id), {
-            type: 'line',
-            data: { labels, datasets: datasets(field) },
-            options: { responsive: true, maintainAspectRatio: false, elements: { point: { radius: 3 } } }
-        });
+        charts[id] = new Chart(document.getElementById(id), configGrafico(field));
     });
 }
 
-// Carga inicial
-document.getElementById('fechaInicio').valueAsDate = new Date();
-document.getElementById('fechaFin').valueAsDate = new Date();
+// Inicialización de fechas
+const hoy = new Date().toISOString().split('T')[0];
+document.getElementById('fechaInicio').value = hoy;
+document.getElementById('fechaFin').value = hoy;
+
+// Carga inicial al abrir la página
 cargarDatos();
 </script>
 </body>
