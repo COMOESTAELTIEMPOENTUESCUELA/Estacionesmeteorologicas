@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Análisis Histórico - UNLP</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #eceff1; padding: 20px; color: #37474f; }
         .controles-fecha { background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; display: flex; gap: 15px; align-items: center; justify-content: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); flex-wrap: wrap; }
@@ -16,9 +18,9 @@
         .chart-section { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 30px; }
         button { background: #263238; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
         button:hover { background: #455a64; }
-        h1 { text-align: center; }
-        .valor { font-size: 24px; font-weight: bold; margin: 10px 0; }
-        small { color: #78909c; display: block; margin-top: 5px; }
+        h1 { text-align: center; color: #263238; }
+        .valor { font-size: 28px; font-weight: bold; margin: 10px 0; }
+        small { color: #78909c; display: block; }
     </style>
 </head>
 <body>
@@ -33,31 +35,40 @@
     
     <div class="grid-status">
         <div class="card" id="card-violeta">
-            <span class="escuela-tag">📍 EMA Violeta</span>
+            <span>📍 EMA Violeta</span>
             <div class="valor" id="val-violeta">-- °C</div>
             <small id="time-violeta">Sincronizando...</small>
         </div>
         <div class="card" id="card-verde">
-            <span class="escuela-tag">📍 Escuela 23 (Verde)</span>
+            <span>📍 Escuela 23 (Verde)</span>
             <div class="valor" id="val-verde">-- °C</div>
             <small id="time-verde">Sincronizando...</small>
         </div>
         <div class="card" id="card-blanca">
-            <span class="escuela-tag">📍 Manuel Dorrego (Blanca)</span>
+            <span>📍 Manuel Dorrego (Blanca)</span>
             <div class="valor" id="val-blanca">-- °C</div>
             <small id="time-blanca">Sincronizando...</small>
         </div>
     </div>
 
-    <div class="chart-section"><h3>Temperatura (°C)</h3><div style="height: 300px;"><canvas id="chartTemp"></canvas></div></div>
-    <div class="chart-section"><h3>Humedad Ambiente (%)</h3><div style="height: 300px;"><canvas id="chartHum"></canvas></div></div>
-    <div class="chart-section"><h3>Presión Atmosférica (hPa)</h3><div style="height: 300px;"><canvas id="chartPres"></canvas></div></div>
+    <div class="chart-section">
+        <h3>Temperatura Ambiente (°C)</h3>
+        <div style="height: 350px;"><canvas id="chartTemp"></canvas></div>
+    </div>
+    <div class="chart-section">
+        <h3>Humedad Relativa (%)</h3>
+        <div style="height: 350px;"><canvas id="chartHum"></canvas></div>
+    </div>
+    <div class="chart-section">
+        <h3>Presión Atmosférica (hPa)</h3>
+        <div style="height: 350px;"><canvas id="chartPres"></canvas></div>
+    </div>
 
 <script>
 const CONFIG = {
-    violeta: { id: 2626952, key: "AXYH56YSV64HE17H" },
-    verde: { id: 2218686, key: "JUXJQRZMFFASO37Z" },
-    blanca: { id: 2218689, key: "ZLNOSLZJPQM3H7SD" }
+    violeta: { id: 2626952, key: "AXYH56YSV64HE17H", color: '#9c27b0' },
+    verde: { id: 2218686, key: "JUXJQRZMFFASO37Z", color: '#4caf50' },
+    blanca: { id: 2218689, key: "ZLNOSLZJPQM3H7SD", color: '#2196f3' }
 };
 
 let charts = {};
@@ -66,20 +77,21 @@ async function cargarDatos() {
     const inicio = document.getElementById('fechaInicio').value;
     const fin = document.getElementById('fechaFin').value;
     
-    // Agregamos timezone para que coincida con Argentina (o tu zona local)
-    // ThingSpeak acepta el parámetro 'timezone'
-    let query = "results=8000"; // Aumentamos el límite para que no falten datos en el rango
+    // Usamos timezone de Argentina para evitar desfases de 3 horas
+    let query = "results=500"; 
     if (inicio && fin) {
         query = `start=${inicio}%2000:00:00&end=${fin}%2023:59:59&timezone=America/Argentina/Buenos_Aires`;
     }
 
     try {
-        const fetchPromises = Object.keys(CONFIG).map(k => 
-            fetch(`https://api.thingspeak.com/channels/${CONFIG[k].id}/feeds.json?${query}&api_key=${CONFIG[k].key}`)
-            .then(r => r.json())
+        const resultados = await Promise.all(
+            Object.keys(CONFIG).map(k => 
+                fetch(`https://api.thingspeak.com/channels/${CONFIG[k].id}/feeds.json?${query}&api_key=${CONFIG[k].key}`)
+                .then(r => r.json())
+            )
         );
 
-        const [resVio, resVer, resBla] = await Promise.all(fetchPromises);
+        const [resVio, resVer, resBla] = resultados;
 
         actualizarCards('violeta', resVio.feeds);
         actualizarCards('verde', resVer.feeds);
@@ -87,77 +99,83 @@ async function cargarDatos() {
 
         dibujarGraficos(resVio.feeds, resVer.feeds, resBla.feeds);
     } catch (e) { 
-        console.error("Error cargando datos:", e); 
+        console.error("Error en la carga:", e); 
     }
 }
 
 function actualizarCards(key, feeds) {
-    // Filtramos feeds que tengan datos válidos
-    const validos = feeds.filter(f => f.field1 !== null && f.field1 !== undefined);
+    const validos = feeds.filter(f => f.field1 !== null);
     if (validos.length === 0) {
-        document.getElementById(`val-${key}`).innerText = "Sin datos";
+        document.getElementById(`val-${key}`).innerText = "N/D";
         return;
     }
-    
     const ultimo = validos[validos.length - 1];
     const fecha = new Date(ultimo.created_at);
     
     document.getElementById(`val-${key}`).innerText = `${parseFloat(ultimo.field1).toFixed(1)} °C`;
-    document.getElementById(`time-${key}`).innerText = `Último: ${fecha.toLocaleDateString()} ${fecha.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+    document.getElementById(`time-${key}`).innerText = `Último: ${fecha.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
 }
 
 function dibujarGraficos(fVio, fVer, fBla) {
-    // Usamos el set de datos más completo para las etiquetas del eje X
-    const todosLosFeeds = [fVio, fVer, fBla].sort((a, b) => b.length - a.length)[0];
-    
-    const labels = todosLosFeeds.map(f => {
-        const d = new Date(f.created_at);
-        return d.toLocaleDateString([], {day:'2-digit', month:'2-digit'}) + " " + d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-    });
-    
-    const crearDataset = (feeds, label, color, field) => ({
+    const prepararDatos = (feeds, field) => {
+        return feeds
+            .filter(f => f[field] !== null)
+            .map(f => ({
+                x: new Date(f.created_at).getTime(), // Timestamp para el eje de tiempo
+                y: parseFloat(f[field])
+            }));
+    };
+
+    const crearDataset = (feeds, label, key, field) => ({
         label: label,
-        data: feeds.map(f => f[field]),
-        borderColor: color,
-        backgroundColor: color + '33', // Color con transparencia para el punto
+        data: prepararDatos(feeds, field),
+        borderColor: CONFIG[key].color,
+        backgroundColor: CONFIG[key].color,
         borderWidth: 2,
-        pointRadius: 1,
-        tension: 0.3,
-        spanGaps: true 
+        pointRadius: 2,
+        tension: 0.2,
+        spanGaps: true
     });
 
-    const configGrafico = (field) => ({
+    const configBase = (field) => ({
         type: 'line',
         data: {
-            labels: labels,
             datasets: [
-                crearDataset(fVio, 'Violeta', '#9c27b0', field),
-                crearDataset(fVer, 'Verde', '#4caf50', field),
-                crearDataset(fBla, 'Blanca', '#2196f3', field)
+                crearDataset(fVio, 'Violeta', 'violeta', field),
+                crearDataset(fVer, 'Verde', 'verde', field),
+                crearDataset(fBla, 'Blanca', 'blanca', field)
             ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            interaction: { mode: 'index', intersect: false },
             scales: {
-                x: { ticks: { maxRotation: 45, minRotation: 45 } }
+                x: {
+                    type: 'time',
+                    time: {
+                        unit: 'hour',
+                        displayFormats: { hour: 'HH:mm', minute: 'HH:mm' }
+                    },
+                    title: { display: true, text: 'Hora (Local)' }
+                }
+            },
+            plugins: {
+                tooltip: { mode: 'index', intersect: false }
             }
         }
     });
 
     [['chartTemp', 'field1'], ['chartHum', 'field2'], ['chartPres', 'field6']].forEach(([id, field]) => {
         if(charts[id]) charts[id].destroy();
-        charts[id] = new Chart(document.getElementById(id), configGrafico(field));
+        charts[id] = new Chart(document.getElementById(id), configBase(field));
     });
 }
 
-// Inicialización de fechas
+// Configuración inicial de fechas (Hoy)
 const hoy = new Date().toISOString().split('T')[0];
 document.getElementById('fechaInicio').value = hoy;
 document.getElementById('fechaFin').value = hoy;
 
-// Carga inicial al abrir la página
 cargarDatos();
 </script>
 </body>
