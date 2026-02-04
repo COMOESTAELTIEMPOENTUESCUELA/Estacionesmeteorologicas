@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Análisis Meteorológico UNLP - DPV hPa</title>
+    <title>Análisis Meteorológico UNLP - Intercomparación</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
     
@@ -54,6 +54,7 @@
     <div class="chart-section"><h3>Temperatura Ambiente (°C)</h3><div style="height: 300px;"><canvas id="chartTemp"></canvas></div></div>
     <div class="chart-section"><h3>Humedad Relativa (%)</h3><div style="height: 300px;"><canvas id="chartHum"></canvas></div></div>
     <div class="chart-section"><h3>Déficit de Presión de Vapor (DPV en hPa)</h3><div style="height: 300px;"><canvas id="chartVPD"></canvas></div></div>
+    <div class="chart-section"><h3>Precipitación Acumulada (mm) - Corte 09:00 AM</h3><div style="height: 300px;"><canvas id="chartRain"></canvas></div></div>
     <div class="chart-section"><h3>Presión Atmosférica (hPa)</h3><div style="height: 300px;"><canvas id="chartPres"></canvas></div></div>
 
 <script>
@@ -65,12 +66,11 @@ const CONFIG = {
 
 let charts = {};
 
-// Cálculo de DPV en hPa
+// Cálculo de DPV en hPa usando la fórmula de Tetens
 function calcularDPV_hPa(t, h) {
     if (t === null || h === null) return null;
-    // Presión de vapor de saturación (es) en hPa
     const es = 6.1078 * Math.exp((17.27 * t) / (t + 237.3)); 
-    const ea = es * (h / 100); // Presión de vapor actual
+    const ea = es * (h / 100); 
     return parseFloat((es - ea).toFixed(2)); 
 }
 
@@ -107,24 +107,50 @@ function actualizarCards(key, feeds) {
 }
 
 function dibujarGraficos(fVio, fVer, fBla) {
-    const prepararDatos = (feeds, field, isDPV = false) => {
+    const prepararDatos = (feeds, field, type = 'normal') => {
+        let acumuladoLluvia = 0;
+        let ultimoDiaMet = -1;
+
         return feeds
-            .filter(f => f.field1 !== null && f.field2 !== null)
-            .map(f => ({
-                x: new Date(f.created_at).getTime(),
-                y: isDPV ? calcularDPV_hPa(parseFloat(f.field1), parseFloat(f.field2)) : parseFloat(f[field])
-            }));
+            .filter(f => f.field1 !== null)
+            .map(f => {
+                const fecha = new Date(f.created_at);
+                const timestamp = fecha.getTime();
+                let valorFinal = null;
+
+                if (type === 'VPD') {
+                    valorFinal = calcularDPV_hPa(parseFloat(f.field1), parseFloat(f.field2));
+                } else if (type === 'rain') {
+                    // Lógica de reseteo a las 09:00 AM (Día Meteorológico)
+                    const diaActual = fecha.getDate();
+                    const horaActual = fecha.getHours();
+                    
+                    // Si cruzamos la barrera de las 09:00, reiniciamos el acumulador
+                    if (horaActual === 9 && ultimoDiaMet !== diaActual) {
+                        acumuladoLluvia = 0;
+                        ultimoDiaMet = diaActual;
+                    }
+                    
+                    const pulso = parseFloat(f.field4) || 0;
+                    acumuladoLluvia += (pulso * 0.25);
+                    valorFinal = parseFloat(acumuladoLluvia.toFixed(2));
+                } else {
+                    valorFinal = parseFloat(f[field]);
+                }
+
+                return { x: timestamp, y: valorFinal };
+            });
     };
 
-    const datasets = (field, isDPV = false) => [
-        { label: 'Violeta', data: prepararDatos(fVio, field, isDPV), borderColor: CONFIG.violeta.color, backgroundColor: CONFIG.violeta.color, borderWidth: 2, pointRadius: 0, tension: 0.3, spanGaps: true },
-        { label: 'Verde', data: prepararDatos(fVer, field, isDPV), borderColor: CONFIG.verde.color, backgroundColor: CONFIG.verde.color, borderWidth: 2, pointRadius: 0, tension: 0.3, spanGaps: true },
-        { label: 'Blanca', data: prepararDatos(fBla, field, isDPV), borderColor: CONFIG.blanca.color, backgroundColor: CONFIG.blanca.color, borderWidth: 2, pointRadius: 0, tension: 0.3, spanGaps: true }
+    const datasets = (field, type) => [
+        { label: 'Violeta', data: prepararDatos(fVio, field, type), borderColor: CONFIG.violeta.color, backgroundColor: CONFIG.violeta.color, borderWidth: 2, pointRadius: 0, tension: 0.3, spanGaps: true },
+        { label: 'Verde', data: prepararDatos(fVer, field, type), borderColor: CONFIG.verde.color, backgroundColor: CONFIG.verde.color, borderWidth: 2, pointRadius: 0, tension: 0.3, spanGaps: true },
+        { label: 'Blanca', data: prepararDatos(fBla, field, type), borderColor: CONFIG.blanca.color, backgroundColor: CONFIG.blanca.color, borderWidth: 2, pointRadius: 0, tension: 0.3, spanGaps: true }
     ];
 
-    const config = (field, isDPV = false) => ({
+    const config = (field, type) => ({
         type: 'line',
-        data: { datasets: datasets(field, isDPV) },
+        data: { datasets: datasets(field, type) },
         options: {
             responsive: true,
             maintainAspectRatio: false,
@@ -139,15 +165,21 @@ function dibujarGraficos(fVio, fVer, fBla) {
         }
     });
 
-    const mapping = [['chartTemp', 'field1'], ['chartHum', 'field2'], ['chartPres', 'field6'], ['chartVPD', null, true]];
+    const mapping = [
+        ['chartTemp', 'field1', 'normal'], 
+        ['chartHum', 'field2', 'normal'], 
+        ['chartPres', 'field6', 'normal'], 
+        ['chartVPD', null, 'VPD'],
+        ['chartRain', 'field4', 'rain']
+    ];
     
-    mapping.forEach(([id, field, isDPV]) => {
+    mapping.forEach(([id, field, type]) => {
         if(charts[id]) charts[id].destroy();
-        charts[id] = new Chart(document.getElementById(id), config(field, isDPV));
+        charts[id] = new Chart(document.getElementById(id), config(field, type));
     });
 }
 
-// Inicialización
+// Inicialización automática al cargar la página
 const hoy = new Date().toISOString().split('T')[0];
 document.getElementById('fechaInicio').value = hoy;
 document.getElementById('fechaFin').value = hoy;
