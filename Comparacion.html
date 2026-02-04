@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Análisis Meteorológico UNLP - Intercomparación</title>
+    <title>Análisis Meteorológico UNLP - Dashboard Mauricio</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
     
@@ -16,11 +16,15 @@
         #card-verde { border-top-color: #4caf50; }
         #card-blanca { border-top-color: #2196f3; }
         .chart-section { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 30px; }
+        .iframe-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-top: 10px; }
+        iframe { width: 100%; height: 500px; border: 1px solid #cfd8dc; border-radius: 8px; }
         button { background: #263238; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
         button:hover { background: #455a64; }
         h1 { text-align: center; color: #263238; }
+        h3 { border-bottom: 2px solid #eceff1; padding-bottom: 10px; margin-top: 0; }
         .valor { font-size: 28px; font-weight: bold; margin: 10px 0; }
-        small { color: #78909c; display: block; }
+        small { color: #78909c; display: block; margin-top: 5px; }
+        a { color: #2196f3; text-decoration: none; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -57,6 +61,22 @@
     <div class="chart-section"><h3>Precipitación Acumulada (mm) - Corte 09:00 AM</h3><div style="height: 300px;"><canvas id="chartRain"></canvas></div></div>
     <div class="chart-section"><h3>Presión Atmosférica (hPa)</h3><div style="height: 300px;"><canvas id="chartPres"></canvas></div></div>
 
+    <div class="chart-section">
+        <h3>🌐 Estaciones de Referencia (Externas)</h3>
+        <div class="iframe-container">
+            <div>
+                <h4>📍 ILAPLA66 - Weather Underground</h4>
+                <iframe src="https://www.wunderground.com/dashboard/pws/ILAPLA66"></iframe>
+                <small><a href="https://www.wunderground.com/dashboard/pws/ILAPLA66" target="_blank">Abrir en pestaña nueva ↗</a></small>
+            </div>
+            <div>
+                <h4>📍 Estación Meteorológica FCAG (UNLP)</h4>
+                <iframe src="https://meteo.fcaglp.unlp.edu.ar"></iframe>
+                <small><a href="https://meteo.fcaglp.unlp.edu.ar" target="_blank">Abrir en pestaña nueva ↗</a></small>
+            </div>
+        </div>
+    </div>
+
 <script>
 const CONFIG = {
     violeta: { id: 2626952, key: "AXYH56YSV64HE17H", color: '#9c27b0' },
@@ -66,6 +86,7 @@ const CONFIG = {
 
 let charts = {};
 
+// Cálculo de DPV (VPD)
 function calcularDPV_hPa(t, h) {
     if (t === null || h === null) return null;
     const es = 6.1078 * Math.exp((17.27 * t) / (t + 237.3)); 
@@ -94,7 +115,7 @@ async function cargarDatos() {
         actualizarCards('blanca', resultados[2].feeds);
 
         dibujarGraficos(resultados[0].feeds, resultados[1].feeds, resultados[2].feeds);
-    } catch (e) { console.error("Error:", e); }
+    } catch (e) { console.error("Error al cargar datos:", e); }
 }
 
 function actualizarCards(key, feeds) {
@@ -102,7 +123,7 @@ function actualizarCards(key, feeds) {
     if (validos.length === 0) return;
     const ultimo = validos[validos.length - 1];
     document.getElementById(`val-${key}`).innerText = `${parseFloat(ultimo.field1).toFixed(1)} °C`;
-    document.getElementById(`time-${key}`).innerText = `Dato: ${new Date(ultimo.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+    document.getElementById(`time-${key}`).innerText = `Último: ${new Date(ultimo.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
 }
 
 function dibujarGraficos(fVio, fVer, fBla) {
@@ -112,7 +133,7 @@ function dibujarGraficos(fVio, fVer, fBla) {
 
         return feeds
             .filter(f => {
-                // Filtro dinámico: Si es lluvia, solo pide field4. Si es VPD, pide temp y hum.
+                // Filtro optimizado para no perder pulsos de lluvia sin temperatura
                 if (type === 'rain') return f.field4 !== null;
                 if (type === 'VPD') return f.field1 !== null && f.field2 !== null;
                 return f[field] !== null;
@@ -128,7 +149,7 @@ function dibujarGraficos(fVio, fVer, fBla) {
                     const diaActual = fecha.getDate();
                     const horaActual = fecha.getHours();
                     
-                    // Reset a las 09:00 AM
+                    // Reset a las 09:00 AM (Día Meteorológico)
                     if (horaActual === 9 && ultimoDiaMet !== diaActual) {
                         acumuladoLluvia = 0;
                         ultimoDiaMet = diaActual;
@@ -182,6 +203,7 @@ function dibujarGraficos(fVio, fVer, fBla) {
     });
 }
 
+// Inicialización
 const hoy = new Date().toISOString().split('T')[0];
 document.getElementById('fechaInicio').value = hoy;
 document.getElementById('fechaFin').value = hoy;
