@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Análisis Meteorológico Avanzado - UNLP</title>
+    <title>Análisis Meteorológico UNLP - DPV hPa</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
     
@@ -53,7 +53,7 @@
 
     <div class="chart-section"><h3>Temperatura Ambiente (°C)</h3><div style="height: 300px;"><canvas id="chartTemp"></canvas></div></div>
     <div class="chart-section"><h3>Humedad Relativa (%)</h3><div style="height: 300px;"><canvas id="chartHum"></canvas></div></div>
-    <div class="chart-section"><h3>Déficit de Presión de Vapor (VPD en kPa)</h3><div style="height: 300px;"><canvas id="chartVPD"></canvas></div></div>
+    <div class="chart-section"><h3>Déficit de Presión de Vapor (DPV en hPa)</h3><div style="height: 300px;"><canvas id="chartVPD"></canvas></div></div>
     <div class="chart-section"><h3>Presión Atmosférica (hPa)</h3><div style="height: 300px;"><canvas id="chartPres"></canvas></div></div>
 
 <script>
@@ -65,12 +65,13 @@ const CONFIG = {
 
 let charts = {};
 
-// Función para calcular VPD (Fórmula de Tetens)
-function calcularVPD(t, h) {
+// Cálculo de DPV en hPa
+function calcularDPV_hPa(t, h) {
     if (t === null || h === null) return null;
-    const es = 0.61078 * Math.exp((17.27 * t) / (t + 237.3)); // Presión de vapor de saturación
+    // Presión de vapor de saturación (es) en hPa
+    const es = 6.1078 * Math.exp((17.27 * t) / (t + 237.3)); 
     const ea = es * (h / 100); // Presión de vapor actual
-    return parseFloat((es - ea).toFixed(2)); // VPD en kPa
+    return parseFloat((es - ea).toFixed(2)); 
 }
 
 async function cargarDatos() {
@@ -106,40 +107,47 @@ function actualizarCards(key, feeds) {
 }
 
 function dibujarGraficos(fVio, fVer, fBla) {
-    const prepararDatos = (feeds, field, isVPD = false) => {
+    const prepararDatos = (feeds, field, isDPV = false) => {
         return feeds
             .filter(f => f.field1 !== null && f.field2 !== null)
             .map(f => ({
                 x: new Date(f.created_at).getTime(),
-                y: isVPD ? calcularVPD(parseFloat(f.field1), parseFloat(f.field2)) : parseFloat(f[field])
+                y: isDPV ? calcularDPV_hPa(parseFloat(f.field1), parseFloat(f.field2)) : parseFloat(f[field])
             }));
     };
 
-    const datasets = (field, isVPD = false) => [
-        { label: 'Violeta', data: prepararDatos(fVio, field, isVPD), borderColor: CONFIG.violeta.color, backgroundColor: CONFIG.violeta.color, borderWidth: 2, pointRadius: 0, tension: 0.3 },
-        { label: 'Verde', data: prepararDatos(fVer, field, isVPD), borderColor: CONFIG.verde.color, backgroundColor: CONFIG.verde.color, borderWidth: 2, pointRadius: 0, tension: 0.3 },
-        { label: 'Blanca', data: prepararDatos(fBla, field, isVPD), borderColor: CONFIG.blanca.color, backgroundColor: CONFIG.blanca.color, borderWidth: 2, pointRadius: 0, tension: 0.3 }
+    const datasets = (field, isDPV = false) => [
+        { label: 'Violeta', data: prepararDatos(fVio, field, isDPV), borderColor: CONFIG.violeta.color, backgroundColor: CONFIG.violeta.color, borderWidth: 2, pointRadius: 0, tension: 0.3, spanGaps: true },
+        { label: 'Verde', data: prepararDatos(fVer, field, isDPV), borderColor: CONFIG.verde.color, backgroundColor: CONFIG.verde.color, borderWidth: 2, pointRadius: 0, tension: 0.3, spanGaps: true },
+        { label: 'Blanca', data: prepararDatos(fBla, field, isDPV), borderColor: CONFIG.blanca.color, backgroundColor: CONFIG.blanca.color, borderWidth: 2, pointRadius: 0, tension: 0.3, spanGaps: true }
     ];
 
-    const config = (field, isVPD = false) => ({
+    const config = (field, isDPV = false) => ({
         type: 'line',
-        data: { datasets: datasets(field, isVPD) },
+        data: { datasets: datasets(field, isDPV) },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            scales: { x: { type: 'time', time: { unit: 'hour' } } },
+            scales: { 
+                x: { 
+                    type: 'time', 
+                    time: { unit: 'hour', displayFormats: { hour: 'HH:mm' } },
+                    title: { display: true, text: 'Hora Local' }
+                } 
+            },
             plugins: { tooltip: { mode: 'index', intersect: false } }
         }
     });
 
     const mapping = [['chartTemp', 'field1'], ['chartHum', 'field2'], ['chartPres', 'field6'], ['chartVPD', null, true]];
     
-    mapping.forEach(([id, field, isVPD]) => {
+    mapping.forEach(([id, field, isDPV]) => {
         if(charts[id]) charts[id].destroy();
-        charts[id] = new Chart(document.getElementById(id), config(field, isVPD));
+        charts[id] = new Chart(document.getElementById(id), config(field, isDPV));
     });
 }
 
+// Inicialización
 const hoy = new Date().toISOString().split('T')[0];
 document.getElementById('fechaInicio').value = hoy;
 document.getElementById('fechaFin').value = hoy;
