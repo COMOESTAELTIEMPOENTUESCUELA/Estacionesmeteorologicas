@@ -66,7 +66,6 @@ const CONFIG = {
 
 let charts = {};
 
-// Cálculo de DPV en hPa usando la fórmula de Tetens
 function calcularDPV_hPa(t, h) {
     if (t === null || h === null) return null;
     const es = 6.1078 * Math.exp((17.27 * t) / (t + 237.3)); 
@@ -112,7 +111,12 @@ function dibujarGraficos(fVio, fVer, fBla) {
         let ultimoDiaMet = -1;
 
         return feeds
-            .filter(f => f.field1 !== null)
+            .filter(f => {
+                // Filtro dinámico: Si es lluvia, solo pide field4. Si es VPD, pide temp y hum.
+                if (type === 'rain') return f.field4 !== null;
+                if (type === 'VPD') return f.field1 !== null && f.field2 !== null;
+                return f[field] !== null;
+            })
             .map(f => {
                 const fecha = new Date(f.created_at);
                 const timestamp = fecha.getTime();
@@ -121,11 +125,10 @@ function dibujarGraficos(fVio, fVer, fBla) {
                 if (type === 'VPD') {
                     valorFinal = calcularDPV_hPa(parseFloat(f.field1), parseFloat(f.field2));
                 } else if (type === 'rain') {
-                    // Lógica de reseteo a las 09:00 AM (Día Meteorológico)
                     const diaActual = fecha.getDate();
                     const horaActual = fecha.getHours();
                     
-                    // Si cruzamos la barrera de las 09:00, reiniciamos el acumulador
+                    // Reset a las 09:00 AM
                     if (horaActual === 9 && ultimoDiaMet !== diaActual) {
                         acumuladoLluvia = 0;
                         ultimoDiaMet = diaActual;
@@ -143,9 +146,9 @@ function dibujarGraficos(fVio, fVer, fBla) {
     };
 
     const datasets = (field, type) => [
-        { label: 'Violeta', data: prepararDatos(fVio, field, type), borderColor: CONFIG.violeta.color, backgroundColor: CONFIG.violeta.color, borderWidth: 2, pointRadius: 0, tension: 0.3, spanGaps: true },
-        { label: 'Verde', data: prepararDatos(fVer, field, type), borderColor: CONFIG.verde.color, backgroundColor: CONFIG.verde.color, borderWidth: 2, pointRadius: 0, tension: 0.3, spanGaps: true },
-        { label: 'Blanca', data: prepararDatos(fBla, field, type), borderColor: CONFIG.blanca.color, backgroundColor: CONFIG.blanca.color, borderWidth: 2, pointRadius: 0, tension: 0.3, spanGaps: true }
+        { label: 'Violeta', data: prepararDatos(fVio, field, type), borderColor: CONFIG.violeta.color, backgroundColor: CONFIG.violeta.color, borderWidth: 2, pointRadius: 2, tension: 0.3, spanGaps: true },
+        { label: 'Verde', data: prepararDatos(fVer, field, type), borderColor: CONFIG.verde.color, backgroundColor: CONFIG.verde.color, borderWidth: 2, pointRadius: 2, tension: 0.3, spanGaps: true },
+        { label: 'Blanca', data: prepararDatos(fBla, field, type), borderColor: CONFIG.blanca.color, backgroundColor: CONFIG.blanca.color, borderWidth: 2, pointRadius: 2, tension: 0.3, spanGaps: true }
     ];
 
     const config = (field, type) => ({
@@ -179,7 +182,6 @@ function dibujarGraficos(fVio, fVer, fBla) {
     });
 }
 
-// Inicialización automática al cargar la página
 const hoy = new Date().toISOString().split('T')[0];
 document.getElementById('fechaInicio').value = hoy;
 document.getElementById('fechaFin').value = hoy;
