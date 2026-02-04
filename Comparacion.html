@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Análisis Histórico - UNLP</title>
+    <title>Análisis Meteorológico Avanzado - UNLP</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
     
@@ -51,18 +51,10 @@
         </div>
     </div>
 
-    <div class="chart-section">
-        <h3>Temperatura Ambiente (°C)</h3>
-        <div style="height: 350px;"><canvas id="chartTemp"></canvas></div>
-    </div>
-    <div class="chart-section">
-        <h3>Humedad Relativa (%)</h3>
-        <div style="height: 350px;"><canvas id="chartHum"></canvas></div>
-    </div>
-    <div class="chart-section">
-        <h3>Presión Atmosférica (hPa)</h3>
-        <div style="height: 350px;"><canvas id="chartPres"></canvas></div>
-    </div>
+    <div class="chart-section"><h3>Temperatura Ambiente (°C)</h3><div style="height: 300px;"><canvas id="chartTemp"></canvas></div></div>
+    <div class="chart-section"><h3>Humedad Relativa (%)</h3><div style="height: 300px;"><canvas id="chartHum"></canvas></div></div>
+    <div class="chart-section"><h3>Déficit de Presión de Vapor (VPD en kPa)</h3><div style="height: 300px;"><canvas id="chartVPD"></canvas></div></div>
+    <div class="chart-section"><h3>Presión Atmosférica (hPa)</h3><div style="height: 300px;"><canvas id="chartPres"></canvas></div></div>
 
 <script>
 const CONFIG = {
@@ -73,12 +65,18 @@ const CONFIG = {
 
 let charts = {};
 
+// Función para calcular VPD (Fórmula de Tetens)
+function calcularVPD(t, h) {
+    if (t === null || h === null) return null;
+    const es = 0.61078 * Math.exp((17.27 * t) / (t + 237.3)); // Presión de vapor de saturación
+    const ea = es * (h / 100); // Presión de vapor actual
+    return parseFloat((es - ea).toFixed(2)); // VPD en kPa
+}
+
 async function cargarDatos() {
     const inicio = document.getElementById('fechaInicio').value;
     const fin = document.getElementById('fechaFin').value;
-    
-    // Usamos timezone de Argentina para evitar desfases de 3 horas
-    let query = "results=500"; 
+    let query = "results=800"; 
     if (inicio && fin) {
         query = `start=${inicio}%2000:00:00&end=${fin}%2023:59:59&timezone=America/Argentina/Buenos_Aires`;
     }
@@ -91,91 +89,60 @@ async function cargarDatos() {
             )
         );
 
-        const [resVio, resVer, resBla] = resultados;
+        actualizarCards('violeta', resultados[0].feeds);
+        actualizarCards('verde', resultados[1].feeds);
+        actualizarCards('blanca', resultados[2].feeds);
 
-        actualizarCards('violeta', resVio.feeds);
-        actualizarCards('verde', resVer.feeds);
-        actualizarCards('blanca', resBla.feeds);
-
-        dibujarGraficos(resVio.feeds, resVer.feeds, resBla.feeds);
-    } catch (e) { 
-        console.error("Error en la carga:", e); 
-    }
+        dibujarGraficos(resultados[0].feeds, resultados[1].feeds, resultados[2].feeds);
+    } catch (e) { console.error("Error:", e); }
 }
 
 function actualizarCards(key, feeds) {
     const validos = feeds.filter(f => f.field1 !== null);
-    if (validos.length === 0) {
-        document.getElementById(`val-${key}`).innerText = "N/D";
-        return;
-    }
+    if (validos.length === 0) return;
     const ultimo = validos[validos.length - 1];
-    const fecha = new Date(ultimo.created_at);
-    
     document.getElementById(`val-${key}`).innerText = `${parseFloat(ultimo.field1).toFixed(1)} °C`;
-    document.getElementById(`time-${key}`).innerText = `Último: ${fecha.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+    document.getElementById(`time-${key}`).innerText = `Dato: ${new Date(ultimo.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
 }
 
 function dibujarGraficos(fVio, fVer, fBla) {
-    const prepararDatos = (feeds, field) => {
+    const prepararDatos = (feeds, field, isVPD = false) => {
         return feeds
-            .filter(f => f[field] !== null)
+            .filter(f => f.field1 !== null && f.field2 !== null)
             .map(f => ({
-                x: new Date(f.created_at).getTime(), // Timestamp para el eje de tiempo
-                y: parseFloat(f[field])
+                x: new Date(f.created_at).getTime(),
+                y: isVPD ? calcularVPD(parseFloat(f.field1), parseFloat(f.field2)) : parseFloat(f[field])
             }));
     };
 
-    const crearDataset = (feeds, label, key, field) => ({
-        label: label,
-        data: prepararDatos(feeds, field),
-        borderColor: CONFIG[key].color,
-        backgroundColor: CONFIG[key].color,
-        borderWidth: 2,
-        pointRadius: 2,
-        tension: 0.2,
-        spanGaps: true
-    });
+    const datasets = (field, isVPD = false) => [
+        { label: 'Violeta', data: prepararDatos(fVio, field, isVPD), borderColor: CONFIG.violeta.color, backgroundColor: CONFIG.violeta.color, borderWidth: 2, pointRadius: 0, tension: 0.3 },
+        { label: 'Verde', data: prepararDatos(fVer, field, isVPD), borderColor: CONFIG.verde.color, backgroundColor: CONFIG.verde.color, borderWidth: 2, pointRadius: 0, tension: 0.3 },
+        { label: 'Blanca', data: prepararDatos(fBla, field, isVPD), borderColor: CONFIG.blanca.color, backgroundColor: CONFIG.blanca.color, borderWidth: 2, pointRadius: 0, tension: 0.3 }
+    ];
 
-    const configBase = (field) => ({
+    const config = (field, isVPD = false) => ({
         type: 'line',
-        data: {
-            datasets: [
-                crearDataset(fVio, 'Violeta', 'violeta', field),
-                crearDataset(fVer, 'Verde', 'verde', field),
-                crearDataset(fBla, 'Blanca', 'blanca', field)
-            ]
-        },
+        data: { datasets: datasets(field, isVPD) },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            scales: {
-                x: {
-                    type: 'time',
-                    time: {
-                        unit: 'hour',
-                        displayFormats: { hour: 'HH:mm', minute: 'HH:mm' }
-                    },
-                    title: { display: true, text: 'Hora (Local)' }
-                }
-            },
-            plugins: {
-                tooltip: { mode: 'index', intersect: false }
-            }
+            scales: { x: { type: 'time', time: { unit: 'hour' } } },
+            plugins: { tooltip: { mode: 'index', intersect: false } }
         }
     });
 
-    [['chartTemp', 'field1'], ['chartHum', 'field2'], ['chartPres', 'field6']].forEach(([id, field]) => {
+    const mapping = [['chartTemp', 'field1'], ['chartHum', 'field2'], ['chartPres', 'field6'], ['chartVPD', null, true]];
+    
+    mapping.forEach(([id, field, isVPD]) => {
         if(charts[id]) charts[id].destroy();
-        charts[id] = new Chart(document.getElementById(id), configBase(field));
+        charts[id] = new Chart(document.getElementById(id), config(field, isVPD));
     });
 }
 
-// Configuración inicial de fechas (Hoy)
 const hoy = new Date().toISOString().split('T')[0];
 document.getElementById('fechaInicio').value = hoy;
 document.getElementById('fechaFin').value = hoy;
-
 cargarDatos();
 </script>
 </body>
