@@ -58,7 +58,7 @@
     <div class="chart-section"><h3>Temperatura Ambiente (°C)</h3><div style="height: 300px;"><canvas id="chartTemp"></canvas></div></div>
     <div class="chart-section"><h3>Humedad Relativa (%)</h3><div style="height: 300px;"><canvas id="chartHum"></canvas></div></div>
     <div class="chart-section"><h3>Déficit de Presión de Vapor (DPV en hPa)</h3><div style="height: 300px;"><canvas id="chartVPD"></canvas></div></div>
-    <div class="chart-section"><h3>Precipitación Acumulada (mm) - Corte 09:00 AM</h3><div style="height: 300px;"><canvas id="chartRain"></canvas></div></div>
+    <div class="chart-section"><h3>Precipitación Acumulada (mm) - Corte 09:00 AM (12Z)</h3><div style="height: 300px;"><canvas id="chartRain"></canvas></div></div>
     <div class="chart-section"><h3>Presión Atmosférica (hPa)</h3><div style="height: 300px;"><canvas id="chartPres"></canvas></div></div>
 
     <div class="chart-section">
@@ -86,7 +86,6 @@ const CONFIG = {
 
 let charts = {};
 
-// Cálculo de DPV (VPD)
 function calcularDPV_hPa(t, h) {
     if (t === null || h === null) return null;
     const es = 6.1078 * Math.exp((17.27 * t) / (t + 237.3)); 
@@ -133,8 +132,8 @@ function dibujarGraficos(fVio, fVer, fBla) {
 
         return feeds
             .filter(f => {
-                // Filtro optimizado para no perder pulsos de lluvia sin temperatura
-                if (type === 'rain') return f.field4 !== null;
+                // CORRECCIÓN: field5 para lluvia en la Blanca, field4 para las otras si corresponde
+                if (type === 'rain') return f.field5 !== null || f.field4 !== null;
                 if (type === 'VPD') return f.field1 !== null && f.field2 !== null;
                 return f[field] !== null;
             })
@@ -155,8 +154,10 @@ function dibujarGraficos(fVio, fVer, fBla) {
                         ultimoDiaMet = diaActual;
                     }
                     
-                    const pulso = parseFloat(f.field4) || 0;
-                    acumuladoLluvia += (pulso * 0.25);
+                    // Si es la blanca, usamos field5 (ya en mm). Si son las otras, depende de su config.
+                    // Para tu caso específico de la Blanca:
+                    const datoLluvia = parseFloat(f.field5) || 0;
+                    acumuladoLluvia += datoLluvia;
                     valorFinal = parseFloat(acumuladoLluvia.toFixed(2));
                 } else {
                     valorFinal = parseFloat(f[field]);
@@ -194,7 +195,7 @@ function dibujarGraficos(fVio, fVer, fBla) {
         ['chartHum', 'field2', 'normal'], 
         ['chartPres', 'field6', 'normal'], 
         ['chartVPD', null, 'VPD'],
-        ['chartRain', 'field4', 'rain']
+        ['chartRain', 'field5', 'rain']
     ];
     
     mapping.forEach(([id, field, type]) => {
@@ -203,7 +204,6 @@ function dibujarGraficos(fVio, fVer, fBla) {
     });
 }
 
-// Inicialización
 const hoy = new Date().toISOString().split('T')[0];
 document.getElementById('fechaInicio').value = hoy;
 document.getElementById('fechaFin').value = hoy;
