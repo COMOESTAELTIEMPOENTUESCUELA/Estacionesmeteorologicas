@@ -18,6 +18,8 @@
         .chart-section { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 30px; }
         .iframe-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-top: 10px; }
         iframe { width: 100%; height: 500px; border: 1px solid #cfd8dc; border-radius: 8px; }
+        .radar-container { text-align: center; background: #263238; padding: 20px; border-radius: 12px; color: white; margin-bottom: 30px; }
+        .radar-container img { max-width: 100%; border-radius: 8px; border: 2px solid #455a64; }
         button { background: #263238; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
         button:hover { background: #455a64; }
         h1 { text-align: center; color: #263238; }
@@ -30,6 +32,12 @@
 <body>
 
     <h1>Análisis e Intercomparación de EMAs</h1>
+
+    <div class="radar-container">
+        <h3>📡 Radar Meteorológico Ezeiza (Vigilancia Actual)</h3>
+        <img src="https://www.climasurgba.com.ar/radar/ezeiza/radar.png" alt="Radar Ezeiza">
+        <small>Fuente: ClimaSurGBA / Actualización automática</small>
+    </div>
 
     <div class="controles-fecha">
         <label>Desde: <input type="date" id="fechaInicio"></label>
@@ -57,22 +65,27 @@
 
     <div class="chart-section"><h3>Temperatura Ambiente (°C)</h3><div style="height: 300px;"><canvas id="chartTemp"></canvas></div></div>
     <div class="chart-section"><h3>Humedad Relativa (%)</h3><div style="height: 300px;"><canvas id="chartHum"></canvas></div></div>
-    <div class="chart-section"><h3>Déficit de Presión de Vapor (DPV en hPa)</h3><div style="height: 300px;"><canvas id="chartVPD"></canvas></div></div>
     <div class="chart-section"><h3>Precipitación Acumulada (mm) - Corte 09:00 AM (12Z)</h3><div style="height: 300px;"><canvas id="chartRain"></canvas></div></div>
     <div class="chart-section"><h3>Presión Atmosférica (hPa)</h3><div style="height: 300px;"><canvas id="chartPres"></canvas></div></div>
 
     <div class="chart-section">
-        <h3>🌐 Estaciones de Referencia (Externas)</h3>
+        <h3>🌐 Estaciones de Referencia y Red Regional</h3>
         <div class="iframe-container">
             <div>
-                <h4>📍 ILAPLA66 - Weather Underground</h4>
-                <iframe src="https://www.wunderground.com/dashboard/pws/ILAPLA66"></iframe>
-                <small><a href="https://www.wunderground.com/dashboard/pws/ILAPLA66" target="_blank">Abrir en pestaña nueva ↗</a></small>
+                <h4>📍 Berisso (IARANA2)</h4>
+                <iframe src="https://www.wunderground.com/dashboard/pws/IARANA2"></iframe>
             </div>
             <div>
-                <h4>📍 Estación Meteorológica FCAG (UNLP)</h4>
+                <h4>📍 Monte Veloz (IVERNI9)</h4>
+                <iframe src="https://www.wunderground.com/dashboard/pws/IVERNI9"></iframe>
+            </div>
+            <div>
+                <h4>📍 FCAG (UNLP)</h4>
                 <iframe src="https://meteo.fcaglp.unlp.edu.ar"></iframe>
-                <small><a href="https://meteo.fcaglp.unlp.edu.ar" target="_blank">Abrir en pestaña nueva ↗</a></small>
+            </div>
+            <div>
+                <h4>📍 ILAPLA66 - La Plata Centro</h4>
+                <iframe src="https://www.wunderground.com/dashboard/pws/ILAPLA66"></iframe>
             </div>
         </div>
     </div>
@@ -85,13 +98,6 @@ const CONFIG = {
 };
 
 let charts = {};
-
-function calcularDPV_hPa(t, h) {
-    if (t === null || h === null) return null;
-    const es = 6.1078 * Math.exp((17.27 * t) / (t + 237.3)); 
-    const ea = es * (h / 100); 
-    return parseFloat((es - ea).toFixed(2)); 
-}
 
 async function cargarDatos() {
     const inicio = document.getElementById('fechaInicio').value;
@@ -112,7 +118,6 @@ async function cargarDatos() {
         actualizarCards('violeta', resultados[0].feeds);
         actualizarCards('verde', resultados[1].feeds);
         actualizarCards('blanca', resultados[2].feeds);
-
         dibujarGraficos(resultados[0].feeds, resultados[1].feeds, resultados[2].feeds);
     } catch (e) { console.error("Error al cargar datos:", e); }
 }
@@ -132,38 +137,21 @@ function dibujarGraficos(fVio, fVer, fBla) {
 
         return feeds
             .filter(f => {
-                // CORRECCIÓN: field5 para lluvia en la Blanca, field4 para las otras si corresponde
-                if (type === 'rain') return f.field5 !== null || f.field4 !== null;
-                if (type === 'VPD') return f.field1 !== null && f.field2 !== null;
+                if (type === 'rain') return f.field5 !== null;
                 return f[field] !== null;
             })
             .map(f => {
                 const fecha = new Date(f.created_at);
-                const timestamp = fecha.getTime();
-                let valorFinal = null;
-
-                if (type === 'VPD') {
-                    valorFinal = calcularDPV_hPa(parseFloat(f.field1), parseFloat(f.field2));
-                } else if (type === 'rain') {
+                if (type === 'rain') {
                     const diaActual = fecha.getDate();
-                    const horaActual = fecha.getHours();
-                    
-                    // Reset a las 09:00 AM (Día Meteorológico)
-                    if (horaActual === 9 && ultimoDiaMet !== diaActual) {
+                    if (fecha.getHours() === 9 && ultimoDiaMet !== diaActual) {
                         acumuladoLluvia = 0;
                         ultimoDiaMet = diaActual;
                     }
-                    
-                    // Si es la blanca, usamos field5 (ya en mm). Si son las otras, depende de su config.
-                    // Para tu caso específico de la Blanca:
-                    const datoLluvia = parseFloat(f.field5) || 0;
-                    acumuladoLluvia += datoLluvia;
-                    valorFinal = parseFloat(acumuladoLluvia.toFixed(2));
-                } else {
-                    valorFinal = parseFloat(f[field]);
+                    acumuladoLluvia += parseFloat(f.field5) || 0;
+                    return { x: fecha.getTime(), y: parseFloat(acumuladoLluvia.toFixed(2)) };
                 }
-
-                return { x: timestamp, y: valorFinal };
+                return { x: fecha.getTime(), y: parseFloat(f[field]) };
             });
     };
 
@@ -179,25 +167,11 @@ function dibujarGraficos(fVio, fVer, fBla) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            scales: { 
-                x: { 
-                    type: 'time', 
-                    time: { unit: 'hour', displayFormats: { hour: 'HH:mm' } },
-                    title: { display: true, text: 'Hora Local' }
-                } 
-            },
-            plugins: { tooltip: { mode: 'index', intersect: false } }
+            scales: { x: { type: 'time', time: { unit: 'hour', displayFormats: { hour: 'HH:mm' } } } }
         }
     });
 
-    const mapping = [
-        ['chartTemp', 'field1', 'normal'], 
-        ['chartHum', 'field2', 'normal'], 
-        ['chartPres', 'field6', 'normal'], 
-        ['chartVPD', null, 'VPD'],
-        ['chartRain', 'field5', 'rain']
-    ];
-    
+    const mapping = [['chartTemp', 'field1', 'normal'], ['chartHum', 'field2', 'normal'], ['chartPres', 'field6', 'normal'], ['chartRain', 'field5', 'rain']];
     mapping.forEach(([id, field, type]) => {
         if(charts[id]) charts[id].destroy();
         charts[id] = new Chart(document.getElementById(id), config(field, type));
