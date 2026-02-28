@@ -25,7 +25,6 @@
         h3 { border-bottom: 2px solid #eceff1; padding-bottom: 10px; margin-top: 0; }
         .valor { font-size: 28px; font-weight: bold; margin: 10px 0; }
         small { color: #78909c; display: block; margin-top: 5px; }
-        a { color: #2196f3; text-decoration: none; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -58,7 +57,7 @@
 
     <div class="chart-section"><h3>Temperatura Ambiente (°C)</h3><div style="height: 300px;"><canvas id="chartTemp"></canvas></div></div>
     <div class="chart-section"><h3>Humedad Relativa (%)</h3><div style="height: 300px;"><canvas id="chartHum"></canvas></div></div>
-    <div class="chart-section"><h3>Precipitación Acumulada (mm) - Corte 09:00 AM</h3><div style="height: 300px;"><canvas id="chartRain"></canvas></div></div>
+    <div class="chart-section"><h3>Precipitación Acumulada (mm)</h3><div style="height: 300px;"><canvas id="chartRain"></canvas></div></div>
     <div class="chart-section"><h3>Presión Atmosférica (hPa)</h3><div style="height: 300px;"><canvas id="chartPres"></canvas></div></div>
 
     <div class="chart-section">
@@ -69,20 +68,8 @@
                 <iframe src="https://www.climasurgba.com.ar/radar/ezeiza"></iframe>
             </div>
             <div class="iframe-card">
-                <h4>📍 ILAPLA66 - La Plata (junto a ema blanca y violeta) </h4>
+                <h4>📍 ILAPLA66 - La Plata</h4>
                 <iframe src="https://www.wunderground.com/dashboard/pws/ILAPLA66"></iframe>
-            </div>
-            <div class="iframe-card">
-                <h4>📍 Berisso (IARANA2)</h4>
-                <iframe src="https://www.wunderground.com/dashboard/pws/IARANA2"></iframe>
-            </div>
-            <div class="iframe-card">
-                <h4>📍 Monte Veloz (IVERNI9)</h4>
-                <iframe src="https://www.wunderground.com/dashboard/pws/IVERNI9"></iframe>
-            </div>
-            <div class="iframe-card">
-                <h4>📍 Observatorio FCAG (UNLP)</h4>
-                <iframe src="https://meteo.fcaglp.unlp.edu.ar"></iframe>
             </div>
         </div>
     </div>
@@ -128,34 +115,31 @@ function actualizarCards(key, feeds) {
 }
 
 function dibujarGraficos(fVio, fVer, fBla) {
-    const prepararDatos = (feeds, field, type = 'normal') => {
-        let acumuladoLluvia = 0;
-        let ultimoDiaMet = -1;
+    const prepararDatos = (feeds, field, type = 'normal', emaKey = '') => {
+        // Determinamos el campo de lluvia según la EMA
+        let fieldLluvia = 'field5'; 
+        if (emaKey === 'verde') fieldLluvia = 'field3';
 
         return feeds
             .filter(f => {
-                if (type === 'rain') return f.field5 !== null;
+                if (type === 'rain') return f[fieldLluvia] !== null;
                 return f[field] !== null;
             })
             .map(f => {
                 const fecha = new Date(f.created_at);
                 if (type === 'rain') {
-                    const diaActual = fecha.getDate();
-                    if (fecha.getHours() === 9 && ultimoDiaMet !== diaActual) {
-                        acumuladoLluvia = 0;
-                        ultimoDiaMet = diaActual;
-                    }
-                    acumuladoLluvia += parseFloat(f.field5) || 0;
-                    return { x: fecha.getTime(), y: parseFloat(acumuladoLluvia.toFixed(2)) };
+                    // Como tus placas ya mandan el acumulado (porque no reseteamos a cero),
+                    // el gráfico simplemente dibuja el valor que recibe de ThingSpeak.
+                    return { x: fecha.getTime(), y: parseFloat(f[fieldLluvia]) || 0 };
                 }
                 return { x: fecha.getTime(), y: parseFloat(f[field]) };
             });
     };
 
     const datasets = (field, type) => [
-        { label: 'Violeta', data: prepararDatos(fVio, field, type), borderColor: CONFIG.violeta.color, backgroundColor: CONFIG.violeta.color, borderWidth: 2, pointRadius: 2, tension: 0.3, spanGaps: true },
-        { label: 'Verde', data: prepararDatos(fVer, field, type), borderColor: CONFIG.verde.color, backgroundColor: CONFIG.verde.color, borderWidth: 2, pointRadius: 2, tension: 0.3, spanGaps: true },
-        { label: 'Blanca', data: prepararDatos(fBla, field, type), borderColor: CONFIG.blanca.color, backgroundColor: CONFIG.blanca.color, borderWidth: 2, pointRadius: 2, tension: 0.3, spanGaps: true }
+        { label: 'Violeta', data: prepararDatos(fVio, field, type, 'violeta'), borderColor: CONFIG.violeta.color, backgroundColor: CONFIG.violeta.color, borderWidth: 2, pointRadius: 2, tension: 0.3, spanGaps: true },
+        { label: 'Verde', data: prepararDatos(fVer, field, type, 'verde'), borderColor: CONFIG.verde.color, backgroundColor: CONFIG.verde.color, borderWidth: 2, pointRadius: 2, tension: 0.3, spanGaps: true },
+        { label: 'Blanca', data: prepararDatos(fBla, field, type, 'blanca'), borderColor: CONFIG.blanca.color, backgroundColor: CONFIG.blanca.color, borderWidth: 2, pointRadius: 2, tension: 0.3, spanGaps: true }
     ];
 
     const config = (field, type) => ({
@@ -164,11 +148,20 @@ function dibujarGraficos(fVio, fVer, fBla) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            scales: { x: { type: 'time', time: { unit: 'hour', displayFormats: { hour: 'HH:mm' } } } }
+            scales: { 
+                x: { type: 'time', time: { unit: 'hour', displayFormats: { hour: 'HH:mm' } } },
+                y: { beginAtZero: (type === 'rain') }
+            }
         }
     });
 
-    const mapping = [['chartTemp', 'field1', 'normal'], ['chartHum', 'field2', 'normal'], ['chartPres', 'field6', 'normal'], ['chartRain', 'field5', 'rain']];
+    const mapping = [
+        ['chartTemp', 'field1', 'normal'], 
+        ['chartHum', 'field2', 'normal'], 
+        ['chartPres', 'field6', 'normal'], 
+        ['chartRain', 'field5', 'rain'] // El field5 aquí es el 'default', el ajuste real se hace en prepararDatos
+    ];
+
     mapping.forEach(([id, field, type]) => {
         if(charts[id]) charts[id].destroy();
         charts[id] = new Chart(document.getElementById(id), config(field, type));
