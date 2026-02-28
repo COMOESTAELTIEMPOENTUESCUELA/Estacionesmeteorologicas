@@ -16,11 +16,8 @@
         #card-verde { border-top-color: #4caf50; }
         #card-blanca { border-top-color: #2196f3; }
         .chart-section { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 30px; }
-        .iframe-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-top: 10px; }
-        .iframe-card { background: #f8f9fa; padding: 10px; border-radius: 8px; border: 1px solid #dee2e6; }
         iframe { width: 100%; height: 500px; border: none; border-radius: 4px; }
         button { background: #263238; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
-        button:hover { background: #455a64; }
         h1 { text-align: center; color: #263238; }
         h3 { border-bottom: 2px solid #eceff1; padding-bottom: 10px; margin-top: 0; }
         .valor { font-size: 28px; font-weight: bold; margin: 10px 0; }
@@ -57,22 +54,8 @@
 
     <div class="chart-section"><h3>Temperatura Ambiente (°C)</h3><div style="height: 300px;"><canvas id="chartTemp"></canvas></div></div>
     <div class="chart-section"><h3>Humedad Relativa (%)</h3><div style="height: 300px;"><canvas id="chartHum"></canvas></div></div>
-    <div class="chart-section"><h3>Precipitación Acumulada (mm)</h3><div style="height: 300px;"><canvas id="chartRain"></canvas></div></div>
+    <div class="chart-section"><h3>Precipitación Diaria Acumulada (Corte 09:00 AM)</h3><div style="height: 300px;"><canvas id="chartRain"></canvas></div></div>
     <div class="chart-section"><h3>Presión Atmosférica (hPa)</h3><div style="height: 300px;"><canvas id="chartPres"></canvas></div></div>
-
-    <div class="chart-section">
-        <h3>📡 Vigilancia Regional: Radar y Red de Estaciones</h3>
-        <div class="iframe-grid">
-            <div class="iframe-card">
-                <h4>📍 Radar Ezeiza (ClimaSurGBA)</h4>
-                <iframe src="https://www.climasurgba.com.ar/radar/ezeiza"></iframe>
-            </div>
-            <div class="iframe-card">
-                <h4>📍 ILAPLA66 - La Plata</h4>
-                <iframe src="https://www.wunderground.com/dashboard/pws/ILAPLA66"></iframe>
-            </div>
-        </div>
-    </div>
 
 <script>
 const CONFIG = {
@@ -116,30 +99,60 @@ function actualizarCards(key, feeds) {
 
 function dibujarGraficos(fVio, fVer, fBla) {
     const prepararDatos = (feeds, field, type = 'normal', emaKey = '') => {
-        // Determinamos el campo de lluvia según la EMA
-        let fieldLluvia = 'field5'; 
-        if (emaKey === 'verde') fieldLluvia = 'field3';
+        let fieldBusqueda = field;
+        if (type === 'rain') {
+            fieldBusqueda = (emaKey === 'verde') ? 'field3' : 'field5';
+        }
+
+        let acumuladoLluvia = 0;
+        let ultimoDiaMet = -1;
+        let valorAnteriorPlaca = null;
 
         return feeds
-            .filter(f => {
-                if (type === 'rain') return f[fieldLluvia] !== null;
-                return f[field] !== null;
-            })
+            .filter(f => f[fieldBusqueda] !== null)
             .map(f => {
                 const fecha = new Date(f.created_at);
+                const valorActualPlaca = parseFloat(f[fieldBusqueda]) || 0;
+
                 if (type === 'rain') {
-                    // Como tus placas ya mandan el acumulado (porque no reseteamos a cero),
-                    // el gráfico simplemente dibuja el valor que recibe de ThingSpeak.
-                    return { x: fecha.getTime(), y: parseFloat(f[fieldLluvia]) || 0 };
+                    // Lógica de Día Meteorológico (Corte a las 09:00 AM)
+                    // Definimos el día meteorológico: si es antes de las 9, pertenece al día anterior
+                    let diaMeteorologico = fecha.getDate();
+                    if (fecha.getHours() < 9) {
+                        diaMeteorologico = diaMeteorologico - 1;
+                    }
+
+                    // Si cambiamos de día meteorológico, reseteamos el acumulado local
+                    if (ultimoDiaMet !== diaMeteorologico) {
+                        acumuladoLluvia = 0;
+                        ultimoDiaMet = diaMeteorologico;
+                        valorAnteriorPlaca = valorActualPlaca; // Seteamos el punto de partida
+                    }
+
+                    // Calculamos cuánto llovió desde el envío anterior
+                    // Si la placa NO se resetea (como la Blanca), restamos el valor actual menos el anterior
+                    // Si la placa SE resetea (como la Verde), sumamos el valor directo
+                    if (emaKey === 'blanca' || emaKey === 'violeta') {
+                        let incremento = valorActualPlaca - (valorAnteriorPlaca !== null ? valorAnteriorPlaca : valorActualPlaca);
+                        if (incremento < 0) incremento = 0; // Por si se resetea la placa físicamente
+                        acumuladoLluvia += incremento;
+                        valorAnteriorPlaca = valorActualPlaca;
+                    } else {
+                        // Para la Verde (que resetea a cero en cada envío)
+                        acumuladoLluvia += valorActualPlaca;
+                    }
+
+                    return { x: fecha.getTime(), y: parseFloat(acumuladoLluvia.toFixed(2)) };
                 }
-                return { x: fecha.getTime(), y: parseFloat(f[field]) };
+
+                return { x: fecha.getTime(), y: parseFloat(f[fieldBusqueda]) };
             });
     };
 
     const datasets = (field, type) => [
-        { label: 'Violeta', data: prepararDatos(fVio, field, type, 'violeta'), borderColor: CONFIG.violeta.color, backgroundColor: CONFIG.violeta.color, borderWidth: 2, pointRadius: 2, tension: 0.3, spanGaps: true },
-        { label: 'Verde', data: prepararDatos(fVer, field, type, 'verde'), borderColor: CONFIG.verde.color, backgroundColor: CONFIG.verde.color, borderWidth: 2, pointRadius: 2, tension: 0.3, spanGaps: true },
-        { label: 'Blanca', data: prepararDatos(fBla, field, type, 'blanca'), borderColor: CONFIG.blanca.color, backgroundColor: CONFIG.blanca.color, borderWidth: 2, pointRadius: 2, tension: 0.3, spanGaps: true }
+        { label: 'Violeta', data: prepararDatos(fVio, field, type, 'violeta'), borderColor: CONFIG.violeta.color, backgroundColor: CONFIG.violeta.color, borderWidth: 2, pointRadius: 0, tension: 0.1 },
+        { label: 'Verde', data: prepararDatos(fVer, field, type, 'verde'), borderColor: CONFIG.verde.color, backgroundColor: CONFIG.verde.color, borderWidth: 2, pointRadius: 0, tension: 0.1 },
+        { label: 'Blanca', data: prepararDatos(fBla, field, type, 'blanca'), borderColor: CONFIG.blanca.color, backgroundColor: CONFIG.blanca.color, borderWidth: 2, pointRadius: 0, tension: 0.1 }
     ];
 
     const config = (field, type) => ({
@@ -148,6 +161,7 @@ function dibujarGraficos(fVio, fVer, fBla) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: { intersect: false, mode: 'index' },
             scales: { 
                 x: { type: 'time', time: { unit: 'hour', displayFormats: { hour: 'HH:mm' } } },
                 y: { beginAtZero: (type === 'rain') }
@@ -159,7 +173,7 @@ function dibujarGraficos(fVio, fVer, fBla) {
         ['chartTemp', 'field1', 'normal'], 
         ['chartHum', 'field2', 'normal'], 
         ['chartPres', 'field6', 'normal'], 
-        ['chartRain', 'field5', 'rain'] // El field5 aquí es el 'default', el ajuste real se hace en prepararDatos
+        ['chartRain', 'field5', 'rain'] 
     ];
 
     mapping.forEach(([id, field, type]) => {
