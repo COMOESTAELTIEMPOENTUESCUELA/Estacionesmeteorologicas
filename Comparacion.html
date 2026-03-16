@@ -164,23 +164,20 @@ function dibujarGraficos(fVio, fVer, fBla) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            stacked: false,
             interaction: { 
                 intersect: false, 
-                mode: 'index' // Esto hace que te muestre los 3 valores a la vez al pasar el mouse
+                mode: 'x' // Cambiamos 'index' por 'x' para que busque por tiempo
             },
             plugins: {
                 tooltip: {
                     enabled: true,
                     position: 'nearest',
+                    itemSort: (a, b) => b.raw - a.raw, // Ordena los valores de mayor a menor en el cartel
                     callbacks: {
-                        label: function(context) {
-                            let label = context.dataset.label || '';
-                            if (label) { label += ': '; }
-                            if (context.parsed.y !== null) {
-                                label += context.parsed.y.toFixed(2);
-                            }
-                            return label;
+                        title: function(context) {
+                            // Fuerza a que el título del cartel sea la hora exacta del cursor
+                            const d = new Date(context[0].parsed.x);
+                            return d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                         }
                     }
                 }
@@ -195,20 +192,19 @@ function dibujarGraficos(fVio, fVer, fBla) {
             }
         },
         plugins: [{
-            // Este es el truco para la LÍNEA VERTICAL
             id: 'verticalLine',
             afterDraw: chart => {
                 if (chart.tooltip?._active?.length) {
-                    let x = chart.tooltip._active[0].element.x;
-                    let yAxis = chart.scales.y;
-                    let ctx = chart.ctx;
+                    const x = chart.tooltip._active[0].element.x;
+                    const yAxis = chart.scales.y;
+                    const ctx = chart.ctx;
                     ctx.save();
                     ctx.beginPath();
                     ctx.moveTo(x, yAxis.top);
                     ctx.lineTo(x, yAxis.bottom);
                     ctx.lineWidth = 1;
-                    ctx.setLineDash([5, 5]); // Línea punteada
-                    ctx.strokeStyle = '#263238';
+                    ctx.setLineDash([5, 5]);
+                    ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
                     ctx.stroke();
                     ctx.restore();
                 }
