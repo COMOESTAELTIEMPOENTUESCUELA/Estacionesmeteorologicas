@@ -16,7 +16,6 @@
         #card-verde { border-top-color: #4caf50; }
         #card-blanca { border-top-color: #2196f3; }
         .chart-section { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 30px; }
-        iframe { width: 100%; height: 500px; border: none; border-radius: 4px; }
         button { background: #263238; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
         h1 { text-align: center; color: #263238; }
         h3 { border-bottom: 2px solid #eceff1; padding-bottom: 10px; margin-top: 0; }
@@ -92,4 +91,105 @@ async function cargarDatos() {
 function actualizarCards(key, feeds) {
     const validos = feeds.filter(f => f.field1 !== null);
     if (validos.length === 0) return;
-    const ultimo = valid
+    const ultimo = validos[validos.length - 1];
+    
+    let valorTemp = parseFloat(ultimo.field1);
+    
+    // Aplicamos corrección a la Verde
+    if (key === 'verde') {
+        valorTemp = valorTemp - 2.0;
+    }
+
+    document.getElementById(`val-${key}`).innerText = `${valorTemp.toFixed(1)} °C`;
+    document.getElementById(`time-${key}`).innerText = `Último: ${new Date(ultimo.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+}
+
+function dibujarGraficos(fVio, fVer, fBla) {
+    const prepararDatos = (feeds, field, type = 'normal', emaKey = '') => {
+        let fieldBusqueda = field;
+        if (type === 'rain') {
+            fieldBusqueda = (emaKey === 'verde') ? 'field3' : 'field5';
+        }
+
+        let acumuladoLluvia = 0;
+        let ultimoDiaMet = -1;
+        let valorAnteriorPlaca = null;
+
+        return feeds
+            .filter(f => f[fieldBusqueda] !== null)
+            .map(f => {
+                const fecha = new Date(f.created_at);
+                let valorActual = parseFloat(f[fieldBusqueda]) || 0;
+
+                // Corrección para el gráfico de temperatura de la Verde
+                if (type === 'normal' && field === 'field1' && emaKey === 'verde') {
+                    valorActual = valorActual - 2.0;
+                }
+
+                if (type === 'rain') {
+                    let diaMeteorologico = fecha.getDate();
+                    if (fecha.getHours() < 9) diaMeteorologico -= 1;
+
+                    if (ultimoDiaMet !== diaMeteorologico) {
+                        acumuladoLluvia = 0;
+                        ultimoDiaMet = diaMeteorologico;
+                        valorAnteriorPlaca = valorActual;
+                    }
+
+                    if (emaKey === 'blanca' || emaKey === 'violeta') {
+                        let incremento = valorActual - (valorAnteriorPlaca !== null ? valorAnteriorPlaca : valorActual);
+                        if (incremento < 0) incremento = 0;
+                        acumuladoLluvia += incremento;
+                        valorAnteriorPlaca = valorActual;
+                    } else {
+                        acumuladoLluvia += valorActual;
+                    }
+
+                    return { x: fecha.getTime(), y: parseFloat(acumuladoLluvia.toFixed(2)) };
+                }
+
+                return { x: fecha.getTime(), y: valorActual };
+            });
+    };
+
+    const config = (titulo, id, field, type) => ({
+        type: 'line',
+        data: {
+            datasets: [
+                { label: 'Violeta', data: prepararDatos(fVio, field, type, 'violeta'), borderColor: CONFIG.violeta.color, backgroundColor: CONFIG.violeta.color, borderWidth: 2, pointRadius: 0, tension: 0.1 },
+                { label: 'Verde', data: prepararDatos(fVer, field, type, 'verde'), borderColor: CONFIG.verde.color, backgroundColor: CONFIG.verde.color, borderWidth: 2, pointRadius: 0, tension: 0.1 },
+                { label: 'Blanca', data: prepararDatos(fBla, field, type, 'blanca'), borderColor: CONFIG.blanca.color, backgroundColor: CONFIG.blanca.color, borderWidth: 2, pointRadius: 0, tension: 0.1 }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { intersect: false, mode: 'index' },
+            scales: { 
+                x: { type: 'time', time: { unit: 'hour', displayFormats: { hour: 'HH:mm' } } },
+                y: { beginAtZero: (type === 'rain') }
+            }
+        }
+    });
+
+    const mapping = [
+        ['chartTemp', 'field1', 'normal'], 
+        ['chartHum', 'field2', 'normal'], 
+        ['chartPres', 'field6', 'normal'], 
+        ['chartRain', 'field5', 'rain'] 
+    ];
+
+    mapping.forEach(([id, field, type]) => {
+        if(charts[id]) charts[id].destroy();
+        charts[id] = new Chart(document.getElementById(id), config('', id, field, type));
+    });
+}
+
+// Inicialización
+const hoy = new Date().toISOString().split('T')[0];
+document.getElementById('fechaInicio').value = hoy;
+document.getElementById('fechaFin').value = hoy;
+cargarDatos();
+</script>
+</body>
+</html>
