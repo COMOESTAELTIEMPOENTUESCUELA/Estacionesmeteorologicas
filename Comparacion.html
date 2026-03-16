@@ -172,12 +172,24 @@ function dibujarGraficos(fVio, fVer, fBla) {
                 tooltip: {
                     enabled: true,
                     position: 'nearest',
-                    itemSort: (a, b) => b.raw - a.raw, // Ordena los valores de mayor a menor en el cartel
+                    // ESTE FILTRO ELIMINA LOS REPETIDOS
+                    filter: function (tooltipItem, index, tooltipItems) {
+                        // Solo deja pasar el primer ejemplar de cada etiqueta (Violeta, Verde, Blanca)
+                        return tooltipItems.findIndex(t => t.dataset.label === tooltipItem.dataset.label) === index;
+                    },
+                    itemSort: (a, b) => b.raw - a.raw, 
                     callbacks: {
                         title: function(context) {
-                            // Fuerza a que el título del cartel sea la hora exacta del cursor
                             const d = new Date(context[0].parsed.x);
                             return d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                        },
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) { label += ': '; }
+                            if (context.parsed.y !== null) {
+                                label += context.parsed.y.toFixed(2);
+                            }
+                            return label;
                         }
                     }
                 }
