@@ -164,12 +164,56 @@ function dibujarGraficos(fVio, fVer, fBla) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            interaction: { intersect: false, mode: 'index' },
+            stacked: false,
+            interaction: { 
+                intersect: false, 
+                mode: 'index' // Esto hace que te muestre los 3 valores a la vez al pasar el mouse
+            },
+            plugins: {
+                tooltip: {
+                    enabled: true,
+                    position: 'nearest',
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) { label += ': '; }
+                            if (context.parsed.y !== null) {
+                                label += context.parsed.y.toFixed(2);
+                            }
+                            return label;
+                        }
+                    }
+                }
+            },
             scales: { 
-                x: { type: 'time', time: { unit: 'hour', displayFormats: { hour: 'HH:mm' } } },
+                x: { 
+                    type: 'time', 
+                    time: { unit: 'hour', displayFormats: { hour: 'HH:mm' } },
+                    grid: { drawOnChartArea: true }
+                },
                 y: { beginAtZero: (type === 'rain') }
             }
-        }
+        },
+        plugins: [{
+            // Este es el truco para la LÍNEA VERTICAL
+            id: 'verticalLine',
+            afterDraw: chart => {
+                if (chart.tooltip?._active?.length) {
+                    let x = chart.tooltip._active[0].element.x;
+                    let yAxis = chart.scales.y;
+                    let ctx = chart.ctx;
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.moveTo(x, yAxis.top);
+                    ctx.lineTo(x, yAxis.bottom);
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([5, 5]); // Línea punteada
+                    ctx.strokeStyle = '#263238';
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            }
+        }]
     });
 
     const mapping = [
