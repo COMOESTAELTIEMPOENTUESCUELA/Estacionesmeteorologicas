@@ -2,75 +2,79 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Mapa de Relieve - Tiempo en tu Escuela</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <title>Red 3D Gratis - Tiempo en tu Escuela</title>
+    <script src="https://unpkg.com/maplibre-gl@3.0.1/dist/maplibre-gl.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@3.0.1/dist/maplibre-gl.css" rel="stylesheet" />
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        #map { height: 600px; width: 100%; border-radius: 24px; z-index: 1; }
-        /* Estilo para que el popup combine con tu dashboard oscuro */
-        .leaflet-popup-content-wrapper { background: #1e293b; color: white; border-radius: 12px; }
-        .leaflet-popup-tip { background: #1e293b; }
+        body { margin: 0; padding: 0; overflow: hidden; }
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+        .control-panel {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0,0,0,0.1);
+        }
     </style>
 </head>
-<body class="bg-slate-100 p-4 md:p-8 text-slate-800">
+<body>
 
-    <div class="max-w-6xl mx-auto">
-        <header class="mb-6 flex justify-between items-center">
-            <div>
-                <h1 class="text-3xl font-black tracking-tight">Red de Estaciones</h1>
-                <p class="text-slate-500">Topografía y Relieve de la Región</p>
-            </div>
-            <button onclick="centrarMapa()" class="bg-white border border-slate-200 px-4 py-2 rounded-xl shadow-sm hover:bg-slate-50 font-bold text-sm">
-                Recentrar Mapa
-            </button>
-        </header>
+<div id="map"></div>
 
-        <div id="map" class="shadow-xl border-4 border-white"></div>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-            <div class="bg-blue-600 p-6 rounded-3xl text-white">
-                <h3 class="font-bold text-xl mb-2">Escuela 20 (Berisso)</h3>
-                <p class="text-blue-100 text-sm">Zona de bañados y costa. Elevación baja, alta influencia de humedad ribereña.</p>
-            </div>
-            <div class="bg-emerald-600 p-6 rounded-3xl text-white">
-                <h3 class="font-bold text-xl mb-2">Escuela 26 (Vergara)</h3>
-                <p class="text-emerald-100 text-sm">Zona de llanura alta. Ideal para medir vientos superficiales y heladas.</p>
-            </div>
-        </div>
+<div class="absolute top-6 left-6 z-10 control-panel p-6 rounded-3xl shadow-xl max-w-xs">
+    <h2 class="text-xl font-black text-slate-800">Visualizador 3D</h2>
+    <p class="text-xs text-slate-500 mt-1">Usa el botón derecho del mouse para rotar e inclinar la cámara.</p>
+    
+    <div class="mt-4 space-y-2">
+        <button onclick="irA('berisso')" class="w-full bg-blue-600 text-white p-3 rounded-2xl font-bold text-sm hover:bg-blue-700 transition">
+            Volar a Berisso (Esc. 20)
+        </button>
+        <button onclick="irA('vergara')" class="w-full bg-emerald-600 text-white p-3 rounded-2xl font-bold text-sm hover:bg-emerald-700 transition">
+            Volar a Vergara (Esc. 26)
+        </button>
     </div>
+</div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script>
-        // Coordenadas para centrar el mapa entre LP, Berisso y Vergara
-        const map = L.map('map').setView([-35.00, -57.85], 10);
+<script>
+    // Usamos un estilo de mapa gratuito de MapTiler (sin necesidad de key para pruebas locales)
+    const map = new maplibregl.Map({
+        container: 'map',
+        style: 'https://demotiles.maplibre.org/style.json', // Estilo básico libre
+        center: [-57.85, -34.95],
+        zoom: 10,
+        pitch: 60, // ESTA ES LA INCLINACIÓN 3D
+        bearing: -20 // Rotación de la cámara
+    });
 
-        // CAPA DE RELIEVE GRATUITA (OpenTopoMap)
-        const topoLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-            maxZoom: 17,
-            attribution: 'Map data: &copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap (CC-BY-SA)'
-        }).addTo(map);
+    // Añadir controles de navegación (zoom y rotación)
+    map.addControl(new maplibregl.NavigationControl());
 
-        // Marcadores
-        const escuelas = [
-            { nombre: "EEP N°20", loc: [-34.918, -57.815], desc: "Ruta 11 - Berisso" },
-            { nombre: "Escuela N°26", loc: [-35.150, -57.650], desc: "Vergara - Magdalena" },
-            { nombre: "Facultad (FCAGLP)", loc: [-34.910, -57.935], desc: "Paseo del Bosque" }
-        ];
+    // Puntos de interés
+    const puntos = {
+        'berisso': [-57.815, -34.918],
+        'vergara': [-57.650, -35.150]
+    };
 
-        escuelas.forEach(esc => {
-            L.marker(esc.loc).addTo(map)
-                .bindPopup(`
-                    <div class="text-center">
-                        <b class="text-lg">${esc.nombre}</b><br>
-                        <span class="text-slate-400 text-xs">${esc.desc}</span><br>
-                        <button class="mt-2 bg-blue-500 text-white px-3 py-1 rounded-lg text-xs font-bold">Ver Datos</button>
-                    </div>
-                `);
+    // Agregar Marcadores 3D
+    new maplibregl.Marker({ color: '#2563eb' })
+        .setLngLat(puntos.berisso)
+        .setPopup(new maplibregl.Popup().setHTML("<b>Escuela 20</b><br>Berisso"))
+        .addTo(map);
+
+    new maplibregl.Marker({ color: '#059669' })
+        .setLngLat(puntos.vergara)
+        .setPopup(new maplibregl.Popup().setHTML("<b>Escuela 26</b><br>Vergara"))
+        .addTo(map);
+
+    function irA(lugar) {
+        map.flyTo({
+            center: puntos[lugar],
+            zoom: 13,
+            pitch: 70, // Más inclinado al acercarse
+            speed: 0.8,
+            essential: true
         });
+    }
+</script>
 
-        function centrarMapa() {
-            map.setView([-35.00, -57.85], 10);
-        }
-    </script>
 </body>
 </html>
