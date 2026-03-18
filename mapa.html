@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Red 3D - Tiempo en tu Escuela</title>
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { margin: 0; padding: 0; }
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+        .marker-card {
+            background: rgba(15, 23, 42, 0.9);
+            color: white;
+            padding: 10px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.2);
+            backdrop-filter: blur(8px);
+        }
+    </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div class="absolute top-6 left-6 z-10 bg-white/90 backdrop-blur p-6 rounded-3xl shadow-2xl max-w-xs border border-slate-200">
+    <h1 class="text-xl font-extrabold text-slate-800 leading-tight">Exploración 3D de la Red</h1>
+    <p class="text-xs text-slate-500 mt-2">Usa <kbd class="bg-slate-100 px-1 rounded">Ctrl + Click</kbd> para rotar la cámara y ver el relieve de la región.</p>
+    
+    <div class="mt-4 space-y-2">
+        <button onclick="volarA('escuela20')" class="w-full text-left p-2 hover:bg-blue-50 rounded-lg text-sm font-semibold flex items-center gap-2">
+            <span class="w-2 h-2 bg-blue-500 rounded-full"></span> Escuela 20 (Berisso)
+        </button>
+        <button onclick="volarA('escuela26')" class="w-full text-left p-2 hover:bg-emerald-50 rounded-lg text-sm font-semibold flex items-center gap-2">
+            <span class="w-2 h-2 bg-emerald-500 rounded-full"></span> Escuela 26 (Vergara)
+        </button>
+    </div>
+</div>
+
+<script>
+    // DEBES REEMPLAZAR ESTO CON TU TOKEN DE MAPBOX (Es gratis en mapbox.com)
+    mapboxgl.accessToken = 'TU_MAPBOX_ACCESS_TOKEN_AQUI';
+
+    const map = new mapboxgl.Map({
+        container: 'map',
+        style: 'mapbox://styles/mapbox/outdoors-v12', // Estilo que resalta el relieve
+        center: [-57.85, -34.95],
+        zoom: 11,
+        pitch: 60, // Inclinación inicial para el efecto 3D
+        bearing: -20, // Rotación inicial
+        antialias: true
+    });
+
+    map.on('load', () => {
+        // AÑADIR RELIEVE 3D (Terreno)
+        map.addSource('mapbox-dem', {
+            'type': 'raster-dem',
+            'url': 'mapbox://mapbox.mapbox-terrain-dem-v1',
+            'tileSize': 512,
+            'maxzoom': 14
+        });
+        map.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': 1.5 }); // Exageramos un poco el relieve para que se note en la llanura
+
+        // AÑADIR CAPA DE EDIFICIOS 3D (Opcional para el centro de La Plata)
+        map.addLayer({
+            'id': '3d-buildings',
+            'source': 'composite',
+            'source-layer': 'building',
+            'filter': ['==', 'extrude', 'true'],
+            'type': 'fill-extrusion',
+            'minzoom': 15,
+            'paint': {
+                'fill-extrusion-color': '#aaa',
+                'fill-extrusion-height': ['get', 'height'],
+                'fill-extrusion-base': ['get', 'min_height'],
+                'fill-extrusion-opacity': 0.6
+            }
+        });
+
+        // Marcadores de Escuelas
+        const escuelas = {
+            'escuela20': [-57.815, -34.918],
+            'escuela26': [-57.650, -35.150]
+        };
+
+        // Escuela 20
+        new mapboxgl.Marker({ color: '#3b82f6' })
+            .setLngLat(escuelas.escuela20)
+            .setPopup(new mapboxgl.Popup().setHTML("<h3 class='font-bold'>EEP N°20</h3><p class='text-xs'>Berisso</p>"))
+            .addTo(map);
+
+        // Escuela 26
+        new mapboxgl.Marker({ color: '#10b981' })
+            .setLngLat(escuelas.escuela26)
+            .setPopup(new mapboxgl.Popup().setHTML("<h3 class='font-bold'>Escuela N°26</h3><p class='text-xs'>Vergara</p>"))
+            .addTo(map);
+    });
+
+    function volarA(lugar) {
+        const coords = {
+            'escuela20': [-57.815, -34.918],
+            'escuela26': [-57.650, -35.150]
+        };
+        map.flyTo({
+            center: coords[lugar],
+            zoom: 14,
+            pitch: 75,
+            speed: 1.2,
+            curve: 1.5
+        });
+    }
+</script>
+
+</body>
+</html>
