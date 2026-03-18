@@ -2,114 +2,75 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Red 3D - Tiempo en tu Escuela</title>
-    <script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
-    <link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet" />
+    <title>Mapa de Relieve - Tiempo en tu Escuela</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { margin: 0; padding: 0; }
-        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
-        .marker-card {
-            background: rgba(15, 23, 42, 0.9);
-            color: white;
-            padding: 10px;
-            border-radius: 12px;
-            border: 1px solid rgba(255,255,255,0.2);
-            backdrop-filter: blur(8px);
-        }
+        #map { height: 600px; width: 100%; border-radius: 24px; z-index: 1; }
+        /* Estilo para que el popup combine con tu dashboard oscuro */
+        .leaflet-popup-content-wrapper { background: #1e293b; color: white; border-radius: 12px; }
+        .leaflet-popup-tip { background: #1e293b; }
     </style>
 </head>
-<body>
+<body class="bg-slate-100 p-4 md:p-8 text-slate-800">
 
-<div id="map"></div>
+    <div class="max-w-6xl mx-auto">
+        <header class="mb-6 flex justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-black tracking-tight">Red de Estaciones</h1>
+                <p class="text-slate-500">Topografía y Relieve de la Región</p>
+            </div>
+            <button onclick="centrarMapa()" class="bg-white border border-slate-200 px-4 py-2 rounded-xl shadow-sm hover:bg-slate-50 font-bold text-sm">
+                Recentrar Mapa
+            </button>
+        </header>
 
-<div class="absolute top-6 left-6 z-10 bg-white/90 backdrop-blur p-6 rounded-3xl shadow-2xl max-w-xs border border-slate-200">
-    <h1 class="text-xl font-extrabold text-slate-800 leading-tight">Exploración 3D de la Red</h1>
-    <p class="text-xs text-slate-500 mt-2">Usa <kbd class="bg-slate-100 px-1 rounded">Ctrl + Click</kbd> para rotar la cámara y ver el relieve de la región.</p>
-    
-    <div class="mt-4 space-y-2">
-        <button onclick="volarA('escuela20')" class="w-full text-left p-2 hover:bg-blue-50 rounded-lg text-sm font-semibold flex items-center gap-2">
-            <span class="w-2 h-2 bg-blue-500 rounded-full"></span> Escuela 20 (Berisso)
-        </button>
-        <button onclick="volarA('escuela26')" class="w-full text-left p-2 hover:bg-emerald-50 rounded-lg text-sm font-semibold flex items-center gap-2">
-            <span class="w-2 h-2 bg-emerald-500 rounded-full"></span> Escuela 26 (Vergara)
-        </button>
+        <div id="map" class="shadow-xl border-4 border-white"></div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+            <div class="bg-blue-600 p-6 rounded-3xl text-white">
+                <h3 class="font-bold text-xl mb-2">Escuela 20 (Berisso)</h3>
+                <p class="text-blue-100 text-sm">Zona de bañados y costa. Elevación baja, alta influencia de humedad ribereña.</p>
+            </div>
+            <div class="bg-emerald-600 p-6 rounded-3xl text-white">
+                <h3 class="font-bold text-xl mb-2">Escuela 26 (Vergara)</h3>
+                <p class="text-emerald-100 text-sm">Zona de llanura alta. Ideal para medir vientos superficiales y heladas.</p>
+            </div>
+        </div>
     </div>
-</div>
 
-<script>
-    // DEBES REEMPLAZAR ESTO CON TU TOKEN DE MAPBOX (Es gratis en mapbox.com)
-    mapboxgl.accessToken = 'TU_MAPBOX_ACCESS_TOKEN_AQUI';
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Coordenadas para centrar el mapa entre LP, Berisso y Vergara
+        const map = L.map('map').setView([-35.00, -57.85], 10);
 
-    const map = new mapboxgl.Map({
-        container: 'map',
-        style: 'mapbox://styles/mapbox/outdoors-v12', // Estilo que resalta el relieve
-        center: [-57.85, -34.95],
-        zoom: 11,
-        pitch: 60, // Inclinación inicial para el efecto 3D
-        bearing: -20, // Rotación inicial
-        antialias: true
-    });
+        // CAPA DE RELIEVE GRATUITA (OpenTopoMap)
+        const topoLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+            maxZoom: 17,
+            attribution: 'Map data: &copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap (CC-BY-SA)'
+        }).addTo(map);
 
-    map.on('load', () => {
-        // AÑADIR RELIEVE 3D (Terreno)
-        map.addSource('mapbox-dem', {
-            'type': 'raster-dem',
-            'url': 'mapbox://mapbox.mapbox-terrain-dem-v1',
-            'tileSize': 512,
-            'maxzoom': 14
-        });
-        map.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': 1.5 }); // Exageramos un poco el relieve para que se note en la llanura
+        // Marcadores
+        const escuelas = [
+            { nombre: "EEP N°20", loc: [-34.918, -57.815], desc: "Ruta 11 - Berisso" },
+            { nombre: "Escuela N°26", loc: [-35.150, -57.650], desc: "Vergara - Magdalena" },
+            { nombre: "Facultad (FCAGLP)", loc: [-34.910, -57.935], desc: "Paseo del Bosque" }
+        ];
 
-        // AÑADIR CAPA DE EDIFICIOS 3D (Opcional para el centro de La Plata)
-        map.addLayer({
-            'id': '3d-buildings',
-            'source': 'composite',
-            'source-layer': 'building',
-            'filter': ['==', 'extrude', 'true'],
-            'type': 'fill-extrusion',
-            'minzoom': 15,
-            'paint': {
-                'fill-extrusion-color': '#aaa',
-                'fill-extrusion-height': ['get', 'height'],
-                'fill-extrusion-base': ['get', 'min_height'],
-                'fill-extrusion-opacity': 0.6
-            }
+        escuelas.forEach(esc => {
+            L.marker(esc.loc).addTo(map)
+                .bindPopup(`
+                    <div class="text-center">
+                        <b class="text-lg">${esc.nombre}</b><br>
+                        <span class="text-slate-400 text-xs">${esc.desc}</span><br>
+                        <button class="mt-2 bg-blue-500 text-white px-3 py-1 rounded-lg text-xs font-bold">Ver Datos</button>
+                    </div>
+                `);
         });
 
-        // Marcadores de Escuelas
-        const escuelas = {
-            'escuela20': [-57.815, -34.918],
-            'escuela26': [-57.650, -35.150]
-        };
-
-        // Escuela 20
-        new mapboxgl.Marker({ color: '#3b82f6' })
-            .setLngLat(escuelas.escuela20)
-            .setPopup(new mapboxgl.Popup().setHTML("<h3 class='font-bold'>EEP N°20</h3><p class='text-xs'>Berisso</p>"))
-            .addTo(map);
-
-        // Escuela 26
-        new mapboxgl.Marker({ color: '#10b981' })
-            .setLngLat(escuelas.escuela26)
-            .setPopup(new mapboxgl.Popup().setHTML("<h3 class='font-bold'>Escuela N°26</h3><p class='text-xs'>Vergara</p>"))
-            .addTo(map);
-    });
-
-    function volarA(lugar) {
-        const coords = {
-            'escuela20': [-57.815, -34.918],
-            'escuela26': [-57.650, -35.150]
-        };
-        map.flyTo({
-            center: coords[lugar],
-            zoom: 14,
-            pitch: 75,
-            speed: 1.2,
-            curve: 1.5
-        });
-    }
-</script>
-
+        function centrarMapa() {
+            map.setView([-35.00, -57.85], 10);
+        }
+    </script>
 </body>
 </html>
