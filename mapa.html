@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Red 3D - Tiempo en tu Escuela UNLP</title>
+    <title>Red 3D - Relieve Flotante UNLP</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -12,117 +12,110 @@
 
     <style>
         body { 
-            background-color: #0f172a; 
+            background-color: #020617; /* Un negro azulado más profundo */
             color: white; 
             margin: 0; 
             overflow: hidden; 
-            font-family: 'Inter', sans-serif;
+            font-family: 'Plus Jakarta Sans', sans-serif;
         }
         
-        /* Contenedor principal con profundidad */
+        /* Contenedor con perspectiva */
         #map-container {
-            perspective: 1200px;
+            perspective: 1500px;
             width: 100vw;
             height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+            background: radial-gradient(circle at center, #1e293b 0%, #020617 100%);
         }
 
-        /* Mapa con Opción 3: Borde Neón y Resplandor */
+        /* OPCIÓN 1: Mapa con Sombra Profunda y Bordes Suaves */
         #map {
-            width: 125%;
-            height: 125%;
-            transform: rotateX(28deg) rotateZ(-6deg);
-            border-radius: 60px;
-            /* Borde tecnológico fino */
-            border: 1.5px solid rgba(59, 130, 246, 0.5); 
-            /* Doble sombra: una para profundidad y otra para el resplandor azul */
-            box-shadow: 
-                0 0 40px rgba(59, 130, 246, 0.2), 
-                0 70px 120px rgba(0,0,0,0.6),
-                inset 0 0 20px rgba(59, 130, 246, 0.1);
-            transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            width: 140%; /* Más grande para ocultar bordes */
+            height: 140%;
+            transform: rotateX(30deg) rotateZ(-4deg);
+            border-radius: 80px; /* Bordes muy redondeados para suavizar la silueta */
+            
+            /* Sombra masiva y difuminada que funde el borde con el fondo */
+            box-shadow: 0 80px 150px rgba(0, 0, 0, 0.9);
+            
+            transition: all 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
             z-index: 1;
+            border: none; /* Quitamos cualquier borde sólido */
         }
 
-        /* Ajuste de los marcadores para que no se deformen tanto por la inclinación */
-        .leaflet-marker-icon, .leaflet-marker-shadow {
-            transform-style: preserve-3d;
-        }
-
-        /* Estilo de los Popups */
+        /* Estilo de los Popups (Oscuro y moderno) */
         .leaflet-popup-content-wrapper {
-            background: rgba(30, 41, 59, 0.95) !important;
+            background: #1e293b !important;
             color: white !important;
             border-radius: 20px !important;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
-        .leaflet-popup-tip { background: rgba(30, 41, 59, 0.95) !important; }
+        .leaflet-popup-tip { background: #1e293b !important; }
 
-        /* Panel Lateral */
+        /* Panel de Control */
         .ui-panel {
             position: absolute;
-            top: 40px;
-            left: 40px;
+            top: 50px;
+            left: 50px;
             z-index: 1000;
-            background: rgba(15, 23, 42, 0.7);
-            backdrop-filter: blur(12px);
-            padding: 28px;
-            border-radius: 35px;
-            border: 1px solid rgba(255,255,255,0.08);
-            width: 340px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(20px);
+            padding: 30px;
+            border-radius: 40px;
+            border: 1px solid rgba(255,255,255,0.05);
+            width: 320px;
         }
 
-        .btn-station {
-            transition: all 0.3s ease;
+        .btn-school {
+            background: rgba(255,255,255,0.03);
             border: 1px solid rgba(255,255,255,0.05);
+            transition: all 0.3s ease;
         }
-        .btn-station:hover {
-            transform: translateX(8px);
-            border-color: rgba(255,255,255,0.2);
+        .btn-school:hover {
+            background: rgba(255,255,255,0.1);
+            transform: scale(1.02);
         }
     </style>
 </head>
 <body>
 
-    <div class="ui-panel">
-        <div class="flex items-center gap-3 mb-6">
-            <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/40">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-            </div>
-            <div>
-                <h1 class="text-xl font-black tracking-tight">Explorador 3D</h1>
-                <p class="text-slate-500 text-[10px] uppercase font-bold tracking-widest">Red de Estaciones</p>
-            </div>
-        </div>
+    <div class="ui-panel shadow-2xl">
+        <header class="mb-8">
+            <h1 class="text-2xl font-black tracking-tight text-white">Red de Escuelas</h1>
+            <p class="text-slate-500 text-xs font-bold uppercase tracking-widest">Proyecto de Extensión</p>
+        </header>
         
-        <div class="space-y-3">
-            <button onclick="volarA(-34.918, -57.815)" class="btn-station w-full bg-blue-600/20 hover:bg-blue-600 text-blue-400 hover:text-white p-4 rounded-2xl font-bold text-sm flex justify-between items-center group">
-                <span>EEP N°20 (Berisso)</span>
-                <span class="text-[10px] bg-blue-500/20 group-hover:bg-blue-800 px-2 py-1 rounded-lg">Ruta 11</span>
+        <div class="space-y-4">
+            <button onclick="volarA(-34.918, -57.815)" class="btn-school w-full p-4 rounded-3xl text-left flex items-center gap-4 group">
+                <div class="w-2 h-10 bg-blue-500 rounded-full group-hover:h-12 transition-all"></div>
+                <div>
+                    <span class="block font-bold text-sm">Escuela 20</span>
+                    <span class="text-[10px] text-slate-500 uppercase">Berisso · Ruta 11</span>
+                </div>
             </button>
             
-            <button onclick="volarA(-35.150, -57.650)" class="btn-station w-full bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white p-4 rounded-2xl font-bold text-sm flex justify-between items-center group">
-                <span>Escuela N°26 (Vergara)</span>
-                <span class="text-[10px] bg-emerald-500/20 group-hover:bg-emerald-800 px-2 py-1 rounded-lg">Rural</span>
+            <button onclick="volarA(-35.150, -57.650)" class="btn-school w-full p-4 rounded-3xl text-left flex items-center gap-4 group">
+                <div class="w-2 h-10 bg-emerald-500 rounded-full group-hover:h-12 transition-all"></div>
+                <div>
+                    <span class="block font-bold text-sm">Escuela 26</span>
+                    <span class="text-[10px] text-slate-500 uppercase">Vergara · Rural</span>
+                </div>
             </button>
 
-            <button onclick="volarA(-34.910, -57.935)" class="btn-station w-full bg-slate-800 hover:bg-slate-700 p-4 rounded-2xl font-bold text-sm">
-                Facultad (FCAGLP)
+            <button onclick="volarA(-34.910, -57.935)" class="btn-school w-full p-4 rounded-3xl text-left flex items-center gap-4 group">
+                <div class="w-2 h-10 bg-purple-500 rounded-full group-hover:h-12 transition-all"></div>
+                <div>
+                    <span class="block font-bold text-sm">Facultad</span>
+                    <span class="text-[10px] text-slate-500 uppercase">FCAGLP · Bosque</span>
+                </div>
             </button>
         </div>
 
-        <div class="mt-8 pt-6 border-t border-white/5">
-            <p class="text-[10px] text-slate-500 leading-relaxed italic">
-                Usa el mapa interactivo para analizar el relieve y la ubicación estratégica de cada sensor en la región de La Plata.
-            </p>
-        </div>
+        <footer class="mt-10 opacity-30 text-[10px] font-bold tracking-tighter text-center">
+            UNLP · CIENCIAS ASTRONÓMICAS Y GEOFÍSICAS
+        </footer>
     </div>
 
     <div id="map-container">
@@ -134,37 +127,34 @@
         const map = L.map('map', {
             zoomControl: false,
             attributionControl: false
-        }).setView([-34.98, -57.85], 11);
+        }).setView([-34.95, -57.85], 11);
 
-        // Capa de Relieve Topográfico
+        // Capa de Relieve Topográfico (OpenTopoMap)
         L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
             maxZoom: 17
         }).addTo(map);
 
-        // Datos de las Escuelas
-        const escuelas = [
-            { id: 'esc20', nombre: "EEP N°20", coords: [-34.918, -57.815], color: "#3b82f6" },
-            { id: 'esc26', nombre: "Escuela N°26", coords: [-35.150, -57.650], color: "#10b981" },
-            { id: 'facu', nombre: "FCAGLP UNLP", coords: [-34.910, -57.935], color: "#a855f7" }
+        // Marcadores de Estaciones
+        const estaciones = [
+            { nombre: "EEP N°20", coords: [-34.918, -57.815], color: "#3b82f6" },
+            { nombre: "Escuela N°26", coords: [-35.150, -57.650], color: "#10b981" },
+            { nombre: "Facultad", coords: [-34.910, -57.935], color: "#a855f7" }
         ];
 
-        // Añadir los marcadores circulares con estilo neón
-        escuelas.forEach(esc => {
-            const marker = L.circleMarker(esc.coords, {
-                radius: 10,
-                fillColor: esc.color,
+        estaciones.forEach(est => {
+            const marker = L.circleMarker(est.coords, {
+                radius: 12,
+                fillColor: est.color,
                 color: "#fff",
-                weight: 2,
+                weight: 3,
                 opacity: 1,
                 fillOpacity: 0.9
             }).addTo(map);
 
             marker.bindPopup(`
-                <div class="text-center p-1">
-                    <b class="text-lg block mb-1">${esc.nombre}</b>
-                    <span class="text-blue-400 text-[10px] uppercase font-bold tracking-widest">Estación Activa</span>
-                    <hr class="my-2 border-white/10">
-                    <button onclick="window.location.href='analisis.html'" class="text-[11px] bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-full font-bold transition">VER DATOS EN VIVO</button>
+                <div class="text-center">
+                    <b class="text-lg">${est.nombre}</b><br>
+                    <span class="text-blue-400 text-xs font-bold uppercase">Datos en vivo</span>
                 </div>
             `);
         });
@@ -172,8 +162,8 @@
         // Función de vuelo suave
         function volarA(lat, lng) {
             map.flyTo([lat, lng], 14, {
-                duration: 1.5,
-                easeLinearity: 0.25
+                duration: 2,
+                easeLinearity: 0.2
             });
         }
     </script>
