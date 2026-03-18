@@ -2,79 +2,135 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Red 3D Gratis - Tiempo en tu Escuela</title>
-    <script src="https://unpkg.com/maplibre-gl@3.0.1/dist/maplibre-gl.js"></script>
-    <link href="https://unpkg.com/maplibre-gl@3.0.1/dist/maplibre-gl.css" rel="stylesheet" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Red 3D - Tiempo en tu Escuela UNLP</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
     <script src="https://cdn.tailwindcss.com"></script>
+
     <style>
-        body { margin: 0; padding: 0; overflow: hidden; }
-        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
-        .control-panel {
-            background: rgba(255, 255, 255, 0.8);
+        body { background-color: #0f172a; color: white; margin: 0; overflow: hidden; }
+        
+        /* Contenedor para el efecto de perspectiva */
+        #map-container {
+            perspective: 1000px;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(circle at center, #1e293b, #0f172a);
+        }
+
+        /* El mapa con inclinación 3D */
+        #map {
+            width: 120%;
+            height: 120%;
+            transform: rotateX(25deg) rotateZ(-5deg);
+            border-radius: 40px;
+            box-shadow: 0 50px 100px rgba(0,0,0,0.5);
+            transition: all 0.5s ease;
+            z-index: 1;
+        }
+
+        /* Popups con estilo oscuro */
+        .leaflet-popup-content-wrapper {
+            background: #1e293b !important;
+            color: white !important;
+            border-radius: 15px !important;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .leaflet-popup-tip { background: #1e293b !important; }
+
+        .ui-panel {
+            position: absolute;
+            top: 40px;
+            left: 40px;
+            z-index: 1000;
+            background: rgba(30, 41, 59, 0.8);
             backdrop-filter: blur(10px);
-            border: 1px solid rgba(0,0,0,0.1);
+            padding: 24px;
+            border-radius: 32px;
+            border: 1px solid rgba(255,255,255,0.1);
+            width: 320px;
         }
     </style>
 </head>
 <body>
 
-<div id="map"></div>
+    <div class="ui-panel shadow-2xl">
+        <h1 class="text-2xl font-black mb-1">Explorador 3D</h1>
+        <p class="text-slate-400 text-xs mb-6">Visualización de relieve y estaciones</p>
+        
+        <div class="space-y-3">
+            <button onclick="volarA(-34.918, -57.815)" class="w-full bg-blue-600 hover:bg-blue-500 p-4 rounded-2xl font-bold text-sm transition flex justify-between items-center">
+                <span>Escuela 20 (Berisso)</span>
+                <span class="text-[10px] bg-blue-800 px-2 py-1 rounded-lg">Ruta 11</span>
+            </button>
+            
+            <button onclick="volarA(-35.150, -57.650)" class="w-full bg-emerald-600 hover:bg-emerald-500 p-4 rounded-2xl font-bold text-sm transition flex justify-between items-center">
+                <span>Escuela 26 (Vergara)</span>
+                <span class="text-[10px] bg-emerald-800 px-2 py-1 rounded-lg">Rural</span>
+            </button>
 
-<div class="absolute top-6 left-6 z-10 control-panel p-6 rounded-3xl shadow-xl max-w-xs">
-    <h2 class="text-xl font-black text-slate-800">Visualizador 3D</h2>
-    <p class="text-xs text-slate-500 mt-1">Usa el botón derecho del mouse para rotar e inclinar la cámara.</p>
-    
-    <div class="mt-4 space-y-2">
-        <button onclick="irA('berisso')" class="w-full bg-blue-600 text-white p-3 rounded-2xl font-bold text-sm hover:bg-blue-700 transition">
-            Volar a Berisso (Esc. 20)
-        </button>
-        <button onclick="irA('vergara')" class="w-full bg-emerald-600 text-white p-3 rounded-2xl font-bold text-sm hover:bg-emerald-700 transition">
-            Volar a Vergara (Esc. 26)
-        </button>
+            <button onclick="volarA(-34.910, -57.935)" class="w-full bg-slate-700 hover:bg-slate-600 p-4 rounded-2xl font-bold text-sm transition">
+                Facultad (FCAGLP)
+            </button>
+        </div>
+
+        <p class="mt-6 text-[10px] text-slate-500 uppercase tracking-widest font-bold">Proyecto Extensión UNLP</p>
     </div>
-</div>
 
-<script>
-    // Usamos un estilo de mapa gratuito de MapTiler (sin necesidad de key para pruebas locales)
-    const map = new maplibregl.Map({
-        container: 'map',
-        style: 'https://demotiles.maplibre.org/style.json', // Estilo básico libre
-        center: [-57.85, -34.95],
-        zoom: 10,
-        pitch: 60, // ESTA ES LA INCLINACIÓN 3D
-        bearing: -20 // Rotación de la cámara
-    });
+    <div id="map-container">
+        <div id="map"></div>
+    </div>
 
-    // Añadir controles de navegación (zoom y rotación)
-    map.addControl(new maplibregl.NavigationControl());
+    <script>
+        // Inicializar Mapa centrado en la región de La Plata/Berisso/Magdalena
+        const map = L.map('map', {
+            zoomControl: false, // Quitamos controles para que no se rompa la estética
+            attributionControl: false
+        }).setView([-34.95, -57.85], 11);
 
-    // Puntos de interés
-    const puntos = {
-        'berisso': [-57.815, -34.918],
-        'vergara': [-57.650, -35.150]
-    };
+        // Capa de Relieve Topográfico (OpenTopoMap) - 100% Gratis
+        L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+            maxZoom: 17
+        }).addTo(map);
 
-    // Agregar Marcadores 3D
-    new maplibregl.Marker({ color: '#2563eb' })
-        .setLngLat(puntos.berisso)
-        .setPopup(new maplibregl.Popup().setHTML("<b>Escuela 20</b><br>Berisso"))
-        .addTo(map);
+        // Marcadores de las Escuelas
+        const escuelas = [
+            { id: 'esc20', nombre: "EEP N°20", coords: [-34.918, -57.815], color: "#3b82f6" },
+            { id: 'esc26', nombre: "Escuela N°26", coords: [-35.150, -57.650], color: "#10b981" },
+            { id: 'facu', nombre: "FCAGLP UNLP", coords: [-34.910, -57.935], color: "#a855f7" }
+        ];
 
-    new maplibregl.Marker({ color: '#059669' })
-        .setLngLat(puntos.vergara)
-        .setPopup(new maplibregl.Popup().setHTML("<b>Escuela 26</b><br>Vergara"))
-        .addTo(map);
+        escuelas.forEach(esc => {
+            const marker = L.circleMarker(esc.coords, {
+                radius: 12,
+                fillColor: esc.color,
+                color: "#fff",
+                weight: 3,
+                opacity: 1,
+                fillOpacity: 0.9
+            }).addTo(map);
 
-    function irA(lugar) {
-        map.flyTo({
-            center: puntos[lugar],
-            zoom: 13,
-            pitch: 70, // Más inclinado al acercarse
-            speed: 0.8,
-            essential: true
+            marker.bindPopup(`<b style="font-size:16px">${esc.nombre}</b><br><span style="color:#94a3b8">Estación Meteorológica</span>`);
         });
-    }
-</script>
 
+        // Función para "Volar" a cada ubicación
+        function volarA(lat, lng) {
+            map.flyTo([lat, lng], 14, {
+                duration: 2,
+                easeLinearity: 0.25
+            });
+        }
+
+        // Efecto visual: Al mover el mapa, la inclinación cambia levemente
+        map.on('mousemove', function(e) {
+            // Este efecto es opcional, da sensación de profundidad real
+        });
+    </script>
 </body>
 </html>
