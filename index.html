@@ -105,51 +105,37 @@
             </div>
         </div>
     </section>
-<section class="py-16 max-w-7xl mx-auto px-6">
-    <div class="flex flex-col md:flex-row justify-between items-end mb-10 gap-4">
-        <div>
-            <h2 class="text-3xl font-black text-slate-800 tracking-tight">Pronóstico por Localidad</h2>
-            <p class="text-slate-500 mt-2">Consultá el tiempo oficial del SMN para los nodos de nuestra red.</p>
+<section class="py-16 bg-slate-50 border-y border-slate-200">
+    <div class="max-w-5xl mx-auto px-6 text-center">
+        <div class="inline-flex items-center justify-center w-16 h-16 bg-orange-100 text-orange-600 rounded-full mb-6">
+            <i data-lucide="alert-triangle" class="w-8 h-8"></i>
         </div>
-        <span class="bg-slate-200 text-slate-600 px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest">SMN Oficial</span>
-    </div>
+        
+        <h2 class="text-3xl font-black text-slate-800 mb-4 tracking-tight">Pronóstico y Alertas Oficiales</h2>
+        
+        <p class="text-slate-600 text-lg mb-8 max-w-2xl mx-auto">
+            Para consultar el pronóstico detallado de tu localidad o verificar si existen 
+            <span class="font-bold text-orange-600 uppercase">Alertas Meteorológicas</span> vigentes para la región, 
+            te recomendamos visitar el sitio oficial del SMN.
+        </p>
 
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <a href="https://www.smn.gob.ar/pronostico?name=Magdalena" target="_blank" 
-           class="group bg-white border border-slate-200 p-6 rounded-[24px] hover:border-blue-500 hover:shadow-md transition-all text-center">
-            <div class="text-slate-400 group-hover:text-blue-600 transition-colors mb-3 flex justify-center">
-                <i data-lucide="map-pin" class="w-6 h-6"></i>
-            </div>
-            <span class="block font-bold text-slate-800">Magdalena</span>
-            <span class="text-[9px] text-slate-400 uppercase font-bold text-xs italic">Bavio / Correa</span>
-        </a>
+        <div class="flex flex-col md:flex-row justify-center gap-4">
+            <a href="https://www.smn.gob.ar/" target="_blank" 
+               class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-2xl font-black shadow-lg transition-all flex items-center justify-center gap-3 group">
+                <i data-lucide="search" class="w-5 h-5 group-hover:scale-110 transition"></i>
+                BUSCAR MI LOCALIDAD EN EL SMN
+            </a>
 
-        <a href="https://www.smn.gob.ar/pronostico?name=Berisso" target="_blank" 
-           class="group bg-white border border-slate-200 p-6 rounded-[24px] hover:border-emerald-500 hover:shadow-md transition-all text-center">
-            <div class="text-slate-400 group-hover:text-emerald-600 transition-colors mb-3 flex justify-center">
-                <i data-lucide="map-pin" class="w-6 h-6"></i>
-            </div>
-            <span class="block font-bold text-slate-800">Berisso</span>
-            <span class="text-[9px] text-slate-400 uppercase font-bold text-xs italic">Zona Costa</span>
-        </a>
+            <a href="https://www.smn.gob.ar/alertas" target="_blank" 
+               class="bg-white border-2 border-orange-500 text-orange-600 hover:bg-orange-50 px-8 py-4 rounded-2xl font-black transition-all flex items-center justify-center gap-3">
+                <i data-lucide="shield-alert" class="w-5 h-5"></i>
+                SISTEMA DE ALERTAS
+            </a>
+        </div>
 
-        <a href="https://www.smn.gob.ar/pronostico?name=La%20Plata" target="_blank" 
-           class="group bg-white border border-slate-200 p-6 rounded-[24px] hover:border-purple-500 hover:shadow-md transition-all text-center">
-            <div class="text-slate-400 group-hover:text-purple-600 transition-colors mb-3 flex justify-center">
-                <i data-lucide="map-pin" class="w-6 h-6"></i>
-            </div>
-            <span class="block font-bold text-slate-800">La Plata</span>
-            <span class="text-[9px] text-slate-400 uppercase font-bold text-xs italic">Casco y Arana</span>
-        </a>
-
-        <a href="https://www.smn.gob.ar/pronostico?name=Punta%20Indio" target="_blank" 
-           class="group bg-white border border-slate-200 p-6 rounded-[24px] hover:border-orange-500 hover:shadow-md transition-all text-center">
-            <div class="text-slate-400 group-hover:text-orange-600 transition-colors mb-3 flex justify-center">
-                <i data-lucide="map-pin" class="w-6 h-6"></i>
-            </div>
-            <span class="block font-bold text-slate-800">Punta Indio</span>
-            <span class="text-[9px] text-slate-400 uppercase font-bold text-xs italic">Vergara / Pipinas</span>
-        </a>
+        <p class="mt-8 text-[11px] text-slate-400 uppercase font-bold tracking-widest">
+            Usa el buscador del SMN para encontrar: La Plata, Berisso, Magdalena o Punta Indio.
+        </p>
     </div>
 </section>
 
