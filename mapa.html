@@ -1,9 +1,10 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Red 3D - Marco Difuminado Fino UNLP</title>
+    <title>Red 3D - Red Escolar UNLP</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -22,95 +23,73 @@
             position: relative;
         }
 
-        /* EL CONTENEDOR CON EL DIFUMINADO FINO EN TODO EL CONTORNO */
+        /* CONTENEDOR CON DIFUMINADO FINO EN TODO EL CONTORNO */
         #map-mask-container {
-            width: 92vw;
-            height: 88vh;
+            width: 94vw;
+            height: 90vh;
             background-color: white;
             border-radius: 32px;
             box-shadow: 0 20px 50px rgba(0,0,0,0.05);
             overflow: hidden;
             position: relative;
 
-            /* MÁSCARA LINEAL PARA DIFUMINADO PERIFÉRICO FINO */
-            /* Esto crea un desvanecimiento suave de 40px en los 4 bordes */
+            /* MÁSCARA LINEAL PARA DIFUMINADO PERIFÉRICO */
             -webkit-mask-image: 
-                linear-gradient(to bottom, transparent, black 40px, black calc(100% - 40px), transparent),
-                linear-gradient(to right, transparent, black 40px, black calc(100% - 40px), transparent);
+                linear-gradient(to bottom, transparent, black 30px, black calc(100% - 30px), transparent),
+                linear-gradient(to right, transparent, black 30px, black calc(100% - 30px), transparent);
             mask-image: 
-                linear-gradient(to bottom, transparent, black 40px, black calc(100% - 40px), transparent),
-                linear-gradient(to right, transparent, black 40px, black calc(100% - 40px), transparent);
+                linear-gradient(to bottom, transparent, black 30px, black calc(100% - 30px), transparent),
+                linear-gradient(to right, transparent, black 30px, black calc(100% - 30px), transparent);
             -webkit-mask-composite: source-in;
             mask-composite: intersect;
         }
 
-        /* El mapa inclinado */
         #map {
-            width: 140%; /* Un poco más grande para evitar que se vean los bordes reales al rotar */
+            width: 140%;
             height: 140%;
             position: absolute;
             top: -20%;
             left: -20%;
-            transform: rotateX(22deg) rotateZ(-4deg);
+            transform: rotateX(20deg) rotateZ(-3deg);
             z-index: 1;
         }
 
-        /* Panel UI Refinado */
+        /* Panel UI Lateral */
         .ui-panel {
             position: absolute;
-            top: 40px;
-            left: 60px;
+            top: 30px;
+            left: 50px;
             z-index: 1000;
             background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(12px);
-            padding: 24px;
-            border-radius: 28px;
+            padding: 20px;
+            border-radius: 24px;
             border: 1px solid rgba(0,0,0,0.08);
-            width: 280px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            width: 260px;
+            max-height: 85vh;
+            overflow-y: auto;
         }
 
         .station-btn {
             background: #f1f5f9;
-            border: 1px solid transparent;
             transition: all 0.2s;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
         .station-btn:hover {
             background: #e2e8f0;
-            border-color: #cbd5e1;
-            transform: translateY(-2px);
-        }
-
-        /* Popups */
-        .leaflet-popup-content-wrapper {
-            background: #1e293b !important;
-            color: white !important;
-            border-radius: 12px !important;
+            transform: translateX(4px);
         }
     </style>
 </head>
 <body>
 
     <div id="main-wrapper">
-        <div class="ui-panel">
-            <h2 class="text-lg font-black text-slate-800">Red de Estaciones</h2>
-            <p class="text-[10px] text-blue-600 font-bold uppercase tracking-widest mb-4">Proyecto Extensión UNLP</p>
+        <div class="ui-panel shadow-xl">
+            <h2 class="text-md font-black text-slate-800">Red Meteorológica</h2>
+            <p class="text-[9px] text-blue-600 font-bold uppercase tracking-widest mb-4">Proyecto de Extensión</p>
             
-            <button onclick="volarA(-34.918, -57.815)" class="station-btn w-full p-3 rounded-xl text-left">
-                <span class="block font-bold text-xs text-slate-700">EEP N°20 (Berisso)</span>
-                <span class="text-[9px] text-slate-500 italic">Ruta 11 Km 13</span>
-            </button>
-            
-            <button onclick="volarA(-35.150, -57.650)" class="station-btn w-full p-3 rounded-xl text-left">
-                <span class="block font-bold text-xs text-slate-700">EP N°26 (Vergara)</span>
-                <span class="text-[9px] text-slate-500 italic">Zona Rural</span>
-            </button>
-
-            <button onclick="volarA(-34.910, -57.935)" class="station-btn w-full p-3 rounded-xl text-left">
-                <span class="block font-bold text-xs text-slate-700">Facultad (FCAGLP)</span>
-                <span class="text-[9px] text-slate-500 italic">Paseo del Bosque</span>
-            </button>
+            <div id="button-container">
+                </div>
         </div>
 
         <div id="map-mask-container">
@@ -119,35 +98,45 @@
     </div>
 
     <script>
+        // Datos extraídos de tus favoritos de Google Maps
+        const puntos = [
+            { id: "e20", n: "EP N°20", loc: "Berisso", c: [-34.9515, -57.8353], clr: "#3b82f6" },
+            { id: "e26", n: "EP N°26", loc: "Vergara", c: [-35.3825, -57.8042], clr: "#10b981" },
+            { id: "e24", n: "EP N°24", loc: "Berisso", c: [-34.9238, -57.9042], clr: "#f59e0b" },
+            { id: "e23", n: "EP N°23", loc: "Bavio", c: [-35.0254, -57.7529], clr: "#ef4444" },
+            { id: "e34", n: "EP N°34", loc: "Malagamba", c: [-35.0724, -57.8656], clr: "#ec4899" },
+            { id: "fac", n: "Facultad", loc: "FCAGLP", c: [-34.9105, -57.9351], clr: "#8b5cf6" }
+        ];
+
         const map = L.map('map', {
             zoomControl: false,
             attributionControl: false
-        }).setView([-34.98, -57.85], 11);
+        }).setView([-35.05, -57.85], 10);
 
-        L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-            maxZoom: 17
-        }).addTo(map);
+        L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { maxZoom: 17 }).addTo(map);
 
-        const escuelas = [
-            { n: "EEP N°20", c: [-34.918, -57.815], clr: "#3b82f6" },
-            { n: "Escuela N°26", c: [-35.150, -57.650], clr: "#10b981" },
-            { n: "FCAGLP", c: [-34.910, -57.935], clr: "#a855f7" }
-        ];
+        const btnContainer = document.getElementById('button-container');
 
-        escuelas.forEach(e => {
-            L.circleMarker(e.c, {
-                radius: 9,
-                fillColor: e.clr,
+        puntos.forEach(p => {
+            // Crear Marcadores
+            L.circleMarker(p.c, {
+                radius: 8,
+                fillColor: p.clr,
                 color: "#fff",
                 weight: 2,
-                opacity: 1,
                 fillOpacity: 0.9
-            }).addTo(map).bindPopup(`<b class="text-sm">${e.n}</b>`);
-        });
+            }).addTo(map).bindPopup(`<b class="text-sm">${p.n}</b><br><span class="text-xs text-slate-500">${p.loc}</span>`);
 
-        function volarA(lat, lng) {
-            map.flyTo([lat, lng], 14, { duration: 2 });
-        }
+            // Crear Botones Dinámicos
+            const btn = document.createElement('button');
+            btn.className = "station-btn w-full p-3 rounded-xl text-left border border-black/5";
+            btn.innerHTML = `
+                <span class="block font-bold text-xs text-slate-700">${p.n}</span>
+                <span class="text-[9px] text-slate-500 italic">${p.loc}</span>
+            `;
+            btn.onclick = () => map.flyTo(p.c, 14, { duration: 1.5 });
+            btnContainer.appendChild(btn);
+        });
     </script>
 </body>
 </html>
