@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Red 3D - Red Escolar UNLP</title>
+    <title>Red Escolar 3D - UNLP</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -22,36 +22,38 @@
             position: relative;
         }
 
-        /* CONTENEDOR CON DIFUMINADO FINO */
+        /* CONTENEDOR CON MÁSCARA DE DIFUMINADO FINO (40px) */
         #map-mask-container {
             width: 94vw;
             height: 90vh;
             background-color: white;
-            border-radius: 32px;
+            border-radius: 40px;
             box-shadow: 0 20px 50px rgba(0,0,0,0.05);
             overflow: hidden;
             position: relative;
 
             -webkit-mask-image: 
-                linear-gradient(to bottom, transparent, black 30px, black calc(100% - 30px), transparent),
-                linear-gradient(to right, transparent, black 30px, black calc(100% - 30px), transparent);
+                linear-gradient(to bottom, transparent, black 40px, black calc(100% - 40px), transparent),
+                linear-gradient(to right, transparent, black 40px, black calc(100% - 40px), transparent);
             mask-image: 
-                linear-gradient(to bottom, transparent, black 30px, black calc(100% - 30px), transparent),
-                linear-gradient(to right, transparent, black 30px, black calc(100% - 30px), transparent);
+                linear-gradient(to bottom, transparent, black 40px, black calc(100% - 40px), transparent),
+                linear-gradient(to right, transparent, black 40px, black calc(100% - 40px), transparent);
             -webkit-mask-composite: source-in;
             mask-composite: intersect;
         }
 
+        /* Mapa inclinado 3D */
         #map {
             width: 140%;
             height: 140%;
             position: absolute;
             top: -20%;
             left: -20%;
-            transform: rotateX(20deg) rotateZ(-3deg);
+            transform: rotateX(22deg) rotateZ(-4deg);
             z-index: 1;
         }
 
+        /* Panel Lateral UI */
         .ui-panel {
             position: absolute;
             top: 30px;
@@ -59,33 +61,55 @@
             z-index: 1000;
             background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(12px);
-            padding: 20px;
-            border-radius: 24px;
+            padding: 24px;
+            border-radius: 32px;
             border: 1px solid rgba(0,0,0,0.08);
-            width: 260px;
+            width: 280px;
             max-height: 85vh;
             overflow-y: auto;
         }
 
         .station-btn {
-            background: #f1f5f9;
-            transition: all 0.2s;
-            margin-bottom: 6px;
+            background: #ffffff;
+            border: 1px solid rgba(0,0,0,0.05);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            margin-bottom: 8px;
         }
         .station-btn:hover {
-            background: #e2e8f0;
-            transform: translateX(4px);
+            background: #f1f5f9;
+            transform: translateX(8px);
+            border-color: #3b82f6;
         }
+
+        /* Estilo de los Popups (Globos del mapa) */
+        .leaflet-popup-content-wrapper {
+            background: #1e293b !important;
+            color: white !important;
+            border-radius: 20px !important;
+            padding: 5px;
+        }
+        .leaflet-popup-tip { background: #1e293b !important; }
+
+        /* Scrollbar del panel personalizada */
+        .ui-panel::-webkit-scrollbar { width: 4px; }
+        .ui-panel::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
     </style>
 </head>
 <body>
 
     <div id="main-wrapper">
-        <div class="ui-panel shadow-xl">
-            <h2 class="text-md font-black text-slate-800">Red Meteorológica</h2>
-            <p class="text-[9px] text-blue-600 font-bold uppercase tracking-widest mb-4">Proyecto de Extensión</p>
+        <div class="ui-panel shadow-2xl">
+            <div class="mb-6">
+                <h2 class="text-lg font-black text-slate-800 tracking-tight">Red de Estaciones</h2>
+                <p class="text-[10px] text-blue-600 font-bold uppercase tracking-widest">Proyecto Extensión UNLP</p>
+            </div>
             
-            <div id="button-container"></div>
+            <div id="button-container" class="space-y-1">
+                </div>
+
+            <div class="mt-6 pt-4 border-t border-slate-100">
+                <p class="text-[9px] text-slate-400 italic">Haz clic en una escuela para ver su ubicación y fotografías de los talleres.</p>
+            </div>
         </div>
 
         <div id="map-mask-container">
@@ -94,42 +118,74 @@
     </div>
 
     <script>
+        // Configuración de las escuelas (Ubicaciones reales y fotos de tu carpeta /imagenes)
         const puntos = [
-            { id: "e20", n: "EP N°20", loc: "Berisso (Ruta 11)", c: [-34.9515, -57.8353], clr: "#3b82f6" },
-            { id: "e26", n: "EP N°26", loc: "Vergara", c: [-35.3825, -57.8042], clr: "#10b981" },
-            { id: "e24", n: "EP N°24", loc: "Roberto Payró", c: [-35.1835, -57.6543], clr: "#f59e0b" },
-            { id: "e23", n: "EP N°23", loc: "Bavio", c: [-35.0254, -57.7529], clr: "#ef4444" },
-            { id: "e34", n: "EP N°34", loc: "Malagamba", c: [-35.0724, -57.8656], clr: "#ec4899" },
-            { id: "fac", n: "Facultad", loc: "FCAGLP", c: [-34.9105, -57.9351], clr: "#8b5cf6" }
+            { id: "e20", n: "EP N°20", loc: "Berisso (Ruta 11)", c: [-34.9515, -57.8353], clr: "#3b82f6", img: "imagenes/ep20.png" },
+            { id: "e26", n: "EP N°26", loc: "Vergara", c: [-35.3825, -57.8042], clr: "#10b981", img: "imagenes/foto-taller-1.jpg" }, 
+            { id: "e24", n: "EP N°24", loc: "Roberto Payró", c: [-35.1835, -57.6543], clr: "#f59e0b", img: "imagenes/foto-taller-2.jpg" },
+            { id: "e23", n: "EP N°23", loc: "Bavio", c: [-35.0254, -57.7529], clr: "#ef4444", img: "imagenes/escuela23.jpg" },
+            { id: "e34", n: "EP N°34", loc: "Malagamba", c: [-35.0724, -57.8656], clr: "#ec4899", img: "imagenes/escuela34.jpg" },
+            { id: "fac", n: "Facultad", loc: "FCAGLP (Bosque)", c: [-34.9105, -57.9351], clr: "#8b5cf6", img: "imagenes/observatorio.png" }
         ];
 
+        // Inicializar Mapa centrado en la región
         const map = L.map('map', {
             zoomControl: false,
             attributionControl: false
-        }).setView([-35.15, -57.80], 9); // Ajuste de centro inicial
+        }).setView([-35.10, -57.80], 10);
 
+        // Capa de Relieve Topográfico
         L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { maxZoom: 17 }).addTo(map);
 
         const btnContainer = document.getElementById('button-container');
 
         puntos.forEach(p => {
-            L.circleMarker(p.c, {
-                radius: 8,
+            // Crear Marcadores circulares
+            const marker = L.circleMarker(p.c, {
+                radius: 10,
                 fillColor: p.clr,
                 color: "#fff",
-                weight: 2,
+                weight: 3,
+                opacity: 1,
                 fillOpacity: 0.9
-            }).addTo(map).bindPopup(`<b class="text-sm">${p.n}</b><br><span class="text-xs text-slate-500">${p.loc}</span>`);
+            }).addTo(map);
 
-            const btn = document.createElement('button');
-            btn.className = "station-btn w-full p-3 rounded-xl text-left border border-black/5";
-            btn.innerHTML = `
-                <span class="block font-bold text-xs text-slate-700">${p.n}</span>
-                <span class="text-[9px] text-slate-500 italic">${p.loc}</span>
+            // Contenido del POPUP (El globo con imagen)
+            const popupHTML = `
+                <div style="width: 200px; text-align: center;">
+                    <img src="${p.img}" style="width: 100%; height: 110px; object-fit: cover; border-radius: 14px; margin-bottom: 8px;">
+                    <b style="font-size: 14px; color: #fff; display: block;">${p.n}</b>
+                    <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">${p.loc}</span>
+                    <hr style="margin: 10px 0; border: 0; border-top: 1px solid rgba(255,255,255,0.1);">
+                    <button onclick="window.location.href='analisis.html?id=${p.id}'" 
+                            style="background: #2563eb; color: white; border: none; padding: 8px 12px; border-radius: 10px; font-size: 10px; font-weight: bold; cursor: pointer; width: 100%;">
+                        VER DATOS EN VIVO
+                    </button>
+                </div>
             `;
-            btn.onclick = () => map.flyTo(p.c, 14, { duration: 1.5 });
+            marker.bindPopup(popupHTML);
+
+            // Crear Botones del Panel con Miniaturas
+            const btn = document.createElement('button');
+            btn.className = "station-btn w-full p-3 rounded-2xl text-left shadow-sm flex items-center gap-3 group";
+            btn.innerHTML = `
+                <img src="${p.img}" class="w-10 h-10 rounded-xl object-cover shadow-sm border border-slate-100">
+                <div class="overflow-hidden">
+                    <span class="block font-bold text-[11px] text-slate-700 truncate">${p.n}</span>
+                    <span class="text-[9px] text-slate-400 italic truncate">${p.loc}</span>
+                </div>
+            `;
+            btn.onclick = () => {
+                map.flyTo(p.c, 14, { duration: 1.5 });
+                setTimeout(() => marker.openPopup(), 1500); // Abre el globo al aterrizar
+            };
             btnContainer.appendChild(btn);
         });
+
+        // Recentrar mapa si se pierde
+        function centrarRed() {
+            map.flyTo([-35.10, -57.80], 10);
+        }
     </script>
 </body>
 </html>
