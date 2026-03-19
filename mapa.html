@@ -3,41 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Red Escolar UNLP - Mapa de Estaciones</title>
+    <title>Red Escolar UNLP - Estaciones</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    
     <script src="https://cdn.tailwindcss.com"></script>
 
     <style>
         body { background-color: #f8fafc; color: #1e293b; margin: 0; font-family: 'Inter', sans-serif; }
+        #main-wrapper { width: 100vw; height: 100vh; display: flex; }
         
-        #main-wrapper {
-            width: 100vw;
-            height: 100vh;
-            display: flex;
-            position: relative;
-        }
-
-        /* Panel Lateral */
         .ui-panel {
             width: 350px;
             height: 100vh;
             background: white;
             border-right: 1px solid #e2e8f0;
-            padding: 30px;
+            padding: 25px;
             z-index: 1000;
             overflow-y: auto;
-            box-shadow: 10px 0 15px rgba(0,0,0,0.02);
         }
 
-        /* Contenedor del Mapa (Plano) */
-        #map {
-            flex-grow: 1;
-            height: 100vh;
-            z-index: 1;
-        }
+        #map { flex-grow: 1; height: 100vh; z-index: 1; }
 
         .station-btn {
             background: #f8fafc;
@@ -50,6 +36,7 @@
             border-radius: 16px;
             width: 100%;
             margin-bottom: 10px;
+            text-align: left;
         }
         .station-btn:hover {
             border-color: #3b82f6;
@@ -57,30 +44,23 @@
             transform: translateX(5px);
         }
 
-        /* Estilo de los Popups */
-        .leaflet-popup-content-wrapper {
-            border-radius: 16px;
-            padding: 5px;
-            font-family: 'Inter', sans-serif;
-        }
+        .leaflet-popup-content-wrapper { border-radius: 16px; padding: 5px; }
     </style>
 </head>
 <body>
 
     <div id="main-wrapper">
-        <aside class="ui-panel">
+        <aside class="ui-panel shadow-lg">
             <div class="mb-8">
-                <h1 class="text-2xl font-black text-slate-800 tracking-tight">Red de Escuelas</h1>
-                <p class="text-xs text-blue-600 font-bold uppercase tracking-widest mt-1">Proyecto Extensión UNLP</p>
+                <h1 class="text-2xl font-black text-slate-800 tracking-tight">Red de Estaciones</h1>
+                <p class="text-xs text-blue-600 font-bold uppercase tracking-widest mt-1">Control de Nodos Rurales</p>
             </div>
             
             <div id="button-container">
                 </div>
 
-            <div class="mt-10 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                <p class="text-[11px] text-slate-500 leading-relaxed italic">
-                    Ubicación de los nodos meteorológicos de la red de escuelas rurales y ribereñas.
-                </p>
+            <div class="mt-10 p-4 bg-slate-50 rounded-2xl border border-slate-100 text-[11px] text-slate-500 italic leading-relaxed">
+                Visualización de estaciones meteorológicas operativas. Los colores corresponden a los nodos de intercomparación.
             </div>
         </aside>
 
@@ -88,25 +68,37 @@
     </div>
 
     <script>
-        // Imagen por defecto para escuelas sin foto confirmada
-        const imgDefault = "https://cdn-icons-png.flaticon.com/512/2859/2859736.png";
-
-        const puntos = [
-            { id: "e20", n: "EP N°20", loc: "Berisso", c: [-34.9515, -57.8353], clr: "#3b82f6", img: "imagenes/ep20.png" },
-            { id: "e26", n: "EP N°26", loc: "Vergara", c: [-35.3825, -57.8042], clr: "#10b981", img: imgDefault }, 
-            { id: "e24", n: "EP N°24", loc: "Roberto Payró", c: [-35.1835, -57.6543], clr: "#f59e0b", img: imgDefault },
-            { id: "e23", n: "EP N°23", loc: "Bavio", c: [-35.0254, -57.7529], clr: "#ef4444", img: "imagenes/escuela23.jpg" },
-            { id: "e34", n: "EP N°34", loc: "Malagamba", c: [-35.0724, -57.8656], clr: "#ec4899", img: "imagenes/escuela34.jpg" },
-            { id: "fac", n: "Facultad", loc: "FCAGLP", c: [-34.9105, -57.9351], clr: "#8b5cf6", img: "imagenes/observatorio.png" }
+        // Configuración específica de tus estaciones
+        const estaciones = [
+            { 
+                id: "2218686", 
+                n: "EP N°23 (Verde)", 
+                loc: "Bavio / San Martín", 
+                c: [-35.0254, -57.7529], 
+                clr: "#10b981", // Verde Esmeralda
+                img: "imagenes/escuela23.jpg" 
+            },
+            { 
+                id: "2218689", 
+                n: "EP N°34 (Blanca)", 
+                loc: "Paraje Malagamba", 
+                c: [-35.0724, -57.8656], 
+                clr: "#3b82f6", // Azul (Blanca en el dashboard)
+                img: "imagenes/escuela34.jpg" 
+            },
+            { 
+                id: "2626952", 
+                n: "EMA Violeta", 
+                loc: "Facultad (FCAGLP)", 
+                c: [-34.9105, -57.9351], 
+                clr: "#a855f7", 
+                img: "imagenes/ep20.png" 
+            }
         ];
 
-        // Mapa plano estándar
-        const map = L.map('map', {
-            zoomControl: true,
-            scrollWheelZoom: true
-        }).setView([-35.10, -57.85], 10);
+        const map = L.map('map', { zoomControl: true }).setView([-35.05, -57.85], 11);
 
-        // Capa de relieve topográfico (puedes cambiar a street map si prefieres)
+        // Capa de Relieve (OpenTopoMap)
         L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
             maxZoom: 17,
             attribution: '© OpenTopoMap'
@@ -114,8 +106,8 @@
 
         const btnContainer = document.getElementById('button-container');
 
-        puntos.forEach(p => {
-            // Marcadores
+        estaciones.forEach(p => {
+            // Marcador en el mapa
             const marker = L.circleMarker(p.c, {
                 radius: 10,
                 fillColor: p.clr,
@@ -124,30 +116,29 @@
                 fillOpacity: 0.9
             }).addTo(map);
 
-            // Contenido del Popup
-            const isDefault = p.img === imgDefault;
+            // Globo de información (Popup)
             const popupHTML = `
-                <div style="width: 200px; text-align: center;">
-                    <img src="${p.img}" style="width: ${isDefault ? '50px' : '100%'}; height: ${isDefault ? '50px' : '110px'}; object-fit: cover; border-radius: 12px; margin: 0 auto 10px auto; display: block;">
+                <div style="width: 180px; text-align: center;">
+                    <img src="${p.img}" style="width: 100%; height: 90px; object-fit: cover; border-radius: 10px; margin-bottom: 8px;">
                     <b style="font-size: 14px; display: block;">${p.n}</b>
                     <span style="font-size: 11px; color: #64748b;">${p.loc}</span>
-                    <hr style="margin: 10px 0; border: 0; border-top: 1px solid #e2e8f0;">
+                    <hr style="margin: 10px 0; border: 0; border-top: 1px solid #eee;">
                     <button onclick="window.location.href='analisis.html?id=${p.id}'" 
-                            style="background: #2563eb; color: white; border: none; padding: 8px 12px; border-radius: 8px; font-size: 11px; font-weight: bold; cursor: pointer; width: 100%;">
+                            style="background: ${p.clr}; color: white; border: none; padding: 8px; border-radius: 8px; font-size: 10px; font-weight: bold; cursor: pointer; width: 100%;">
                         VER DATOS EN VIVO
                     </button>
                 </div>
             `;
             marker.bindPopup(popupHTML);
 
-            // Botones del Panel
+            // Botón en el panel lateral
             const btn = document.createElement('button');
-            btn.className = "station-btn";
+            btn.className = "station-btn shadow-sm";
             btn.innerHTML = `
-                <img src="${p.img}" style="width: 40px; height: 40px; border-radius: 8px; object-fit: cover;">
-                <div class="text-left">
+                <div style="width: 12px; height: 35px; background: ${p.clr}; border-radius: 4px;"></div>
+                <div>
                     <span class="block font-bold text-sm text-slate-700">${p.n}</span>
-                    <span class="text-[10px] text-slate-500 uppercase font-medium tracking-tight">${p.loc}</span>
+                    <span class="text-[10px] text-slate-500 uppercase font-medium">${p.loc}</span>
                 </div>
             `;
             btn.onclick = () => {
