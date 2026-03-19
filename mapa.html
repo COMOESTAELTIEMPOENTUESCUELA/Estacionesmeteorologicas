@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -23,7 +22,7 @@
             position: relative;
         }
 
-        /* CONTENEDOR CON DIFUMINADO FINO EN TODO EL CONTORNO */
+        /* CONTENEDOR CON DIFUMINADO FINO */
         #map-mask-container {
             width: 94vw;
             height: 90vh;
@@ -33,7 +32,6 @@
             overflow: hidden;
             position: relative;
 
-            /* MÁSCARA LINEAL PARA DIFUMINADO PERIFÉRICO */
             -webkit-mask-image: 
                 linear-gradient(to bottom, transparent, black 30px, black calc(100% - 30px), transparent),
                 linear-gradient(to right, transparent, black 30px, black calc(100% - 30px), transparent);
@@ -54,7 +52,6 @@
             z-index: 1;
         }
 
-        /* Panel UI Lateral */
         .ui-panel {
             position: absolute;
             top: 30px;
@@ -88,8 +85,7 @@
             <h2 class="text-md font-black text-slate-800">Red Meteorológica</h2>
             <p class="text-[9px] text-blue-600 font-bold uppercase tracking-widest mb-4">Proyecto de Extensión</p>
             
-            <div id="button-container">
-                </div>
+            <div id="button-container"></div>
         </div>
 
         <div id="map-mask-container">
@@ -98,11 +94,10 @@
     </div>
 
     <script>
-        // Datos extraídos de tus favoritos de Google Maps
         const puntos = [
-            { id: "e20", n: "EP N°20", loc: "Berisso", c: [-34.9515, -57.8353], clr: "#3b82f6" },
+            { id: "e20", n: "EP N°20", loc: "Berisso (Ruta 11)", c: [-34.9515, -57.8353], clr: "#3b82f6" },
             { id: "e26", n: "EP N°26", loc: "Vergara", c: [-35.3825, -57.8042], clr: "#10b981" },
-            { id: "e24", n: "EP N°24", loc: "Berisso", c: [-34.9238, -57.9042], clr: "#f59e0b" },
+            { id: "e24", n: "EP N°24", loc: "Roberto Payró", c: [-35.1835, -57.6543], clr: "#f59e0b" },
             { id: "e23", n: "EP N°23", loc: "Bavio", c: [-35.0254, -57.7529], clr: "#ef4444" },
             { id: "e34", n: "EP N°34", loc: "Malagamba", c: [-35.0724, -57.8656], clr: "#ec4899" },
             { id: "fac", n: "Facultad", loc: "FCAGLP", c: [-34.9105, -57.9351], clr: "#8b5cf6" }
@@ -111,14 +106,13 @@
         const map = L.map('map', {
             zoomControl: false,
             attributionControl: false
-        }).setView([-35.05, -57.85], 10);
+        }).setView([-35.15, -57.80], 9); // Ajuste de centro inicial
 
         L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { maxZoom: 17 }).addTo(map);
 
         const btnContainer = document.getElementById('button-container');
 
         puntos.forEach(p => {
-            // Crear Marcadores
             L.circleMarker(p.c, {
                 radius: 8,
                 fillColor: p.clr,
@@ -127,7 +121,6 @@
                 fillOpacity: 0.9
             }).addTo(map).bindPopup(`<b class="text-sm">${p.n}</b><br><span class="text-xs text-slate-500">${p.loc}</span>`);
 
-            // Crear Botones Dinámicos
             const btn = document.createElement('button');
             btn.className = "station-btn w-full p-3 rounded-xl text-left border border-black/5";
             btn.innerHTML = `
