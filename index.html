@@ -8,7 +8,7 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; scroll-behavior: smooth; }
         .hero-gradient { background: linear-gradient(135deg, #1e293b 0%, #334155 100%); }
         .card-shadow { transition: all 0.3s ease; }
         .card-shadow:hover { transform: translateY(-5px); box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1); }
@@ -20,13 +20,13 @@
         <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
             <div class="flex items-center gap-3">
                 <img src="imagenes/logo.png" alt="Logo UNLP" class="h-10">
-                <span class="font-extrabold text-slate-800 tracking-tight">¿COMO ESTA EL TIEMPO EN TU ESCUELA?</span>
+                <span class="font-extrabold text-slate-800 tracking-tight uppercase text-xs md:text-base">¿Cómo está el tiempo en tu escuela?</span>
             </div>
             <div class="hidden md:flex gap-8 text-sm font-semibold text-slate-600">
                 <a href="#red" class="hover:text-blue-600">La Red</a>
                 <a href="#comunidad" class="hover:text-blue-600">Comunidad</a>
                 <a href="#nosotros" class="hover:text-blue-600">Nosotros</a>
-                <a href="intercomparacion.html" class="text-purple-600 flex items-center gap-1">
+                <a href="https://comoestaeltiempoentuescuela.github.io/Estacionesmeteorologicas/Comparacion.html" class="text-purple-600 flex items-center gap-1 hover:text-purple-800">
                     <i data-lucide="flask-conical" class="w-4 h-4"></i> Lab Técnico
                 </a>
             </div>
@@ -40,7 +40,7 @@
                 Proyecto de extensión de la UNLP: transformamos patios escolares en estaciones meteorológicas y aulas en laboratorios de datos.
             </p>
             <div class="flex flex-wrap justify-center gap-4">
-                <a href="#red" class="bg-blue-600 hover:bg-blue-500 px-8 py-4 rounded-full font-bold text-lg transition shadow-xl shadow-blue-900/40">Ver Datos en Vivo</a>
+                <a href="mapa.html" class="bg-blue-600 hover:bg-blue-500 px-8 py-4 rounded-full font-bold text-lg transition shadow-xl shadow-blue-900/40">Ver Datos en Vivo</a>
                 <a href="#comunidad" class="bg-white/10 hover:bg-white/20 backdrop-blur px-8 py-4 rounded-full font-bold text-lg transition border border-white/20">Explorar Crónicas</a>
             </div>
         </div>
@@ -50,23 +50,22 @@
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
             
             <div class="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm card-shadow">
-    <div class="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center mb-6">
-        <i data-lucide="map" class="text-blue-600 w-8 h-8"></i>
-    </div>
-    <h3 class="text-2xl font-bold text-slate-800 mb-4">Red de Estaciones</h3>
-    <p class="text-slate-600 mb-6">Mapa interactivo con datos actuales de temperatura, humedad y lluvia.</p>
-    
-    <a href="mapa.html" class="text-blue-600 font-bold flex items-center gap-2 group">
-        Ir al Mapa <i data-lucide="arrow-right" class="w-4 h-4 group-hover:translate-x-1 transition"></i>
-    </a>
-</div>
+                <div class="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center mb-6">
+                    <i data-lucide="map" class="text-blue-600 w-8 h-8"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-slate-800 mb-4">Red de Estaciones</h3>
+                <p class="text-slate-600 mb-6">Mapa interactivo con datos actuales de temperatura, humedad y lluvia.</p>
+                <a href="mapa.html" class="text-blue-600 font-bold flex items-center gap-2 group">
+                    Ir al Mapa <i data-lucide="arrow-right" class="w-4 h-4 group-hover:translate-x-1 transition"></i>
+                </a>
+            </div>
 
-            <div class="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm card-shadow">
+            <div id="comunidad" class="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm card-shadow">
                 <div class="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center mb-6">
                     <i data-lucide="users" class="text-emerald-600 w-8 h-8"></i>
                 </div>
                 <h3 class="text-2xl font-bold text-slate-800 mb-4">Comunidad y Crónicas</h3>
-                <p class="text-slate-600 mb-6">Leé las entrevistas a maestros, historias de los colegios y reportes sobre el estado de los caminos.</p>
+                <p class="text-slate-600 mb-6">Leé las historias de los colegios, reportes de caminos y el impacto del proyecto en el territorio.</p>
                 <a href="comunidad.html" class="text-emerald-600 font-bold flex items-center gap-2 group">
                     Ver Historias <i data-lucide="arrow-right" class="w-4 h-4 group-hover:translate-x-1 transition"></i>
                 </a>
@@ -86,46 +85,40 @@
         </div>
     </section>
 
-    
     <section class="py-16 bg-gradient-to-br from-blue-900 to-slate-900 text-white rounded-[40px] mx-6 my-12 overflow-hidden relative shadow-2xl">
-    <div class="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
-    
-    <div class="max-w-5xl mx-auto px-8 relative z-10 flex flex-col md:flex-row items-center gap-10">
-        <div class="w-24 h-24 bg-white/10 backdrop-blur-md rounded-3xl flex items-center justify-center border border-white/20 shadow-inner">
-            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-300">
-                <path d="M17.5 19a3.5 3.5 0 0 0 0-7c-.18 0-.33-.03-.51-.09A10 10 0 1 0 7 22h10.5a3.5 3.5 0 0 0 0-7Z"/>
-            </svg>
+        <div class="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
+        <div class="max-w-5xl mx-auto px-8 relative z-10 flex flex-col md:flex-row items-center gap-10">
+            <div class="w-24 h-24 bg-white/10 backdrop-blur-md rounded-3xl flex items-center justify-center border border-white/20 shadow-inner">
+                <i data-lucide="cloud-sun" class="text-blue-300 w-12 h-12"></i>
+            </div>
+            <div class="flex-1 text-center md:text-left">
+                <h2 class="text-3xl font-black mb-2 tracking-tight">Pronóstico del Tiempo</h2>
+                <p class="text-blue-200 text-lg mb-6 leading-relaxed">
+                    Consultá el informe meteorológico elaborado por el grupo de pronóstico de la 
+                    <span class="font-bold text-white">Facultad de Ciencias Astronómicas y Geofísicas (UNLP)</span>.
+                </p>
+                <a href="https://www.fcaglp.unlp.edu.ar/index.php/pronostico-del-tiempo/" 
+                   target="_blank" 
+                   class="inline-flex items-center gap-3 bg-white text-blue-900 px-8 py-4 rounded-2xl font-black hover:bg-blue-50 transition-all transform hover:-translate-y-1 shadow-lg">
+                    VER PRONÓSTICO PARA LA PLATA, JUNIN Y MAR DEL PLATA
+                    <i data-lucide="external-link" class="w-5 h-5"></i>
+                </a>
+            </div>
         </div>
+    </section>
 
-        <div class="flex-1 text-center md:text-left">
-            <h2 class="text-3xl font-black mb-2 tracking-tight">Pronóstico del Tiempo</h2>
-            <p class="text-blue-200 text-lg mb-6 leading-relaxed">
-                Consultá el informe meteorológico elaborado por el grupo de pronostico de la 
-                <span class="font-bold text-white">Facultad de Ciencias Astronómicas y Geofísicas (UNLP)</span>.
-            </p>
-            
-            <a href="https://www.fcaglp.unlp.edu.ar/index.php/pronostico-del-tiempo/" 
-               target="_blank" 
-               class="inline-flex items-center gap-3 bg-white text-blue-900 px-8 py-4 rounded-2xl font-black hover:bg-blue-50 transition-all transform hover:-translate-y-1 shadow-lg">
-                VER PRONÓSTICO PARA La Plata
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
-                </svg>
-            </a>
-            <footer class="bg-slate-900 text-slate-400 py-12 px-6">
+    <footer class="bg-slate-900 text-slate-400 py-12 px-6">
         <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
             <p>&copy; 2026 Facultad de Ciencias Astronómicas y Geofísicas - UNLP</p>
             <div class="flex gap-6">
                 <a href="mailto:tiempoentuescuela@gmail.com" class="hover:text-white transition">Contacto</a>
-                <a href="https://www.fcaglp.unlp.edu.ar/" target="_blank" class="hover:text-white transition">FCAG</a>
+                <a href="https://www.fcaglp.unlp.edu.ar/" target="_blank" class="hover:text-white transition">Web FCAG</a>
             </div>
         </div>
     </footer>
-        </div>
-    </div>
-</section>
 
     <script>
+        // Inicializar iconos de Lucide
         lucide.createIcons();
     </script>
 </body>
