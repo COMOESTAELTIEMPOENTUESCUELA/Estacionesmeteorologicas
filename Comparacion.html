@@ -14,7 +14,8 @@
         body { font-family: 'Plus Jakarta Sans', sans-serif; background: radial-gradient(circle at top left, #1e293b, #0f172a); color: #f8fafc; min-height: 100vh; }
         .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 24px; }
         .card-hover:hover { transform: translateY(-5px); background: rgba(255, 255, 255, 0.07); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-        input[type="date"] { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: white; padding: 8px 12px; border-radius: 10px; outline: none; }
+        input[type="date"], select { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: white; padding: 8px 12px; border-radius: 10px; outline: none; }
+        option { background: #1e293b; color: white; }
         ::-webkit-calendar-picker-indicator { filter: invert(1); }
     </style>
 </head>
@@ -27,9 +28,16 @@
                 <p class="text-slate-400">Análisis de Estaciones Meteorológicas Automáticas · La Plata</p>
             </div>
             <div class="glass p-4 flex flex-wrap gap-4 items-center">
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold text-slate-500 uppercase">Acumulado</span>
+                    <select id="modoLluvia" onchange="cargarDatos()">
+                        <option value="00">Civil (00 a 00)</option>
+                        <option value="09">Meteorológico (12Z a 12Z)</option>
+                    </select>
+                </div>
                 <div class="flex items-center gap-2"><span class="text-xs font-bold text-slate-500 uppercase">Desde</span><input type="date" id="fechaInicio"></div>
                 <div class="flex items-center gap-2"><span class="text-xs font-bold text-slate-500 uppercase">Hasta</span><input type="date" id="fechaFin"></div>
-                <button onclick="cargarDatos()" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-xl font-bold transition-colors">Filtrar Datos</button>
+                <button onclick="cargarDatos()" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-xl font-bold transition-colors">Filtrar</button>
             </div>
         </header>
 
@@ -49,22 +57,22 @@
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-            <div class="glass p-4 bg-blue-500/5 border-l-4 border-l-blue-400">
-                <div class="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-1">Lluvia Diaria (Vio)</div>
+            <div class="glass p-4 bg-purple-500/5 border-l-4 border-l-purple-400">
+                <div class="text-[10px] font-bold text-purple-400 uppercase tracking-widest mb-1">Lluvia Período (Vio)</div>
                 <div class="flex items-end gap-2">
                     <div class="text-2xl font-black text-white" id="rain-violeta">0.0</div>
-                    <div class="text-xs text-blue-400 font-bold mb-1">mm</div>
+                    <div class="text-xs text-purple-400 font-bold mb-1">mm</div>
                 </div>
             </div>
             <div class="glass p-4 bg-emerald-500/5 border-l-4 border-l-emerald-400">
-                <div class="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-1">Lluvia Diaria (Ver)</div>
+                <div class="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-1">Lluvia Período (Ver)</div>
                 <div class="flex items-end gap-2">
                     <div class="text-2xl font-black text-white" id="rain-verde">0.0</div>
                     <div class="text-xs text-emerald-400 font-bold mb-1">mm</div>
                 </div>
             </div>
             <div class="glass p-4 bg-blue-500/5 border-l-4 border-l-blue-400">
-                <div class="text-[10px] font-bold text-blue-300 uppercase tracking-widest mb-1">Lluvia Diaria (Bla)</div>
+                <div class="text-[10px] font-bold text-blue-300 uppercase tracking-widest mb-1">Lluvia Período (Bla)</div>
                 <div class="flex items-end gap-2">
                     <div class="text-2xl font-black text-white" id="rain-blanca">0.0</div>
                     <div class="text-xs text-blue-300 font-bold mb-1">mm</div>
@@ -128,34 +136,57 @@
     }
 
     function dibujarGraficos(fVio, fVer, fBla) {
+        const modo = document.getElementById('modoLluvia').value; // '00' o '09'
+
         const prepararDatos = (feeds, field, type = 'normal', emaKey = '') => {
             let fieldBusqueda = field;
             if (type === 'rain') fieldBusqueda = (emaKey === 'verde') ? 'field3' : 'field5';
-            let acumuladoLluvia = 0, ultimoDiaMet = -1, valorAnteriorPlaca = null;
+            
+            let acumuladoLluvia = 0;
+            let ultimoDiaMet = -1;
+            let valorAnteriorPlaca = null;
 
             const datos = feeds.filter(f => f[fieldBusqueda] !== null).map(f => {
                 const fecha = new Date(f.created_at);
                 let val = parseFloat(f[fieldBusqueda]) || 0;
+                
+                // Corrección EMA Verde
                 if (type === 'normal' && field === 'field1' && emaKey === 'verde') val -= 2.0;
 
                 if (type === 'rain') {
                     let diaMet = fecha.getDate();
-                    if (fecha.getHours() < 9) diaMet -= 1;
-                    if (ultimoDiaMet !== diaMet) { acumuladoLluvia = 0; ultimoDiaMet = diaMet; valorAnteriorPlaca = val; }
+                    
+                    // LÓGICA DE RESET
+                    // Si el modo es '09', el día "cambia" a las 9 AM (12Z)
+                    if (modo === '09' && fecha.getHours() < 9) diaMet -= 1;
+                    // Si el modo es '00', el día cambia naturalmente a medianoche
+
+                    if (ultimoDiaMet !== diaMet) { 
+                        acumuladoLluvia = 0; 
+                        ultimoDiaMet = diaMet; 
+                        valorAnteriorPlaca = val; 
+                    }
 
                     if (emaKey === 'blanca' || emaKey === 'violeta') {
                         let inc = val - (valorAnteriorPlaca !== null ? valorAnteriorPlaca : val);
-                        if (inc < 0) inc = 0;
+                        if (inc < 0) inc = 0; // Evita saltos negativos por reset de placa
                         acumuladoLluvia += inc;
                         valorAnteriorPlaca = val;
-                    } else { acumuladoLluvia += val; }
+                    } else { 
+                        // Para la verde que ya viene procesada o distinta
+                        acumuladoLluvia += val; 
+                    }
                     
-                    // Actualizar el número del badge de lluvia
-                    document.getElementById(`rain-${emaKey}`).innerText = acumuladoLluvia.toFixed(1);
                     return { x: fecha.getTime(), y: parseFloat(acumuladoLluvia.toFixed(2)) };
                 }
                 return { x: fecha.getTime(), y: val };
             });
+
+            // Actualizar Badge con el último valor acumulado calculado
+            if (type === 'rain' && datos.length > 0) {
+                document.getElementById(`rain-${emaKey}`).innerText = acumuladoLluvia.toFixed(1);
+            }
+            
             return datos;
         };
 
@@ -168,9 +199,15 @@
             ]},
             options: {
                 responsive: true, maintainAspectRatio: false,
-                interaction: { mode: 'x', intersect: false },
-                plugins: { legend: { labels: { color: '#94a3b8' } }, tooltip: { filter: (t, i, ts) => ts.findIndex(x => x.dataset.label === t.dataset.label) === i } },
-                scales: { x: { type: 'time', time: { unit: 'hour', displayFormats: { hour: 'HH:mm' } }, ticks: { color: '#64748b' } }, y: { ticks: { color: '#64748b' }, beginAtZero: (type === 'rain') } }
+                interaction: { mode: 'index', intersect: false },
+                plugins: { 
+                    legend: { labels: { color: '#94a3b8' } },
+                    tooltip: { mode: 'index', intersect: false }
+                },
+                scales: { 
+                    x: { type: 'time', time: { unit: 'hour', displayFormats: { hour: 'HH:mm' } }, ticks: { color: '#64748b' } }, 
+                    y: { ticks: { color: '#64748b' }, beginAtZero: (type === 'rain') } 
+                }
             }
         });
 
