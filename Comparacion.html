@@ -12,10 +12,28 @@
 
     <style>
         body { font-family: 'Plus Jakarta Sans', sans-serif; background: radial-gradient(circle at top left, #1e293b, #0f172a); color: #f8fafc; min-height: 100vh; }
-        .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 24px; }
-        .card-hover:hover { transform: translateY(-5px); background: rgba(255, 255, 255, 0.07); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-        input[type="date"] { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: white; padding: 8px 12px; border-radius: 10px; outline: none; }
-        ::-webkit-calendar-picker-indicator { filter: invert(1); }
+        .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 24px; overflow: hidden; }
+        
+        /* ESTILOS DEL TANQUE DE AGUA */
+        .water-tank { position: relative; width: 100%; height: 100px; background: rgba(0,0,0,0.2); overflow: hidden; border-radius: 12px; }
+        .water-level { 
+            position: absolute; bottom: 0; left: 0; width: 100%; 
+            background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%);
+            transition: height 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 1;
+        }
+        /* La Onda Animada */
+        .wave {
+            position: absolute; top: -15px; left: 0; width: 200%; height: 20px;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none"><path d="M0,0V46.29c47.79,22.2,103.59,32.17,158,28,70.36-5.37,136.33-33.31,206.8-37.5C438.64,32.43,512.34,53.67,583,72.05c69.27,18,138.3,24.88,209.4,13.08,36.15-6,69.85-17.84,104.45-29.34C989.49,25,1113-14.29,1200,52.47V0Z" fill="%233b82f6"/></svg>');
+            background-size: 50% 100%;
+            animation: move-wave 3s linear infinite;
+        }
+        @keyframes move-wave {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+        .tank-label { position: absolute; z-index: 10; width: 100%; text-align: center; top: 50%; transform: translateY(-50%); font-weight: 800; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
     </style>
 </head>
 <body class="p-4 md:p-8">
@@ -24,71 +42,48 @@
         <header class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-10 gap-6">
             <div>
                 <h1 class="text-3xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">Intercomparación de EMAs</h1>
-                <p class="text-slate-400">Análisis de Estaciones Meteorológicas Automáticas · La Plata</p>
+                <p class="text-slate-400">Datos en tiempo real · La Plata</p>
             </div>
             <div class="glass p-4 flex flex-wrap gap-4 items-center">
-                <div class="flex items-center gap-2"><span class="text-xs font-bold text-slate-500 uppercase">Desde</span><input type="date" id="fechaInicio"></div>
-                <div class="flex items-center gap-2"><span class="text-xs font-bold text-slate-500 uppercase">Hasta</span><input type="date" id="fechaFin"></div>
-                <button onclick="cargarDatos()" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-xl font-bold transition-colors">Filtrar Datos</button>
+                <input type="date" id="fechaInicio">
+                <input type="date" id="fechaFin">
+                <button onclick="cargarDatos()" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-xl font-bold">Filtrar</button>
             </div>
         </header>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-            <div class="glass card-hover p-6 border-t-4 border-t-purple-500">
-                <div class="flex justify-between items-center mb-4"><span class="text-purple-400 font-bold uppercase text-xs">Violeta</span><i data-lucide="thermometer" class="w-4 h-4 text-purple-400"></i></div>
-                <div class="text-4xl font-extrabold mb-1" id="val-violeta">-- °C</div>
-            </div>
-            <div class="glass card-hover p-6 border-t-4 border-t-emerald-500">
-                <div class="flex justify-between items-center mb-4"><span class="text-emerald-400 font-bold uppercase text-xs">Verde</span><i data-lucide="thermometer" class="w-4 h-4 text-emerald-400"></i></div>
-                <div class="text-4xl font-extrabold mb-1" id="val-verde">-- °C</div>
-            </div>
-            <div class="glass card-hover p-6 border-t-4 border-t-blue-500">
-                <div class="flex justify-between items-center mb-4"><span class="text-blue-400 font-bold uppercase text-xs">Blanca</span><i data-lucide="thermometer" class="w-4 h-4 text-blue-400"></i></div>
-                <div class="text-4xl font-extrabold mb-1" id="val-blanca">-- °C</div>
-            </div>
-        </div>
-
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-            <div class="glass p-4 bg-blue-500/5 border-l-4 border-l-blue-400">
-                <div class="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-1">Lluvia Diaria (Vio)</div>
-                <div class="flex items-end gap-2">
-                    <div class="text-2xl font-black text-white" id="rain-violeta">0.0</div>
-                    <div class="text-xs text-blue-400 font-bold mb-1">mm</div>
+            <div class="glass p-4">
+                <span class="text-[10px] font-bold text-purple-400 uppercase tracking-widest block mb-2">Lluvia Diaria (Vio)</span>
+                <div class="water-tank">
+                    <div class="tank-label text-2xl"><span id="txt-rain-violeta">0.0</span> mm</div>
+                    <div class="water-level" id="level-violeta" style="height: 0%;">
+                        <div class="wave"></div>
+                    </div>
                 </div>
             </div>
-            <div class="glass p-4 bg-emerald-500/5 border-l-4 border-l-emerald-400">
-                <div class="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-1">Lluvia Diaria (Ver)</div>
-                <div class="flex items-end gap-2">
-                    <div class="text-2xl font-black text-white" id="rain-verde">0.0</div>
-                    <div class="text-xs text-emerald-400 font-bold mb-1">mm</div>
+            <div class="glass p-4">
+                <span class="text-[10px] font-bold text-emerald-400 uppercase tracking-widest block mb-2">Lluvia Diaria (Ver)</span>
+                <div class="water-tank">
+                    <div class="tank-label text-2xl"><span id="txt-rain-verde">0.0</span> mm</div>
+                    <div class="water-level" id="level-verde" style="height: 0%; background: linear-gradient(180deg, #10b981 0%, #064e3b 100%);">
+                        <div class="wave" style="filter: hue-rotate(90deg);"></div>
+                    </div>
                 </div>
             </div>
-            <div class="glass p-4 bg-blue-500/5 border-l-4 border-l-blue-400">
-                <div class="text-[10px] font-bold text-blue-300 uppercase tracking-widest mb-1">Lluvia Diaria (Bla)</div>
-                <div class="flex items-end gap-2">
-                    <div class="text-2xl font-black text-white" id="rain-blanca">0.0</div>
-                    <div class="text-xs text-blue-300 font-bold mb-1">mm</div>
+            <div class="glass p-4">
+                <span class="text-[10px] font-bold text-blue-400 uppercase tracking-widest block mb-2">Lluvia Diaria (Bla)</span>
+                <div class="water-tank">
+                    <div class="tank-label text-2xl"><span id="txt-rain-blanca">0.0</span> mm</div>
+                    <div class="water-level" id="level-blanca" style="height: 0%;">
+                        <div class="wave"></div>
+                    </div>
                 </div>
             </div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div class="glass p-6">
-                <h3 class="font-bold text-lg text-slate-200 mb-6 flex items-center gap-2"><i data-lucide="thermometer" class="text-orange-400"></i> Temperatura Ambiente (°C)</h3>
-                <div class="h-80"><canvas id="chartTemp"></canvas></div>
-            </div>
-            <div class="glass p-6">
-                <h3 class="font-bold text-lg text-slate-200 mb-6 flex items-center gap-2"><i data-lucide="droplets" class="text-blue-400"></i> Humedad Relativa (%)</h3>
-                <div class="h-80"><canvas id="chartHum"></canvas></div>
-            </div>
-            <div class="glass p-6">
-                <h3 class="font-bold text-lg text-slate-200 mb-6 flex items-center gap-2"><i data-lucide="cloud-rain" class="text-cyan-400"></i> Precipitación Acumulada (mm)</h3>
-                <div class="h-80"><canvas id="chartRain"></canvas></div>
-            </div>
-            <div class="glass p-6">
-                <h3 class="font-bold text-lg text-slate-200 mb-6 flex items-center gap-2"><i data-lucide="gauge" class="text-emerald-400"></i> Presión Atmosférica (hPa)</h3>
-                <div class="h-80"><canvas id="chartPres"></canvas></div>
-            </div>
+            <div class="glass p-6"><h3>Temperatura Ambiente</h3><div class="h-80"><canvas id="chartTemp"></canvas></div></div>
+            <div class="glass p-6"><h3>Lluvia Acumulada</h3><div class="h-80"><canvas id="chartRain"></canvas></div></div>
         </div>
     </div>
 
@@ -102,88 +97,55 @@
     let charts = {};
 
     async function cargarDatos() {
-        const inicio = document.getElementById('fechaInicio').value;
-        const fin = document.getElementById('fechaFin').value;
-        let query = "results=800"; 
-        if (inicio && fin) query = `start=${inicio}%2000:00:00&end=${fin}%2023:59:59&timezone=America/Argentina/Buenos_Aires`;
-
-        try {
-            const resultados = await Promise.all(Object.keys(CONFIG).map(k => fetch(`https://api.thingspeak.com/channels/${CONFIG[k].id}/feeds.json?${query}&api_key=${CONFIG[k].key}`).then(r => r.json())));
-            actualizarCards(resultados);
-            dibujarGraficos(resultados[0].feeds, resultados[1].feeds, resultados[2].feeds);
-        } catch (e) { console.error("Error:", e); }
-    }
-
-    function actualizarCards(resultados) {
-        const keys = ['violeta', 'verde', 'blanca'];
-        resultados.forEach((res, i) => {
-            const feeds = res.feeds.filter(f => f.field1 !== null);
-            if (feeds.length > 0) {
-                const ultimo = feeds[feeds.length - 1];
-                let t = parseFloat(ultimo.field1);
-                if (keys[i] === 'verde') t -= 2.0;
-                document.getElementById(`val-${keys[i]}`).innerText = `${t.toFixed(1)}°C`;
-            }
-        });
+        const query = `results=800&timezone=America/Argentina/Buenos_Aires`;
+        const resultados = await Promise.all(Object.keys(CONFIG).map(k => fetch(`https://api.thingspeak.com/channels/${CONFIG[k].id}/feeds.json?${query}&api_key=${CONFIG[k].key}`).then(r => r.json())));
+        dibujarGraficos(resultados[0].feeds, resultados[1].feeds, resultados[2].feeds);
     }
 
     function dibujarGraficos(fVio, fVer, fBla) {
-        const prepararDatos = (feeds, field, type = 'normal', emaKey = '') => {
-            let fieldBusqueda = field;
-            if (type === 'rain') fieldBusqueda = (emaKey === 'verde') ? 'field3' : 'field5';
-            let acumuladoLluvia = 0, ultimoDiaMet = -1, valorAnteriorPlaca = null;
+        const prepararDatos = (feeds, field, type, emaKey) => {
+            let fieldBusqueda = (type === 'rain') ? (emaKey === 'verde' ? 'field3' : 'field5') : field;
+            let acumulado = 0, ultimoDia = -1, valAnt = null;
 
-            const datos = feeds.filter(f => f[fieldBusqueda] !== null).map(f => {
+            return feeds.filter(f => f[fieldBusqueda] !== null).map(f => {
                 const fecha = new Date(f.created_at);
                 let val = parseFloat(f[fieldBusqueda]) || 0;
-                if (type === 'normal' && field === 'field1' && emaKey === 'verde') val -= 2.0;
-
                 if (type === 'rain') {
-                    let diaMet = fecha.getDate();
-                    if (fecha.getHours() < 9) diaMet -= 1;
-                    if (ultimoDiaMet !== diaMet) { acumuladoLluvia = 0; ultimoDiaMet = diaMet; valorAnteriorPlaca = val; }
-
-                    if (emaKey === 'blanca' || emaKey === 'violeta') {
-                        let inc = val - (valorAnteriorPlaca !== null ? valorAnteriorPlaca : val);
-                        if (inc < 0) inc = 0;
-                        acumuladoLluvia += inc;
-                        valorAnteriorPlaca = val;
-                    } else { acumuladoLluvia += val; }
+                    let dia = fecha.getDate(); if (fecha.getHours() < 9) dia -= 1;
+                    if (ultimoDia !== dia) { acumulado = 0; ultimoDia = dia; valAnt = val; }
+                    if (emaKey !== 'verde') { 
+                        let inc = val - (valAnt !== null ? valAnt : val); 
+                        if (inc < 0) inc = 0; acumulado += inc; valAnt = val; 
+                    } else { acumulado += val; }
                     
-                    // Actualizar el número del badge de lluvia
-                    document.getElementById(`rain-${emaKey}`).innerText = acumuladoLluvia.toFixed(1);
-                    return { x: fecha.getTime(), y: parseFloat(acumuladoLluvia.toFixed(2)) };
+                    // ACTUALIZAR EL TANQUE
+                    document.getElementById(`txt-rain-${emaKey}`).innerText = acumulado.toFixed(1);
+                    // Calculamos el % del tanque (ponemos 50mm como el 100% del tanque, podés ajustarlo)
+                    let porcentaje = Math.min((acumulado / 50) * 100, 100);
+                    document.getElementById(`level-${emaKey}`).style.height = porcentaje + "%";
+
+                    return { x: fecha.getTime(), y: parseFloat(acumulado.toFixed(2)) };
                 }
                 return { x: fecha.getTime(), y: val };
             });
-            return datos;
         };
 
         const config = (id, field, type) => ({
             type: 'line',
             data: { datasets: [
-                { label: 'Violeta', data: prepararDatos(fVio, field, type, 'violeta'), borderColor: CONFIG.violeta.color, backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.1 },
-                { label: 'Verde', data: prepararDatos(fVer, field, type, 'verde'), borderColor: CONFIG.verde.color, backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.1 },
-                { label: 'Blanca', data: prepararDatos(fBla, field, type, 'blanca'), borderColor: CONFIG.blanca.color, backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.1 }
+                { label: 'Violeta', data: prepararDatos(fVio, field, type, 'violeta'), borderColor: CONFIG.violeta.color },
+                { label: 'Verde', data: prepararDatos(fVer, field, type, 'verde'), borderColor: CONFIG.verde.color },
+                { label: 'Blanca', data: prepararDatos(fBla, field, type, 'blanca'), borderColor: CONFIG.blanca.color }
             ]},
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                interaction: { mode: 'x', intersect: false },
-                plugins: { legend: { labels: { color: '#94a3b8' } }, tooltip: { filter: (t, i, ts) => ts.findIndex(x => x.dataset.label === t.dataset.label) === i } },
-                scales: { x: { type: 'time', time: { unit: 'hour', displayFormats: { hour: 'HH:mm' } }, ticks: { color: '#64748b' } }, y: { ticks: { color: '#64748b' }, beginAtZero: (type === 'rain') } }
-            }
+            options: { responsive: true, maintainAspectRatio: false, scales: { x: { type: 'time' } } }
         });
 
-        const mapping = [['chartTemp', 'field1', 'normal'], ['chartHum', 'field2', 'normal'], ['chartPres', 'field6', 'normal'], ['chartRain', 'field5', 'rain']];
-        mapping.forEach(([id, field, type]) => {
+        [['chartTemp', 'field1', 'normal'], ['chartRain', 'field5', 'rain']].forEach(([id, field, type]) => {
             if(charts[id]) charts[id].destroy();
             charts[id] = new Chart(document.getElementById(id), config(id, field, type));
         });
     }
 
-    const hoy = new Date().toISOString().split('T')[0];
-    document.getElementById('fechaInicio').value = hoy;
-    document.getElementById('fechaFin').value = hoy;
     cargarDatos();
 </script>
 </body>
