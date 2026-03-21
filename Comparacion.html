@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Análisis Meteorológico UNLP-Dashboard</title>
+    <title>Análisis Meteorológico UNLP - Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
@@ -47,7 +47,7 @@
                 <h1 class="text-3xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">
                     Intercomparación de EMAs
                 </h1>
-                <p class="text-slate-400">Como esta el tiempo en tu escuela · La Plata</p>
+                <p class="text-slate-400">Análisis de Estaciones Meteorológicas Automáticas · La Plata</p>
             </div>
 
             <div class="glass p-4 flex flex-wrap gap-4 items-center">
@@ -68,76 +68,58 @@
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
             <div class="glass card-hover p-6 border-t-4 border-t-purple-500">
                 <div class="flex justify-between items-center mb-4">
-                    <span class="text-purple-400 font-bold tracking-wide">EMA VIOLETA</span>
+                    <span class="text-purple-400 font-bold tracking-wide uppercase text-xs">EMA Violeta</span>
                     <i data-lucide="map-pin" class="w-4 h-4 text-purple-400"></i>
                 </div>
                 <div class="text-4xl font-extrabold mb-1" id="val-violeta">-- °C</div>
-                <div class="text-xs text-slate-500 flex items-center gap-1" id="time-violeta">
-                    <i data-lucide="clock" class="w-3 h-3"></i> Sincronizando...
-                </div>
+                <div class="text-xs text-slate-500 flex items-center gap-1" id="time-violeta">Sincronizando...</div>
             </div>
 
             <div class="glass card-hover p-6 border-t-4 border-t-emerald-500">
                 <div class="flex justify-between items-center mb-4">
-                    <span class="text-emerald-400 font-bold tracking-wide">ESCUELA 23 (VERDE)</span>
+                    <span class="text-emerald-400 font-bold tracking-wide uppercase text-xs">Escuela 23 (Verde)</span>
                     <i data-lucide="map-pin" class="w-4 h-4 text-emerald-400"></i>
                 </div>
                 <div class="text-4xl font-extrabold mb-1" id="val-verde">-- °C</div>
-                <div class="text-xs text-slate-500 flex items-center gap-1" id="time-verde">
-                    <i data-lucide="clock" class="w-3 h-3"></i> Sincronizando...
-                </div>
+                <div class="text-xs text-slate-500 flex items-center gap-1" id="time-verde">Sincronizando...</div>
             </div>
 
             <div class="glass card-hover p-6 border-t-4 border-t-blue-500">
                 <div class="flex justify-between items-center mb-4">
-                    <span class="text-blue-400 font-bold tracking-wide">M. DORREGO (BLANCA)</span>
+                    <span class="text-blue-400 font-bold tracking-wide uppercase text-xs">M. Dorrego (Blanca)</span>
                     <i data-lucide="map-pin" class="w-4 h-4 text-blue-400"></i>
                 </div>
                 <div class="text-4xl font-extrabold mb-1" id="val-blanca">-- °C</div>
-                <div class="text-xs text-slate-500 flex items-center gap-1" id="time-blanca">
-                    <i data-lucide="clock" class="w-3 h-3"></i> Sincronizando...
-                </div>
+                <div class="text-xs text-slate-500 flex items-center gap-1" id="time-blanca">Sincronizando...</div>
             </div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div class="glass p-6">
-                <div class="flex items-center gap-3 mb-6">
-                    <i data-lucide="thermometer" class="text-orange-400"></i>
-                    <h3 class="font-bold text-lg text-slate-200">Temperatura Ambiente (°C)</h3>
-                </div>
+                <h3 class="font-bold text-lg text-slate-200 mb-6 flex items-center gap-2">
+                    <i data-lucide="thermometer" class="text-orange-400 w-5 h-5"></i> Temperatura Ambiente (°C)
+                </h3>
                 <div class="h-80"><canvas id="chartTemp"></canvas></div>
             </div>
 
             <div class="glass p-6">
-                <div class="flex items-center gap-3 mb-6">
-                    <i data-lucide="droplets" class="text-blue-400"></i>
-                    <h3 class="font-bold text-lg text-slate-200">Humedad Relativa (%)</h3>
-                </div>
+                <h3 class="font-bold text-lg text-slate-200 mb-6 flex items-center gap-2">
+                    <i data-lucide="droplets" class="text-blue-400 w-5 h-5"></i> Humedad Relativa (%)
+                </h3>
                 <div class="h-80"><canvas id="chartHum"></canvas></div>
             </div>
 
             <div class="glass p-6">
-                <div class="flex items-center gap-3 mb-6">
-                    <i data-lucide="cloud-rain" class="text-cyan-400"></i>
-                    <h3 class="font-bold text-lg text-slate-200">Precipitación Acumulada (Día Met.)</h3>
-                </div>
+                <h3 class="font-bold text-lg text-slate-200 mb-6 flex items-center gap-2">
+                    <i data-lucide="cloud-rain" class="text-cyan-400 w-5 h-5"></i> Precipitación Acumulada (mm)
+                </h3>
                 <div class="h-80"><canvas id="chartRain"></canvas></div>
             </div>
 
             <div class="glass p-6">
-                <div class="flex items-center gap-3 mb-6">
-                    <i data-lucide="zap" class="text-yellow-400"></i>
-                    <h3 class="font-bold text-lg text-slate-200">Intensidad de Lluvia (mm/h)</h3>
-                </div>
-                <div class="h-80"><canvas id="chartInt"></canvas></div>
-            </div>
-
-            <div class="glass p-6 lg:col-span-2">
-                <div class="flex items-center gap-3 mb-6">
-                    <i data-lucide="gauge" class="text-emerald-400"></i>
-                    <h3 class="font-bold text-lg text-slate-200">Presión Atmosférica (hPa)</h3>
-                </div>
+                <h3 class="font-bold text-lg text-slate-200 mb-6 flex items-center gap-2">
+                    <i data-lucide="gauge" class="text-emerald-400 w-5 h-5"></i> Presión Atmosférica (hPa)
+                </h3>
                 <div class="h-80"><canvas id="chartPres"></canvas></div>
             </div>
         </div>
@@ -185,76 +167,65 @@
         if (key === 'verde') valorTemp -= 2.0;
 
         document.getElementById(`val-${key}`).innerText = `${valorTemp.toFixed(1)}°C`;
-        document.getElementById(`time-${key}`).innerHTML = `<i data-lucide="clock" class="w-3 h-3"></i> ${new Date(ultimo.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}hs`;
-        lucide.createIcons();
+        document.getElementById(`time-${key}`).innerText = `Último: ${new Date(ultimo.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}hs`;
     }
 
     function dibujarGraficos(fVio, fVer, fBla) {
         const prepararDatos = (feeds, field, type = 'normal', emaKey = '') => {
             let fieldBusqueda = field;
-            if (type === 'rain' || type === 'intensity') {
+            if (type === 'rain') {
                 fieldBusqueda = (emaKey === 'verde') ? 'field3' : 'field5';
             }
 
             let acumuladoLluvia = 0;
             let ultimoDiaMet = -1;
             let valorAnteriorPlaca = null;
-            let ultimaFecha = null;
-            let datosProcesados = [];
 
-            feeds.filter(f => f[fieldBusqueda] !== null).forEach(f => {
-                const fecha = new Date(f.created_at);
-                let valorActual = parseFloat(f[fieldBusqueda]) || 0;
+            return feeds
+                .filter(f => f[fieldBusqueda] !== null)
+                .map(f => {
+                    const fecha = new Date(f.created_at);
+                    let valorActual = parseFloat(f[fieldBusqueda]) || 0;
 
-                if (type === 'normal') {
-                    if (field === 'field1' && emaKey === 'verde') valorActual -= 2.0;
-                    datosProcesados.push({ x: fecha.getTime(), y: valorActual });
-                } 
-                else if (type === 'rain' || type === 'intensity') {
-                    let diaMeteorologico = fecha.getDate();
-                    if (fecha.getHours() < 9) diaMeteorologico -= 1;
-
-                    if (ultimoDiaMet !== diaMeteorologico) {
-                        acumuladoLluvia = 0;
-                        ultimoDiaMet = diaMeteorologico;
-                        valorAnteriorPlaca = valorActual;
-                        ultimaFecha = fecha;
-                    }
-
-                    let incremento = 0;
-                    if (emaKey === 'blanca' || emaKey === 'violeta') {
-                        incremento = valorActual - (valorAnteriorPlaca !== null ? valorAnteriorPlaca : valorActual);
-                        if (incremento < 0) incremento = 0;
-                        acumuladoLluvia += incremento;
-                        valorAnteriorPlaca = valorActual;
-                    } else {
-                        incremento = valorActual; // La verde ya manda el incremento
-                        acumuladoLluvia += incremento;
+                    // Ajuste de temperatura para la Verde
+                    if (type === 'normal' && field === 'field1' && emaKey === 'verde') {
+                        valorActual -= 2.0;
                     }
 
                     if (type === 'rain') {
-                        datosProcesados.push({ x: fecha.getTime(), y: parseFloat(acumuladoLluvia.toFixed(2)) });
-                    } else if (type === 'intensity') {
-                        // Calcular Intensidad (mm/h)
-                        if (ultimaFecha && fecha.getTime() !== ultimaFecha.getTime()) {
-                            let diffHoras = (fecha.getTime() - ultimaFecha.getTime()) / 3600000;
-                            let mmh = (diffHoras > 0) ? (incremento / diffHoras) : 0;
-                            datosProcesados.push({ x: fecha.getTime(), y: parseFloat(mmh.toFixed(2)) });
+                        // Lógica de Día Meteorológico (Corte 09:00 AM)
+                        let diaMeteorologico = fecha.getDate();
+                        if (fecha.getHours() < 9) diaMeteorologico -= 1;
+
+                        if (ultimoDiaMet !== diaMeteorologico) {
+                            acumuladoLluvia = 0;
+                            ultimoDiaMet = diaMeteorologico;
+                            valorAnteriorPlaca = valorActual;
                         }
-                        ultimaFecha = fecha;
+
+                        if (emaKey === 'blanca' || emaKey === 'violeta') {
+                            let incremento = valorActual - (valorAnteriorPlaca !== null ? valorAnteriorPlaca : valorActual);
+                            if (incremento < 0) incremento = 0;
+                            acumuladoLluvia += incremento;
+                            valorAnteriorPlaca = valorActual;
+                        } else {
+                            // La Verde ya manda el incremento por envío
+                            acumuladoLluvia += valorActual;
+                        }
+                        return { x: fecha.getTime(), y: parseFloat(acumuladoLluvia.toFixed(2)) };
                     }
-                }
-            });
-            return datosProcesados;
+
+                    return { x: fecha.getTime(), y: valorActual };
+                });
         };
 
-        const config = (titulo, id, field, type) => ({
+        const config = (id, field, type) => ({
             type: 'line',
             data: {
                 datasets: [
-                    { label: 'Violeta', data: prepararDatos(fVio, field, type, 'violeta'), borderColor: CONFIG.violeta.color, backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.3 },
-                    { label: 'Verde', data: prepararDatos(fVer, field, type, 'verde'), borderColor: CONFIG.verde.color, backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.3 },
-                    { label: 'Blanca', data: prepararDatos(fBla, field, type, 'blanca'), borderColor: CONFIG.blanca.color, backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.3 }
+                    { label: 'Violeta', data: prepararDatos(fVio, field, type, 'violeta'), borderColor: CONFIG.violeta.color, backgroundColor: 'transparent', borderWidth: 2.5, pointRadius: 0, tension: 0.1 },
+                    { label: 'Verde', data: prepararDatos(fVer, field, type, 'verde'), borderColor: CONFIG.verde.color, backgroundColor: 'transparent', borderWidth: 2.5, pointRadius: 0, tension: 0.1 },
+                    { label: 'Blanca', data: prepararDatos(fBla, field, type, 'blanca'), borderColor: CONFIG.blanca.color, backgroundColor: 'transparent', borderWidth: 2.5, pointRadius: 0, tension: 0.1 }
                 ]
             },
             options: {
@@ -266,12 +237,15 @@
                     tooltip: {
                         backgroundColor: '#1e293b',
                         filter: (tooltipItem, index, tooltipItems) => 
-                            tooltipItems.findIndex(t => t.dataset.label === tooltipItem.dataset.label) === index
+                            tooltipItems.findIndex(t => t.dataset.label === tooltipItem.dataset.label) === index,
+                        callbacks: {
+                            title: (context) => new Date(context[0].parsed.x).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) + 'hs'
+                        }
                     }
                 },
                 scales: {
                     x: { type: 'time', time: { unit: 'hour', displayFormats: { hour: 'HH:mm' } }, grid: { display: false }, ticks: { color: '#64748b' } },
-                    y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' }, beginAtZero: true }
+                    y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' }, beginAtZero: (type === 'rain') }
                 }
             }
         });
@@ -280,13 +254,12 @@
             ['chartTemp', 'field1', 'normal'], 
             ['chartHum', 'field2', 'normal'], 
             ['chartPres', 'field6', 'normal'], 
-            ['chartRain', 'field5', 'rain'],
-            ['chartInt', 'field5', 'intensity']
+            ['chartRain', 'field5', 'rain']
         ];
 
         mapping.forEach(([id, field, type]) => {
             if(charts[id]) charts[id].destroy();
-            charts[id] = new Chart(document.getElementById(id), config('', id, field, type));
+            charts[id] = new Chart(document.getElementById(id), config(id, field, type));
         });
     }
 
