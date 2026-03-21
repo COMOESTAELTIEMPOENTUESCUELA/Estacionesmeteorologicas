@@ -120,12 +120,20 @@
             <div class="glass p-6">
                 <div class="flex items-center gap-3 mb-6">
                     <i data-lucide="cloud-rain" class="text-cyan-400"></i>
-                    <h3 class="font-bold text-lg text-slate-200">Precipitación Acumulada</h3>
+                    <h3 class="font-bold text-lg text-slate-200">Precipitación Acumulada (Día Met.)</h3>
                 </div>
                 <div class="h-80"><canvas id="chartRain"></canvas></div>
             </div>
 
             <div class="glass p-6">
+                <div class="flex items-center gap-3 mb-6">
+                    <i data-lucide="zap" class="text-yellow-400"></i>
+                    <h3 class="font-bold text-lg text-slate-200">Intensidad de Lluvia (mm/h)</h3>
+                </div>
+                <div class="h-80"><canvas id="chartInt"></canvas></div>
+            </div>
+
+            <div class="glass p-6 lg:col-span-2">
                 <div class="flex items-center gap-3 mb-6">
                     <i data-lucide="gauge" class="text-emerald-400"></i>
                     <h3 class="font-bold text-lg text-slate-200">Presión Atmosférica (hPa)</h3>
@@ -136,7 +144,6 @@
     </div>
 
 <script>
-    // Inicialización de iconos
     lucide.createIcons();
 
     const CONFIG = {
@@ -185,72 +192,98 @@
     function dibujarGraficos(fVio, fVer, fBla) {
         const prepararDatos = (feeds, field, type = 'normal', emaKey = '') => {
             let fieldBusqueda = field;
-            if (type === 'rain') fieldBusqueda = (emaKey === 'verde') ? 'field3' : 'field5';
+            if (type === 'rain' || type === 'intensity') {
+                fieldBusqueda = (emaKey === 'verde') ? 'field3' : 'field5';
+            }
 
             let acumuladoLluvia = 0;
             let ultimoDiaMet = -1;
             let valorAnteriorPlaca = null;
+            let ultimaFecha = null;
+            let datosProcesados = [];
 
-            return feeds
-                .filter(f => f[fieldBusqueda] !== null)
-                .map(f => {
-                    const fecha = new Date(f.created_at);
-                    let valorActual = parseFloat(f[fieldBusqueda]) || 0;
-                    if (type === 'normal' && field === 'field1' && emaKey === 'verde') valorActual -= 2.0;
+            feeds.filter(f => f[fieldBusqueda] !== null).forEach(f => {
+                const fecha = new Date(f.created_at);
+                let valorActual = parseFloat(f[fieldBusqueda]) || 0;
+
+                if (type === 'normal') {
+                    if (field === 'field1' && emaKey === 'verde') valorActual -= 2.0;
+                    datosProcesados.push({ x: fecha.getTime(), y: valorActual });
+                } 
+                else if (type === 'rain' || type === 'intensity') {
+                    let diaMeteorologico = fecha.getDate();
+                    if (fecha.getHours() < 9) diaMeteorologico -= 1;
+
+                    if (ultimoDiaMet !== diaMeteorologico) {
+                        acumuladoLluvia = 0;
+                        ultimoDiaMet = diaMeteorologico;
+                        valorAnteriorPlaca = valorActual;
+                        ultimaFecha = fecha;
+                    }
+
+                    let incremento = 0;
+                    if (emaKey === 'blanca' || emaKey === 'violeta') {
+                        incremento = valorActual - (valorAnteriorPlaca !== null ? valorAnteriorPlaca : valorActual);
+                        if (incremento < 0) incremento = 0;
+                        acumuladoLluvia += incremento;
+                        valorAnteriorPlaca = valorActual;
+                    } else {
+                        incremento = valorActual; // La verde ya manda el incremento
+                        acumuladoLluvia += incremento;
+                    }
 
                     if (type === 'rain') {
-                        let diaMeteorologico = fecha.getDate();
-                        if (fecha.getHours() < 9) diaMeteorologico -= 1;
-                        if (ultimoDiaMet !== diaMeteorologico) {
-                            acumuladoLluvia = 0;
-                            ultimoDiaMet = diaMeteorologico;
-                            valorAnteriorPlaca = valorActual;
+                        datosProcesados.push({ x: fecha.getTime(), y: parseFloat(acumuladoLluvia.toFixed(2)) });
+                    } else if (type === 'intensity') {
+                        // Calcular Intensidad (mm/h)
+                        if (ultimaFecha && fecha.getTime() !== ultimaFecha.getTime()) {
+                            let diffHoras = (fecha.getTime() - ultimaFecha.getTime()) / 3600000;
+                            let mmh = (diffHoras > 0) ? (incremento / diffHoras) : 0;
+                            datosProcesados.push({ x: fecha.getTime(), y: parseFloat(mmh.toFixed(2)) });
                         }
-                        if (emaKey === 'blanca' || emaKey === 'violeta') {
-                            let incremento = valorActual - (valorAnteriorPlaca !== null ? valorAnteriorPlaca : valorActual);
-                            if (incremento < 0) incremento = 0;
-                            acumuladoLluvia += incremento;
-                            valorAnteriorPlaca = valorActual;
-                        } else {
-                            acumuladoLluvia += valorActual;
-                        }
-                        return { x: fecha.getTime(), y: parseFloat(acumuladoLluvia.toFixed(2)) };
+                        ultimaFecha = fecha;
                     }
-                    return { x: fecha.getTime(), y: valorActual };
-                });
+                }
+            });
+            return datosProcesados;
         };
 
         const config = (titulo, id, field, type) => ({
             type: 'line',
             data: {
                 datasets: [
-                    { label: 'Violeta', data: prepararDatos(fVio, field, type, 'violeta'), borderColor: CONFIG.violeta.color, backgroundColor: 'transparent', borderWidth: 3, pointRadius: 0, tension: 0.3 },
-                    { label: 'Verde', data: prepararDatos(fVer, field, type, 'verde'), borderColor: CONFIG.verde.color, backgroundColor: 'transparent', borderWidth: 3, pointRadius: 0, tension: 0.3 },
-                    { label: 'Blanca', data: prepararDatos(fBla, field, type, 'blanca'), borderColor: CONFIG.blanca.color, backgroundColor: 'transparent', borderWidth: 3, pointRadius: 0, tension: 0.3 }
+                    { label: 'Violeta', data: prepararDatos(fVio, field, type, 'violeta'), borderColor: CONFIG.violeta.color, backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.3 },
+                    { label: 'Verde', data: prepararDatos(fVer, field, type, 'verde'), borderColor: CONFIG.verde.color, backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.3 },
+                    { label: 'Blanca', data: prepararDatos(fBla, field, type, 'blanca'), borderColor: CONFIG.blanca.color, backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.3 }
                 ]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                interaction: { mode: 'x', intersect: false },
                 plugins: { 
-                    legend: { labels: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans' } } },
+                    legend: { labels: { color: '#94a3b8' } },
                     tooltip: {
                         backgroundColor: '#1e293b',
-                        titleFont: { size: 14 },
-                        padding: 12,
-                        cornerRadius: 10,
                         filter: (tooltipItem, index, tooltipItems) => 
                             tooltipItems.findIndex(t => t.dataset.label === tooltipItem.dataset.label) === index
                     }
                 },
                 scales: {
                     x: { type: 'time', time: { unit: 'hour', displayFormats: { hour: 'HH:mm' } }, grid: { display: false }, ticks: { color: '#64748b' } },
-                    y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' }, beginAtZero: (type === 'rain') }
+                    y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' }, beginAtZero: true }
                 }
             }
         });
 
-        const mapping = [['chartTemp', 'field1', 'normal'], ['chartHum', 'field2', 'normal'], ['chartPres', 'field6', 'normal'], ['chartRain', 'field5', 'rain']];
+        const mapping = [
+            ['chartTemp', 'field1', 'normal'], 
+            ['chartHum', 'field2', 'normal'], 
+            ['chartPres', 'field6', 'normal'], 
+            ['chartRain', 'field5', 'rain'],
+            ['chartInt', 'field5', 'intensity']
+        ];
+
         mapping.forEach(([id, field, type]) => {
             if(charts[id]) charts[id].destroy();
             charts[id] = new Chart(document.getElementById(id), config('', id, field, type));
