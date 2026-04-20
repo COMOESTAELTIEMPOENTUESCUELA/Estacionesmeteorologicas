@@ -3,139 +3,120 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Visualizador de Análisis Meteorológico</title>
+    <title>Análisis Sinóptico - GFS & CEPETEC</title>
     <style>
-        :root {
-            --bg-color: #1a1a1a;
-            --card-bg: #2d2d2d;
-            --text-color: #e0e0e0;
-            --accent: #00adb5;
-        }
-        body { font-family: sans-serif; background: var(--bg-color); color: var(--text-color); margin: 0; padding: 20px; }
-        h1 { text-align: center; color: var(--accent); }
+        :root { --bg: #121212; --card: #1e1e1e; --accent: #00d1ff; --text: #f0f0f0; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
         
-        .controls {
-            background: var(--card-bg);
-            padding: 20px;
-            border-radius: 8px;
-            display: flex;
-            gap: 15px;
-            justify-content: center;
-            align-items: center;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
+        .header { text-align: center; border-bottom: 2px solid var(--accent); margin-bottom: 20px; padding-bottom: 10px; }
+        
+        .controls { background: var(--card); padding: 15px; border-radius: 10px; display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; align-items: center; margin-bottom: 20px; }
+        
+        .dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(600px, 1fr)); gap: 20px; }
+        
+        .panel { background: var(--card); border-radius: 12px; padding: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .panel h2 { font-size: 1.2rem; color: var(--accent); margin-top: 0; display: flex; justify-content: space-between; }
+        
+        .tabs { display: flex; gap: 5px; margin-bottom: 10px; }
+        .tab-btn { background: #333; color: white; border: none; padding: 5px 12px; cursor: pointer; border-radius: 4px; font-size: 0.8rem; }
+        .tab-btn.active { background: var(--accent); color: black; font-weight: bold; }
 
-        .dashboard {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
-            gap: 20px;
-        }
-
-        .panel {
-            background: var(--card-bg);
-            padding: 10px;
-            border-radius: 8px;
-            text-align: center;
-        }
-
-        .panel h3 { margin-top: 0; border-bottom: 1px solid var(--accent); padding-bottom: 5px; }
-
-        img {
-            max-width: 100%;
-            height: auto;
-            border-radius: 4px;
-            background: #000;
-        }
-
-        input, select, button {
-            padding: 8px;
-            border-radius: 4px;
-            border: none;
-        }
-
-        button {
-            background: var(--accent);
-            color: white;
-            cursor: pointer;
-            font-weight: bold;
-        }
-
-        button:hover { opacity: 0.9; }
+        img { width: 100%; border-radius: 8px; border: 1px solid #444; min-height: 300px; background: #000; }
+        
+        select, input, button { background: #333; color: white; border: 1px solid #555; padding: 8px; border-radius: 5px; }
+        button { background: var(--accent); color: black; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
 
-    <h1>Análisis Meteorológico - Mauricio Dashboard</h1>
+<div class="header">
+    <h1>Dashboard Meteorológico Operativo</h1>
+</div>
 
-    <div class="controls">
-        <label>Fecha:</label>
+<div class="controls">
+    <div>
+        <label>Fecha Inicial:</label>
         <input type="date" id="fecha" value="2024-03-18">
-        
-        <label>Hora (Z):</label>
-        <select id="hora">
-            <option value="12">12Z</option>
+    </div>
+    <div>
+        <label>Ciclo (Z):</label>
+        <select id="ciclo">
             <option value="00">00Z</option>
+            <option value="06">06Z</option>
+            <option value="12" selected>12Z</option>
+            <option value="18">18Z</option>
         </select>
+    </div>
+    <button onclick="cargarTodo()">Actualizar Análisis</button>
+</div>
 
-        <button onclick="actualizarDashboard()">Cargar Evento</button>
+<div class="dashboard">
+    <div class="panel">
+        <h2>GFS - Alicia Bentley <span id="label-nivel">500 hPa</span></h2>
+        <div class="tabs">
+            <button class="tab-btn active" onclick="cambiarNivel('500_mslp_thickness', '500 hPa & MSLP', this)">500hPa</button>
+            <button class="tab-btn" onclick="cambiarNivel('850_temp_mslp_wind', '850 hPa Temp/Viento', this)">850hPa</button>
+            <button class="tab-btn" onclick="cambiarNivel('250_wind_mslp', '250 hPa (Jet)', this)">250hPa</button>
+            <button class="tab-btn" onclick="cambiarNivel('pw_mslp_wind', 'Agua Precipitable', this)">PWAT</button>
+        </div>
+        <img id="img-gfs" src="" alt="Cargando GFS...">
     </div>
 
-    <div class="dashboard">
-        <div class="panel">
-            <h3>Sondeo Skew-T (Ezeiza - 87576)</h3>
-            <div id="skewt-container">
-                <img id="img-skewt" src="" alt="Cargue una fecha para ver el sondeo">
-            </div>
-            <p><small>Fuente: Universidad de Wyoming</small></p>
+    <div class="panel">
+        <h2>Satélite - CEPETEC (GOES-16)</h2>
+        <div class="tabs">
+            <button class="tab-btn active" onclick="cambiarSat('topes', this)">Topes Nubosos</button>
+            <button class="tab-btn" onclick="cambiarSat('wv', this)">Vapor de Agua</button>
+            <button class="tab-btn" onclick="cambiarSat('vis', this)">Visible</button>
         </div>
-
-        <div class="panel">
-            <h3>Satélite GOES-16 (Infrarrojo)</h3>
-            <img id="img-sat" src="" alt="Cargue una fecha para ver el satélite">
-            <p><small>Fuente: RAMMB/CIRA SLIDER</small></p>
-        </div>
-
-        <div class="panel">
-            <h3>Radar / Modelo (Referencia)</h3>
-            <div style="padding: 40px; border: 2px dashed #555;">
-                <p>Aquí podés embeber un iframe de Windy o links a GFS.</p>
-                <p id="info-extra"></p>
-            </div>
-        </div>
+        <img id="img-cepetec" src="" alt="Cargando Satélite...">
+        <p><small>Nota: Las imágenes de CEPETEC pueden requerir ajuste de URL según el servidor actual.</small></p>
     </div>
+</div>
 
-    <script>
-        function actualizarDashboard() {
-            const fechaVal = document.getElementById('fecha').value; // YYYY-MM-DD
-            const hora = document.getElementById('hora').value;
-            
-            if(!fechaVal) return alert("Seleccioná una fecha");
+<script>
+    let nivelActual = '500_mslp_thickness';
+    let canalSat = 'topes';
 
-            const partes = fechaVal.split('-');
-            const anio = partes[0];
-            const mes = partes[1];
-            const dia = partes[2];
+    function cargarTodo() {
+        const fecha = document.getElementById('fecha').value.replace(/-/g, '');
+        const ciclo = document.getElementById('ciclo').value;
 
-            // 1. Generar Link de Sondeo (Wyoming)
-            // Estación 87576 es Ezeiza
-            const urlSkewT = `https://weather.uwyo.edu/cgi-bin/sounding?region=nramer&type=skewt&year=${anio}&month=${mes}&from=${dia}${hora}&to=${dia}${hora}&stnm=87576`;
-            
-            // Nota: Wyoming genera una página HTML, para mostrar la imagen directo 
-            // a veces requiere un proxy o descargarla. Aquí linkeamos la fuente:
-            document.getElementById('img-skewt').alt = "Click para abrir sondeo en Wyoming";
-            document.getElementById('skewt-container').innerHTML = `<a href="${urlSkewT}" target="_blank" style="color:var(--accent)">Abrir Sondeo de las ${hora}Z en nueva pestaña</a>`;
+        // 1. Lógica GFS Alicia Bentley
+        // Estructura típica: http://www.atmos.albany.edu/facstaff/bentley/realtime/images/gfs/res/fecha/nivel_f000.png
+        // Nota: Estas URLs son para tiempo real. Para histórico, ella usa carpetas específicas.
+        const urlGFS = `http://www.atmos.albany.edu/facstaff/bentley/realtime/images/gfs/southamer/${nivelActual}_f000.png`;
+        document.getElementById('img-gfs').src = urlGFS;
 
-            // 2. Generar Satélite (Ejemplo simplificado de URL histórica)
-            // Nota: Las URLs de satélite real suelen ser más complejas, aquí una referencia
-            const urlSat = `https://rammb-slider.cira.colostate.edu/data/imagery/${anio}${mes}${dia}/goes-16---full_disk/band_13/${anio}${mes}${dia}${hora}0000/00/000_000.png`;
-            document.getElementById('img-sat').src = urlSat;
+        // 2. Lógica CEPETEC
+        // El CEPETEC usa rutas dinámicas, este es un ejemplo de la estructura de archivo
+        // Para historial preciso de un día como el 18/03/2024, se suele usar el repositorio de RAMMB o el archivo del SMN.
+        const urlSat = `https://cepetec.at.fcen.uba.ar/proyectos/geofisica/datos/goes16/ch13_topes_latest.jpg`; 
+        document.getElementById('img-cepetec').src = urlSat;
+    }
 
-            document.getElementById('info-extra').innerText = `Analizando evento: ${dia}/${mes}/${anio} - ${hora}Z`;
-        }
+    function cambiarNivel(nivel, label, btn) {
+        nivelActual = nivel;
+        document.getElementById('label-nivel').innerText = label;
+        actualizarBotones(btn);
+        cargarTodo();
+    }
 
-        // Cargar por defecto al iniciar
-        window.onload = actualizarDashboard;
-    </script>
+    function cambiarSat(canal, btn) {
+        canalSat = canal;
+        actualizarBotones(btn);
+        // Aquí cambiarías la lógica de URL de CEPETEC según el canal
+        cargarTodo();
+    }
+
+    function actualizarBotones(btn) {
+        const hermanos = btn.parentNode.querySelectorAll('.tab-btn');
+        hermanos.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+    }
+
+    window.onload = cargarTodo;
+</script>
+
 </body>
 </html>
