@@ -13,36 +13,23 @@
     <style>
         body { 
             font-family: 'Quicksand', sans-serif; 
-            background-color: #4A90E2;
-            margin: 0;
-            overflow-x: hidden;
+            background: #4A90E2 url('https://www.transparenttextures.com/patterns/clouds.png');
+            color: #2D3E50; 
+            min-height: 100vh; 
         }
-
-        /* Capa de nubes con Parallax */
-        .nubes-bg {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background-image: url('https://www.transparenttextures.com/patterns/clouds.png');
-            background-repeat: repeat;
-            z-index: -1;
-            pointer-events: none;
-        }
-
         .didactic-card { 
             background: white; 
             border-radius: 30px; 
             box-shadow: 0 8px 0px #357ABD; 
             border: 3px solid #2D3E50;
         }
-
         .header-box {
             background: #FFD15B;
             border: 3px solid #2D3E50;
-            border-radius: 15px;
-            box-shadow: 3px 3px 0px #2D3E50;
+            border-radius: 20px;
+            box-shadow: 4px 4px 0px #2D3E50;
             display: inline-block;
         }
-
         .btn-check {
             background: #FFD15B;
             border: 3px solid #2D3E50;
@@ -51,109 +38,124 @@
             padding: 10px 25px;
             border-radius: 15px;
             cursor: pointer;
+            text-transform: uppercase;
         }
-
         .btn-check:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0px #2D3E50; }
         
+        /* ESTILOS PARA EL LOGO CIRCULAR */
         .logo-container {
-            width: 200px; height: 200px;
-            margin: 0 auto 2rem auto;
-            filter: drop-shadow(0 10px 15px rgba(0,0,0,0.3));
-            border: 6px solid #2D3E50;
-            border-radius: 50%;
-            overflow: hidden;
-            background-color: white;
-            display: flex; align-items: center; justify-content: center;
+            width: 250px; /* Tamaño del círculo */
+            height: 250px; /* Alto igual al ancho para círculo perfecto */
+            margin: 0 auto 2rem auto; /* Centrado y margen inferior */
+            filter: drop-shadow(0 10px 15px rgba(0,0,0,0.3)); /* Sombra didáctica */
+            border: 6px solid #2D3E50; /* Borde grueso estilo cómic */
+            border-radius: 50%; /* Recorte circular */
+            overflow: hidden; /* Oculta lo que sale del círculo */
+            background-color: white; /* Fondo blanco si la imagen no cubre todo */
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        .logo-container img { width: 100%; height: 100%; object-fit: cover; }
+        .logo-container img {
+            width: 100%; /* Cubre el ancho del contenedor */
+            height: 100%; /* Cubre el alto del contenedor */
+            object-fit: cover; /* Ajusta la imagen sin deformarla */
+        }
 
         canvas { max-height: 250px !important; }
     </style>
 </head>
 <body class="p-4 md:p-8">
 
-    <div class="nubes-bg" id="nubes"></div>
-
-    <div class="max-w-6xl mx-auto relative z-10">
+    <div class="max-w-6xl mx-auto">
         <header class="text-center mb-12">
             <div class="logo-container">
-                <img src="https://raw.githubusercontent.com/COMOESTAELTIEMPOENTUESCUELA/Estacionesmeteorologicas/main/imagenes/Logo1.jpg" alt="Logo">
+                <img src="https://raw.githubusercontent.com/COMOESTAELTIEMPOENTUESCUELA/Estacionesmeteorologicas/main/imagenes/Logo1.jpg" 
+                     alt="Logo ¿Cómo está el tiempo en tu escuela?">
             </div>
             
             <div class="flex justify-center">
-                <div class="bg-white/95 p-4 rounded-2xl border-2 border-[#2D3E50] flex flex-wrap gap-4 items-center shadow-xl">
+                <div class="bg-white/90 p-4 rounded-2xl border-2 border-[#2D3E50] flex flex-wrap gap-4 items-center shadow-lg">
                     <div class="flex items-center gap-2">
-                        <span class="bg-[#2D3E50] text-white px-3 py-1 rounded-full text-xs font-bold">Desde</span>
-                        <input type="date" id="fechaInicio" class="border-2 border-[#2D3E50] rounded-lg p-1 font-bold">
+                        <span class="bg-[#2D3E50] text-white px-3 py-1 rounded-full text-xs font-bold uppercase">Desde</span>
+                        <input type="date" id="fechaInicio" class="border-2 border-[#2D3E50] rounded-lg p-1 font-bold outline-none">
                     </div>
                     <div class="flex items-center gap-2">
-                        <span class="bg-[#2D3E50] text-white px-3 py-1 rounded-full text-xs font-bold">Hasta</span>
-                        <input type="date" id="fechaFin" class="border-2 border-[#2D3E50] rounded-lg p-1 font-bold">
+                        <span class="bg-[#2D3E50] text-white px-3 py-1 rounded-full text-xs font-bold uppercase">Hasta</span>
+                        <input type="date" id="fechaFin" class="border-2 border-[#2D3E50] rounded-lg p-1 font-bold outline-none">
                     </div>
-                    <button onclick="cargarDatos()" class="btn-check uppercase text-sm">Actualizar</button>
+                    <button onclick="cargarDatos()" class="btn-check">¡Actualizar!</button>
                 </div>
             </div>
         </header>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
             <div class="didactic-card p-6 text-center">
-                <div class="header-box px-3 py-1 mb-4 font-bold text-xs">VIOLETA</div>
-                <div class="text-5xl font-black mb-2" id="val-violeta">--°</div>
-                <div class="bg-purple-100 border-2 border-purple-500 rounded-full py-1 font-bold text-purple-700">
+                <div class="header-box px-4 py-1 mb-4 font-bold text-sm">ESTACIÓN VIOLETA</div>
+                <div class="flex justify-center mb-2 text-purple-500"><i data-lucide="thermometer" class="w-12 h-12"></i></div>
+                <div class="text-5xl font-black" id="val-violeta">--°</div>
+                <div class="mt-4 bg-purple-100 border-2 border-purple-500 rounded-full py-2 font-bold text-purple-700">
                     Lluvia: <span id="rain-violeta">0.0</span> mm
                 </div>
             </div>
+
             <div class="didactic-card p-6 text-center">
-                <div class="header-box px-3 py-1 mb-4 font-bold text-xs">VERDE</div>
-                <div class="text-5xl font-black mb-2" id="val-verde">--°</div>
-                <div class="bg-emerald-100 border-2 border-emerald-500 rounded-full py-1 font-bold text-emerald-700">
+                <div class="header-box px-4 py-1 mb-4 font-bold text-sm">ESTACIÓN VERDE</div>
+                <div class="flex justify-center mb-2 text-emerald-500"><i data-lucide="thermometer-sun" class="w-12 h-12"></i></div>
+                <div class="text-5xl font-black" id="val-verde">--°</div>
+                <div class="mt-4 bg-emerald-100 border-2 border-emerald-500 rounded-full py-2 font-bold text-emerald-700">
                     Lluvia: <span id="rain-verde">0.0</span> mm
                 </div>
             </div>
+
             <div class="didactic-card p-6 text-center">
-                <div class="header-box px-3 py-1 mb-4 font-bold text-sm">BLANCA</div>
-                <div class="text-5xl font-black mb-2" id="val-blanca">--°</div>
-                <div class="bg-blue-100 border-2 border-blue-500 rounded-full py-1 font-bold text-blue-700">
+                <div class="header-box px-4 py-1 mb-4 font-bold text-sm">ESTACIÓN BLANCA</div>
+                <div class="flex justify-center mb-2 text-blue-500"><i data-lucide="thermometer-snowflake" class="w-12 h-12"></i></div>
+                <div class="text-5xl font-black" id="val-blanca">--°</div>
+                <div class="mt-4 bg-blue-100 border-2 border-blue-500 rounded-full py-2 font-bold text-blue-700">
                     Lluvia: <span id="rain-blanca">0.0</span> mm
                 </div>
             </div>
         </div>
 
-        <div class="didactic-card p-6 mb-10 overflow-hidden">
-            <h3 class="font-bold text-xl mb-4 flex items-center gap-2 text-[#2D3E50]">
-                <span class="bg-red-400 p-2 rounded-xl text-white"><i data-lucide="map"></i></span>
-                Red de Estaciones en La Plata
-            </h3>
-            <iframe src="https://www.wunderground.com/wundermap?lat=-34.921&lon=-57.955&zoom=12" 
-                    width="100%" height="500" class="rounded-2xl border-2 border-slate-200"></iframe>
-        </div>
-
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
             <div class="didactic-card p-6">
-                <h3 class="font-bold text-lg mb-4 text-[#2D3E50] flex items-center gap-2"><i data-lucide="line-chart"></i> Temperatura</h3>
+                <h3 class="font-bold text-xl mb-4 flex items-center gap-2 text-[#2D3E50]">
+                    <span class="bg-orange-400 p-2 rounded-xl text-white"><i data-lucide="line-chart"></i></span>
+                    ¿Cómo cambió la temperatura?
+                </h3>
                 <canvas id="chartTemp"></canvas>
             </div>
             <div class="didactic-card p-6">
-                <h3 class="font-bold text-lg mb-4 text-[#2D3E50] flex items-center gap-2"><i data-lucide="cloud-rain"></i> Lluvia</h3>
+                <h3 class="font-bold text-xl mb-4 flex items-center gap-2 text-[#2D3E50]">
+                    <span class="bg-blue-400 p-2 rounded-xl text-white"><i data-lucide="cloud-rain"></i></span>
+                    ¿Cuánto llovió hoy?
+                </h3>
                 <canvas id="chartRain"></canvas>
+            </div>
+            <div class="didactic-card p-6">
+                <h3 class="font-bold text-xl mb-4 flex items-center gap-2 text-[#2D3E50]">
+                    <span class="bg-cyan-500 p-2 rounded-xl text-white"><i data-lucide="droplets"></i></span>
+                    Humedad en el aire
+                </h3>
+                <canvas id="chartHum"></canvas>
+            </div>
+            <div class="didactic-card p-6">
+                <h3 class="font-bold text-xl mb-4 flex items-center gap-2 text-[#2D3E50]">
+                    <span class="bg-emerald-500 p-2 rounded-xl text-white"><i data-lucide="gauge"></i></span>
+                    Presión del aire (hPa)
+                </h3>
+                <canvas id="chartPres"></canvas>
             </div>
         </div>
 
-        <footer class="text-center text-white font-bold pb-10">
-            <p>FCAG - UNLP · Proyecto de Extensión</p>
+        <footer class="text-center text-white font-bold pb-10 drop-shadow-md">
+            <p>Proyecto de Extensión Universitaria · FCAG - UNLP</p>
         </footer>
     </div>
 
 <script>
     lucide.createIcons();
-
-    // Efecto Parallax para las nubes
-    window.addEventListener('scroll', function() {
-        const nubes = document.getElementById('nubes');
-        let offset = window.pageYOffset;
-        nubes.style.backgroundPositionY = offset * 0.5 + 'px';
-    });
-
     const CONFIG = {
         violeta: { id: 2626952, key: "AXYH56YSV64HE17H", color: '#a855f7' },
         verde: { id: 2218686, key: "JUXJQRZMFFASO37Z", color: '#10b981' },
@@ -164,14 +166,14 @@
     async function cargarDatos() {
         const inicio = document.getElementById('fechaInicio').value;
         const fin = document.getElementById('fechaFin').value;
-        let query = "results=200"; 
+        let query = "results=300"; 
         if (inicio && fin) query = `start=${inicio}%2000:00:00&end=${fin}%2023:59:59&timezone=America/Argentina/Buenos_Aires`;
 
         try {
             const resultados = await Promise.all(Object.keys(CONFIG).map(k => fetch(`https://api.thingspeak.com/channels/${CONFIG[k].id}/feeds.json?${query}&api_key=${CONFIG[k].key}`).then(r => r.json())));
             actualizarCards(resultados);
             dibujarGraficos(resultados[0].feeds, resultados[1].feeds, resultados[2].feeds);
-        } catch (e) { console.error(e); }
+        } catch (e) { console.error("Error cargando ThingSpeak:", e); }
     }
 
     function actualizarCards(resultados) {
@@ -190,10 +192,12 @@
             let fBusq = field;
             if (type === 'rain') fBusq = (ema === 'verde') ? 'field3' : 'field5';
             let acum = 0, lastDia = -1, lastVal = null;
+
             return feeds.filter(f => f[fBusq] !== null).map(f => {
                 const date = new Date(f.created_at);
                 let v = parseFloat(f[fBusq]) || 0;
                 if (type === 'normal' && field === 'field1' && ema === 'verde') v -= 2.0;
+
                 if (type === 'rain') {
                     if (lastDia !== date.getDate()) { acum = 0; lastDia = date.getDate(); lastVal = v; }
                     if (ema !== 'verde') {
@@ -213,20 +217,27 @@
             charts[id] = new Chart(document.getElementById(id), {
                 type: 'line',
                 data: { datasets: [
-                    { label: 'Violeta', data: prep(fVio, field, type, 'violeta'), borderColor: CONFIG.violeta.color, borderWidth: 3, tension: 0.3, pointRadius: 0 },
-                    { label: 'Verde', data: prep(fVer, field, type, 'verde'), borderColor: CONFIG.verde.color, borderWidth: 3, tension: 0.3, pointRadius: 0 },
-                    { label: 'Blanca', data: prep(fBla, field, type, 'blanca'), borderColor: CONFIG.blanca.color, borderWidth: 3, tension: 0.3, pointRadius: 0 }
+                    { label: 'Violeta', data: prep(fVio, field, type, 'violeta'), borderColor: CONFIG.violeta.color, borderWidth: 4, tension: 0.3, pointRadius: 0 },
+                    { label: 'Verde', data: prep(fVer, field, type, 'verde'), borderColor: CONFIG.verde.color, borderWidth: 4, tension: 0.3, pointRadius: 0 },
+                    { label: 'Blanca', data: prep(fBla, field, type, 'blanca'), borderColor: CONFIG.blanca.color, borderWidth: 4, tension: 0.3, pointRadius: 0 }
                 ]},
-                options: { responsive: true, maintainAspectRatio: false, scales: { x: { type: 'time' } } }
+                options: { 
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { 
+                        x: { type: 'time', time: { unit: 'hour' }, ticks: { font: { weight: 'bold' } } },
+                        y: { beginAtZero: type === 'rain', ticks: { font: { weight: 'bold' } } }
+                    }
+                }
             });
         };
-        makeChart('chartTemp', 'field1', 'normal');
-        makeChart('chartRain', 'field5', 'rain');
+
+        [['chartTemp','field1','normal'],['chartHum','field2','normal'],['chartRain','field5','rain'],['chartPres','field6','normal']].forEach(m => makeChart(...m));
     }
 
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('fechaInicio').value = today;
-    document.getElementById('fechaFin').value = today;
+    const hoy = new Date().toISOString().split('T')[0];
+    document.getElementById('fechaInicio').value = hoy;
+    document.getElementById('fechaFin').value = hoy;
     cargarDatos();
 </script>
 </body>
