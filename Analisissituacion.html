@@ -1,132 +1,108 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Análisis Radar Pro - Mauricio</title>
+    <title>Radar Turbo Scan - Mauricio</title>
     <style>
         :root { --bg: #0f172a; --card: #1e293b; --accent: #00f2ff; --text: #f1f5f9; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; }
-        
-        .main-header { text-align: center; padding: 10px; border-bottom: 2px solid var(--accent); margin-bottom: 15px; }
-        
-        .controls { 
-            background: var(--card); padding: 15px; border-radius: 12px; 
-            display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; align-items: center;
-            margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.4);
-        }
-
-        .dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 15px; }
+        .controls { background: var(--card); padding: 15px; border-radius: 12px; display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; align-items: center; margin-bottom: 15px; }
+        .dashboard { display: grid; grid-template-columns: 1fr; gap: 15px; max-width: 900px; margin: auto; }
         .panel { background: var(--card); border-radius: 12px; padding: 15px; border: 1px solid #2d3748; }
-        .panel h2 { font-size: 1rem; color: var(--accent); margin-top: 0; border-bottom: 1px solid #2d3748; padding-bottom: 8px; }
-
-        /* Visualizador de Radar */
-        .radar-display { background: #000; border-radius: 8px; min-height: 400px; display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 10px; }
-        .radar-display img { width: 100%; height: auto; }
-
-        /* Galería de Imágenes Encontradas */
-        .radar-gallery { 
-            display: flex; gap: 10px; overflow-x: auto; padding: 10px; 
-            background: #0b1120; border-radius: 8px; min-height: 80px; align-items: center;
-        }
-        .thumb { 
-            height: 60px; width: 80px; background: #334155; border: 2px solid transparent; 
-            cursor: pointer; border-radius: 4px; display: flex; align-items: center; 
-            justify-content: center; font-size: 0.7rem; font-weight: bold; flex-shrink: 0;
-        }
-        .thumb:hover { border-color: var(--accent); }
-        .thumb.active { border-color: #00ff00; background: #004444; }
-
-        .loader-box { text-align: center; font-size: 0.85rem; color: var(--accent); margin-bottom: 5px; }
-        
-        input, button { background: #0b0f19; color: white; border: 1px solid #475569; padding: 8px; border-radius: 6px; }
-        .btn-scan { background: var(--accent); color: #0b0f19; font-weight: bold; cursor: pointer; border: none; }
+        .radar-display { background: #000; border-radius: 8px; min-height: 500px; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; border: 2px solid #334155; }
+        .radar-display img { width: 100%; height: auto; display: block; }
+        .radar-gallery { display: flex; gap: 10px; overflow-x: auto; padding: 15px; background: #0b1120; border-radius: 8px; border: 1px solid var(--accent); }
+        .thumb { min-width: 100px; padding: 15px; background: #1e293b; border: 2px solid #475569; cursor: pointer; border-radius: 8px; text-align: center; font-weight: bold; transition: 0.2s; }
+        .thumb:hover { border-color: var(--accent); transform: translateY(-3px); }
+        .thumb.active { border-color: #00ff00; background: #064e3b; }
+        .loader-bar { height: 4px; background: #334155; margin-bottom: 10px; border-radius: 2px; overflow: hidden; }
+        .loader-progress { height: 100%; background: var(--accent); width: 0%; transition: width 0.3s; }
+        input, button { background: #0b0f19; color: white; border: 1px solid #475569; padding: 10px; border-radius: 6px; }
+        .btn-scan { background: var(--accent); color: #0b0f19; font-weight: bold; cursor: pointer; border: none; padding: 10px 30px; }
+        .btn-scan:disabled { opacity: 0.5; cursor: not-allowed; }
     </style>
 </head>
 <body>
 
-<div class="main-header">
-    <h1>VISUALIZADOR DE CICLOS DE RADAR</h1>
-</div>
-
 <div class="controls">
-    <div>
-        <label>Fecha:</label>
-        <input type="date" id="fecha" value="2026-04-20">
-    </div>
-    <div>
-        <label>Hora (HOA):</label>
-        <input type="number" id="hora" value="12" min="0" max="23" style="width: 50px;">
-    </div>
-    <button class="btn-scan" onclick="escanearHora()">ESCANEAR TODA LA HORA</button>
+    <input type="date" id="fecha" value="2026-04-20">
+    <input type="number" id="hora" value="12" min="0" max="23" style="width: 60px;">
+    <button class="btn-scan" id="scan-btn" onclick="escanearVeloz()">ESCANEO RELÁMPAGO (TODA LA HORA)</button>
 </div>
 
 <div class="dashboard">
     <div class="panel">
-        <h2>Radar Ezeiza - Ciclos de la hora seleccionada</h2>
-        <div id="loader" class="loader-box">Seleccioná fecha/hora y escaneá...</div>
+        <div class="loader-bar"><div id="progress" class="loader-progress"></div></div>
+        <div id="status" style="text-align: center; margin-bottom: 10px; font-weight: bold;"></div>
         
         <div class="radar-display">
-            <img id="main-radar" src="" alt="Seleccioná una captura de la galería">
+            <img id="main-radar" src="" alt="Esperando escaneo...">
         </div>
 
         <div class="radar-gallery" id="gallery">
             </div>
-        <p style="font-size: 0.75rem; color: #94a3b8; margin-top: 8px;">* Se buscan imágenes cada 1 minuto (barrido de segundos automático).</p>
-    </div>
-
-    <div class="panel">
-        <h2>Análisis Complementario</h2>
-        <div style="padding: 40px; text-align: center;">
-            <p>Sondeo Wyoming (Ezeiza)</p>
-            <a id="link-skewt" href="#" target="_blank" style="color:var(--accent); text-decoration:none; border:1px solid; padding:10px; border-radius:5px; display:inline-block;">Ver Skew-T del día</a>
-        </div>
     </div>
 </div>
 
 <script>
-    async function escanearHora() {
+    async function escanearVeloz() {
         const fecha = document.getElementById('fecha').value.replace(/-/g, '');
         const h = document.getElementById('hora').value.padStart(2, '0');
+        const btn = document.getElementById('scan-btn');
         const gallery = document.getElementById('gallery');
-        const loader = document.getElementById('loader');
-        
-        gallery.innerHTML = ""; // Limpiar galería
-        loader.innerText = `Escaneando hora ${h}:00 a ${h}:59...`;
-        
-        // Barremos los 60 minutos de la hora
+        const progress = document.getElementById('progress');
+        const status = document.getElementById('status');
+
+        btn.disabled = true;
+        gallery.innerHTML = "";
+        progress.style.width = "0%";
+        status.innerText = "Iniciando escaneo paralelo...";
+
+        // CREAMOS LAS PROMESAS: Escaneamos los 60 minutos en bloques paralelos
+        const promesas = [];
         for (let m = 0; m < 60; m++) {
-            let min = m.toString().padStart(2, '0');
-            loader.innerText = `Buscando en minuto ${h}:${min}...`;
-            
-            // Dentro de cada minuto, barremos segundos (probamos los más comunes para ir rápido)
-            // Clima sur suele usar segundos específicos, probamos un barrido optimizado
-            const imagenEncontrada = await buscarEnMinuto(fecha, h, min);
-            
-            if (imagenEncontrada) {
-                agregarALaGaleria(imagenEncontrada, `${h}:${min}`);
-            }
+            promesas.push(escanearMinuto(fecha, h, m.toString().padStart(2, '0')));
         }
-        loader.innerText = "Escaneo completado. Hacé click en las imágenes de la galería.";
-        actualizarSondeo();
+
+        // Ejecutamos todo junto
+        const resultados = await Promise.all(promesas);
+        
+        let encontrados = 0;
+        resultados.forEach(res => {
+            if (res) {
+                encontrados++;
+                agregarALaGaleria(res.url, res.tiempo);
+            }
+        });
+
+        progress.style.width = "100%";
+        status.innerText = `Escaneo finalizado. Se encontraron ${encontrados} ciclos de radar.`;
+        btn.disabled = false;
     }
 
-    async function buscarEnMinuto(fecha, h, m) {
-        // Probamos cada 2 segundos para no saturar y encontrar el barrido
-        for (let s = 0; s < 60; s += 2) {
-            let sec = s.toString().padStart(2, '0');
-            let url = `https://www.climasurgba.com.ar/radar/ezeiza-${fecha}-${h}${m}${sec}.png`;
-            if (await verificarUrl(url)) return url;
+    async function escanearMinuto(fecha, h, m) {
+        // En lugar de probar 60 segundos, probamos los más probables donde corta el radar
+        // Generalmente: 00, 15, 30, 45 y algunos intermedios.
+        const segundosProbables = ["00", "05", "10", "15", "20", "25", "30", "35", "40", "45", "50", "55", "18", "23", "36", "43"];
+        
+        for (let s of segundosProbables) {
+            let url = `https://www.climasurgba.com.ar/radar/ezeiza-${fecha}-${h}${m}${s}.png`;
+            const existe = await verificar(url);
+            if (existe) return { url, tiempo: `${h}:${m}:${s}` };
         }
         return null;
     }
 
-    function verificarUrl(url) {
+    function verificar(url) {
         return new Promise((resolve) => {
             const img = new Image();
             img.onload = () => resolve(true);
             img.onerror = () => resolve(false);
             img.src = url;
+            // Timeout para no esperar eternamente si el servidor no responde
+            setTimeout(() => resolve(false), 3000);
         });
     }
 
@@ -141,12 +117,6 @@
         };
         document.getElementById('gallery').appendChild(thumb);
     }
-
-    function actualizarSondeo() {
-        const f = document.getElementById('fecha').value.split('-');
-        document.getElementById('link-skewt').href = `https://weather.uwyo.edu/cgi-bin/sounding?region=nramer&type=skewt&year=${f[0]}&month=${f[1]}&from=${f[2]}12&to=${f[2]}12&stnm=87576`;
-    }
 </script>
-
 </body>
 </html>
