@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizador de Análisis Meteorológico</title>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --card-bg: #2d2d2d;
+            --text-color: #e0e0e0;
+            --accent: #00adb5;
+        }
+        body { font-family: sans-serif; background: var(--bg-color); color: var(--text-color); margin: 0; padding: 20px; }
+        h1 { text-align: center; color: var(--accent); }
+        
+        .controls {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 20px;
+        }
+
+        .panel {
+            background: var(--card-bg);
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .panel h3 { margin-top: 0; border-bottom: 1px solid var(--accent); padding-bottom: 5px; }
+
+        img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+            background: #000;
+        }
+
+        input, select, button {
+            padding: 8px;
+            border-radius: 4px;
+            border: none;
+        }
+
+        button {
+            background: var(--accent);
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        button:hover { opacity: 0.9; }
+    </style>
+</head>
+<body>
+
+    <h1>Análisis Meteorológico - Mauricio Dashboard</h1>
+
+    <div class="controls">
+        <label>Fecha:</label>
+        <input type="date" id="fecha" value="2024-03-18">
+        
+        <label>Hora (Z):</label>
+        <select id="hora">
+            <option value="12">12Z</option>
+            <option value="00">00Z</option>
+        </select>
+
+        <button onclick="actualizarDashboard()">Cargar Evento</button>
+    </div>
+
+    <div class="dashboard">
+        <div class="panel">
+            <h3>Sondeo Skew-T (Ezeiza - 87576)</h3>
+            <div id="skewt-container">
+                <img id="img-skewt" src="" alt="Cargue una fecha para ver el sondeo">
+            </div>
+            <p><small>Fuente: Universidad de Wyoming</small></p>
+        </div>
+
+        <div class="panel">
+            <h3>Satélite GOES-16 (Infrarrojo)</h3>
+            <img id="img-sat" src="" alt="Cargue una fecha para ver el satélite">
+            <p><small>Fuente: RAMMB/CIRA SLIDER</small></p>
+        </div>
+
+        <div class="panel">
+            <h3>Radar / Modelo (Referencia)</h3>
+            <div style="padding: 40px; border: 2px dashed #555;">
+                <p>Aquí podés embeber un iframe de Windy o links a GFS.</p>
+                <p id="info-extra"></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function actualizarDashboard() {
+            const fechaVal = document.getElementById('fecha').value; // YYYY-MM-DD
+            const hora = document.getElementById('hora').value;
+            
+            if(!fechaVal) return alert("Seleccioná una fecha");
+
+            const partes = fechaVal.split('-');
+            const anio = partes[0];
+            const mes = partes[1];
+            const dia = partes[2];
+
+            // 1. Generar Link de Sondeo (Wyoming)
+            // Estación 87576 es Ezeiza
+            const urlSkewT = `https://weather.uwyo.edu/cgi-bin/sounding?region=nramer&type=skewt&year=${anio}&month=${mes}&from=${dia}${hora}&to=${dia}${hora}&stnm=87576`;
+            
+            // Nota: Wyoming genera una página HTML, para mostrar la imagen directo 
+            // a veces requiere un proxy o descargarla. Aquí linkeamos la fuente:
+            document.getElementById('img-skewt').alt = "Click para abrir sondeo en Wyoming";
+            document.getElementById('skewt-container').innerHTML = `<a href="${urlSkewT}" target="_blank" style="color:var(--accent)">Abrir Sondeo de las ${hora}Z en nueva pestaña</a>`;
+
+            // 2. Generar Satélite (Ejemplo simplificado de URL histórica)
+            // Nota: Las URLs de satélite real suelen ser más complejas, aquí una referencia
+            const urlSat = `https://rammb-slider.cira.colostate.edu/data/imagery/${anio}${mes}${dia}/goes-16---full_disk/band_13/${anio}${mes}${dia}${hora}0000/00/000_000.png`;
+            document.getElementById('img-sat').src = urlSat;
+
+            document.getElementById('info-extra').innerText = `Analizando evento: ${dia}/${mes}/${anio} - ${hora}Z`;
+        }
+
+        // Cargar por defecto al iniciar
+        window.onload = actualizarDashboard;
+    </script>
+</body>
+</html>
