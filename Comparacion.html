@@ -22,7 +22,6 @@
             border-radius: 30px; 
             box-shadow: 0 8px 0px #357ABD; 
             border: 3px solid #2D3E50;
-            transition: all 0.2s ease;
         }
         .header-box {
             background: #FFD15B;
@@ -30,14 +29,6 @@
             border-radius: 20px;
             box-shadow: 4px 4px 0px #2D3E50;
             display: inline-block;
-        }
-        .label-didactic {
-            background: #2D3E50;
-            color: white;
-            padding: 4px 12px;
-            border-radius: 50px;
-            font-weight: bold;
-            font-size: 0.8rem;
         }
         .btn-check {
             background: #FFD15B;
@@ -47,8 +38,14 @@
             padding: 10px 25px;
             border-radius: 15px;
             cursor: pointer;
+            text-transform: uppercase;
         }
         .btn-check:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0px #2D3E50; }
+        .logo-container {
+            max-width: 500px;
+            margin: 0 auto;
+            filter: drop-shadow(0 10px 15px rgba(0,0,0,0.2));
+        }
         canvas { max-height: 250px !important; }
     </style>
 </head>
@@ -56,26 +53,23 @@
 
     <div class="max-w-6xl mx-auto">
         <header class="text-center mb-12">
-            <div class="bg-white p-8 rounded-3xl border-4 border-[#2D3E50] shadow-2xl inline-block max-w-full">
-                <p class="font-bold text-[#2D3E50] tracking-widest mb-2">FCAG · UNLP</p>
-                <h1 class="text-3xl md:text-5xl font-black text-[#2D3E50] uppercase leading-none">
-                    CÓMO ESTÁ <br> 
-                    <span class="text-5xl md:text-7xl text-[#FFD15B]" style="-webkit-text-stroke: 2px #2D3E50;">EL TIEMPO</span> <br> 
-                    EN TU ESCUELA
-                </h1>
+            <div class="logo-container mb-8">
+                <img src="https://raw.githubusercontent.com/COMOESTAELTIEMPOENTUESCUELA/Estacionesmeteorologicas/main/imagenes/Logo1.jpg" 
+                     alt="Logo ¿Cómo está el tiempo en tu escuela?" 
+                     class="rounded-3xl border-4 border-[#2D3E50]">
             </div>
             
-            <div class="mt-8 flex justify-center">
+            <div class="flex justify-center">
                 <div class="bg-white/90 p-4 rounded-2xl border-2 border-[#2D3E50] flex flex-wrap gap-4 items-center shadow-lg">
                     <div class="flex items-center gap-2">
-                        <span class="label-didactic uppercase">Desde</span>
-                        <input type="date" id="fechaInicio" class="border-2 border-[#2D3E50] rounded-lg p-1 font-bold">
+                        <span class="bg-[#2D3E50] text-white px-3 py-1 rounded-full text-xs font-bold uppercase">Desde</span>
+                        <input type="date" id="fechaInicio" class="border-2 border-[#2D3E50] rounded-lg p-1 font-bold outline-none">
                     </div>
                     <div class="flex items-center gap-2">
-                        <span class="label-didactic uppercase">Hasta</span>
-                        <input type="date" id="fechaFin" class="border-2 border-[#2D3E50] rounded-lg p-1 font-bold">
+                        <span class="bg-[#2D3E50] text-white px-3 py-1 rounded-full text-xs font-bold uppercase">Hasta</span>
+                        <input type="date" id="fechaFin" class="border-2 border-[#2D3E50] rounded-lg p-1 font-bold outline-none">
                     </div>
-                    <button onclick="cargarDatos()" class="btn-check uppercase">¡Ver Estaciones!</button>
+                    <button onclick="cargarDatos()" class="btn-check">¡Actualizar!</button>
                 </div>
             </div>
         </header>
@@ -113,7 +107,7 @@
             <div class="didactic-card p-6">
                 <h3 class="font-bold text-xl mb-4 flex items-center gap-2 text-[#2D3E50]">
                     <span class="bg-orange-400 p-2 rounded-xl text-white"><i data-lucide="line-chart"></i></span>
-                    ¿Cambió la temperatura?
+                    ¿Cómo cambió la temperatura?
                 </h3>
                 <canvas id="chartTemp"></canvas>
             </div>
@@ -134,14 +128,14 @@
             <div class="didactic-card p-6">
                 <h3 class="font-bold text-xl mb-4 flex items-center gap-2 text-[#2D3E50]">
                     <span class="bg-emerald-500 p-2 rounded-xl text-white"><i data-lucide="gauge"></i></span>
-                    Presión del aire
+                    Presión del aire (hPa)
                 </h3>
                 <canvas id="chartPres"></canvas>
             </div>
         </div>
 
-        <footer class="text-center text-white font-bold pb-10">
-            <p>Hecho para el Proyecto de Extensión · FCAG - UNLP</p>
+        <footer class="text-center text-white font-bold pb-10 drop-shadow-md">
+            <p>Proyecto de Extensión Universitaria · FCAG - UNLP</p>
         </footer>
     </div>
 
@@ -157,14 +151,14 @@
     async function cargarDatos() {
         const inicio = document.getElementById('fechaInicio').value;
         const fin = document.getElementById('fechaFin').value;
-        let query = "results=200"; 
+        let query = "results=300"; 
         if (inicio && fin) query = `start=${inicio}%2000:00:00&end=${fin}%2023:59:59&timezone=America/Argentina/Buenos_Aires`;
 
         try {
             const resultados = await Promise.all(Object.keys(CONFIG).map(k => fetch(`https://api.thingspeak.com/channels/${CONFIG[k].id}/feeds.json?${query}&api_key=${CONFIG[k].key}`).then(r => r.json())));
             actualizarCards(resultados);
             dibujarGraficos(resultados[0].feeds, resultados[1].feeds, resultados[2].feeds);
-        } catch (e) { console.error(e); }
+        } catch (e) { console.error("Error cargando ThingSpeak:", e); }
     }
 
     function actualizarCards(resultados) {
@@ -180,13 +174,13 @@
 
     function dibujarGraficos(fVio, fVer, fBla) {
         const prep = (feeds, field, type, ema) => {
-            let fieldBusqueda = field;
-            if (type === 'rain') fieldBusqueda = (ema === 'verde') ? 'field3' : 'field5';
+            let fBusq = field;
+            if (type === 'rain') fBusq = (ema === 'verde') ? 'field3' : 'field5';
             let acum = 0, lastDia = -1, lastVal = null;
 
-            return feeds.filter(f => f[fieldBusqueda] !== null).map(f => {
+            return feeds.filter(f => f[fBusq] !== null).map(f => {
                 const date = new Date(f.created_at);
-                let v = parseFloat(f[fieldBusqueda]) || 0;
+                let v = parseFloat(f[fBusq]) || 0;
                 if (type === 'normal' && field === 'field1' && ema === 'verde') v -= 2.0;
 
                 if (type === 'rain') {
@@ -197,7 +191,7 @@
                         lastVal = v;
                     } else { acum += v; }
                     document.getElementById(`rain-${ema}`).innerText = acum.toFixed(1);
-                    return { x: date.getTime(), y: acum };
+                    return { x: date.getTime(), y: parseFloat(acum.toFixed(2)) };
                 }
                 return { x: date.getTime(), y: v };
             });
@@ -214,7 +208,11 @@
                 ]},
                 options: { 
                     responsive: true,
-                    scales: { x: { type: 'time', time: { unit: 'hour' } }, y: { beginAtZero: type === 'rain' } }
+                    maintainAspectRatio: false,
+                    scales: { 
+                        x: { type: 'time', time: { unit: 'hour' }, ticks: { font: { weight: 'bold' } } },
+                        y: { beginAtZero: type === 'rain', ticks: { font: { weight: 'bold' } } }
+                    }
                 }
             });
         };
@@ -222,9 +220,9 @@
         [['chartTemp','field1','normal'],['chartHum','field2','normal'],['chartRain','field5','rain'],['chartPres','field6','normal']].forEach(m => makeChart(...m));
     }
 
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('fechaInicio').value = today;
-    document.getElementById('fechaFin').value = today;
+    const hoy = new Date().toISOString().split('T')[0];
+    document.getElementById('fechaInicio').value = hoy;
+    document.getElementById('fechaFin').value = hoy;
     cargarDatos();
 </script>
 </body>
