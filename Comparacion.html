@@ -41,11 +41,27 @@
             text-transform: uppercase;
         }
         .btn-check:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0px #2D3E50; }
+        
+        /* ESTILOS PARA EL LOGO CIRCULAR */
         .logo-container {
-            max-width: 500px;
-            margin: 0 auto;
-            filter: drop-shadow(0 10px 15px rgba(0,0,0,0.2));
+            width: 250px; /* Tamaño del círculo */
+            height: 250px; /* Alto igual al ancho para círculo perfecto */
+            margin: 0 auto 2rem auto; /* Centrado y margen inferior */
+            filter: drop-shadow(0 10px 15px rgba(0,0,0,0.3)); /* Sombra didáctica */
+            border: 6px solid #2D3E50; /* Borde grueso estilo cómic */
+            border-radius: 50%; /* Recorte circular */
+            overflow: hidden; /* Oculta lo que sale del círculo */
+            background-color: white; /* Fondo blanco si la imagen no cubre todo */
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
+        .logo-container img {
+            width: 100%; /* Cubre el ancho del contenedor */
+            height: 100%; /* Cubre el alto del contenedor */
+            object-fit: cover; /* Ajusta la imagen sin deformarla */
+        }
+
         canvas { max-height: 250px !important; }
     </style>
 </head>
@@ -53,10 +69,9 @@
 
     <div class="max-w-6xl mx-auto">
         <header class="text-center mb-12">
-            <div class="logo-container mb-8">
+            <div class="logo-container">
                 <img src="https://raw.githubusercontent.com/COMOESTAELTIEMPOENTUESCUELA/Estacionesmeteorologicas/main/imagenes/Logo1.jpg" 
-                     alt="Logo ¿Cómo está el tiempo en tu escuela?" 
-                     class="rounded-3xl border-4 border-[#2D3E50]">
+                     alt="Logo ¿Cómo está el tiempo en tu escuela?">
             </div>
             
             <div class="flex justify-center">
