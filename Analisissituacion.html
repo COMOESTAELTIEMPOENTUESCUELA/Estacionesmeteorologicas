@@ -3,119 +3,168 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Análisis Sinóptico - GFS & CEPETEC</title>
+    <title>Análisis Met - Dashboard Mauricio</title>
     <style>
-        :root { --bg: #121212; --card: #1e1e1e; --accent: #00d1ff; --text: #f0f0f0; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+        :root { --bg: #0f172a; --card: #1e293b; --accent: #38bdf8; --text: #f1f5f9; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 15px; }
         
-        .header { text-align: center; border-bottom: 2px solid var(--accent); margin-bottom: 20px; padding-bottom: 10px; }
-        
-        .controls { background: var(--card); padding: 15px; border-radius: 10px; display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; align-items: center; margin-bottom: 20px; }
-        
-        .dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(600px, 1fr)); gap: 20px; }
-        
-        .panel { background: var(--card); border-radius: 12px; padding: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
-        .panel h2 { font-size: 1.2rem; color: var(--accent); margin-top: 0; display: flex; justify-content: space-between; }
-        
-        .tabs { display: flex; gap: 5px; margin-bottom: 10px; }
-        .tab-btn { background: #333; color: white; border: none; padding: 5px 12px; cursor: pointer; border-radius: 4px; font-size: 0.8rem; }
-        .tab-btn.active { background: var(--accent); color: black; font-weight: bold; }
+        .header { text-align: center; padding: 10px; border-bottom: 2px solid var(--accent); margin-bottom: 20px; }
+        .header h1 { margin: 0; font-size: 1.5rem; letter-spacing: 1px; }
 
-        img { width: 100%; border-radius: 8px; border: 1px solid #444; min-height: 300px; background: #000; }
+        .controls { 
+            background: var(--card); padding: 15px; border-radius: 12px; 
+            display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; align-items: center; 
+            margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
+        }
+
+        .dashboard { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); 
+            gap: 20px; 
+        }
+
+        .panel { background: var(--card); border-radius: 12px; padding: 15px; border: 1px solid #334155; }
+        .panel h2 { font-size: 1.1rem; color: var(--accent); margin-top: 0; border-bottom: 1px solid #334155; padding-bottom: 8px; }
         
-        select, input, button { background: #333; color: white; border: 1px solid #555; padding: 8px; border-radius: 5px; }
-        button { background: var(--accent); color: black; font-weight: bold; cursor: pointer; }
+        .tabs { display: flex; gap: 5px; margin-bottom: 10px; flex-wrap: wrap; }
+        .tab-btn { background: #334155; color: white; border: none; padding: 6px 12px; cursor: pointer; border-radius: 6px; font-size: 0.85rem; transition: 0.3s; }
+        .tab-btn:hover { background: #475569; }
+        .tab-btn.active { background: var(--accent); color: #0f172a; font-weight: bold; }
+
+        .img-container { position: relative; background: #000; border-radius: 8px; overflow: hidden; min-height: 400px; display: flex; align-items: center; justify-content: center; }
+        img { width: 100%; height: auto; display: block; }
+        
+        .error-msg { position: absolute; color: #ef4444; font-size: 0.9rem; text-align: center; padding: 10px; }
+
+        input, select, button { background: #0f172a; color: white; border: 1px solid #475569; padding: 8px; border-radius: 6px; outline: none; }
+        button { background: var(--accent); color: #0f172a; font-weight: bold; cursor: pointer; border: none; }
+        button:hover { opacity: 0.9; }
+
+        .footer-info { margin-top: 10px; font-size: 0.75rem; color: #94a3b8; }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h1>Dashboard Meteorológico Operativo</h1>
+    <h1>ESTACIÓN DE ANÁLISIS METEOROLÓGICO</h1>
 </div>
 
 <div class="controls">
     <div>
-        <label>Fecha Inicial:</label>
+        <label>Fecha:</label>
         <input type="date" id="fecha" value="2024-03-18">
     </div>
     <div>
-        <label>Ciclo (Z):</label>
-        <select id="ciclo">
-            <option value="00">00Z</option>
-            <option value="06">06Z</option>
-            <option value="12" selected>12Z</option>
-            <option value="18">18Z</option>
-        </select>
+        <label>Hora:</label>
+        <input type="number" id="hora" value="12" min="0" max="23" style="width: 50px;"> :
+        <input type="number" id="minuto" value="00" min="0" max="59" style="width: 50px;">
+        <span style="font-weight: bold; color: var(--accent);">Z (UTC)</span>
     </div>
-    <button onclick="cargarTodo()">Actualizar Análisis</button>
+    <button onclick="actualizarTodo()">CARGAR ANÁLISIS</button>
 </div>
 
 <div class="dashboard">
     <div class="panel">
-        <h2>GFS - Alicia Bentley <span id="label-nivel">500 hPa</span></h2>
-        <div class="tabs">
-            <button class="tab-btn active" onclick="cambiarNivel('500_mslp_thickness', '500 hPa & MSLP', this)">500hPa</button>
-            <button class="tab-btn" onclick="cambiarNivel('850_temp_mslp_wind', '850 hPa Temp/Viento', this)">850hPa</button>
-            <button class="tab-btn" onclick="cambiarNivel('250_wind_mslp', '250 hPa (Jet)', this)">250hPa</button>
-            <button class="tab-btn" onclick="cambiarNivel('pw_mslp_wind', 'Agua Precipitable', this)">PWAT</button>
+        <h2>Radar Ezeiza (RMA2) - Reflectividad Máxima</h2>
+        <div class="img-container">
+            <img id="img-radar" src="" onerror="this.style.display='none'; document.getElementById('err-radar').style.display='block'">
+            <div id="err-radar" class="error-msg" style="display:none;">
+                Imagen no encontrada.<br>El SMN usa segundos exactos.<br>
+                Probá ajustando los minutos (+1 o -1).
+            </div>
         </div>
-        <img id="img-gfs" src="" alt="Cargando GFS...">
+        <div class="footer-info" id="url-radar-text"></div>
     </div>
 
     <div class="panel">
-        <h2>Satélite - CEPETEC (GOES-16)</h2>
+        <h2>Modelos GFS (Alicia Bentley)</h2>
+        <div class="tabs">
+            <button class="tab-btn active" onclick="cambiarGFS('500_mslp_thickness', this)">500hPa/MSLP</button>
+            <button class="tab-btn" onclick="cambiarGFS('850_temp_mslp_wind', this)">850hPa Temp</button>
+            <button class="tab-btn" onclick="cambiarGFS('250_wind_mslp', this)">Jet 250hPa</button>
+            <button class="tab-btn" onclick="cambiarGFS('pw_mslp_wind', this)">Agua Precipitable</button>
+        </div>
+        <div class="img-container">
+            <img id="img-gfs" src="">
+        </div>
+    </div>
+
+    <div class="panel">
+        <h2>Satelital - CEPETEC / RAMMB</h2>
         <div class="tabs">
             <button class="tab-btn active" onclick="cambiarSat('topes', this)">Topes Nubosos</button>
             <button class="tab-btn" onclick="cambiarSat('wv', this)">Vapor de Agua</button>
-            <button class="tab-btn" onclick="cambiarSat('vis', this)">Visible</button>
         </div>
-        <img id="img-cepetec" src="" alt="Cargando Satélite...">
-        <p><small>Nota: Las imágenes de CEPETEC pueden requerir ajuste de URL según el servidor actual.</small></p>
+        <div class="img-container">
+            <img id="img-sat" src="">
+        </div>
+    </div>
+
+    <div class="panel">
+        <h2>Sondeo Skew-T (Ezeiza 87576)</h2>
+        <div id="skewt-link" style="text-align:center; padding: 50px;">
+            <p>Los sondeos son generados por la Univ. de Wyoming.</p>
+            <a id="btn-skewt" href="#" target="_blank" style="color:var(--accent); font-weight:bold; text-decoration:none; border: 1px solid; padding: 10px; border-radius: 5px;">ABRIR SKEW-T EN NUEVA PESTAÑA</a>
+        </div>
     </div>
 </div>
 
 <script>
-    let nivelActual = '500_mslp_thickness';
-    let canalSat = 'topes';
+    let gfsProduct = '500_mslp_thickness';
+    
+    function actualizarTodo() {
+        const fechaRaw = document.getElementById('fecha').value; // YYYY-MM-DD
+        if(!fechaRaw) return;
+        
+        const partes = fechaRaw.split('-');
+        const anio = partes[0];
+        const mes = partes[1];
+        const dia = partes[2];
+        const fechaCompacta = anio + mes + dia;
+        
+        const h = document.getElementById('hora').value.padStart(2, '0');
+        const m = document.getElementById('minuto').value.padStart(2, '0');
 
-    function cargarTodo() {
-        const fecha = document.getElementById('fecha').value.replace(/-/g, '');
-        const ciclo = document.getElementById('ciclo').value;
+        // 1. LÓGICA RADAR (Pattern SMN que encontraste)
+        // Intentamos con segundos "00" (esto es lo más difícil de embocar sin un proxy)
+        const urlRadar = `https://estaticos.smn.gob.ar/vmsr/radar/RMA2_240_ZH_CMAX_${fechaCompacta}_${h}${m}00Z.png`;
+        const radarImg = document.getElementById('img-radar');
+        document.getElementById('err-radar').style.display = 'none';
+        radarImg.style.display = 'block';
+        radarImg.src = urlRadar;
+        document.getElementById('url-radar-text').innerText = `Intentando: ...${h}${m}00Z.png`;
 
-        // 1. Lógica GFS Alicia Bentley
-        // Estructura típica: http://www.atmos.albany.edu/facstaff/bentley/realtime/images/gfs/res/fecha/nivel_f000.png
-        // Nota: Estas URLs son para tiempo real. Para histórico, ella usa carpetas específicas.
-        const urlGFS = `http://www.atmos.albany.edu/facstaff/bentley/realtime/images/gfs/southamer/${nivelActual}_f000.png`;
+        // 2. LÓGICA GFS ALICIA BENTLEY (Sudamérica)
+        // Nota: Los históricos de Alicia a veces cambian de carpeta. 
+        // Esta URL apunta al tiempo real/reciente.
+        const urlGFS = `http://www.atmos.albany.edu/facstaff/bentley/realtime/images/gfs/southamer/${gfsProduct}_f000.png`;
         document.getElementById('img-gfs').src = urlGFS;
 
-        // 2. Lógica CEPETEC
-        // El CEPETEC usa rutas dinámicas, este es un ejemplo de la estructura de archivo
-        // Para historial preciso de un día como el 18/03/2024, se suele usar el repositorio de RAMMB o el archivo del SMN.
-        const urlSat = `https://cepetec.at.fcen.uba.ar/proyectos/geofisica/datos/goes16/ch13_topes_latest.jpg`; 
-        document.getElementById('img-cepetec').src = urlSat;
+        // 3. LÓGICA SATELITAL (RAMMB SLIDER - Muy fiable para historial)
+        const urlSat = `https://rammb-slider.cira.colostate.edu/data/imagery/${fechaCompacta}/goes-16---full_disk/band_13/${fechaCompacta}${h}${m}00/00/000_000.png`;
+        document.getElementById('img-sat').src = urlSat;
+
+        // 4. LÓGICA SONDEO (Wyoming)
+        const urlWyoming = `https://weather.uwyo.edu/cgi-bin/sounding?region=nramer&type=skewt&year=${anio}&month=${mes}&from=${dia}${h}&to=${dia}${h}&stnm=87576`;
+        document.getElementById('btn-skewt').href = urlWyoming;
     }
 
-    function cambiarNivel(nivel, label, btn) {
-        nivelActual = nivel;
-        document.getElementById('label-nivel').innerText = label;
-        actualizarBotones(btn);
-        cargarTodo();
-    }
-
-    function cambiarSat(canal, btn) {
-        canalSat = canal;
-        actualizarBotones(btn);
-        // Aquí cambiarías la lógica de URL de CEPETEC según el canal
-        cargarTodo();
-    }
-
-    function actualizarBotones(btn) {
-        const hermanos = btn.parentNode.querySelectorAll('.tab-btn');
-        hermanos.forEach(b => b.classList.remove('active'));
+    function cambiarGFS(prod, btn) {
+        gfsProduct = prod;
+        document.querySelectorAll('.panel:nth-child(2) .tab-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
+        actualizarTodo();
     }
 
-    window.onload = cargarTodo;
+    function cambiarSat(tipo, btn) {
+        // Aquí podrías ajustar las bandas de GOES-16
+        document.querySelectorAll('.panel:nth-child(3) .tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        actualizarTodo();
+    }
+
+    // Cargar al inicio
+    window.onload = actualizarTodo;
 </script>
 
 </body>
