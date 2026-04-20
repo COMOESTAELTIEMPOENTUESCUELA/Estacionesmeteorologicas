@@ -13,16 +13,33 @@
     <style>
         body { 
             font-family: 'Quicksand', sans-serif; 
-            background: #4A90E2 url('https://www.transparenttextures.com/patterns/clouds.png');
+            /* Color de base azul cielo */
+            background-color: #4A90E2;
+            /* El truco del Parallax: fixed hace que el fondo no suba con el contenido */
+            background-image: url('https://www.transparenttextures.com/patterns/clouds.png');
+            background-attachment: fixed;
+            background-position: center;
             color: #2D3E50; 
             min-height: 100vh; 
+            overflow-x: hidden;
         }
+
+        /* Animación suave adicional para que las nubes se muevan solas muy lento */
+        @keyframes moveClouds {
+            from { background-position: 0 0; }
+            to { background-position: 1000px 0; }
+        }
+        body {
+            animation: moveClouds 100s linear infinite;
+        }
+
         .didactic-card { 
             background: white; 
             border-radius: 30px; 
             box-shadow: 0 8px 0px #357ABD; 
             border: 3px solid #2D3E50;
         }
+
         .header-box {
             background: #FFD15B;
             border: 3px solid #2D3E50;
@@ -30,6 +47,7 @@
             box-shadow: 4px 4px 0px #2D3E50;
             display: inline-block;
         }
+
         .btn-check {
             background: #FFD15B;
             border: 3px solid #2D3E50;
@@ -40,11 +58,12 @@
             cursor: pointer;
             text-transform: uppercase;
         }
+
         .btn-check:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0px #2D3E50; }
         
         .logo-container {
-            width: 250px;
-            height: 250px;
+            width: 220px;
+            height: 220px;
             margin: 0 auto 2rem auto;
             filter: drop-shadow(0 10px 15px rgba(0,0,0,0.3));
             border: 6px solid #2D3E50;
@@ -61,28 +80,12 @@
             object-fit: cover;
         }
 
-        /* CONTENEDOR DE LA VENTANA DE WEATHER UNDERGROUND */
-        .wunderground-window {
-            width: 100%;
-            height: 700px; /* Ajustado para que el dashboard se vea bien */
-            border: 4px solid #2D3E50;
-            border-radius: 25px;
-            overflow: hidden;
-            background: white;
-            box-shadow: 10px 10px 0px #2D3E50;
-        }
-        iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-        }
-
         canvas { max-height: 250px !important; }
     </style>
 </head>
 <body class="p-4 md:p-8">
 
-    <div class="max-w-6xl mx-auto">
+    <div class="max-w-6xl mx-auto relative z-10">
         <header class="text-center mb-12">
             <div class="logo-container">
                 <img src="https://raw.githubusercontent.com/COMOESTAELTIEMPOENTUESCUELA/Estacionesmeteorologicas/main/imagenes/Logo1.jpg" 
@@ -104,7 +107,7 @@
             </div>
         </header>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
             <div class="didactic-card p-6 text-center">
                 <div class="header-box px-4 py-1 mb-4 font-bold text-sm">ESTACIÓN VIOLETA</div>
                 <div class="flex justify-center mb-2 text-purple-500"><i data-lucide="thermometer" class="w-12 h-12"></i></div>
@@ -133,46 +136,34 @@
             </div>
         </div>
 
-        <div class="mb-12">
-            <h3 class="font-bold text-2xl mb-4 flex items-center gap-3 text-white drop-shadow-md">
-                <span class="bg-blue-500 p-2 rounded-xl border-2 border-[#2D3E50] text-white">
-                    <i data-lucide="satellite"></i>
-                </span>
-                Estación ILAPLA66 en Vivo (Wunderground)
-            </h3>
-            <div class="wunderground-window">
-                <iframe src="https://www.wunderground.com/dashboard/pws/ILAPLA66" title="Dashboard Weather Underground"></iframe>
-            </div>
-        </div>
-
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
             <div class="didactic-card p-6">
                 <h3 class="font-bold text-xl mb-4 flex items-center gap-2 text-[#2D3E50]">
                     <span class="bg-orange-400 p-2 rounded-xl text-white"><i data-lucide="line-chart"></i></span>
                     ¿Cómo cambió la temperatura?
                 </h3>
-                <canvas id="chartTemp"></canvas>
+                <div class="h-64"><canvas id="chartTemp"></canvas></div>
             </div>
             <div class="didactic-card p-6">
                 <h3 class="font-bold text-xl mb-4 flex items-center gap-2 text-[#2D3E50]">
                     <span class="bg-blue-400 p-2 rounded-xl text-white"><i data-lucide="cloud-rain"></i></span>
                     ¿Cuánto llovió hoy?
                 </h3>
-                <canvas id="chartRain"></canvas>
+                <div class="h-64"><canvas id="chartRain"></canvas></div>
             </div>
             <div class="didactic-card p-6">
                 <h3 class="font-bold text-xl mb-4 flex items-center gap-2 text-[#2D3E50]">
                     <span class="bg-cyan-500 p-2 rounded-xl text-white"><i data-lucide="droplets"></i></span>
                     Humedad en el aire
                 </h3>
-                <canvas id="chartHum"></canvas>
+                <div class="h-64"><canvas id="chartHum"></canvas></div>
             </div>
             <div class="didactic-card p-6">
                 <h3 class="font-bold text-xl mb-4 flex items-center gap-2 text-[#2D3E50]">
                     <span class="bg-emerald-500 p-2 rounded-xl text-white"><i data-lucide="gauge"></i></span>
                     Presión del aire (hPa)
                 </h3>
-                <canvas id="chartPres"></canvas>
+                <div class="h-64"><canvas id="chartPres"></canvas></div>
             </div>
         </div>
 
@@ -200,7 +191,7 @@
             const resultados = await Promise.all(Object.keys(CONFIG).map(k => fetch(`https://api.thingspeak.com/channels/${CONFIG[k].id}/feeds.json?${query}&api_key=${CONFIG[k].key}`).then(r => r.json())));
             actualizarCards(resultados);
             dibujarGraficos(resultados[0].feeds, resultados[1].feeds, resultados[2].feeds);
-        } catch (e) { console.error("Error cargando ThingSpeak:", e); }
+        } catch (e) { console.error("Error cargando datos:", e); }
     }
 
     function actualizarCards(resultados) {
