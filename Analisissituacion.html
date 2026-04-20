@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Análisis Sinóptico Pro - Mauricio</title>
+    <title>Radar Scan Pro - Dashboard Mauricio</title>
     <style>
-        :root { --bg: #0b0f19; --card: #161b2c; --accent: #00f2ff; --text: #f1f5f9; }
+        :root { --bg: #0f172a; --card: #1e293b; --accent: #00f2ff; --text: #f1f5f9; }
         body { font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; }
         
         .main-header { text-align: center; padding: 10px; border-bottom: 2px solid var(--accent); margin-bottom: 20px; }
         
-        /* Controles */
         .controls { 
             background: var(--card); padding: 20px; border-radius: 15px; 
             display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; align-items: center;
@@ -23,30 +22,31 @@
             gap: 20px; 
         }
 
-        .panel { background: var(--card); border-radius: 12px; padding: 15px; border: 1px solid #2d3748; }
+        .panel { background: var(--card); border-radius: 12px; padding: 15px; border: 1px solid #2d3748; position: relative; }
         .panel h2 { font-size: 1.1rem; color: var(--accent); margin-top: 0; border-bottom: 1px solid #2d3748; padding-bottom: 10px; }
 
-        /* Estilo de Imágenes */
-        .img-box { position: relative; background: #000; border-radius: 8px; min-height: 400px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-        img { width: 100%; height: auto; display: block; }
+        .img-box { position: relative; background: #000; border-radius: 8px; min-height: 450px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        img { width: 100%; height: auto; display: block; transition: opacity 0.3s; }
         
-        /* Botones y Tabs */
         .tabs { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
         .tab-btn { background: #2d3748; color: white; border: none; padding: 7px 14px; cursor: pointer; border-radius: 6px; font-size: 0.85rem; }
         .tab-btn.active { background: var(--accent); color: #0b0f19; font-weight: bold; }
         
-        .step-btn { background: #334155; color: white; border: 1px solid var(--accent); padding: 5px 10px; cursor: pointer; border-radius: 4px; font-weight: bold; }
-        
         input, select, button { background: #0b0f19; color: white; border: 1px solid #475569; padding: 8px; border-radius: 6px; }
         .btn-update { background: var(--accent); color: #0b0f19; font-weight: bold; padding: 10px 25px; border: none; cursor: pointer; }
 
-        .radar-tools { margin-top: 10px; display: flex; align-items: center; gap: 10px; justify-content: center; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; }
+        #loader-radar { font-weight: bold; font-size: 0.9rem; margin-top: 10px; text-align: center; height: 20px; }
+        .status-searching { color: orange; }
+        .status-found { color: #00ff00; }
+        .status-error { color: #ff4444; }
+
+        .footer-info { margin-top: 5px; font-family: monospace; font-size: 0.75rem; color: #94a3b8; text-align: center; }
     </style>
 </head>
 <body>
 
 <div class="main-header">
-    <h1>ESTACIÓN DE ANÁLISIS METEOROLÓGICO V2</h1>
+    <h1>VISUALIZADOR METEOROLÓGICO OPERATIVO</h1>
 </div>
 
 <div class="controls">
@@ -55,29 +55,21 @@
         <input type="date" id="fecha" value="2026-04-20">
     </div>
     <div>
-        <label>Tiempo (HOA):</label>
+        <label>Hora (HOA):</label>
         <input type="number" id="hora" value="12" min="0" max="23" style="width: 55px;"> :
-        <input type="number" id="min" value="41" min="0" max="59" style="width: 55px;"> :
-        <input type="number" id="seg" value="00" min="0" max="59" style="width: 55px;">
+        <input type="number" id="min" value="41" min="0" max="59" style="width: 55px;">
     </div>
-    <button class="btn-update" onclick="actualizarTodo()">ACTUALIZAR DASHBOARD</button>
+    <button class="btn-update" onclick="actualizarTodo()">ESCANEAR EVENTO</button>
 </div>
 
 <div class="dashboard">
     <div class="panel">
-        <h2>Radar Ezeiza (Clima Sur GBA)</h2>
+        <h2>Radar Ezeiza - Escáner de Segundos (Clima Sur)</h2>
+        <div id="loader-radar">Listo para buscar...</div>
         <div class="img-box">
-            <img id="img-radar" src="" onerror="this.style.opacity='0.3'">
-            <div id="loader-radar" style="position: absolute; font-size: 0.8rem; color: #94a3b8; pointer-events: none;">
-                Si no carga, ajustá los segundos...
-            </div>
+            <img id="img-radar" src="" style="opacity: 0;">
         </div>
-        <div class="radar-tools">
-            <span>Ajuste Fino Segundos:</span>
-            <button class="step-btn" onclick="ajustarSeg(-1)">-1s</button>
-            <button class="step-btn" onclick="ajustarSeg(1)">+1s</button>
-            <span id="current-url-display" style="font-family: monospace; font-size: 0.7rem; margin-left: 10px; color: var(--accent);"></span>
-        </div>
+        <div class="footer-info" id="radar-url-display">URL: -</div>
     </div>
 
     <div class="panel">
@@ -93,10 +85,10 @@
     </div>
 
     <div class="panel">
-        <h2>Satelital - CEPETEC / GOES-16</h2>
+        <h2>Satelital - CEPETEC (Latest)</h2>
         <div class="tabs">
             <button class="tab-btn active" onclick="cambiarSat('topes', this)">Topes Nubosos</button>
-            <button class="tab-btn" onclick="cambiarSat('wv', this)">Vapor de Agua (Ch 08)</button>
+            <button class="tab-btn" onclick="cambiarSat('wv', this)">Vapor de Agua</button>
         </div>
         <div class="img-box">
             <img id="img-sat" src="">
@@ -106,8 +98,8 @@
     <div class="panel">
         <h2>Sondeo Skew-T (Ezeiza 87576)</h2>
         <div style="padding: 60px; text-align: center;">
-            <p style="margin-bottom: 20px;">Análisis de inestabilidad y perfil vertical.</p>
-            <a id="link-skewt" href="#" target="_blank" style="color: var(--accent); text-decoration: none; border: 2px solid var(--accent); padding: 12px 20px; border-radius: 8px; font-weight: bold;">ABRIR SKEW-T 12Z/00Z</a>
+            <p>Perfil vertical de la atmósfera para la fecha seleccionada.</p>
+            <a id="link-skewt" href="#" target="_blank" style="color: var(--accent); text-decoration: none; border: 2px solid var(--accent); padding: 12px 20px; border-radius: 8px; font-weight: bold; display: inline-block; margin-top: 15px;">ABRIR SKEW-T EN WYOMING</a>
         </div>
     </div>
 </div>
@@ -115,49 +107,63 @@
 <script>
     let currentGFS = '500_mslp_thickness';
 
-    function actualizarTodo() {
+    async function actualizarTodo() {
         const fecha = document.getElementById('fecha').value.replace(/-/g, '');
         const h = document.getElementById('hora').value.padStart(2, '0');
         const m = document.getElementById('min').value.padStart(2, '0');
-        const s = document.getElementById('seg').value.padStart(2, '0');
 
-        // 1. Radar Clima Sur (Basado en tu captura)
-        const urlRadar = `https://www.climasurgba.com.ar/radar/ezeiza-${fecha}-${h}${m}${s}.png`;
-        document.getElementById('img-radar').src = urlRadar;
-        document.getElementById('img-radar').style.opacity = '1';
-        document.getElementById('current-url-display').innerText = `${h}:${m}:${s}`;
+        // 1. Ejecutar Escáner de Radar
+        await buscarImagenRadar(fecha, h, m);
 
-        // 2. GFS Bentley
-        // Bentley usa UTC. Si son las 12 HOA, el GFS corre 12 o 18 UTC usualmente.
-        const urlGFS = `http://www.atmos.albany.edu/facstaff/bentley/realtime/images/gfs/southamer/${currentGFS}_f000.png`;
-        document.getElementById('img-gfs').src = urlGFS;
+        // 2. Cargar GFS
+        document.getElementById('img-gfs').src = `http://www.atmos.albany.edu/facstaff/bentley/realtime/images/gfs/southamer/${currentGFS}_f000.png`;
 
-        // 3. CEPETEC Satélite (Latest)
-        // Para historial se usaría RAMMB, pero CEPETEC es excelente para el "ahora"
-        const urlSat = `https://cepetec.at.fcen.uba.ar/proyectos/geofisica/datos/goes16/ch13_topes_latest.jpg`;
-        document.getElementById('img-sat').src = urlSat;
+        // 3. Cargar Satélite
+        document.getElementById('img-sat').src = `https://cepetec.at.fcen.uba.ar/proyectos/geofisica/datos/goes16/ch13_topes_latest.jpg`;
 
-        // 4. Wyoming Skew-T
-        const anio = fecha.substring(0,4);
-        const mes = fecha.substring(4,6);
-        const dia = fecha.substring(6,8);
-        const urlWyoming = `https://weather.uwyo.edu/cgi-bin/sounding?region=nramer&type=skewt&year=${anio}&month=${mes}&from=${dia}12&to=${dia}12&stnm=87576`;
-        document.getElementById('link-skewt').href = urlWyoming;
+        // 4. Configurar Sondeo
+        const f = document.getElementById('fecha').value.split('-');
+        document.getElementById('link-skewt').href = `https://weather.uwyo.edu/cgi-bin/sounding?region=nramer&type=skewt&year=${f[0]}&month=${f[1]}&from=${f[2]}12&to=${f[2]}12&stnm=87576`;
     }
 
-    function ajustarSeg(delta) {
-        let s = parseInt(document.getElementById('seg').value);
-        s += delta;
-        if(s > 59) { s = 0; ajustarMin(1); }
-        if(s < 0) { s = 59; ajustarMin(-1); }
-        document.getElementById('seg').value = s;
-        actualizarTodo();
+    async function buscarImagenRadar(fecha, h, m) {
+        const loader = document.getElementById('loader-radar');
+        const imgDisplay = document.getElementById('img-radar');
+        const urlDisplay = document.getElementById('radar-url-display');
+        
+        loader.className = "status-searching";
+        loader.innerText = `Escaneando minuto ${m} (segundos 00-59)...`;
+        imgDisplay.style.opacity = "0";
+
+        // Bucle de búsqueda asíncrona
+        for (let s = 0; s < 60; s++) {
+            let sec = s.toString().padStart(2, '0');
+            let urlPrueba = `https://www.climasurgba.com.ar/radar/ezeiza-${fecha}-${h}${m}${sec}.png`;
+            
+            const encontrada = await verificarUrl(urlPrueba);
+            
+            if (encontrada) {
+                imgDisplay.src = urlPrueba;
+                imgDisplay.style.opacity = "1";
+                loader.className = "status-found";
+                loader.innerText = `¡IMAGEN ENCONTRADA! (Segundo: ${sec})`;
+                urlDisplay.innerText = `URL: ezeiza-${fecha}-${h}${m}${sec}.png`;
+                return;
+            }
+        }
+
+        loader.className = "status-error";
+        loader.innerText = "No hay imagen en este minuto. Probá el anterior o posterior.";
+        urlDisplay.innerText = "URL: no encontrada";
     }
 
-    function ajustarMin(delta) {
-        let m = parseInt(document.getElementById('min').value);
-        m += delta;
-        document.getElementById('min').value = m;
+    function verificarUrl(url) {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => resolve(true);
+            img.onerror = () => resolve(false);
+            img.src = url;
+        });
     }
 
     function cambiarGFS(prod, btn) {
@@ -168,12 +174,12 @@
     }
 
     function cambiarSat(tipo, btn) {
-        // Lógica para cambiar URL de CEPETEC según canal
         document.querySelectorAll('.panel:nth-child(3) .tab-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         actualizarTodo();
     }
 
+    // Iniciar al cargar
     window.onload = actualizarTodo;
 </script>
 
