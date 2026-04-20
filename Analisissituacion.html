@@ -1,1 +1,124 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radar Multi-Scan - Mauricio</title>
+    <style>
+        :root { --bg: #0f172a; --card: #1e293b; --accent: #00f2ff; --text: #f1f5f9; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; }
+        .controls { background: var(--card); padding: 15px; border-radius: 12px; display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; align-items: center; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .dashboard { display: grid; grid-template-columns: 1fr; gap: 15px; max-width: 1000px; margin: auto; }
+        .panel { background: var(--card); border-radius: 12px; padding: 15px; border: 1px solid #2d3748; }
+        .radar-display { background: #000; border-radius: 8px; min-height: 500px; display: flex; align-items: center; justify-content: center; margin-bottom: 15px; border: 2px solid #334155; }
+        .radar-display img { width: 100%; height: auto; display: block; }
+        .radar-gallery { display: flex; gap: 12px; overflow-x: auto; padding: 15px; background: #0b1120; border-radius: 10px; border: 1px solid var(--accent); min-height: 50px; }
+        .thumb { min-width: 110px; padding: 12px; background: #1e293b; border: 2px solid #475569; cursor: pointer; border-radius: 8px; text-align: center; transition: 0.2s; font-weight: bold; font-size: 0.9rem; }
+        .thumb:hover { border-color: var(--accent); }
+        .thumb.active { border-color: #00ff00; background: #064e3b; }
+        .loader-bar { height: 6px; background: #334155; margin-bottom: 10px; border-radius: 3px; overflow: hidden; }
+        .loader-progress { height: 100%; background: var(--accent); width: 0%; transition: width 0.3s; }
+        input, button { background: #0b0f19; color: white; border: 1px solid #475569; padding: 10px; border-radius: 6px; }
+        .btn-scan { background: var(--accent); color: #0b0f19; font-weight: bold; cursor: pointer; border: none; padding: 10px 30px; }
+        #status { text-align: center; margin-bottom: 10px; font-weight: bold; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
 
+<div class="controls">
+    <input type="date" id="fecha" value="2026-04-20">
+    <input type="number" id="hora" value="12" min="0" max="23" style="width: 60px;">
+    <button class="btn-scan" id="scan-btn" onclick="escanearTodo()">ESCANEAR RADAR</button>
+</div>
+
+<div class="dashboard">
+    <div class="panel">
+        <div class="loader-bar"><div id="progress" class="loader-progress"></div></div>
+        <div id="status">Seleccioná una fecha y dale a Escanear.</div>
+        
+        <div class="radar-display">
+            <img id="main-radar" src="" alt="Esperando resultados...">
+        </div>
+
+        <div class="radar-gallery" id="gallery"></div>
+    </div>
+</div>
+
+<script>
+    async function escanearTodo() {
+        const fechaVal = document.getElementById('fecha').value;
+        if (!fechaVal) return;
+
+        const partes = fechaVal.split('-'); 
+        const anio = partes[0];
+        const mes = parseInt(partes[1]).toString(); 
+        const dia = parseInt(partes[2]).toString(); 
+        const fechaCompacta = anio + partes[1] + partes[2];
+        
+        const h = document.getElementById('hora').value.padStart(2, '0');
+        const btn = document.getElementById('scan-btn');
+        const gallery = document.getElementById('gallery');
+        const progress = document.getElementById('progress');
+        const status = document.getElementById('status');
+
+        btn.disabled = true;
+        gallery.innerHTML = "";
+        progress.style.width = "0%";
+        status.innerText = "Escaneando múltiples rutas...";
+
+        const promesas = [];
+        for (let m = 0; m < 60; m++) {
+            promesas.push(intentarMinuto(anio, mes, dia, fechaCompacta, h, m.toString().padStart(2, '0')));
+        }
+
+        const resultados = await Promise.all(promesas);
+        const exitos = resultados.filter(r => r !== null).sort((a, b) => a.tiempo.localeCompare(b.tiempo));
+        
+        exitos.forEach(res => agregarALaGaleria(res.url, res.tiempo));
+
+        progress.style.width = "100%";
+        status.innerText = exitos.length > 0 ? `Encontrados ${exitos.length} ciclos.` : "No se encontró nada. Probá otra hora.";
+        btn.disabled = false;
+    }
+
+    async function intentarMinuto(anio, mes, dia, fComp, h, m) {
+        // Los segundos que más se repiten en el servidor
+        const segundos = ["00", "05", "10", "15", "20", "25", "30", "35", "40", "45", "50", "55", "18", "23", "36", "43", "52"];
+        
+        for (let s of segundos) {
+            // RUTA A: Historial (para días pasados)
+            let urlHist = `https://www.climasurgba.com.ar/radar/historial/${anio}/${mes}/${dia}/ezeiza-${fComp}-${h}${m}${s}.png`;
+            // RUTA B: Raíz (para el día de hoy)
+            let urlRaiz = `https://www.climasurgba.com.ar/radar/ezeiza-${fComp}-${h}${m}${s}.png`;
+
+            if (await verificar(urlHist)) return { url: urlHist, tiempo: `${h}:${m}:${s}` };
+            if (await verificar(urlRaiz)) return { url: urlRaiz, tiempo: `${h}:${m}:${s}` };
+        }
+        return null;
+    }
+
+    function verificar(url) {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => resolve(true);
+            img.onerror = () => resolve(false);
+            img.src = url;
+            setTimeout(() => resolve(false), 2000);
+        });
+    }
+
+    function agregarALaGaleria(url, tiempo) {
+        const thumb = document.createElement('div');
+        thumb.className = 'thumb';
+        thumb.innerText = tiempo;
+        thumb.onclick = function() {
+            document.getElementById('main-radar').src = url;
+            document.querySelectorAll('.thumb').forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+        };
+        document.getElementById('gallery').appendChild(thumb);
+        if (document.getElementById('gallery').children.length === 1) thumb.click();
+    }
+</script>
+</body>
+</html>
