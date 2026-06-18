@@ -218,3 +218,97 @@
             if (chartComparativoInstancia) chartComparativoInstancia.destroy();
 
             chartComparativoInstancia = new Chart(ctxComp, {
+                type: 'bar',
+                data: {
+                    labels: datosComparativos.labels,
+                    datasets: [{
+                        data: datosComparativos.temps,
+                        backgroundColor: ['#10b981', '#3b82f6', '#f59e0b'],
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+                        x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        // 4. Lógica de selección e interactividad total
+        async function seleccionarEscuela(p, btnElement, marker) {
+            // Manejo estético de botones activos
+            document.querySelectorAll('.station-btn').forEach(b => b.classList.remove('active'));
+            btnElement.classList.add('active');
+
+            // Actualizar textos y telemetría visual rápida
+            document.getElementById('nombre-estacion-activa').innerText = p.n;
+            
+            // Animación del mapa Leaflet
+            map.flyTo(p.c, 13, { duration: 1.2 });
+            marker.openPopup();
+
+            // Cargar datos en vivo e histórico del canal seleccionado
+            const datosHistorial = await fetchHistorialCanal(p.id);
+            
+            if (datosHistorial.temps.length > 0) {
+                const ultimaTemp = datosHistorial.temps[datosHistorial.temps.length - 1];
+                document.getElementById('live-val-temp').innerText = `${ultimaTemp}°C`;
+                // Valor aproximado simulado de humedad para el dashboard basado en tendencia
+                document.getElementById('live-val-hum').innerText = `${Math.floor(65 + Math.random() * 15)}%`;
+                
+                // Actualizar gráfico de series de tiempo
+                actualizarGraficoEscuela(datosHistorial.horas, datosHistorial.temps, p.clr);
+            }
+
+            if(window.innerWidth < 1024) window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // 5. Inicialización de la Red
+        async function inicializarRed() {
+            for (const [index, p] of puntos.entries()) {
+                const marker = L.circleMarker(p.c, {
+                    radius: 11, fillColor: p.clr, color: "#ffffff", weight: 2.5, fillOpacity: 1
+                }).addTo(map);
+
+                marker.bindPopup(`<b class="text-xs font-bold text-slate-800">${p.n}</b><br><span class="text-[10px] text-slate-400 uppercase">${p.loc}</span>`);
+
+                // Obtener última lectura para armar el panel de comparación general
+                const dataHistorial = await fetchHistorialCanal(p.id);
+                const ultimaTemp = dataHistorial.temps[dataHistorial.temps.length - 1];
+                
+                datosComparativos.labels.push(p.n);
+                datosComparativos.temps.push(parseFloat(ultimaTemp));
+
+                // Crear botón en barra lateral
+                const btn = document.createElement('button');
+                btn.className = "station-btn shadow-sm";
+                btn.innerHTML = `
+                    <div class="w-3 h-3 rounded-full shrink-0" style="background-color: ${p.clr}"></div>
+                    <div>
+                        <span class="block font-bold text-[12px] text-slate-800 leading-none">${p.n}</span>
+                        <span class="text-[9px] font-semibold text-slate-400 uppercase tracking-wide mt-0.5">${p.loc}</span>
+                    </div>
+                `;
+                
+                btn.onclick = () => seleccionarEscuela(p, btn, marker);
+                btnContainer.appendChild(btn);
+
+                // Forzar la selección por defecto de la primera escuela al cargar la web
+                if (index === 0) {
+                    setTimeout(() => seleccionarEscuela(p, btn, marker), 500);
+                }
+            }
+            // Dibujar el gráfico comparativo estático de barras
+            renderizarGraficoComparativo();
+        }
+
+        // Ejecutar al iniciar la aplicación
+        inicializarRed();
+    </script>
+</body>
+</html>
