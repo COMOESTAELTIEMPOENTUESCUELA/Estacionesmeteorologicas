@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recursos Educativos y Talleres Meteorológicos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@0.475.0/dist/umd/lucide.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; }</style>
+</head>
+<body class="text-slate-800 antialiased">
+
+    <!-- NAVEGACIÓN COMPARTIDA -->
+    <nav class="bg-white/90 backdrop-blur-md border-b border-slate-100">
+        <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="p-2 bg-blue-600 rounded-xl text-white"><i data-lucide="cloud-sun" class="w-6 h-6"></i></div>
+                <div class="flex flex-col">
+                    <span class="font-extrabold text-slate-900 tracking-tight text-sm">¿CÓMO ESTÁ EL TIEMPO EN TU ESCUELA?</span>
+                    <span class="text-[10px] font-bold text-blue-600 uppercase">FCAG · UNLP</span>
+                </div>
+            </div>
+            <div class="flex items-center gap-6 text-sm font-bold text-slate-600">
+                <a href="index.html" class="hover:text-blue-600">Inicio</a>
+                <a href="red-meteorologica.html" class="hover:text-blue-600">Red Escolar</a>
+                <a href="ciencia-ciudadana.html" class="hover:text-blue-600">Ciencia Ciudadana</a>
+                <a href="recursos.html" class="text-blue-600">Recursos</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-6xl mx-auto px-6 py-12">
+        <!-- CABECERA -->
+        <div class="mb-12">
+            <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">Material Didáctico y Calendario de Talleres</h1>
+            <p class="text-slate-500">Descargá recursos libres diseñados especialmente por la carrera de Meteorología para el aula.</p>
+        </div>
+
+        <!-- RECURSOS PARA DESCARGAR -->
+        <h2 class="font-black text-xl mb-6 text-slate-900 flex items-center gap-2"><i data-lucide="download-cloud" class="text-blue-600"></i> Guías Metodológicas Descargables</h2>
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+            
+            <div class="bg-white p-6 border border-slate-100 shadow-sm rounded-2xl flex flex-col justify-between">
+                <div>
+                    <span class="text-[10px] font-extrabold bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full uppercase tracking-wider inline-block mb-4">Docentes</span>
+                    <h3 class="font-bold text-lg mb-2 text-slate-900">Manual de Registro y Lectura del Tiempo</h3>
+                    <p class="text-sm text-slate-500 mb-4">Guía práctica para armar planillas diarias de observación visual y escalas de nubes en colegios rurales.</p>
+                </div>
+                <button onclick="alert('Iniciando descarga de PDF Institucional...')" class="w-full text-center bg-slate-900 text-white font-bold text-xs py-3 rounded-xl hover:bg-blue-600 transition">DESCARGAR MANUAL (PDF)</button>
+            </div>
+
+            <div class="bg-white p-6 border border-slate-100 shadow-sm rounded-2xl flex flex-col justify-between">
+                <div>
+                    <span class="text-[10px] font-extrabold bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full uppercase tracking-wider inline-block mb-4">Tecnología</span>
+                    <h3 class="font-bold text-lg mb-2 text-slate-900">Montaje de Estaciones Arduino</h3>
+                    <p class="text-sm text-slate-500 mb-4">Esquemas electrónicos, cableado de sensores de temperatura DHT22 y calibración del código fuente C++.</p>
+                </div>
+                <button onclick="alert('Iniciando descarga de Guía de Hardware...')" class="w-full text-center bg-slate-900 text-white font-bold text-xs py-3 rounded-xl hover:bg-blue-600 transition">DESCARGAR ESQUEMAS (ZIP)</button>
+            </div>
+
+            <div class="bg-white p-6 border border-slate-100 shadow-sm rounded-2xl flex flex-col justify-between">
+                <div>
+                    <span class="text-[10px] font-extrabold bg-purple-50 text-purple-700 px-2.5 py-1 rounded-full uppercase tracking-wider inline-block mb-4">Alumnos</span>
+                    <h3 class="font-bold text-lg mb-2 text-slate-900">Cuadernillo Climatológico Infantil</h3>
+                    <p class="text-sm text-slate-500 mb-4">Actividades didácticas e ilustraciones lúdicas acerca del ciclo del agua y fenómenos meteorológicos regionales.</p>
+                </div>
+                <button onclick="alert('Iniciando descarga de Cuadernillo didáctico...')" class="w-full text-center bg-slate-900 text-white font-bold text-xs py-3 rounded-xl hover:bg-blue-600 transition">DESCARGAR CARTILLA (PDF)</button>
+            </div>
+
+        </section>
+
+        <!-- CRONOGRAMA DE ACTIVIDADES Y VISITAS RURALES -->
+        <h2 class="font-black text-xl mb-6 text-slate-900 flex items-center gap-2"><i data-lucide="calendar" class="text-emerald-600"></i> Planificación de Visitas y Talleres 2026</h2>
+        <section class="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+            <div class="divide-y divide-slate-100">
+                <div class="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <span class="text-xs font-bold text-emerald-600 block mb-1">Próximamente · Julio 2026</span>
+                        <h4 class="font-bold text-slate-900 text-md">Taller Presencial e Instalación de Pluviómetro</h4>
+                        <p class="text-sm text-slate-500">Escuela Rural N° 12 · Paraje Las Tahonas, Magdalena</p>
+                    </div>
+                    <span class="bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1 rounded-full self-start sm:self-center">Confirmado</span>
+                </div>
+                <div class="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <span class="text-xs font-bold text-emerald-600 block mb-1">Agosto 2026</span>
+                        <h4 class="font-bold text-slate-900 text-md">Capacitación Virtual en Programación Arduino</h4>
+                        <p class="text-sm text-slate-500">Plataforma Zoom compartida para docentes del partido de Punta Indio</p>
+                    </div>
+                    <span class="bg-blue-100 text-blue-800 text-xs font-bold px-3 py-1 rounded-full self-start sm:self-center">Inscripción Abierta</span>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>lucide.createIcons();</script>
+</body>
+</html>
