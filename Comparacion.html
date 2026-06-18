@@ -61,10 +61,9 @@
             object-fit: cover;
         }
 
-        /* CONTENEDOR DE LA VENTANA DE WEATHER UNDERGROUND */
         .wunderground-window {
             width: 100%;
-            height: 700px; /* Ajustado para que el dashboard se vea bien */
+            height: 700px;
             border: 4px solid #2D3E50;
             border-radius: 25px;
             overflow: hidden;
@@ -82,7 +81,7 @@
 </head>
 <body class="p-4 md:p-8">
 
-    <div class="max-w-6xl mx-auto">
+    <div class="max-w-7xl mx-auto">
         <header class="text-center mb-12">
             <div class="logo-container">
                 <img src="https://raw.githubusercontent.com/COMOESTAELTIEMPOENTUESCUELA/Estacionesmeteorologicas/main/imagenes/Logo1.jpg" 
@@ -104,7 +103,7 @@
             </div>
         </header>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
             <div class="didactic-card p-6 text-center">
                 <div class="header-box px-4 py-1 mb-4 font-bold text-sm">ESTACIÓN VIOLETA</div>
                 <div class="flex justify-center mb-2 text-purple-500"><i data-lucide="thermometer" class="w-12 h-12"></i></div>
@@ -129,6 +128,15 @@
                 <div class="text-5xl font-black" id="val-blanca">--°</div>
                 <div class="mt-4 bg-blue-100 border-2 border-blue-500 rounded-full py-2 font-bold text-blue-700">
                     Lluvia: <span id="rain-blanca">0.0</span> mm
+                </div>
+            </div>
+
+            <div class="didactic-card p-6 text-center">
+                <div class="header-box px-4 py-1 mb-4 font-bold text-sm">MONTE VELOZ</div>
+                <div class="flex justify-center mb-2 text-amber-500"><i data-lucide="cloud-sun" class="w-12 h-12"></i></div>
+                <div class="text-5xl font-black" id="val-monteVeloz">--°</div>
+                <div class="mt-4 bg-amber-100 border-2 border-amber-500 rounded-full py-2 font-bold text-amber-700">
+                    Lluvia: <span id="rain-monteVeloz">0.0</span> mm
                 </div>
             </div>
         </div>
@@ -183,10 +191,13 @@
 
 <script>
     lucide.createIcons();
+    
+    // Agregada la nueva estación con un color naranja/ámbar distinguible
     const CONFIG = {
         violeta: { id: 2626952, key: "AXYH56YSV64HE17H", color: '#a855f7' },
         verde: { id: 2218686, key: "JUXJQRZMFFASO37Z", color: '#10b981' },
-        blanca: { id: 2218689, key: "ZLNOSLZJPQM3H7SD", color: '#3b82f6' }
+        blanca: { id: 2218689, key: "ZLNOSLZJPQM3H7SD", color: '#3b82f6' },
+        monteVeloz: { id: 3149195, key: "8J0IFWSGB74Q8O54", color: '#f59e0b' } 
     };
     let charts = {};
 
@@ -197,74 +208,131 @@
         if (inicio && fin) query = `start=${inicio}%2000:00:00&end=${fin}%2023:59:59&timezone=America/Argentina/Buenos_Aires`;
 
         try {
-            const resultados = await Promise.all(Object.keys(CONFIG).map(k => fetch(`https://api.thingspeak.com/channels/${CONFIG[k].id}/feeds.json?${query}&api_key=${CONFIG[k].key}`).then(r => r.json())));
-            actualizarCards(resultados);
-            dibujarGraficos(resultados[0].feeds, resultados[1].feeds, resultados[2].feeds);
-        } catch (e) { console.error("Error cargando ThingSpeak:", e); }
+            // Mapeamos dinámicamente sobre todas las llaves de CONFIG para hacer los fetch en paralelo
+            const keys = Object.keys(CONFIG);
+            const respuestas = await Promise.all(
+                keys.map(k => 
+                    fetch(`https://api.thingspeak.com/channels/${CONFIG[k].id}/feeds.json?${query}&api_key=${CONFIG[k].key}`)
+                    .then(r => r.json())
+                )
+            );
+            
+            // Creamos un diccionario indexado de datos por estación
+            const datosEstaciones = {};
+            keys.forEach((key, index) => {
+                datosEstaciones[key] = respuestas[index].feeds;
+            });
+
+            actualizarDashboard(datosEstaciones);
+        } catch (e) { 
+            console.error("Error cargando ThingSpeak:", e); 
+        }
     }
 
-    function actualizarCards(resultados) {
-        ['violeta', 'verde', 'blanca'].forEach((key, i) => {
-            const feeds = resultados[i].feeds.filter(f => f.field1 !== null);
+    function actualizarDashboard(datos) {
+        // 1. PROCESAMIENTO DE DATOS Y TARJETAS
+        Object.keys(CONFIG).forEach((key) => {
+            const feeds = datos[key].filter(f => f.field1 !== null);
             if (feeds.length > 0) {
+                // Actualizar Temperatura actual
                 let t = parseFloat(feeds[feeds.length - 1].field1);
-                if (key === 'verde') t -= 2.0;
+                if (key === 'verde') t -= 2.0; 
                 document.getElementById(`val-${key}`).innerText = `${t.toFixed(1)}°`;
+
+                // Calcular lluvia acumulada total
+                let fBusq = (key === 'verde') ? 'field3' : 'field5';
+                let acumLluvia = 0;
+                let lastDia = -1;
+                let lastVal = null;
+
+                feeds.forEach(f => {
+                    if (f[fBusq] !== null) {
+                        const date = new Date(f.created_at);
+                        let v = parseFloat(f[fBusq]) || 0;
+                        if (key !== 'verde') {
+                            if (lastDia !== date.getDate()) { acumLluvia = 0; lastDia = date.getDate(); lastVal = v; }
+                            let inc = v - (lastVal !== null ? lastVal : v);
+                            if (inc > 0) acumLluvia += inc;
+                            lastVal = v;
+                        } else {
+                            acumLluvia += v; 
+                        }
+                    }
+                });
+                document.getElementById(`rain-${key}`).innerText = acumLluvia.toFixed(1);
             }
         });
-    }
 
-    function dibujarGraficos(fVio, fVer, fBla) {
-        const prep = (feeds, field, type, ema) => {
-            let fBusq = field;
-            if (type === 'rain') fBusq = (ema === 'verde') ? 'field3' : 'field5';
+        // 2. RENDERIZADO DE GRÁFICOS
+        const prepDataParaGrafico = (feeds, fieldName, isRainChart, emaKey) => {
+            let fBusq = fieldName;
+            if (isRainChart) fBusq = (emaKey === 'verde') ? 'field3' : 'field5';
+            
             let acum = 0, lastDia = -1, lastVal = null;
 
             return feeds.filter(f => f[fBusq] !== null).map(f => {
                 const date = new Date(f.created_at);
                 let v = parseFloat(f[fBusq]) || 0;
-                if (type === 'normal' && field === 'field1' && ema === 'verde') v -= 2.0;
+                
+                if (!isRainChart && fieldName === 'field1' && emaKey === 'verde') v -= 2.0;
 
-                if (type === 'rain') {
+                if (isRainChart) {
                     if (lastDia !== date.getDate()) { acum = 0; lastDia = date.getDate(); lastVal = v; }
-                    if (ema !== 'verde') {
+                    if (emaKey !== 'verde') {
                         let inc = v - (lastVal !== null ? lastVal : v);
                         if (inc > 0) acum += inc;
                         lastVal = v;
-                    } else { acum += v; }
-                    document.getElementById(`rain-${ema}`).innerText = acum.toFixed(1);
+                    } else { 
+                        acum += v; 
+                    }
                     return { x: date.getTime(), y: parseFloat(acum.toFixed(2)) };
                 }
                 return { x: date.getTime(), y: v };
             });
         };
 
-        const makeChart = (id, field, type) => {
-            if(charts[id]) charts[id].destroy();
-            charts[id] = new Chart(document.getElementById(id), {
+        const crearOActualizarGrafico = (idCanvas, fieldName, isRainChart) => {
+            if (charts[idCanvas]) charts[idCanvas].destroy();
+            
+            // Mapeamos los conjuntos de datos dinámicamente incluyendo la nueva estación
+            const datasets = Object.keys(CONFIG).map(key => {
+                // Capitalizar primera letra para la etiqueta (ej: 'monteVeloz' -> 'MonteVeloz')
+                const label = key.charAt(0).toUpperCase() + key.slice(1);
+                return {
+                    label: label === 'MonteVeloz' ? 'Monte Veloz' : label,
+                    data: prepDataParaGrafico(datos[key], fieldName, isRainChart, key),
+                    borderColor: CONFIG[key].color,
+                    borderWidth: 4,
+                    tension: 0.3,
+                    pointRadius: 0
+                };
+            });
+
+            charts[idCanvas] = new Chart(document.getElementById(idCanvas), {
                 type: 'line',
-                data: { datasets: [
-                    { label: 'Violeta', data: prep(fVio, field, type, 'violeta'), borderColor: CONFIG.violeta.color, borderWidth: 4, tension: 0.3, pointRadius: 0 },
-                    { label: 'Verde', data: prep(fVer, field, type, 'verde'), borderColor: CONFIG.verde.color, borderWidth: 4, tension: 0.3, pointRadius: 0 },
-                    { label: 'Blanca', data: prep(fBla, field, type, 'blanca'), borderColor: CONFIG.blanca.color, borderWidth: 4, tension: 0.3, pointRadius: 0 }
-                ]},
+                data: { datasets: datasets },
                 options: { 
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: { 
                         x: { type: 'time', time: { unit: 'hour' }, ticks: { font: { weight: 'bold' } } },
-                        y: { beginAtZero: type === 'rain', ticks: { font: { weight: 'bold' } } }
+                        y: { beginAtZero: isRainChart, ticks: { font: { weight: 'bold' } } }
                     }
                 }
             });
         };
 
-        [['chartTemp','field1','normal'],['chartHum','field2','normal'],['chartRain','field5','rain'],['chartPres','field6','normal']].forEach(m => makeChart(...m));
+        crearOActualizarGrafico('chartTemp', 'field1', false);
+        crearOActualizarGrafico('chartHum', 'field2', false);
+        crearOActualizarGrafico('chartRain', 'field5', true);
+        crearOActualizarGrafico('chartPres', 'field6', false);
     }
 
-    const hoy = new Date().toISOString().split('T')[0];
-    document.getElementById('fechaInicio').value = hoy;
-    document.getElementById('fechaFin').value = hoy;
+    const hoy = new Date();
+    const despuesDeOffset = new Date(hoy.getTime() - (hoy.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+    document.getElementById('fechaInicio').value = despuesDeOffset;
+    document.getElementById('fechaFin').value = despuesDeOffset;
+    
     cargarDatos();
 </script>
 </body>
