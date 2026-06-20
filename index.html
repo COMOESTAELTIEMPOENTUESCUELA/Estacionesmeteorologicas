@@ -6,21 +6,17 @@
     <title>¿Como esta el tiempo en tu escuela? · FCAG - UNLP</title>
     <meta name="description" content="Proyecto de extensión universitaria para aprender meteorología en escuelas rurales de forma divertida.">
     
-    <!-- Tailwind CSS y Lucide Icons -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@0.475.0/dist/umd/lucide.js"></script>
-    
-    <!-- Fuentes divertidas y legibles -->
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800;900&display=swap" rel="stylesheet">
     
     <style>
         body { 
             font-family: 'Plus Jakarta Sans', sans-serif; 
-            background-color: #f0fdf4; /* Verde muy clarito, amigable */
+            background-color: #f0fdf4;
             overflow-x: hidden;
         }
 
-        /* Animaciones Mágicas */
         @keyframes float {
             0%, 100% { transform: translateY(0px); }
             50% { transform: translateY(-15px); }
@@ -39,7 +35,6 @@
         }
         .animate-bounce-soft { animation: bounce-soft 2s infinite; }
 
-        /* Estilo de Botones y Tarjetas Infantiles (3D) */
         .kid-btn {
             border-bottom-width: 6px;
             transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -61,7 +56,6 @@
             transform: scale(1.03) rotate(-1deg);
         }
 
-        /* Separador de Nubes (Olas) */
         .wave-divider {
             position: absolute;
             bottom: 0;
@@ -78,42 +72,78 @@
             height: 70px;
         }
         .wave-divider .shape-fill { fill: #f0fdf4; }
+
+        /* Menú móvil: transición suave */
+        #mobile-menu {
+            transition: max-height 0.35s ease, opacity 0.3s ease;
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+        }
+        #mobile-menu.open {
+            max-height: 400px;
+            opacity: 1;
+        }
     </style>
 </head>
 <body class="text-slate-800 antialiased selection:bg-yellow-300 selection:text-slate-900">
 
     <!-- NAVEGACIÓN FLOTANTE -->
     <nav class="fixed w-full z-50 px-4 py-4 top-0 pointer-events-none">
-        <div class="max-w-7xl mx-auto flex justify-between items-center bg-white/90 backdrop-blur-md rounded-full shadow-lg border-4 border-blue-100 px-6 py-3 pointer-events-auto transition-all duration-300">
+        <div class="max-w-7xl mx-auto bg-white/90 backdrop-blur-md rounded-[2rem] shadow-lg border-4 border-blue-100 px-6 py-3 pointer-events-auto transition-all duration-300">
             
-            <div class="flex items-center gap-3">
-                <!-- LOGO PRINCIPAL -->
-                <img src="imagenes/Logo1.jpg" alt="Logo del Proyecto" class="w-12 h-12 object-cover rounded-full border-2 border-yellow-400 shadow-sm animate-float" onerror="this.src='https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&q=80&w=100'">
-                <div class="flex flex-col">
-                    <span class="font-black text-slate-900 tracking-tight text-sm md:text-lg leading-none">¿Como esta el Tiempo en la Escuela?</span>
-                    <span class="text-[10px] font-bold text-blue-600 uppercase tracking-widest mt-0.5">FCAG · UNLP</span>
+            <!-- Fila principal: logo + hamburguesa -->
+            <div class="flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <img src="imagenes/Logo1.jpg" alt="Logo del Proyecto" class="w-12 h-12 object-cover rounded-full border-2 border-yellow-400 shadow-sm animate-float" onerror="this.src='https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&q=80&w=100'">
+                    <div class="flex flex-col">
+                        <span class="font-black text-slate-900 tracking-tight text-sm md:text-lg leading-none">¿Como esta el Tiempo en la Escuela?</span>
+                        <span class="text-[10px] font-bold text-blue-600 uppercase tracking-widest mt-0.5">FCAG · UNLP</span>
+                    </div>
+                </div>
+
+                <!-- Menú para PC -->
+                <div class="hidden lg:flex items-center gap-6 text-sm font-black text-slate-500">
+                    <a href="index.html" class="text-blue-600">Inicio</a>
+                    <a href="red-meteorologica.html" class="hover:text-blue-500 transition">Red de estaciones</a>
+                    <a href="ciencia-ciudadana.html" class="hover:text-emerald-500 transition">Comunidad</a>
+                    <a href="recursos.html" class="hover:text-purple-500 transition">Aprender</a>
+                    <a href="#contacto" class="bg-blue-500 text-white px-5 py-2 rounded-full border-b-4 border-blue-700 hover:bg-blue-400 hover:-translate-y-1 transition-all active:border-b-0 active:translate-y-1">¡Escribinos!</a>
+                </div>
+
+                <!-- Botón Hamburguesa -->
+                <button id="menu-toggle" class="lg:hidden p-2 text-slate-500 bg-slate-100 rounded-full" aria-label="Abrir menú" aria-expanded="false">
+                    <i id="icon-menu" data-lucide="menu" class="w-6 h-6"></i>
+                    <i id="icon-close" data-lucide="x" class="w-6 h-6 hidden"></i>
+                </button>
+            </div>
+
+            <!-- Menú Móvil desplegable -->
+            <div id="mobile-menu" role="navigation" aria-label="Menú móvil">
+                <div class="flex flex-col gap-2 pt-4 pb-2">
+                    <a href="index.html" class="flex items-center gap-3 px-4 py-3 rounded-2xl bg-blue-50 text-blue-600 font-black text-base">
+                        <i data-lucide="home" class="w-5 h-5"></i> Inicio
+                    </a>
+                    <a href="red-meteorologica.html" class="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-blue-50 text-slate-600 font-black text-base transition">
+                        <i data-lucide="layout-dashboard" class="w-5 h-5 text-blue-400"></i> Red de estaciones
+                    </a>
+                    <a href="ciencia-ciudadana.html" class="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-emerald-50 text-slate-600 font-black text-base transition">
+                        <i data-lucide="camera" class="w-5 h-5 text-emerald-500"></i> Comunidad
+                    </a>
+                    <a href="recursos.html" class="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-purple-50 text-slate-600 font-black text-base transition">
+                        <i data-lucide="book-open" class="w-5 h-5 text-purple-500"></i> Aprender
+                    </a>
+                    <a href="#contacto" id="mobile-contact-link" class="mt-1 bg-blue-500 text-white px-5 py-3 rounded-2xl font-black text-base flex items-center justify-center gap-2 border-b-4 border-blue-700 active:border-b-0 active:translate-y-1 transition-all">
+                        <i data-lucide="mail" class="w-5 h-5"></i> ¡Escribinos!
+                    </a>
                 </div>
             </div>
 
-            <!-- Menú para PC -->
-            <div class="hidden lg:flex items-center gap-6 text-sm font-black text-slate-500">
-                <a href="index.html" class="text-blue-600">Inicio</a>
-                <a href="red-meteorologica.html" class="hover:text-blue-500 transition">Red de estaciones</a>
-                <a href="ciencia-ciudadana.html" class="hover:text-emerald-500 transition">Comunidad</a>
-                <a href="recursos.html" class="hover:text-purple-500 transition">Aprender</a>
-                <a href="#contacto" class="bg-blue-500 text-white px-5 py-2 rounded-full border-b-4 border-blue-700 hover:bg-blue-400 hover:-translate-y-1 transition-all active:border-b-0 active:translate-y-1">¡Escribinos!</a>
-            </div>
-
-            <!-- Botón Hamburguesa Celular -->
-            <button class="lg:hidden p-2 text-slate-500 bg-slate-100 rounded-full">
-                <i data-lucide="menu" class="w-6 h-6"></i>
-            </button>
         </div>
     </nav>
 
-    <!-- HERO SECTION (El Cielo) -->
+    <!-- HERO SECTION -->
     <header class="pt-40 pb-32 px-6 relative overflow-hidden bg-gradient-to-b from-sky-400 via-sky-300 to-sky-100 text-center">
-        <!-- Decoraciones de fondo animadas -->
         <i data-lucide="cloud" class="absolute top-32 left-[10%] w-24 h-24 text-white/60 animate-float fill-white/20"></i>
         <i data-lucide="cloud" class="absolute top-20 right-[15%] w-32 h-32 text-white/40 animate-float-delayed fill-white/10"></i>
         <i data-lucide="bird" class="absolute top-48 right-[30%] w-8 h-8 text-slate-700/30 animate-bounce-soft"></i>
@@ -128,7 +158,7 @@
             </h1>
             
             <p class="text-lg md:text-2xl text-sky-900 font-bold mb-10 max-w-2xl mx-auto drop-shadow-sm leading-relaxed">
-                Estudiantes de la facu, profes y escuelas rurales uniendo fuerzas para aprender meteorología juntos. ¡Descubrí los secretos de la atmosfera!
+                Estudiantes de la facu, profes y familias rurales uniendo fuerzas para aprender meteorología juntos. ¡Descubrí los secretos de la atmosfera!
             </p>
             
             <div class="flex flex-col sm:flex-row justify-center gap-4">
@@ -141,7 +171,6 @@
             </div>
         </div>
 
-        <!-- Separador de ondas hacia la sección blanca -->
         <div class="wave-divider">
             <svg data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none">
                 <path d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z" class="shape-fill"></path>
@@ -149,11 +178,9 @@
         </div>
     </header>
 
-    <!-- METRICAS DE IMPACTO (Tarjetas Infantiles) -->
+    <!-- MÉTRICAS -->
     <section class="max-w-7xl mx-auto px-6 py-12 relative z-20">
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            
-            <!-- Tarjeta 1 -->
             <div class="bg-blue-50 border-4 border-blue-200 kid-card rounded-3xl p-6 text-center">
                 <div class="w-16 h-16 bg-blue-500 text-white rounded-2xl flex items-center justify-center mx-auto mb-4 rotate-3 shadow-md">
                     <i data-lucide="school" class="w-8 h-8"></i>
@@ -161,8 +188,6 @@
                 <span class="block text-4xl font-black text-blue-600 mb-1">+10</span>
                 <span class="text-xs font-black text-blue-400 uppercase tracking-widest">Escuelas</span>
             </div>
-
-            <!-- Tarjeta 2 -->
             <div class="bg-emerald-50 border-4 border-emerald-200 kid-card rounded-3xl p-6 text-center">
                 <div class="w-16 h-16 bg-emerald-500 text-white rounded-2xl flex items-center justify-center mx-auto mb-4 -rotate-3 shadow-md">
                     <i data-lucide="map" class="w-8 h-8"></i>
@@ -170,8 +195,6 @@
                 <span class="block text-4xl font-black text-emerald-600 mb-1">4</span>
                 <span class="text-xs font-black text-emerald-400 uppercase tracking-widest">Municipios</span>
             </div>
-
-            <!-- Tarjeta 3 -->
             <div class="bg-orange-50 border-4 border-orange-200 kid-card rounded-3xl p-6 text-center">
                 <div class="w-16 h-16 bg-orange-500 text-white rounded-2xl flex items-center justify-center mx-auto mb-4 rotate-6 shadow-md">
                     <i data-lucide="users" class="w-8 h-8"></i>
@@ -179,8 +202,6 @@
                 <span class="block text-4xl font-black text-orange-600 mb-1">Talleres</span>
                 <span class="text-xs font-black text-orange-400 uppercase tracking-widest">Experimentos y juegos didacticos</span>
             </div>
-
-            <!-- Tarjeta 4 -->
             <div class="bg-purple-50 border-4 border-purple-200 kid-card rounded-3xl p-6 text-center">
                 <div class="w-16 h-16 bg-purple-500 text-white rounded-2xl flex items-center justify-center mx-auto mb-4 -rotate-6 shadow-md">
                     <i data-lucide="smartphone" class="w-8 h-8"></i>
@@ -188,11 +209,10 @@
                 <span class="block text-4xl font-black text-purple-600 mb-1">Reportes</span>
                 <span class="text-xs font-black text-purple-400 uppercase tracking-widest">Fotos de la comunidad</span>
             </div>
-
         </div>
     </section>
 
-    <!-- OBJETIVOS Y PROPÓSITO -->
+    <!-- OBJETIVOS -->
     <section class="max-w-7xl mx-auto px-6 py-16 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
         <div>
             <div class="inline-flex items-center gap-2 bg-rose-100 text-rose-600 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-4">
@@ -202,7 +222,6 @@
             <p class="text-lg text-slate-600 mb-8 font-medium leading-relaxed">
                 Saber si va a llover o hacer mucho frío nos ayuda a cuidar los caminos de tierra, las plantitas y a saber cómo ir vestidos a la escuela. ¡Aprender de la naturaleza nos prepara y ayuda a todo el tiempo!
             </p>
-            
             <div class="space-y-4">
                 <div class="flex items-start gap-4 bg-white p-4 rounded-2xl border-2 border-slate-100 shadow-sm">
                     <div class="w-10 h-10 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center shrink-0 border-2 border-yellow-200"><i data-lucide="lightbulb" class="w-5 h-5"></i></div>
@@ -221,7 +240,6 @@
             </div>
         </div>
 
-        <!-- Tarjetas ilustrativas gigantes -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 relative">
             <div class="absolute -top-10 -right-10 w-32 h-32 bg-yellow-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-pulse"></div>
             <div class="absolute -bottom-10 -left-10 w-32 h-32 bg-blue-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-pulse"></div>
@@ -244,9 +262,8 @@
         </div>
     </section>
 
-    <!-- SECCIÓN NOSOTROS (El equipo) -->
+    <!-- EQUIPO -->
     <section class="bg-gradient-to-r from-blue-700 to-indigo-800 text-white py-24 px-6 rounded-[3rem] mx-4 sm:mx-8 mb-20 relative overflow-hidden shadow-2xl">
-        <!-- Estrellitas decorativas -->
         <i data-lucide="star" class="absolute top-10 left-10 w-6 h-6 text-yellow-300 animate-pulse"></i>
         <i data-lucide="star" class="absolute bottom-20 right-20 w-10 h-10 text-yellow-300 animate-pulse delay-75"></i>
 
@@ -258,21 +275,16 @@
             </div>
             
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <!-- Profe -->
                 <div class="bg-white/10 backdrop-blur-md border-2 border-white/20 p-8 rounded-3xl hover:bg-white/20 transition cursor-default">
                     <div class="w-12 h-12 bg-rose-400 text-white rounded-full flex items-center justify-center mb-4 text-xl font-black shadow-lg">👨‍🏫</div>
                     <h3 class="font-black text-xl text-white mb-2">Los Profes</h3>
                     <p class="text-blue-100 text-sm font-medium">Nos guían y preparan los materiales para que aprender sea fácil y exacto.</p>
                 </div>
-                
-                <!-- Universitarios -->
                 <div class="bg-white/10 backdrop-blur-md border-2 border-white/20 p-8 rounded-3xl hover:bg-white/20 transition cursor-default">
                     <div class="w-12 h-12 bg-emerald-400 text-white rounded-full flex items-center justify-center mb-4 text-xl font-black shadow-lg">🎒</div>
                     <h3 class="font-black text-xl text-white mb-2">Universitarios</h3>
                     <p class="text-blue-100 text-sm font-medium">Estudiantes de la carrera de meteorologia que preparamos los talleres y actividades para compatir juntos.</p>
                 </div>
-                
-                <!-- Ustedes -->
                 <div class="bg-white/10 backdrop-blur-md border-2 border-white/20 p-8 rounded-3xl hover:bg-white/20 transition cursor-default">
                     <div class="w-12 h-12 bg-yellow-400 text-white rounded-full flex items-center justify-center mb-4 text-xl font-black shadow-lg">👨‍👩‍👧‍👦</div>
                     <h3 class="font-black text-xl text-white mb-2">¡Vos y tu familia!</h3>
@@ -282,18 +294,16 @@
         </div>
     </section>
 
-    <!-- FOOTER DIVERTIDO -->
+    <!-- FOOTER -->
     <footer id="contacto" class="bg-white pt-16 pb-8 px-6 border-t-4 border-blue-200">
         <div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-12 mb-12 text-center md:text-left">
             <div>
                 <div class="flex items-center justify-center md:justify-start gap-3 mb-4">
-                    <!-- LOGO FOOTER -->
                     <img src="imagenes/Logo1.jpg" alt="Logo" class="w-10 h-10 object-cover rounded-full border-2 border-blue-200 shadow-sm" onerror="this.src='https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&q=80&w=50'">
                     <span class="block text-slate-800 font-black tracking-tight text-xl">El Tiempo en la Escuela</span>
                 </div>
                 <p class="text-sm font-medium text-slate-500">Un proyecto de extension de la Universidad Nacional de La Plata para conectar la ciencia con la vida real.</p>
             </div>
-            
             <div>
                 <h4 class="text-slate-800 font-black text-sm uppercase tracking-widest mb-4">¡Contactanos!</h4>
                 <ul class="space-y-3 text-sm font-bold text-slate-500 inline-block text-left">
@@ -307,7 +317,6 @@
                     </li>
                 </ul>
             </div>
-            
             <div>
                 <h4 class="text-slate-800 font-black text-sm uppercase tracking-widest mb-4">Nuestra Casa</h4>
                 <ul class="space-y-3 text-sm font-bold">
@@ -316,17 +325,36 @@
                 </ul>
             </div>
         </div>
-        
-        <div class="max-w-7xl mx-auto border-t-2 border-slate-100 pt-8 text-center flex flex-col items-center gap-2">
-            <p class="text-xs text-slate-400 font-bold uppercase tracking-widest">
-                &copy; 2026.
-            </p>
+        <div class="max-w-7xl mx-auto border-t-2 border-slate-100 pt-8 text-center">
+            <p class="text-xs text-slate-400 font-bold uppercase tracking-widest">&copy; 2026.</p>
         </div>
     </footer>
 
     <script>
-        // Inicializar los iconos mágicos
         lucide.createIcons();
+
+        // ── Menú móvil ──────────────────────────────────────────
+        const toggle   = document.getElementById('menu-toggle');
+        const menu     = document.getElementById('mobile-menu');
+        const iconMenu  = document.getElementById('icon-menu');
+        const iconClose = document.getElementById('icon-close');
+
+        toggle.addEventListener('click', () => {
+            const isOpen = menu.classList.toggle('open');
+            toggle.setAttribute('aria-expanded', isOpen);
+            iconMenu.classList.toggle('hidden', isOpen);
+            iconClose.classList.toggle('hidden', !isOpen);
+        });
+
+        // Cerrar al tocar un enlace del menú móvil
+        menu.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', () => {
+                menu.classList.remove('open');
+                toggle.setAttribute('aria-expanded', 'false');
+                iconMenu.classList.remove('hidden');
+                iconClose.classList.add('hidden');
+            });
+        });
     </script>
 </body>
 </html>
