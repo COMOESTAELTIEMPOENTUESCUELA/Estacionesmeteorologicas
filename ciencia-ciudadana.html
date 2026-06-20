@@ -118,7 +118,7 @@
                     <div class="absolute top-2 right-2 bg-emerald-500 text-white text-xs font-black px-2 py-1 rounded-lg shadow-sm">Bavio</div>
                 </div>
                 <h3 class="font-black text-xl text-slate-800 mb-2">EP N°23</h3>
-                <p class="text-sm font-semibold text-slate-500 flex-grow">.</p>
+                <p class="text-sm font-semibold text-slate-500 flex-grow"></p>
             </div>
 
             <!-- Escuela 34 -->
@@ -148,7 +148,7 @@
                     <div class="absolute top-2 right-2 bg-orange-500 text-white text-xs font-black px-2 py-1 rounded-lg shadow-sm">Berisso</div>
                 </div>
                 <h3 class="font-black text-xl text-slate-800 mb-2">EP N°20</h3>
-                <p class="text-sm font-semibold text-slate-500 flex-grow"></p>
+                <p class="text-sm font-semibold text-slate-500 flex-grow">¡</p>
             </div>
 
         </div>
@@ -166,23 +166,21 @@
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <!-- FORMULARIO DE WEB3FORMS (Ocupa 2 columnas) -->
+            <!-- FORMULARIO DE FORMSUBMIT (Ocupa 2 columnas) -->
             <div class="bg-white border-4 border-fuchsia-200 rounded-[2rem] p-6 md:p-10 shadow-xl kid-card lg:col-span-2">
                 
-                <!-- IMPORTANTE: ACTION HACIA WEB3FORMS Y ENCTYPE PARA SUBIR FOTOS -->
-                <form action="https://api.web3forms.com/submit" method="POST" enctype="multipart/form-data" id="reporteForm" class="space-y-8">
+                <!-- IMPORTANTE: ACTION HACIA FORMSUBMIT CON TU CORREO -->
+                <form action="https://formsubmit.co/mauriciobocanegra122@gmail.com" method="POST" enctype="multipart/form-data" id="reporteForm" class="space-y-8">
                     
-                    <!-- Tu Access Key de Web3Forms oculta -->
-                    <input type="hidden" name="access_key" value="3d895c1a-36fb-4ab3-9435-851acdd53532">
-                    <!-- Configuración opcional para redirigir tras enviar -->
-                    <input type="hidden" name="subject" value="¡Nuevo reporte de Ciencia Ciudadana! 🌧️">
-                    <input type="hidden" name="from_name" value="El Tiempo en tu Escuela">
+                    <!-- Configuraciones ocultas de FormSubmit -->
+                    <input type="hidden" name="_subject" value="¡Nuevo reporte de Ciencia Ciudadana! 🌧️">
+                    <input type="hidden" name="_captcha" value="false">
+                    <input type="hidden" name="_template" value="table">
 
                     <!-- DÓNDE Y QUIÉN -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label class="block text-sm font-black text-slate-700 mb-2">👤 ¿Quién sos?</label>
-                            <!-- El atributo name es clave -->
                             <input type="text" name="Nombre_Apellido" required placeholder="Tu nombre o apodo" class="w-full border-4 border-slate-100 p-4 rounded-2xl font-bold text-slate-700 focus:outline-none focus:border-fuchsia-400 bg-slate-50 transition">
                         </div>
                         <div>
