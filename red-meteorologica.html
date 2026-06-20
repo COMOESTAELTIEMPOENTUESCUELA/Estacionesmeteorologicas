@@ -22,7 +22,7 @@
             color: #1e293b; 
             margin: 0; 
             font-family: 'Plus Jakarta Sans', sans-serif; 
-            overflow: hidden; /* Evitar scroll general, manejamos scrolls internos */
+            overflow: hidden; 
         }
         
         .station-btn {
@@ -42,7 +42,6 @@
         .station-btn:hover { border-color: #cbd5e1; background: #f8fafc; }
         .station-btn.active { border-color: #3b82f6; background: #eff6ff; box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.1); }
 
-        /* Ajustes específicos del mapa pequeño */
         .leaflet-popup-content-wrapper { border-radius: 12px; }
         .leaflet-popup-content { margin: 10px; font-family: 'Plus Jakarta Sans', sans-serif; }
     </style>
@@ -63,7 +62,7 @@
             </a>
         </div>
 
-        <!-- Mapa Geográfico Contextual (Más pequeño) -->
+        <!-- Mapa Geográfico Contextual -->
         <div id="map" class="w-full h-48 lg:h-64 shrink-0 z-0 bg-slate-200 border-b border-slate-200"></div>
 
         <!-- Selector de Estaciones -->
@@ -79,68 +78,93 @@
         </div>
     </aside>
 
-    <!-- ÁREA PRINCIPAL: DASHBOARD ANALÍTICO (DATOS Y GRÁFICOS) -->
+    <!-- ÁREA PRINCIPAL: DASHBOARD ANALÍTICO MULTIVARIABLE -->
     <main id="main-dashboard" class="flex-grow h-[50vh] lg:h-screen overflow-y-auto bg-slate-50/80 p-6 lg:p-10 scroll-smooth">
         
-        <div class="max-w-6xl mx-auto space-y-8">
+        <div class="max-w-7xl mx-auto space-y-8">
             
             <!-- Título de Sección de Monitoreo -->
             <header class="flex items-center gap-3 mb-2">
                 <div class="p-3 bg-blue-600 rounded-2xl text-white shadow-lg shadow-blue-600/20">
-                    <i data-lucide="bar-chart-2" class="w-6 h-6"></i>
+                    <i data-lucide="layout-dashboard" class="w-6 h-6"></i>
                 </div>
                 <div>
-                    <h2 class="text-2xl font-black text-slate-900 tracking-tight">Monitoreo en Vivo</h2>
+                    <h2 class="text-2xl font-black text-slate-900 tracking-tight">Análisis Multivariable en Vivo</h2>
                     <p class="text-sm text-slate-500 font-medium">Estación en análisis: <span id="nombre-estacion-activa" class="font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">Ninguna</span></p>
                 </div>
             </header>
 
-            <!-- TARJETAS DE INDICADORES PRINCIPALES (KPIs) -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- TARJETAS DE INDICADORES PRINCIPALES (KPIs - 4 Variables) -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
                 <!-- Tarjeta Temperatura -->
-                <div class="bg-white border border-slate-200 rounded-3xl p-8 flex items-center justify-between shadow-sm hover:shadow-md transition">
-                    <div>
-                        <span class="block text-xs uppercase tracking-widest font-bold text-slate-400 mb-2">Temperatura del Aire</span>
-                        <span class="text-5xl lg:text-6xl font-black text-slate-800 tracking-tighter" id="live-val-temp">--°C</span>
-                    </div>
-                    <div class="w-20 h-20 bg-orange-50 rounded-2xl flex items-center justify-center border border-orange-100 shrink-0">
-                        <i data-lucide="thermometer" class="w-10 h-10 text-orange-500"></i>
-                    </div>
+                <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm hover:shadow-md transition relative overflow-hidden">
+                    <div class="absolute -right-4 -top-4 opacity-10"><i data-lucide="thermometer" class="w-24 h-24 text-orange-500"></i></div>
+                    <span class="block text-[10px] md:text-xs uppercase tracking-widest font-bold text-slate-400 mb-2 relative z-10">Temperatura</span>
+                    <span class="text-3xl md:text-4xl lg:text-5xl font-black text-slate-800 tracking-tighter relative z-10" id="live-val-temp">--°C</span>
                 </div>
 
                 <!-- Tarjeta Humedad -->
-                <div class="bg-white border border-slate-200 rounded-3xl p-8 flex items-center justify-between shadow-sm hover:shadow-md transition">
-                    <div>
-                        <span class="block text-xs uppercase tracking-widest font-bold text-slate-400 mb-2">Humedad Relativa</span>
-                        <span class="text-5xl lg:text-6xl font-black text-slate-800 tracking-tighter" id="live-val-hum">--%</span>
-                    </div>
-                    <div class="w-20 h-20 bg-blue-50 rounded-2xl flex items-center justify-center border border-blue-100 shrink-0">
-                        <i data-lucide="droplets" class="w-10 h-10 text-blue-500"></i>
-                    </div>
+                <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm hover:shadow-md transition relative overflow-hidden">
+                    <div class="absolute -right-4 -top-4 opacity-10"><i data-lucide="droplets" class="w-24 h-24 text-blue-500"></i></div>
+                    <span class="block text-[10px] md:text-xs uppercase tracking-widest font-bold text-slate-400 mb-2 relative z-10">Humedad</span>
+                    <span class="text-3xl md:text-4xl lg:text-5xl font-black text-slate-800 tracking-tighter relative z-10" id="live-val-hum">--%</span>
+                </div>
+
+                <!-- Tarjeta Presión -->
+                <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm hover:shadow-md transition relative overflow-hidden">
+                    <div class="absolute -right-4 -top-4 opacity-10"><i data-lucide="gauge" class="w-24 h-24 text-emerald-500"></i></div>
+                    <span class="block text-[10px] md:text-xs uppercase tracking-widest font-bold text-slate-400 mb-2 relative z-10">Presión</span>
+                    <span class="text-3xl md:text-4xl lg:text-5xl font-black text-slate-800 tracking-tighter relative z-10" id="live-val-pres">-- hPa</span>
+                </div>
+
+                <!-- Tarjeta Precipitación -->
+                <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm hover:shadow-md transition relative overflow-hidden">
+                    <div class="absolute -right-4 -top-4 opacity-10"><i data-lucide="cloud-rain" class="w-24 h-24 text-cyan-500"></i></div>
+                    <span class="block text-[10px] md:text-xs uppercase tracking-widest font-bold text-slate-400 mb-2 relative z-10">Lluvia</span>
+                    <span class="text-3xl md:text-4xl lg:text-5xl font-black text-slate-800 tracking-tighter relative z-10" id="live-val-rain">-- mm</span>
                 </div>
             </div>
 
-            <!-- GRÁFICO DINÁMICO HISTÓRICO -->
-            <div class="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm">
-                <div class="flex justify-between items-end mb-6">
-                    <div>
-                        <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
-                            <i data-lucide="trending-up" class="text-blue-500 w-5 h-5"></i> Evolución Térmica (Últimas lecturas)
-                        </h3>
-                        <p class="text-xs text-slate-500 mt-1">Variación de la temperatura registrada por el microcontrolador de la estación seleccionada.</p>
-                    </div>
+            <!-- GRÁFICOS DINÁMICOS HISTÓRICOS (Cuadrícula 2x2) -->
+            <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                
+                <!-- Gráfico Temperatura -->
+                <div class="bg-white rounded-3xl p-6 md:p-8 border border-slate-200 shadow-sm">
+                    <h3 class="text-md font-bold text-slate-900 flex items-center gap-2 mb-4">
+                        <i data-lucide="thermometer" class="text-orange-500 w-5 h-5"></i> Evolución Térmica
+                    </h3>
+                    <div class="h-[200px] md:h-[250px] relative w-full"><canvas id="chartTemp"></canvas></div>
                 </div>
-                <!-- Contenedor del Canvas de gran tamaño -->
-                <div class="h-[300px] lg:h-[400px] relative w-full">
-                    <canvas id="chartDinamico"></canvas>
+
+                <!-- Gráfico Humedad -->
+                <div class="bg-white rounded-3xl p-6 md:p-8 border border-slate-200 shadow-sm">
+                    <h3 class="text-md font-bold text-slate-900 flex items-center gap-2 mb-4">
+                        <i data-lucide="droplets" class="text-blue-500 w-5 h-5"></i> Evolución de la Humedad
+                    </h3>
+                    <div class="h-[200px] md:h-[250px] relative w-full"><canvas id="chartHum"></canvas></div>
                 </div>
+
+                <!-- Gráfico Presión -->
+                <div class="bg-white rounded-3xl p-6 md:p-8 border border-slate-200 shadow-sm">
+                    <h3 class="text-md font-bold text-slate-900 flex items-center gap-2 mb-4">
+                        <i data-lucide="gauge" class="text-emerald-500 w-5 h-5"></i> Presión Atmosférica
+                    </h3>
+                    <div class="h-[200px] md:h-[250px] relative w-full"><canvas id="chartPres"></canvas></div>
+                </div>
+
+                <!-- Gráfico Precipitación -->
+                <div class="bg-white rounded-3xl p-6 md:p-8 border border-slate-200 shadow-sm">
+                    <h3 class="text-md font-bold text-slate-900 flex items-center gap-2 mb-4">
+                        <i data-lucide="cloud-rain" class="text-cyan-500 w-5 h-5"></i> Registros Pluviométricos
+                    </h3>
+                    <div class="h-[200px] md:h-[250px] relative w-full"><canvas id="chartRain"></canvas></div>
+                </div>
+
             </div>
 
             <!-- GRÁFICO COMPARATIVO DE LA RED -->
             <div class="bg-slate-900 rounded-3xl p-8 border border-slate-800 shadow-xl text-white relative overflow-hidden">
-                <!-- Decoración de fondo -->
                 <div class="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -mr-20 -mt-20 z-0"></div>
-                
                 <div class="relative z-10">
                     <div class="mb-6">
                         <h3 class="text-lg font-bold text-white flex items-center gap-2">
@@ -148,14 +172,10 @@
                         </h3>
                         <p class="text-xs text-slate-400 mt-1">Comparativa en tiempo real de la temperatura actual entre todos los nodos activos de la cuenca.</p>
                     </div>
-                    <!-- Contenedor del Canvas Comparativo -->
-                    <div class="h-[250px] lg:h-[300px] relative w-full">
-                        <canvas id="chartComparativo"></canvas>
-                    </div>
+                    <div class="h-[200px] lg:h-[250px] relative w-full"><canvas id="chartComparativo"></canvas></div>
                 </div>
             </div>
             
-            <!-- Pie de página del Dashboard -->
             <footer class="text-center pb-8 pt-4">
                 <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
                     Proyecto de Extensión · Facultad de Ciencias Astronómicas y Geofísicas UNLP
@@ -175,74 +195,84 @@
             { id: "3149195", n: "Monte Veloz", loc: "Ruta 36", c: [-35.3200, -57.4200], clr: "#f59e0b", live: true, img: "https://images.unsplash.com/photo-1592210454359-9043f067919b?auto=format&fit=crop&q=80&w=300" }
         ];
 
-        // Inicialización del mapa compacto
         const map = L.map('map', { zoomControl: false }).setView([-35.12, -57.65], 10);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(map);
-
-        // Arreglar renderizado de Leaflet al cargar
         setTimeout(() => map.invalidateSize(), 500);
 
         const btnContainer = document.getElementById('button-container');
-        let chartInstancia = null;
-        let chartComparativoInstancia = null;
-
-        // Datos para gráfico comparativo
+        
+        // Objeto para almacenar las instancias de Chart.js y evitar superposiciones
+        const graficos = { temp: null, hum: null, pres: null, rain: null, comp: null };
         let datosComparativos = { labels: [], temps: [], colors: [] };
 
-        // 1. Petición a ThingSpeak
+        // 1. Petición a ThingSpeak Extrayendo TODAS las variables
         async function fetchHistorialCanal(channelId) {
             try {
+                // Pedimos los últimos 15 resultados
                 const response = await fetch(`https://api.thingspeak.com/channels/${channelId}/feeds.json?results=15`);
                 const data = await response.json();
                 
-                const horas = data.feeds.map(f => {
+                const horas = []; const temps = []; const hums = []; const press = []; const rains = [];
+                const rainField = (channelId === "2218686") ? 'field3' : 'field5';
+
+                data.feeds.forEach(f => {
                     const d = new Date(f.created_at);
-                    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-                });
-                
-                const temps = data.feeds.map(f => {
-                    let val = parseFloat(f.field1);
-                    if (channelId === "2218686") val -= 2.0; // Calibración térmica EP23
-                    return val.toFixed(1);
+                    horas.push(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`);
+                    
+                    let t = parseFloat(f.field1);
+                    if (channelId === "2218686") t -= 2.0; // Calibración térmica
+                    temps.push(isNaN(t) ? null : t.toFixed(1));
+                    
+                    let h = parseFloat(f.field2);
+                    hums.push(isNaN(h) ? null : h.toFixed(0));
+                    
+                    let p = parseFloat(f.field6);
+                    press.push(isNaN(p) ? null : p.toFixed(1));
+                    
+                    let r = parseFloat(f[rainField]);
+                    rains.push(isNaN(r) ? null : r.toFixed(1));
                 });
 
-                return { horas, temps };
+                return { horas, temps, hums, press, rains };
             } catch (e) {
-                // Mock de respaldo por si falla la API
+                // Mock de respaldo
                 return {
                     horas: ['08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00'],
-                    temps: [11.5, 14.5, 17.2, 21.0, 19.8, 16.1, 13.4]
+                    temps: [11.5, 14.5, 17.2, 21.0, 19.8, 16.1, 13.4],
+                    hums: [80, 72, 60, 55, 62, 70, 78],
+                    press: [1013.2, 1012.8, 1011.5, 1010.1, 1011.0, 1012.5, 1013.0],
+                    rains: [0, 0, 1.2, 2.5, 0, 0, 0]
                 };
             }
         }
 
-        // 2. Gráfico Dinámico (Evolución Térmica)
-        function actualizarGraficoEscuela(horas, valores, colorLinea) {
-            const ctx = document.getElementById('chartDinamico').getContext('2d');
-            if (chartInstancia) chartInstancia.destroy(); 
+        // 2. Función genérica para renderizar los 4 gráficos dinámicos
+        function crearGraficoEvolucion(canvasId, tipoGrafico, horas, valores, colorLinea, tituloLabel) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            if (graficos[tipoGrafico]) graficos[tipoGrafico].destroy(); 
 
-            // Crear gradiente para el área debajo de la línea
-            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-            gradient.addColorStop(0, `${colorLinea}50`); // 50 es opacidad hexadecimal
+            const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+            gradient.addColorStop(0, `${colorLinea}50`);
             gradient.addColorStop(1, `${colorLinea}00`);
 
-            chartInstancia = new Chart(ctx, {
+            graficos[tipoGrafico] = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: horas,
                     datasets: [{
-                        label: 'Temperatura (°C)',
+                        label: tituloLabel,
                         data: valores,
                         borderColor: colorLinea,
                         backgroundColor: gradient,
-                        borderWidth: 4,
+                        borderWidth: 3,
                         pointBackgroundColor: '#ffffff',
                         pointBorderColor: colorLinea,
                         pointBorderWidth: 2,
-                        pointRadius: 4,
-                        pointHoverRadius: 6,
+                        pointRadius: 3,
+                        pointHoverRadius: 5,
                         fill: true,
-                        tension: 0.4 // Curva suave
+                        tension: 0.4,
+                        spanGaps: true // Conecta la línea si faltan datos
                     }]
                 },
                 options: {
@@ -252,13 +282,10 @@
                         legend: { display: false },
                         tooltip: {
                             backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                            padding: 12,
-                            titleFont: { size: 13, family: "'Plus Jakarta Sans', sans-serif" },
-                            bodyFont: { size: 14, weight: 'bold', family: "'Plus Jakarta Sans', sans-serif" },
-                            displayColors: false,
-                            callbacks: {
-                                label: function(context) { return context.parsed.y + ' °C'; }
-                            }
+                            padding: 10,
+                            titleFont: { size: 12, family: "'Plus Jakarta Sans', sans-serif" },
+                            bodyFont: { size: 13, weight: 'bold', family: "'Plus Jakarta Sans', sans-serif" },
+                            displayColors: false
                         }
                     },
                     scales: { 
@@ -278,19 +305,18 @@
         // 3. Gráfico Comparativo
         function renderizarGraficoComparativo() {
             const ctxComp = document.getElementById('chartComparativo').getContext('2d');
-            if (chartComparativoInstancia) chartComparativoInstancia.destroy();
+            if (graficos.comp) graficos.comp.destroy();
 
-            chartComparativoInstancia = new Chart(ctxComp, {
+            graficos.comp = new Chart(ctxComp, {
                 type: 'bar',
                 data: {
                     labels: datosComparativos.labels,
                     datasets: [{
                         data: datosComparativos.temps,
                         backgroundColor: datosComparativos.colors,
-                        borderRadius: 12,
-                        borderSkipped: false,
+                        borderRadius: 8,
                         barThickness: 'flex',
-                        maxBarThickness: 60
+                        maxBarThickness: 50
                     }]
                 },
                 options: {
@@ -302,13 +328,10 @@
                             backgroundColor: 'rgba(255, 255, 255, 0.95)',
                             titleColor: '#0f172a',
                             bodyColor: '#0f172a',
-                            padding: 12,
-                            titleFont: { size: 13, family: "'Plus Jakarta Sans', sans-serif" },
-                            bodyFont: { size: 15, weight: 'bold', family: "'Plus Jakarta Sans', sans-serif" },
+                            padding: 10,
+                            bodyFont: { size: 14, weight: 'bold', family: "'Plus Jakarta Sans', sans-serif" },
                             displayColors: false,
-                            callbacks: {
-                                label: function(context) { return context.parsed.y + ' °C'; }
-                            }
+                            callbacks: { label: function(context) { return context.parsed.y + ' °C'; } }
                         }
                     },
                     scales: {
@@ -325,56 +348,55 @@
             });
         }
 
-        // 4. Selección de Escuela
+        // 4. Lógica de Selección
         async function seleccionarEscuela(p, btnElement, marker) {
-            // Estilos de botones
             document.querySelectorAll('.station-btn').forEach(b => b.classList.remove('active'));
             btnElement.classList.add('active');
-
-            // Actualizar interfaz
             document.getElementById('nombre-estacion-activa').innerText = p.n;
             
-            // Animación Mapa
             map.flyTo(p.c, 13, { duration: 1.2 });
             marker.openPopup();
 
-            // Cargar datos
-            const datosHistorial = await fetchHistorialCanal(p.id);
+            const hist = await fetchHistorialCanal(p.id);
             
-            if (datosHistorial.temps.length > 0) {
-                const ultimaTemp = datosHistorial.temps[datosHistorial.temps.length - 1];
-                document.getElementById('live-val-temp').innerText = `${ultimaTemp}°C`;
-                document.getElementById('live-val-hum').innerText = `${Math.floor(65 + Math.random() * 15)}%`; // Simulado visual
+            // Extrayendo los últimos valores válidos para las tarjetas
+            if (hist.temps.length > 0) {
+                const getUltimoValido = (arr) => arr.slice().reverse().find(val => val !== null) || '--';
+
+                document.getElementById('live-val-temp').innerText = `${getUltimoValido(hist.temps)}°C`;
+                document.getElementById('live-val-hum').innerText = `${getUltimoValido(hist.hums)}%`;
+                document.getElementById('live-val-pres').innerText = `${getUltimoValido(hist.press)} hPa`;
+                document.getElementById('live-val-rain').innerText = `${getUltimoValido(hist.rains)} mm`;
                 
-                actualizarGraficoEscuela(datosHistorial.horas, datosHistorial.temps, p.clr);
+                // Dibujar los 4 gráficos individuales
+                crearGraficoEvolucion('chartTemp', 'temp', hist.horas, hist.temps, '#f97316', 'Temperatura (°C)');
+                crearGraficoEvolucion('chartHum', 'hum', hist.horas, hist.hums, '#3b82f6', 'Humedad (%)');
+                crearGraficoEvolucion('chartPres', 'pres', hist.horas, hist.press, '#10b981', 'Presión (hPa)');
+                crearGraficoEvolucion('chartRain', 'rain', hist.horas, hist.rains, '#06b6d4', 'Lluvia (mm)');
             }
 
-            // Scroll suave hacia los gráficos en dispositivos móviles
-            if(window.innerWidth < 1024) {
-                document.getElementById('main-dashboard').scrollIntoView({ behavior: 'smooth' });
-            }
+            if(window.innerWidth < 1024) document.getElementById('main-dashboard').scrollIntoView({ behavior: 'smooth' });
         }
 
-        // 5. Arranque
+        // 5. Inicialización
         async function inicializarRed() {
             for (const [index, p] of puntos.entries()) {
-                // Marcador en el mapa compacto
                 const marker = L.circleMarker(p.c, {
                     radius: 8, fillColor: p.clr, color: "#ffffff", weight: 2, fillOpacity: 1
                 }).addTo(map);
 
                 marker.bindPopup(`<b class="text-[11px] font-bold text-slate-800 m-0">${p.n}</b>`);
 
-                // Datos para comparativa
                 const dataHistorial = await fetchHistorialCanal(p.id);
                 if (dataHistorial.temps.length > 0) {
-                    const ultimaTemp = dataHistorial.temps[dataHistorial.temps.length - 1];
-                    datosComparativos.labels.push(p.n);
-                    datosComparativos.temps.push(parseFloat(ultimaTemp));
-                    datosComparativos.colors.push(p.clr);
+                    const ultimaTemp = dataHistorial.temps.slice().reverse().find(val => val !== null);
+                    if(ultimaTemp) {
+                        datosComparativos.labels.push(p.n);
+                        datosComparativos.temps.push(parseFloat(ultimaTemp));
+                        datosComparativos.colors.push(p.clr);
+                    }
                 }
 
-                // Botones del panel lateral
                 const btn = document.createElement('button');
                 btn.className = "station-btn shadow-sm";
                 btn.innerHTML = `
@@ -390,13 +412,9 @@
                 
                 btn.onclick = () => seleccionarEscuela(p, btn, marker);
                 btnContainer.appendChild(btn);
+                lucide.createIcons(); 
 
-                lucide.createIcons(); // Recargar iconos del nuevo botón
-
-                // Autoseleccionar la primera estación al iniciar
-                if (index === 0) {
-                    setTimeout(() => seleccionarEscuela(p, btn, marker), 500);
-                }
+                if (index === 0) setTimeout(() => seleccionarEscuela(p, btn, marker), 500);
             }
             renderizarGraficoComparativo();
         }
