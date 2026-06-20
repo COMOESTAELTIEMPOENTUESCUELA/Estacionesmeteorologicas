@@ -3,105 +3,265 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ciencia Ciudadana Rural - Registro de Lluvias</title>
+    <title>Comunidad · ¡El Tiempo en tu Escuela!</title>
+    
+    <!-- Tailwind CSS y Lucide Icons -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@0.475.0/dist/umd/lucide.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <style>body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; }</style>
-</head>
-<body class="text-slate-800 antialiased">
+    
+    <!-- Fuentes divertidas y legibles -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800;900&display=swap" rel="stylesheet">
+    
+    <style>
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background-color: #fdf4ff; /* Fucsia/Rosa muy clarito y alegre */
+            overflow-x: hidden;
+        }
 
-    <!-- NAVEGACIÓN COMPARTIDA -->
-    <nav class="bg-white/90 backdrop-blur-md border-b border-slate-100">
-        <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+        /* Animaciones Mágicas */
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        .animate-float { animation: float 3s ease-in-out infinite; }
+        
+        @keyframes bounce-soft {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+        .animate-bounce-soft { animation: bounce-soft 2s infinite; }
+
+        /* Estilo de Botones y Tarjetas Infantiles (3D) */
+        .kid-btn {
+            border-bottom-width: 6px;
+            transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .kid-btn:hover {
+            transform: translateY(-4px);
+            filter: brightness(1.05);
+        }
+        .kid-btn:active {
+            border-bottom-width: 0px;
+            transform: translateY(6px);
+        }
+
+        .kid-card {
+            border-bottom-width: 8px;
+            transition: all 0.3s ease;
+        }
+        .kid-card:hover {
+            transform: scale(1.02) translateY(-4px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Ocultar input original de archivo */
+        input[type="file"] { display: none; }
+        .file-upload-label { cursor: pointer; transition: all 0.2s; }
+        .file-upload-label:hover { transform: scale(1.02); }
+
+        /* Patrón de fondo divertido */
+        .bg-dots {
+            background-image: radial-gradient(#fbcfe8 2px, transparent 2px);
+            background-size: 30px 30px;
+        }
+    </style>
+</head>
+<body class="text-slate-800 antialiased selection:bg-fuchsia-300 selection:text-slate-900 bg-dots">
+
+    <!-- NAVEGACIÓN FLOTANTE -->
+    <nav class="fixed w-full z-50 px-4 py-4 top-0 pointer-events-none">
+        <div class="max-w-7xl mx-auto flex justify-between items-center bg-white/90 backdrop-blur-md rounded-full shadow-lg border-4 border-fuchsia-200 px-6 py-3 pointer-events-auto transition-all duration-300">
             <div class="flex items-center gap-3">
-                <div class="p-2 bg-blue-600 rounded-xl text-white"><i data-lucide="cloud-sun" class="w-6 h-6"></i></div>
+                <div class="p-2 bg-fuchsia-500 rounded-full text-white shadow-sm animate-float">
+                    <i data-lucide="camera" class="w-6 h-6"></i>
+                </div>
                 <div class="flex flex-col">
-                    <span class="font-extrabold text-slate-900 tracking-tight text-sm">¿CÓMO ESTÁ EL TIEMPO EN TU ESCUELA?</span>
-                    <span class="text-[10px] font-bold text-blue-600 uppercase">FCAG · UNLP</span>
+                    <span class="font-black text-slate-900 tracking-tight text-sm md:text-lg leading-none">Comunidad</span>
+                    <span class="text-[10px] font-bold text-fuchsia-600 uppercase tracking-widest mt-0.5">FCAG · UNLP</span>
                 </div>
             </div>
-            <div class="flex items-center gap-6 text-sm font-bold text-slate-600">
-                <a href="index.html" class="hover:text-blue-600">Inicio</a>
-                <a href="red-meteorologica.html" class="hover:text-blue-600">Red Escolar</a>
-                <a href="ciencia-ciudadana.html" class="text-blue-600">Ciencia Ciudadana</a>
-                <a href="recursos.html" class="hover:text-blue-600">Recursos</a>
+            
+            <!-- Menú para PC -->
+            <div class="hidden lg:flex items-center gap-6 text-sm font-black text-slate-500">
+                <a href="index.html" class="hover:text-fuchsia-500 transition">Inicio</a>
+                <a href="red-meteorologica.html" class="hover:text-blue-500 transition">Tablero Mágico</a>
+                <a href="ciencia-ciudadana.html" class="text-fuchsia-600">Comunidad</a>
             </div>
+
+            <a href="index.html" class="lg:hidden p-2 text-slate-500 bg-slate-100 rounded-full hover:bg-fuchsia-100 hover:text-fuchsia-600 transition">
+                <i data-lucide="home" class="w-6 h-6"></i>
+            </a>
         </div>
     </nav>
 
-    <main class="max-w-6xl mx-auto px-6 py-12">
-        <div class="mb-12">
-            <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">Laboratorio Territorial de Ciencia Ciudadana</h1>
-            <p class="text-slate-500">¿Sos vecino o alumno de una escuela de la red? Cargá tus observaciones locales para robustecer el mapa de alertas meteorológicas.</p>
+    <main class="pt-32 pb-20 px-6 max-w-6xl mx-auto">
+        
+        <!-- ENCABEZADO -->
+        <div class="text-center mb-16 relative">
+            <i data-lucide="sun" class="absolute -top-6 left-[10%] w-16 h-16 text-yellow-400 animate-float opacity-80"></i>
+            <i data-lucide="cloud" class="absolute top-10 right-[15%] w-20 h-20 text-blue-300 animate-bounce-soft opacity-60"></i>
+            
+            <div class="inline-flex items-center gap-2 bg-fuchsia-200 text-fuchsia-800 px-4 py-2 rounded-full text-xs md:text-sm font-black uppercase tracking-widest mb-6 shadow-sm border-2 border-fuchsia-300 rotate-2">
+                <i data-lucide="users" class="w-4 h-4"></i> Nuestra Red
+            </div>
+            <h1 class="text-4xl md:text-6xl font-black mb-4 text-fuchsia-900 tracking-tight drop-shadow-sm">¡Conocé nuestras escuelas!</h1>
+            <p class="text-lg md:text-xl text-fuchsia-700 font-bold max-w-3xl mx-auto">Estas son las verdaderas protagonistas del proyecto. Alumnos y docentes que miran el cielo todos los días.</p>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-16">
-            <!-- FORMULARIO DE REPORTE -->
-            <div class="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm lg:col-span-2">
-                <h2 class="text-xl font-bold mb-6 flex items-center gap-2 text-slate-900"><i data-lucide="clipboard-edit" class="text-blue-600"></i> Formulario de Envío de Datos de Pluviómetro Manual</h2>
-                
-                <form id="formularioReporte" onsubmit="procesarEnvioReporte(event)" class="space-y-6">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                        <div>
-                            <label class="block text-xs font-bold uppercase text-slate-500 tracking-wider mb-2">Nombre / Escuela Referencia</label>
-                            <input type="text" required class="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl outline-none focus:border-blue-500 font-medium" placeholder="Ej: Familia González - Escuela N° 4">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold uppercase text-slate-500 tracking-wider mb-2">Localidad / Paraje Rural</label>
-                            <input type="text" required class="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl outline-none focus:border-blue-500 font-medium" placeholder="Ej: Las Tahonas">
-                        </div>
-                    </div>
+        <!-- SECCIÓN ESCUELAS CON FOTOS REALES -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-20">
+            
+            <!-- Escuela 23 -->
+            <div class="bg-white border-4 border-emerald-200 rounded-[2rem] p-4 kid-card shadow-lg flex flex-col">
+                <div class="h-40 w-full rounded-2xl overflow-hidden mb-4 border-4 border-emerald-100 relative bg-slate-100">
+                    <img src="imagenes/escuela23.jpg" alt="EP N°23 Bavio" class="w-full h-full object-cover" onerror="this.src='https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&q=80&w=300'">
+                    <div class="absolute top-2 right-2 bg-emerald-500 text-white text-xs font-black px-2 py-1 rounded-lg shadow-sm">Bavio</div>
+                </div>
+                <h3 class="font-black text-xl text-slate-800 mb-2">EP N°23</h3>
+                <p class="text-sm font-semibold text-slate-500 flex-grow">La famosa "escuela verde" donde los chicos armaron la primera estación con sus propias manos.</p>
+            </div>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <!-- Escuela 34 -->
+            <div class="bg-white border-4 border-blue-200 rounded-[2rem] p-4 kid-card shadow-lg flex flex-col">
+                <div class="h-40 w-full rounded-2xl overflow-hidden mb-4 border-4 border-blue-100 relative bg-slate-100">
+                    <img src="imagenes/escuela34.jpg" alt="EP N°34 Malagamba" class="w-full h-full object-cover" onerror="this.src='https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=300'">
+                    <div class="absolute top-2 right-2 bg-blue-500 text-white text-xs font-black px-2 py-1 rounded-lg shadow-sm">Malagamba</div>
+                </div>
+                <h3 class="font-black text-xl text-slate-800 mb-2">EP N°34</h3>
+                <p class="text-sm font-semibold text-slate-500 flex-grow">Ubicada en el medio del campo, esta escuela es clave para medir cuánto llueve en las zonas rurales.</p>
+            </div>
+
+            <!-- San Vicente -->
+            <div class="bg-white border-4 border-purple-200 rounded-[2rem] p-4 kid-card shadow-lg flex flex-col">
+                <div class="h-40 w-full rounded-2xl overflow-hidden mb-4 border-4 border-purple-100 relative bg-slate-100">
+                    <img src="imagenes/Sanvicentedepaul.png" alt="San Vicente de Paul" class="w-full h-full object-cover" onerror="this.src='https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&q=80&w=300'">
+                    <div class="absolute top-2 right-2 bg-purple-500 text-white text-xs font-black px-2 py-1 rounded-lg shadow-sm">La Plata</div>
+                </div>
+                <h3 class="font-black text-xl text-slate-800 mb-2">San Vicente de Paul</h3>
+                <p class="text-sm font-semibold text-slate-500 flex-grow">Desde el corazón de la ciudad, los chicos también se suman a mirar el cielo con nosotros.</p>
+            </div>
+
+            <!-- EP 20 -->
+            <div class="bg-white border-4 border-orange-200 rounded-[2rem] p-4 kid-card shadow-lg flex flex-col">
+                <div class="h-40 w-full rounded-2xl overflow-hidden mb-4 border-4 border-orange-100 relative bg-slate-100">
+                    <img src="imagenes/ep20.png" alt="EP N°20" class="w-full h-full object-cover" onerror="this.src='https://images.unsplash.com/photo-1546410531-b4cafce8ba7e?auto=format&fit=crop&q=80&w=300'">
+                    <div class="absolute top-2 right-2 bg-orange-500 text-white text-xs font-black px-2 py-1 rounded-lg shadow-sm">La Plata</div>
+                </div>
+                <h3 class="font-black text-xl text-slate-800 mb-2">EP N°20</h3>
+                <p class="text-sm font-semibold text-slate-500 flex-grow">¡Otra gran escuela que participa de los talleres de ciencias y suma sus registros a la red!</p>
+            </div>
+
+        </div>
+
+        <!-- DIVISOR DIVERTIDO -->
+        <div class="flex items-center justify-center gap-4 mb-16">
+            <div class="h-2 w-16 bg-fuchsia-200 rounded-full"></div>
+            <i data-lucide="star" class="w-8 h-8 text-yellow-400 fill-yellow-400"></i>
+            <div class="h-2 w-16 bg-fuchsia-200 rounded-full"></div>
+        </div>
+
+        <div class="text-center mb-10">
+            <h2 class="text-3xl md:text-5xl font-black mb-4 text-slate-800 tracking-tight">¡Convertite en Investigador!</h2>
+            <p class="text-lg text-slate-600 font-bold max-w-2xl mx-auto">Tus reportes del clima y estado de los caminos nos ayudan a entender la naturaleza. ¡Subí tus datos acá!</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- FORMULARIO DIVERTIDO (Ocupa 2 columnas) -->
+            <div class="bg-white border-4 border-fuchsia-200 rounded-[2rem] p-6 md:p-10 shadow-xl kid-card lg:col-span-2">
+                <form id="reporteForm" class="space-y-8" onsubmit="procesarEnvioReporte(event)">
+                    
+                    <!-- DÓNDE Y QUIÉN -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label class="block text-xs font-bold uppercase text-slate-500 tracking-wider mb-2">Precipitación Medida (mm)</label>
-                            <input type="number" step="0.1" required class="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl outline-none focus:border-blue-500 font-medium" placeholder="Ej: 14.5">
+                            <label class="block text-sm font-black text-slate-700 mb-2">👤 ¿Quién sos?</label>
+                            <input type="text" required placeholder="Tu nombre o apodo" class="w-full border-4 border-slate-100 p-4 rounded-2xl font-bold text-slate-700 focus:outline-none focus:border-fuchsia-400 bg-slate-50 transition">
                         </div>
                         <div>
-                            <label class="block text-xs font-bold uppercase text-slate-500 tracking-wider mb-2">Estado de Caminos Rurales</label>
-                            <select class="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl outline-none focus:border-blue-500 font-semibold text-slate-700">
-                                <option>Transitable normal (Seco)</option>
-                                <option>Pesado / Resbaladizo</option>
-                                <option>Corte parcial por acumulación de agua</option>
-                                <option>Intransitable (Barro pesado)</option>
+                            <label class="block text-sm font-black text-slate-700 mb-2">📍 ¿De dónde sos?</label>
+                            <select required class="w-full border-4 border-slate-100 p-4 rounded-2xl font-bold text-slate-700 focus:outline-none focus:border-fuchsia-400 bg-slate-50 appearance-none transition">
+                                <option value="">Elegí tu escuela o zona...</option>
+                                <option value="ep23">EP N°23 (Bavio)</option>
+                                <option value="ep34">EP N°34 (Malagamba)</option>
+                                <option value="mveloz">Monte Veloz (Ruta 36)</option>
+                                <option value="sanvicente">San Vicente de Paul</option>
+                                <option value="ep20">EP N°20</option>
+                                <option value="otro">Otro lugar / Soy vecino</option>
                             </select>
                         </div>
                     </div>
 
-                    <div>
-                        <label class="block text-xs font-bold uppercase text-slate-500 tracking-wider mb-2">Observaciones o Fenómenos Severos Detectados</label>
-                        <textarea rows="3" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl outline-none focus:border-blue-500 font-medium" placeholder="Registramos caída de granizo pequeño o ráfagas fuertes..."></textarea>
+                    <!-- MEDICIÓN Y CAMINOS -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-blue-50 p-6 rounded-3xl border-4 border-blue-100">
+                        <div>
+                            <label class="block text-sm font-black text-blue-800 mb-2">🌧️ Agua en el pluviómetro (mm)</label>
+                            <input type="number" step="0.1" required class="w-full border-4 border-white p-4 rounded-2xl font-bold text-blue-900 focus:outline-none focus:border-blue-400 bg-white transition shadow-sm" placeholder="Ej: 14.5">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-black text-blue-800 mb-2">🚜 ¿Cómo está el camino de tierra?</label>
+                            <select required class="w-full border-4 border-white p-4 rounded-2xl font-bold text-blue-900 focus:outline-none focus:border-blue-400 bg-white appearance-none transition shadow-sm">
+                                <option value="">Contanos...</option>
+                                <option>Seco y súper bien</option>
+                                <option>Un poco de barro (resbaladizo)</option>
+                                <option>Mucho barro y agua (difícil pasar)</option>
+                                <option>Camino de asfalto (todo bien)</option>
+                            </select>
+                        </div>
                     </div>
 
-                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-4 rounded-xl transition shadow-md">Enviar Observación al Servidor FCAG</button>
+                    <!-- LA FOTO (Opcional pero divertido) -->
+                    <div>
+                        <label class="block text-sm font-black text-slate-700 mb-2">📸 ¡Subí una foto del cielo o el pluviómetro! (Opcional)</label>
+                        <label class="file-upload-label flex flex-col items-center justify-center w-full h-32 border-4 border-dashed border-fuchsia-300 bg-fuchsia-50 rounded-2xl hover:bg-fuchsia-100">
+                            <i data-lucide="image-plus" class="w-8 h-8 text-fuchsia-500 mb-2"></i>
+                            <span class="font-bold text-fuchsia-700 text-sm px-4 text-center">Toca acá para sacar una foto<br>con el celu</span>
+                            <input type="file" accept="image/*" capture="environment" id="foto-input">
+                        </label>
+                        <p id="nombre-archivo" class="text-sm font-bold text-emerald-600 mt-2 hidden text-center bg-emerald-100 py-2 rounded-xl border border-emerald-200">¡Foto lista para mandar! ✅</p>
+                    </div>
+
+                    <!-- BOTÓN ENVIAR -->
+                    <div class="pt-2 text-center">
+                        <button type="submit" class="kid-btn bg-fuchsia-500 hover:bg-fuchsia-400 text-white border-fuchsia-700 px-10 py-5 rounded-full font-black text-xl flex items-center justify-center gap-3 w-full shadow-lg shadow-fuchsia-500/30">
+                            <i data-lucide="send" class="w-6 h-6"></i> ¡Enviar mis datos!
+                        </button>
+                    </div>
                 </form>
             </div>
 
-            <!-- OBSERVATORIO EDUCATIVO DE NUBES -->
-            <div class="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between">
+            <!-- OBSERVATORIO EDUCATIVO DE NUBES (Lateral) -->
+            <div class="bg-gradient-to-b from-sky-400 to-blue-500 p-8 rounded-[2rem] border-4 border-sky-300 shadow-xl kid-card flex flex-col h-full text-white relative overflow-hidden">
+                <i data-lucide="cloud" class="absolute -right-4 -top-4 w-32 h-32 text-white opacity-20"></i>
+                
                 <div>
-                    <h2 class="text-xl font-bold mb-4 flex items-center gap-2 text-slate-900"><i data-lucide="cloud" class="text-cyan-500"></i> Observatorio Recreativo de Nubes</h2>
-                    <p class="text-sm text-slate-600 leading-relaxed mb-4">¿Viste nubes extrañas o de gran desarrollo vertical en tu campo? Consultá nuestra guía rápida de tipologías e identificalas.</p>
+                    <h2 class="text-2xl font-black mb-4 flex items-center gap-2 drop-shadow-md">☁️ Guía de Nubes</h2>
+                    <p class="text-sm font-bold text-sky-100 leading-relaxed mb-6">¿Viste nubes raras hoy? Aprendé a reconocerlas antes de mandar tu foto.</p>
                     
-                    <div class="space-y-3">
-                        <div class="p-3 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between">
-                            <span class="font-bold text-sm text-slate-700">Cumulonimbus</span>
-                            <span class="text-xs bg-red-100 text-red-700 font-bold px-2 py-0.5 rounded-full">Tormenta</span>
+                    <div class="space-y-4 relative z-10">
+                        <div class="p-4 bg-white/20 backdrop-blur-sm border-2 border-white/30 rounded-2xl flex items-center justify-between hover:bg-white/30 transition cursor-pointer">
+                            <div>
+                                <span class="font-black text-base block drop-shadow-sm">Cumulonimbus</span>
+                                <span class="text-xs font-bold text-sky-100">Nube alta y gorda</span>
+                            </div>
+                            <span class="text-xs bg-red-500 text-white font-black px-3 py-1 rounded-full shadow-sm">Tormenta</span>
                         </div>
-                        <div class="p-3 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between">
-                            <span class="font-bold text-sm text-slate-700">Cirrus</span>
-                            <span class="text-xs bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded-full">Buen Tiempo</span>
+                        
+                        <div class="p-4 bg-white/20 backdrop-blur-sm border-2 border-white/30 rounded-2xl flex items-center justify-between hover:bg-white/30 transition cursor-pointer">
+                            <div>
+                                <span class="font-black text-base block drop-shadow-sm">Cirrus</span>
+                                <span class="text-xs font-bold text-sky-100">Como hilos de algodón</span>
+                            </div>
+                            <span class="text-xs bg-emerald-400 text-emerald-900 font-black px-3 py-1 rounded-full shadow-sm">Lindo día</span>
                         </div>
-                        <div class="p-3 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between">
-                            <span class="font-bold text-sm text-slate-700">Altocumulus</span>
-                            <span class="text-xs bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded-full">Inestabilidad</span>
+                        
+                        <div class="p-4 bg-white/20 backdrop-blur-sm border-2 border-white/30 rounded-2xl flex items-center justify-between hover:bg-white/30 transition cursor-pointer">
+                            <div>
+                                <span class="font-black text-base block drop-shadow-sm">Stratus</span>
+                                <span class="text-xs font-bold text-sky-100">Cielo gris parejo</span>
+                            </div>
+                            <span class="text-xs bg-slate-200 text-slate-700 font-black px-3 py-1 rounded-full shadow-sm">Llovizna</span>
                         </div>
                     </div>
-                </div>
-                
-                <div class="mt-6 border-t border-slate-100 pt-6">
-                    <button class="w-full bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold p-3 rounded-xl uppercase tracking-wider transition">Subir Foto de Nube</button>
                 </div>
             </div>
         </div>
@@ -109,10 +269,25 @@
 
     <script>
         lucide.createIcons();
+
+        // Mostrar un mensaje lindo al cargar foto
+        const fileInput = document.getElementById('foto-input');
+        const fileNameDisplay = document.getElementById('nombre-archivo');
+
+        fileInput.addEventListener('change', function() {
+            if (this.files && this.files.length > 0) {
+                fileNameDisplay.classList.remove('hidden');
+            } else {
+                fileNameDisplay.classList.add('hidden');
+            }
+        });
+
+        // Simular envío de forma divertida
         function procesarEnvioReporte(event) {
             event.preventDefault();
-            alert("¡Reporte de ciencia ciudadana enviado con éxito! Los datos serán validados por el equipo técnico de Meteorología FCAG antes de impactar en los mapas públicos.");
-            document.getElementById('formularioReporte').reset();
+            alert("¡Wow! 🎉 ¡Gracias por investigar con nosotros!\n\nTus datos ya están viajando a la facu para sumarse al mapa.");
+            document.getElementById('reporteForm').reset();
+            fileNameDisplay.classList.add('hidden');
         }
     </script>
 </body>
