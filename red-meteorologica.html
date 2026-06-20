@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>¡El Tiempo en tu Escuela! - UNLP</title>
+    <title>¡Como esta el tiempo en tu escuela! - UNLP</title>
     
     <!-- Leaflet CSS & JS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -58,8 +58,8 @@
         <!-- Cabecera amigable -->
         <div class="p-6 bg-white sticky top-0 z-10 border-b-2 border-slate-100 flex justify-between items-center shrink-0">
             <div>
-                <h1 class="text-2xl font-black text-slate-900 tracking-tight">🌤️ Mis Escuelas</h1>
-                <p class="text-[11px] text-blue-600 font-bold uppercase tracking-widest mt-1">Ciencia divertida · UNLP</p>
+                <h1 class="text-2xl font-black text-slate-900 tracking-tight">🌤️ Red de escuelas</h1>
+                <p class="text-[11px] text-blue-600 font-bold uppercase tracking-widest mt-1"> FCAG-UNLP</p>
             </div>
             <a href="index.html" class="p-3 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-2xl transition" title="Volver al inicio">
                 <i data-lucide="home" class="w-6 h-6"></i>
@@ -153,7 +153,7 @@
                 <div class="bg-white rounded-3xl p-6 border-2 border-slate-200 shadow-sm">
                     <h3 class="text-lg font-black text-slate-800 flex items-center gap-2 mb-4">
                         <span class="bg-orange-100 p-2 rounded-xl text-orange-500"><i data-lucide="sun"></i></span>
-                        El camino de la Temperatura
+                        Temperatura de hoy
                     </h3>
                     <div class="h-[200px] w-full"><canvas id="chartTemp"></canvas></div>
                 </div>
@@ -162,7 +162,7 @@
                 <div class="bg-white rounded-3xl p-6 border-2 border-slate-200 shadow-sm">
                     <h3 class="text-lg font-black text-slate-800 flex items-center gap-2 mb-4">
                         <span class="bg-blue-100 p-2 rounded-xl text-blue-500"><i data-lucide="droplets"></i></span>
-                        ¿Cuánta agua flotaba en el aire?
+                        Humedad de hoy ¿Que tanto vapor de agua tiene el aire?
                     </h3>
                     <div class="h-[200px] w-full"><canvas id="chartHum"></canvas></div>
                 </div>
@@ -171,7 +171,7 @@
                 <div class="bg-white rounded-3xl p-6 border-2 border-slate-200 shadow-sm">
                     <h3 class="text-lg font-black text-slate-800 flex items-center gap-2 mb-4">
                         <span class="bg-emerald-100 p-2 rounded-xl text-emerald-500"><i data-lucide="gauge"></i></span>
-                        El peso de la atmósfera
+                        Presion de hoy.El peso de la atmósfera
                     </h3>
                     <div class="h-[200px] w-full"><canvas id="chartPres"></canvas></div>
                 </div>
@@ -195,7 +195,7 @@
                         <h3 class="text-xl font-black text-white flex items-center gap-2">
                             🏆 ¡Carrera de Temperaturas!
                         </h3>
-                        <p class="text-sm font-bold text-slate-400 mt-1">¿Qué escuela tiene más calor en este momento exacto?</p>
+                        <p class="text-sm font-bold text-slate-400 mt-1">¿Qué escuela tiene más temperatura en este momento?</p>
                     </div>
                     <div class="h-[220px] w-full"><canvas id="chartComparativo"></canvas></div>
                 </div>
@@ -203,7 +203,7 @@
             
             <footer class="text-center pb-8 pt-4">
                 <p class="text-[12px] font-black text-slate-400 uppercase tracking-widest bg-white inline-block px-4 py-2 rounded-full border-2 border-slate-200">
-                    Hecho con 🩵 por la Facu de Astro y Geo (FCAG) - UNLP
+                    Envianos tu reporte
                 </p>
             </footer>
 
