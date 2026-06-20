@@ -73,9 +73,8 @@
     <nav class="fixed w-full z-50 px-4 py-4 top-0 pointer-events-none">
         <div class="max-w-7xl mx-auto flex justify-between items-center bg-white/90 backdrop-blur-md rounded-full shadow-lg border-4 border-fuchsia-200 px-6 py-3 pointer-events-auto transition-all duration-300">
             <div class="flex items-center gap-3">
-                <div class="p-2 bg-fuchsia-500 rounded-full text-white shadow-sm animate-float">
-                    <i data-lucide="camera" class="w-6 h-6"></i>
-                </div>
+                <!-- LOGO PRINCIPAL -->
+                <img src="imagenes/Logo1.jpg" alt="Logo del Proyecto" class="w-12 h-12 object-cover rounded-full border-2 border-yellow-400 shadow-sm animate-float" onerror="this.src='https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&q=80&w=100'">
                 <div class="flex flex-col">
                     <span class="font-black text-slate-900 tracking-tight text-sm md:text-lg leading-none">Comunidad</span>
                     <span class="text-[10px] font-bold text-fuchsia-600 uppercase tracking-widest mt-0.5">FCAG · UNLP</span>
@@ -119,7 +118,7 @@
                     <div class="absolute top-2 right-2 bg-emerald-500 text-white text-xs font-black px-2 py-1 rounded-lg shadow-sm">Bavio</div>
                 </div>
                 <h3 class="font-black text-xl text-slate-800 mb-2">EP N°23</h3>
-                <p class="text-sm font-semibold text-slate-500 flex-grow">Descripcion de escuela.</p>
+                <p class="text-sm font-semibold text-slate-500 flex-grow">La famosa "escuela verde" donde los chicos armaron la primera estación con sus propias manos.</p>
             </div>
 
             <!-- Escuela 34 -->
@@ -129,7 +128,7 @@
                     <div class="absolute top-2 right-2 bg-blue-500 text-white text-xs font-black px-2 py-1 rounded-lg shadow-sm">Malagamba</div>
                 </div>
                 <h3 class="font-black text-xl text-slate-800 mb-2">EP N°34</h3>
-                <p class="text-sm font-semibold text-slate-500 flex-grow">Descripcion de escuela.</p>
+                <p class="text-sm font-semibold text-slate-500 flex-grow">Ubicada en el medio del campo, esta escuela es clave para medir cuánto llueve en las zonas rurales.</p>
             </div>
 
             <!-- San Vicente -->
@@ -139,7 +138,7 @@
                     <div class="absolute top-2 right-2 bg-purple-500 text-white text-xs font-black px-2 py-1 rounded-lg shadow-sm">La Plata</div>
                 </div>
                 <h3 class="font-black text-xl text-slate-800 mb-2">San Vicente de Paul</h3>
-                <p class="text-sm font-semibold text-slate-500 flex-grow">Descripcion de escuela.</p>
+                <p class="text-sm font-semibold text-slate-500 flex-grow">Desde el corazón de la ciudad, los chicos también se suman a mirar el cielo con nosotros.</p>
             </div>
 
             <!-- EP 20 -->
@@ -149,7 +148,7 @@
                     <div class="absolute top-2 right-2 bg-orange-500 text-white text-xs font-black px-2 py-1 rounded-lg shadow-sm">Berisso</div>
                 </div>
                 <h3 class="font-black text-xl text-slate-800 mb-2">EP N°20</h3>
-                <p class="text-sm font-semibold text-slate-500 flex-grow">Descripcion de escuela</p>
+                <p class="text-sm font-semibold text-slate-500 flex-grow">¡Otra gran escuela que participa de los talleres de ciencias y suma sus registros a la red!</p>
             </div>
 
         </div>
@@ -167,26 +166,35 @@
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <!-- FORMULARIO DIVERTIDO (Ocupa 2 columnas) -->
+            <!-- FORMULARIO DE WEB3FORMS (Ocupa 2 columnas) -->
             <div class="bg-white border-4 border-fuchsia-200 rounded-[2rem] p-6 md:p-10 shadow-xl kid-card lg:col-span-2">
-                <form id="reporteForm" class="space-y-8" onsubmit="procesarEnvioReporte(event)">
+                
+                <!-- IMPORTANTE: ACTION HACIA WEB3FORMS Y ENCTYPE PARA SUBIR FOTOS -->
+                <form action="https://api.web3forms.com/submit" method="POST" enctype="multipart/form-data" id="reporteForm" class="space-y-8">
                     
+                    <!-- Tu Access Key de Web3Forms oculta -->
+                    <input type="hidden" name="access_key" value="3d895c1a-36fb-4ab3-9435-851acdd53532">
+                    <!-- Configuración opcional para redirigir tras enviar -->
+                    <input type="hidden" name="subject" value="¡Nuevo reporte de Ciencia Ciudadana! 🌧️">
+                    <input type="hidden" name="from_name" value="El Tiempo en tu Escuela">
+
                     <!-- DÓNDE Y QUIÉN -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label class="block text-sm font-black text-slate-700 mb-2">👤 ¿Quién sos?</label>
-                            <input type="text" required placeholder="Tu nombre o apodo" class="w-full border-4 border-slate-100 p-4 rounded-2xl font-bold text-slate-700 focus:outline-none focus:border-fuchsia-400 bg-slate-50 transition">
+                            <!-- El atributo name es clave -->
+                            <input type="text" name="Nombre_Apellido" required placeholder="Tu nombre o apodo" class="w-full border-4 border-slate-100 p-4 rounded-2xl font-bold text-slate-700 focus:outline-none focus:border-fuchsia-400 bg-slate-50 transition">
                         </div>
                         <div>
                             <label class="block text-sm font-black text-slate-700 mb-2">📍 ¿De dónde sos?</label>
-                            <select required class="w-full border-4 border-slate-100 p-4 rounded-2xl font-bold text-slate-700 focus:outline-none focus:border-fuchsia-400 bg-slate-50 appearance-none transition">
+                            <select name="Escuela_Zona" required class="w-full border-4 border-slate-100 p-4 rounded-2xl font-bold text-slate-700 focus:outline-none focus:border-fuchsia-400 bg-slate-50 appearance-none transition">
                                 <option value="">Elegí tu escuela o zona...</option>
-                                <option value="ep23">EP N°23 (Bavio)</option>
-                                <option value="ep34">EP N°34 (Malagamba)</option>
-                                <option value="mveloz">Monte Veloz (Ruta 36)</option>
-                                <option value="sanvicente">San Vicente de Paul</option>
-                                <option value="ep20">EP N°20</option>
-                                <option value="otro">Otro lugar / Soy vecino</option>
+                                <option value="EP 23">EP N°23 (Bavio)</option>
+                                <option value="EP 34">EP N°34 (Malagamba)</option>
+                                <option value="Monte Veloz">Monte Veloz (Ruta 36)</option>
+                                <option value="San Vicente">San Vicente de Paul</option>
+                                <option value="EP 20">EP N°20</option>
+                                <option value="Otro Lugar">Otro lugar / Soy vecino</option>
                             </select>
                         </div>
                     </div>
@@ -195,16 +203,16 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-blue-50 p-6 rounded-3xl border-4 border-blue-100">
                         <div>
                             <label class="block text-sm font-black text-blue-800 mb-2">🌧️ Agua en el pluviómetro (mm)</label>
-                            <input type="number" step="0.1" required class="w-full border-4 border-white p-4 rounded-2xl font-bold text-blue-900 focus:outline-none focus:border-blue-400 bg-white transition shadow-sm" placeholder="Ej: 14.5">
+                            <input type="number" step="0.1" name="Lluvia_mm" required class="w-full border-4 border-white p-4 rounded-2xl font-bold text-blue-900 focus:outline-none focus:border-blue-400 bg-white transition shadow-sm" placeholder="Ej: 14.5">
                         </div>
                         <div>
                             <label class="block text-sm font-black text-blue-800 mb-2">🚜 ¿Cómo está el camino de tierra?</label>
-                            <select required class="w-full border-4 border-white p-4 rounded-2xl font-bold text-blue-900 focus:outline-none focus:border-blue-400 bg-white appearance-none transition shadow-sm">
+                            <select name="Estado_Camino" required class="w-full border-4 border-white p-4 rounded-2xl font-bold text-blue-900 focus:outline-none focus:border-blue-400 bg-white appearance-none transition shadow-sm">
                                 <option value="">Contanos...</option>
-                                <option>Seco y súper bien</option>
-                                <option>Un poco de barro (resbaladizo)</option>
-                                <option>Mucho barro y agua (difícil pasar)</option>
-                                <option>Camino de asfalto (todo bien)</option>
+                                <option value="Seco">Seco y súper bien</option>
+                                <option value="Resbaladizo">Un poco de barro (resbaladizo)</option>
+                                <option value="Intransitable">Mucho barro y agua (difícil pasar)</option>
+                                <option value="Asfalto">Camino de asfalto (todo bien)</option>
                             </select>
                         </div>
                     </div>
@@ -215,7 +223,7 @@
                         <label class="file-upload-label flex flex-col items-center justify-center w-full h-32 border-4 border-dashed border-fuchsia-300 bg-fuchsia-50 rounded-2xl hover:bg-fuchsia-100">
                             <i data-lucide="image-plus" class="w-8 h-8 text-fuchsia-500 mb-2"></i>
                             <span class="font-bold text-fuchsia-700 text-sm px-4 text-center">Toca acá para sacar una foto<br>con el celu</span>
-                            <input type="file" accept="image/*" capture="environment" id="foto-input">
+                            <input type="file" name="Foto_Adjunta" accept="image/*" capture="environment" id="foto-input">
                         </label>
                         <p id="nombre-archivo" class="text-sm font-bold text-emerald-600 mt-2 hidden text-center bg-emerald-100 py-2 rounded-xl border border-emerald-200">¡Foto lista para mandar! ✅</p>
                     </div>
@@ -267,10 +275,53 @@
         </div>
     </main>
 
+    <!-- FOOTER -->
+    <footer id="contacto" class="bg-white pt-16 pb-8 px-6 border-t-4 border-fuchsia-200 mt-20">
+        <div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-12 mb-12 text-center md:text-left">
+            <div>
+                <div class="flex items-center justify-center md:justify-start gap-3 mb-4">
+                    <!-- LOGO FOOTER -->
+                    <img src="imagenes/Logo1.jpg" alt="Logo" class="w-10 h-10 object-cover rounded-full border-2 border-fuchsia-200 shadow-sm" onerror="this.src='https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&q=80&w=50'">
+                    <span class="block text-slate-800 font-black tracking-tight text-xl">El Tiempo en la Escuela</span>
+                </div>
+                <p class="text-sm font-medium text-slate-500">Un proyecto de extension de la Universidad Nacional de La Plata para conectar la ciencia con la vida real.</p>
+            </div>
+            
+            <div>
+                <h4 class="text-slate-800 font-black text-sm uppercase tracking-widest mb-4">¡Contactanos!</h4>
+                <ul class="space-y-3 text-sm font-bold text-slate-500 inline-block text-left">
+                    <li class="flex items-center gap-3">
+                        <div class="w-8 h-8 bg-fuchsia-100 text-fuchsia-600 rounded-full flex items-center justify-center"><i data-lucide="mail" class="w-4 h-4"></i></div>
+                        tiempoentuescuela@gmail.com
+                    </li>
+                    <li class="flex items-center gap-3">
+                        <div class="w-8 h-8 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center"><i data-lucide="smartphone" class="w-4 h-4"></i></div>
+                        Grupo de WhatsApp Rural
+                    </li>
+                </ul>
+            </div>
+            
+            <div>
+                <h4 class="text-slate-800 font-black text-sm uppercase tracking-widest mb-4">Nuestra Casa</h4>
+                <ul class="space-y-3 text-sm font-bold">
+                    <li><a href="https://www.fcaglp.unlp.edu.ar/" target="_blank" class="text-fuchsia-500 hover:text-fuchsia-700 hover:underline transition">FCAGLP - Astronomía y Geofísica</a></li>
+                    <li><a href="https://unlp.edu.ar/" target="_blank" class="text-fuchsia-500 hover:text-fuchsia-700 hover:underline transition">Universidad Nacional de La Plata</a></li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="max-w-7xl mx-auto border-t-2 border-slate-100 pt-8 text-center flex flex-col items-center gap-2">
+            <p class="text-xs text-slate-400 font-bold uppercase tracking-widest">
+                &copy; 2026.
+            </p>
+        </div>
+    </footer>
+
     <script>
         lucide.createIcons();
 
-        // Mostrar un mensaje lindo al cargar foto
+        // Pequeño script para que cuando el vecino toque "subir foto", se muestre un cartel avisándole que la foto se cargó bien.
+        // Todo el envío real ya lo maneja de forma automática la etiqueta <form action="...">
         const fileInput = document.getElementById('foto-input');
         const fileNameDisplay = document.getElementById('nombre-archivo');
 
@@ -281,14 +332,6 @@
                 fileNameDisplay.classList.add('hidden');
             }
         });
-
-        // Simular envío de forma divertida
-        function procesarEnvioReporte(event) {
-            event.preventDefault();
-            alert("¡Wow! 🎉 ¡Gracias por investigar con nosotros!\n\nTus datos ya están viajando a la facu para sumarse al mapa.");
-            document.getElementById('reporteForm').reset();
-            fileNameDisplay.classList.add('hidden');
-        }
     </script>
 </body>
 </html>
