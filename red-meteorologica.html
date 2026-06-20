@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Red Meteorológica UNLP - Dashboard Analítico</title>
+    <title>¡El Tiempo en tu Escuela! - UNLP</title>
     
     <!-- Leaflet CSS & JS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -14,11 +14,11 @@
     <script src="https://unpkg.com/lucide@0.475.0/dist/umd/lucide.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800;900&display=swap" rel="stylesheet">
 
     <style>
         body { 
-            background-color: #f8fafc; 
+            background-color: #f0fdf4; /* Un verde muy clarito y alegre */
             color: #1e293b; 
             margin: 0; 
             font-family: 'Plus Jakarta Sans', sans-serif; 
@@ -27,158 +27,183 @@
         
         .station-btn {
             background: #ffffff;
-            border: 2px solid #f1f5f9;
-            transition: all 0.2s ease;
+            border: 3px solid #f1f5f9;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             display: flex;
             align-items: center;
             gap: 12px;
             padding: 12px;
-            border-radius: 16px;
+            border-radius: 20px;
             width: 100%;
             margin-bottom: 12px;
             text-align: left;
             cursor: pointer;
         }
-        .station-btn:hover { border-color: #cbd5e1; background: #f8fafc; }
-        .station-btn.active { border-color: #3b82f6; background: #eff6ff; box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.1); }
+        .station-btn:hover { border-color: #93c5fd; transform: translateY(-2px); }
+        .station-btn.active { border-color: #3b82f6; background: #eff6ff; box-shadow: 0 8px 15px -3px rgba(59, 130, 246, 0.2); }
 
-        .leaflet-popup-content-wrapper { border-radius: 12px; }
-        .leaflet-popup-content { margin: 10px; font-family: 'Plus Jakarta Sans', sans-serif; }
+        .leaflet-popup-content-wrapper { border-radius: 16px; border: 3px solid #3b82f6; }
+        .leaflet-popup-content { margin: 12px; font-family: 'Plus Jakarta Sans', sans-serif; text-align: center;}
+        
+        /* Efecto rebote amigable para las tarjetas */
+        .kid-card { transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        .kid-card:hover { transform: scale(1.03) rotate(-1deg); }
     </style>
 </head>
 <body class="flex flex-col lg:flex-row h-screen w-full">
 
-    <!-- BARRA LATERAL (MAPA CONTEXTUAL Y SELECTOR DE NODOS) -->
-    <aside class="w-full lg:w-[420px] bg-white border-r border-slate-200 flex flex-col h-[50vh] lg:h-screen shrink-0 z-20 shadow-xl lg:shadow-none overflow-y-auto lg:overflow-hidden">
+    <!-- BARRA LATERAL (MAPA Y SELECTOR) -->
+    <aside class="w-full lg:w-[420px] bg-white border-r-4 border-slate-200 flex flex-col h-[50vh] lg:h-screen shrink-0 z-20 shadow-2xl lg:shadow-none overflow-y-auto lg:overflow-hidden">
         
-        <!-- Cabecera -->
-        <div class="p-6 bg-white sticky top-0 z-10 border-b border-slate-100 flex justify-between items-center shrink-0">
+        <!-- Cabecera amigable -->
+        <div class="p-6 bg-white sticky top-0 z-10 border-b-2 border-slate-100 flex justify-between items-center shrink-0">
             <div>
-                <h1 class="text-xl font-extrabold text-slate-900 tracking-tight">Red de Escuelas</h1>
-                <p class="text-[10px] text-blue-600 font-bold uppercase tracking-widest mt-0.5">FCAG · Meteorología UNLP</p>
+                <h1 class="text-2xl font-black text-slate-900 tracking-tight">🌤️ Mis Escuelas</h1>
+                <p class="text-[11px] text-blue-600 font-bold uppercase tracking-widest mt-1">Ciencia divertida · UNLP</p>
             </div>
-            <a href="index.html" class="p-2 bg-slate-100 hover:bg-blue-100 text-slate-600 hover:text-blue-700 rounded-xl transition" title="Volver al inicio">
-                <i data-lucide="home" class="w-5 h-5"></i>
+            <a href="index.html" class="p-3 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-2xl transition" title="Volver al inicio">
+                <i data-lucide="home" class="w-6 h-6"></i>
             </a>
         </div>
 
         <!-- Mapa Geográfico Contextual -->
-        <div id="map" class="w-full h-48 lg:h-64 shrink-0 z-0 bg-slate-200 border-b border-slate-200"></div>
+        <div id="map" class="w-full h-48 lg:h-64 shrink-0 z-0 bg-slate-200 border-b-2 border-slate-200"></div>
 
         <!-- Selector de Estaciones -->
         <div class="p-6 flex-grow overflow-y-auto bg-slate-50/50">
-            <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-                <i data-lucide="map-pin" class="w-4 h-4 text-blue-500"></i> Seleccionar Nodo Activo
+            <h2 class="text-sm font-black text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2">
+                <i data-lucide="hand-pointing" class="w-5 h-5 text-blue-500"></i> ¡Elegí una escuela!
             </h2>
             <div id="button-container"></div>
             
-            <div class="mt-4 p-3 bg-blue-50/80 rounded-xl border border-blue-100 text-[10px] text-blue-700 font-medium leading-relaxed">
-                💡 <b>Tip Científico:</b> Seleccioná una escuela para cargar su telemetría en tiempo real en el panel analítico de la derecha.
+            <div class="mt-4 p-4 bg-yellow-100 rounded-2xl border-2 border-yellow-300 text-xs text-yellow-800 font-bold leading-relaxed shadow-sm">
+                💡 <b>¿Sabías que...?</b> El viento nos ayuda a saber de dónde vienen las nubes. ¡Mirá la flecha azul para descubrir hacia dónde sopla!
             </div>
         </div>
     </aside>
 
-    <!-- ÁREA PRINCIPAL: DASHBOARD ANALÍTICO MULTIVARIABLE -->
-    <main id="main-dashboard" class="flex-grow h-[50vh] lg:h-screen overflow-y-auto bg-slate-50/80 p-6 lg:p-10 scroll-smooth">
+    <!-- ÁREA PRINCIPAL: TABLERO DE EXPLORACIÓN -->
+    <main id="main-dashboard" class="flex-grow h-[50vh] lg:h-screen overflow-y-auto bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-slate-50/90 p-4 lg:p-8 scroll-smooth">
         
-        <div class="max-w-7xl mx-auto space-y-8">
+        <div class="max-w-7xl mx-auto space-y-6">
             
-            <!-- Título de Sección de Monitoreo -->
-            <header class="flex items-center gap-3 mb-2">
-                <div class="p-3 bg-blue-600 rounded-2xl text-white shadow-lg shadow-blue-600/20">
-                    <i data-lucide="layout-dashboard" class="w-6 h-6"></i>
+            <!-- Título Principal -->
+            <header class="flex items-center gap-4 mb-4 bg-white p-4 rounded-3xl border-2 border-slate-200 shadow-sm">
+                <div class="p-3 bg-blue-500 rounded-2xl text-white shadow-md transform -rotate-3">
+                    <i data-lucide="telescope" class="w-8 h-8"></i>
                 </div>
                 <div>
-                    <h2 class="text-2xl font-black text-slate-900 tracking-tight">Análisis Multivariable en Vivo</h2>
-                    <p class="text-sm text-slate-500 font-medium">Estación en análisis: <span id="nombre-estacion-activa" class="font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">Ninguna</span></p>
+                    <h2 class="text-2xl lg:text-3xl font-black text-slate-800 tracking-tight">¡Explorando el Tiempo!</h2>
+                    <p class="text-sm text-slate-500 font-bold mt-1">Estás viendo los datos mágicos de: <span id="nombre-estacion-activa" class="text-blue-600 bg-blue-100 px-3 py-1 rounded-xl border-2 border-blue-200 ml-1">Ninguna</span></p>
                 </div>
             </header>
 
-            <!-- TARJETAS DE INDICADORES PRINCIPALES (KPIs - 4 Variables) -->
-            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-                <!-- Tarjeta Temperatura -->
-                <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm hover:shadow-md transition relative overflow-hidden">
-                    <div class="absolute -right-4 -top-4 opacity-10"><i data-lucide="thermometer" class="w-24 h-24 text-orange-500"></i></div>
-                    <span class="block text-[10px] md:text-xs uppercase tracking-widest font-bold text-slate-400 mb-2 relative z-10">Temperatura</span>
-                    <span class="text-3xl md:text-4xl lg:text-5xl font-black text-slate-800 tracking-tighter relative z-10" id="live-val-temp">--°C</span>
+            <!-- TARJETAS DE DATOS EN VIVO (Machete Monte Veloz) -->
+            <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+                
+                <!-- Temperatura -->
+                <div class="bg-white border-2 border-orange-200 rounded-3xl p-4 kid-card shadow-sm flex flex-col justify-between">
+                    <span class="block text-[10px] uppercase font-black text-orange-500 mb-2">🌡️ Calor/Frío</span>
+                    <span class="text-3xl font-black text-slate-800 tracking-tighter" id="live-val-temp">--°C</span>
                 </div>
 
-                <!-- Tarjeta Humedad -->
-                <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm hover:shadow-md transition relative overflow-hidden">
-                    <div class="absolute -right-4 -top-4 opacity-10"><i data-lucide="droplets" class="w-24 h-24 text-blue-500"></i></div>
-                    <span class="block text-[10px] md:text-xs uppercase tracking-widest font-bold text-slate-400 mb-2 relative z-10">Humedad</span>
-                    <span class="text-3xl md:text-4xl lg:text-5xl font-black text-slate-800 tracking-tighter relative z-10" id="live-val-hum">--%</span>
+                <!-- Humedad -->
+                <div class="bg-white border-2 border-blue-200 rounded-3xl p-4 kid-card shadow-sm flex flex-col justify-between">
+                    <span class="block text-[10px] uppercase font-black text-blue-500 mb-2">💧 Humedad</span>
+                    <span class="text-3xl font-black text-slate-800 tracking-tighter" id="live-val-hum">--%</span>
                 </div>
 
-                <!-- Tarjeta Presión -->
-                <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm hover:shadow-md transition relative overflow-hidden">
-                    <div class="absolute -right-4 -top-4 opacity-10"><i data-lucide="gauge" class="w-24 h-24 text-emerald-500"></i></div>
-                    <span class="block text-[10px] md:text-xs uppercase tracking-widest font-bold text-slate-400 mb-2 relative z-10">Presión</span>
-                    <span class="text-3xl md:text-4xl lg:text-5xl font-black text-slate-800 tracking-tighter relative z-10" id="live-val-pres">-- hPa</span>
+                <!-- Presión -->
+                <div class="bg-white border-2 border-emerald-200 rounded-3xl p-4 kid-card shadow-sm flex flex-col justify-between">
+                    <span class="block text-[10px] uppercase font-black text-emerald-500 mb-2">🎈 Presión del aire</span>
+                    <span class="text-2xl lg:text-3xl font-black text-slate-800 tracking-tighter" id="live-val-pres">-- hPa</span>
                 </div>
 
-                <!-- Tarjeta Precipitación -->
-                <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm hover:shadow-md transition relative overflow-hidden">
-                    <div class="absolute -right-4 -top-4 opacity-10"><i data-lucide="cloud-rain" class="w-24 h-24 text-cyan-500"></i></div>
-                    <span class="block text-[10px] md:text-xs uppercase tracking-widest font-bold text-slate-400 mb-2 relative z-10">Lluvia</span>
-                    <span class="text-3xl md:text-4xl lg:text-5xl font-black text-slate-800 tracking-tighter relative z-10" id="live-val-rain">-- mm</span>
+                <!-- Lluvia -->
+                <div class="bg-white border-2 border-cyan-200 rounded-3xl p-4 kid-card shadow-sm flex flex-col justify-between">
+                    <span class="block text-[10px] uppercase font-black text-cyan-500 mb-2">🌧️ ¿Llovió hoy?</span>
+                    <span class="text-3xl font-black text-slate-800 tracking-tighter" id="live-val-rain">-- mm</span>
                 </div>
+
+                <!-- Viento y Dirección -->
+                <div class="bg-white border-2 border-indigo-200 rounded-3xl p-4 kid-card shadow-sm flex flex-col justify-between relative overflow-hidden">
+                    <span class="block text-[10px] uppercase font-black text-indigo-500 mb-2">🌬️ Viento</span>
+                    <div class="flex items-center gap-2">
+                        <span class="text-2xl font-black text-slate-800 tracking-tighter" id="live-val-wind">--</span>
+                        <span class="text-sm font-bold text-slate-400">km/h</span>
+                    </div>
+                    <!-- Flecha Mágica del Viento -->
+                    <div id="wind-dir-container" class="absolute top-3 right-3 w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center border-2 border-indigo-200 transition-all duration-700 hidden">
+                        <i data-lucide="arrow-up" id="live-val-winddir" class="w-5 h-5 text-indigo-600 transition-transform duration-1000 ease-in-out"></i>
+                    </div>
+                </div>
+
+                <!-- Punto de Rocío -->
+                <div class="bg-white border-2 border-purple-200 rounded-3xl p-4 kid-card shadow-sm flex flex-col justify-between">
+                    <span class="block text-[10px] uppercase font-black text-purple-500 mb-2">🌿 Rocío</span>
+                    <span class="text-3xl font-black text-slate-800 tracking-tighter" id="live-val-dew">--°C</span>
+                </div>
+
             </div>
 
-            <!-- GRÁFICOS DINÁMICOS HISTÓRICOS (Cuadrícula 2x2) -->
+            <!-- GRÁFICOS EDUCATIVOS -->
             <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
                 
                 <!-- Gráfico Temperatura -->
-                <div class="bg-white rounded-3xl p-6 md:p-8 border border-slate-200 shadow-sm">
-                    <h3 class="text-md font-bold text-slate-900 flex items-center gap-2 mb-4">
-                        <i data-lucide="thermometer" class="text-orange-500 w-5 h-5"></i> Evolución Térmica
+                <div class="bg-white rounded-3xl p-6 border-2 border-slate-200 shadow-sm">
+                    <h3 class="text-lg font-black text-slate-800 flex items-center gap-2 mb-4">
+                        <span class="bg-orange-100 p-2 rounded-xl text-orange-500"><i data-lucide="sun"></i></span>
+                        El camino de la Temperatura
                     </h3>
-                    <div class="h-[200px] md:h-[250px] relative w-full"><canvas id="chartTemp"></canvas></div>
+                    <div class="h-[200px] w-full"><canvas id="chartTemp"></canvas></div>
                 </div>
 
                 <!-- Gráfico Humedad -->
-                <div class="bg-white rounded-3xl p-6 md:p-8 border border-slate-200 shadow-sm">
-                    <h3 class="text-md font-bold text-slate-900 flex items-center gap-2 mb-4">
-                        <i data-lucide="droplets" class="text-blue-500 w-5 h-5"></i> Evolución de la Humedad
+                <div class="bg-white rounded-3xl p-6 border-2 border-slate-200 shadow-sm">
+                    <h3 class="text-lg font-black text-slate-800 flex items-center gap-2 mb-4">
+                        <span class="bg-blue-100 p-2 rounded-xl text-blue-500"><i data-lucide="droplets"></i></span>
+                        ¿Cuánta agua flotaba en el aire?
                     </h3>
-                    <div class="h-[200px] md:h-[250px] relative w-full"><canvas id="chartHum"></canvas></div>
+                    <div class="h-[200px] w-full"><canvas id="chartHum"></canvas></div>
                 </div>
 
                 <!-- Gráfico Presión -->
-                <div class="bg-white rounded-3xl p-6 md:p-8 border border-slate-200 shadow-sm">
-                    <h3 class="text-md font-bold text-slate-900 flex items-center gap-2 mb-4">
-                        <i data-lucide="gauge" class="text-emerald-500 w-5 h-5"></i> Presión Atmosférica
+                <div class="bg-white rounded-3xl p-6 border-2 border-slate-200 shadow-sm">
+                    <h3 class="text-lg font-black text-slate-800 flex items-center gap-2 mb-4">
+                        <span class="bg-emerald-100 p-2 rounded-xl text-emerald-500"><i data-lucide="gauge"></i></span>
+                        El peso de la atmósfera
                     </h3>
-                    <div class="h-[200px] md:h-[250px] relative w-full"><canvas id="chartPres"></canvas></div>
+                    <div class="h-[200px] w-full"><canvas id="chartPres"></canvas></div>
                 </div>
 
                 <!-- Gráfico Precipitación -->
-                <div class="bg-white rounded-3xl p-6 md:p-8 border border-slate-200 shadow-sm">
-                    <h3 class="text-md font-bold text-slate-900 flex items-center gap-2 mb-4">
-                        <i data-lucide="cloud-rain" class="text-cyan-500 w-5 h-5"></i> Registros Pluviométricos
+                <div class="bg-white rounded-3xl p-6 border-2 border-slate-200 shadow-sm">
+                    <h3 class="text-lg font-black text-slate-800 flex items-center gap-2 mb-4">
+                        <span class="bg-cyan-100 p-2 rounded-xl text-cyan-500"><i data-lucide="cloud-rain"></i></span>
+                        Lluvia acumulada en el día
                     </h3>
-                    <div class="h-[200px] md:h-[250px] relative w-full"><canvas id="chartRain"></canvas></div>
+                    <div class="h-[200px] w-full"><canvas id="chartRain"></canvas></div>
                 </div>
 
             </div>
 
-            <!-- GRÁFICO COMPARATIVO DE LA RED -->
-            <div class="bg-slate-900 rounded-3xl p-8 border border-slate-800 shadow-xl text-white relative overflow-hidden">
-                <div class="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -mr-20 -mt-20 z-0"></div>
+            <!-- GRÁFICO DE COMPETENCIA ENTRE ESCUELAS -->
+            <div class="bg-slate-800 rounded-3xl p-6 border-4 border-slate-900 shadow-xl text-white relative overflow-hidden">
+                <div class="absolute -right-10 -top-10 opacity-20 transform rotate-12"><i data-lucide="star" class="w-48 h-48 text-yellow-400"></i></div>
                 <div class="relative z-10">
-                    <div class="mb-6">
-                        <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                            <i data-lucide="git-compare" class="text-indigo-400 w-5 h-5"></i> Gradiente Térmico Interescolar
+                    <div class="mb-4">
+                        <h3 class="text-xl font-black text-white flex items-center gap-2">
+                            🏆 ¡Carrera de Temperaturas!
                         </h3>
-                        <p class="text-xs text-slate-400 mt-1">Comparativa en tiempo real de la temperatura actual entre todos los nodos activos de la cuenca.</p>
+                        <p class="text-sm font-bold text-slate-400 mt-1">¿Qué escuela tiene más calor en este momento exacto?</p>
                     </div>
-                    <div class="h-[200px] lg:h-[250px] relative w-full"><canvas id="chartComparativo"></canvas></div>
+                    <div class="h-[220px] w-full"><canvas id="chartComparativo"></canvas></div>
                 </div>
             </div>
             
             <footer class="text-center pb-8 pt-4">
-                <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                    Proyecto de Extensión · Facultad de Ciencias Astronómicas y Geofísicas UNLP
+                <p class="text-[12px] font-black text-slate-400 uppercase tracking-widest bg-white inline-block px-4 py-2 rounded-full border-2 border-slate-200">
+                    Hecho con 🩵 por la Facu de Astro y Geo (FCAG) - UNLP
                 </p>
             </footer>
 
@@ -188,71 +213,89 @@
     <script>
         lucide.createIcons();
 
-        // Base de datos de estaciones
+        // Nodos de la red
         const puntos = [
             { id: "2218686", n: "EP N°23", loc: "Bavio", c: [-35.0254, -57.7529], clr: "#10b981", live: true, img: "imagenes/escuela23.jpg" },
             { id: "2218689", n: "EP N°34", loc: "Malagamba", c: [-35.0724, -57.8656], clr: "#3b82f6", live: true, img: "imagenes/escuela34.jpg" },
-            { id: "3149195", n: "Monte Veloz", loc: "Ruta 36", c: [-35.3200, -57.4200], clr: "#f59e0b", live: true, img: "https://images.unsplash.com/photo-1592210454359-9043f067919b?auto=format&fit=crop&q=80&w=300" }
+            { id: "3149195", n: "Monte Veloz", loc: "Ruta 36", c: [-35.3200, -57.4200], clr: "#f59e0b", live: true, img: "https://images.unsplash.com/photo-1592210454359-9043f067919b?auto=format&fit=crop&q=80&w=300" },
+            { id: "2218687", key: "TH3V4TJLRFZD3JSG", n: "San Vicente de Paul", loc: "La Plata", c: [-34.9031, -57.9485], clr: "#8b5cf6", live: true, img: "https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&q=80&w=300" },
+            { id: "2823820", key: "FFI1HK80ZKDNS6V8", n: "Observatorio FCAG", loc: "Bosque LP", c: [-34.9064, -57.9322], clr: "#ef4444", live: true, img: "imagenes/observatorio.png" }
         ];
 
-        const map = L.map('map', { zoomControl: false }).setView([-35.12, -57.65], 10);
+        // Mapa compacto
+        const map = L.map('map', { zoomControl: false }).setView([-35.10, -57.75], 9);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(map);
         setTimeout(() => map.invalidateSize(), 500);
 
         const btnContainer = document.getElementById('button-container');
-        
-        // Objeto para almacenar las instancias de Chart.js y evitar superposiciones
         const graficos = { temp: null, hum: null, pres: null, rain: null, comp: null };
         let datosComparativos = { labels: [], temps: [], colors: [] };
 
-        // 1. Petición a ThingSpeak Extrayendo TODAS las variables
-        async function fetchHistorialCanal(channelId) {
+        // 1. Petición a ThingSpeak incorporando el "Machete" exacto de Campos
+        async function fetchHistorialCanal(estacion) {
             try {
-                // Pedimos los últimos 15 resultados
-                const response = await fetch(`https://api.thingspeak.com/channels/${channelId}/feeds.json?results=15`);
+                const channelId = estacion.id;
+                const apiKeyParam = estacion.key ? `&api_key=${estacion.key}` : "";
+                const response = await fetch(`https://api.thingspeak.com/channels/${channelId}/feeds.json?results=15${apiKeyParam}`);
                 const data = await response.json();
                 
-                const horas = []; const temps = []; const hums = []; const press = []; const rains = [];
-                const rainField = (channelId === "2218686") ? 'field3' : 'field5';
+                const horas = []; const temps = []; const hums = []; 
+                const press = []; const rains = []; const winds = []; 
+                const windDirs = []; const dews = [];
+
+                const isMonteVeloz = channelId === "3149195";
+                const isEP23 = channelId === "2218686";
 
                 data.feeds.forEach(f => {
                     const d = new Date(f.created_at);
                     horas.push(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`);
                     
+                    // Field 1: Temp
                     let t = parseFloat(f.field1);
-                    if (channelId === "2218686") t -= 2.0; // Calibración térmica
+                    if (isEP23) t -= 2.0; 
                     temps.push(isNaN(t) ? null : t.toFixed(1));
                     
+                    // Field 2: Humedad
                     let h = parseFloat(f.field2);
                     hums.push(isNaN(h) ? null : h.toFixed(0));
                     
-                    let p = parseFloat(f.field6);
+                    // Field 3 o 6: Presión (Machete: Monte Veloz = f3. EP23 = f6)
+                    let p = parseFloat(isMonteVeloz ? f.field3 : f.field6);
                     press.push(isNaN(p) ? null : p.toFixed(1));
                     
+                    // Field 6, 3 o 5: Lluvia (Machete: Monte Veloz = f6. EP23 = f3. EP34 = f5)
+                    let rainField = isMonteVeloz ? 'field6' : (isEP23 ? 'field3' : 'field5');
                     let r = parseFloat(f[rainField]);
                     rains.push(isNaN(r) ? null : r.toFixed(1));
+
+                    // Field 4: Velocidad Viento (Solo Monte Veloz)
+                    let ws = isMonteVeloz ? parseFloat(f.field4) : null;
+                    winds.push(ws === null || isNaN(ws) ? null : ws.toFixed(1));
+
+                    // Field 5: Dir Viento (Solo Monte Veloz)
+                    let wd = isMonteVeloz ? parseFloat(f.field5) : null;
+                    windDirs.push(wd === null || isNaN(wd) ? null : wd);
+
+                    // Field 7: Rocío (Solo Monte Veloz)
+                    let dp = isMonteVeloz ? parseFloat(f.field7) : null;
+                    dews.push(dp === null || isNaN(dp) ? null : dp.toFixed(1));
                 });
 
-                return { horas, temps, hums, press, rains };
+                return { horas, temps, hums, press, rains, winds, windDirs, dews };
             } catch (e) {
-                // Mock de respaldo
-                return {
-                    horas: ['08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00'],
-                    temps: [11.5, 14.5, 17.2, 21.0, 19.8, 16.1, 13.4],
-                    hums: [80, 72, 60, 55, 62, 70, 78],
-                    press: [1013.2, 1012.8, 1011.5, 1010.1, 1011.0, 1012.5, 1013.0],
-                    rains: [0, 0, 1.2, 2.5, 0, 0, 0]
-                };
+                console.error(e);
+                return { horas: [], temps: [], hums: [], press: [], rains: [], winds: [], windDirs: [], dews: [] };
             }
         }
 
-        // 2. Función genérica para renderizar los 4 gráficos dinámicos
-        function crearGraficoEvolucion(canvasId, tipoGrafico, horas, valores, colorLinea, tituloLabel) {
+        // 2. Gráficos interactivos divertidos
+        function crearGraficoEvolucion(canvasId, tipoGrafico, horas, valores, colorLinea, tituloHover) {
             const ctx = document.getElementById(canvasId).getContext('2d');
             if (graficos[tipoGrafico]) graficos[tipoGrafico].destroy(); 
 
-            const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-            gradient.addColorStop(0, `${colorLinea}50`);
+            // Relleno suave abajo de la curva
+            const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+            gradient.addColorStop(0, `${colorLinea}60`);
             gradient.addColorStop(1, `${colorLinea}00`);
 
             graficos[tipoGrafico] = new Chart(ctx, {
@@ -260,19 +303,19 @@
                 data: {
                     labels: horas,
                     datasets: [{
-                        label: tituloLabel,
+                        label: tituloHover,
                         data: valores,
                         borderColor: colorLinea,
                         backgroundColor: gradient,
-                        borderWidth: 3,
+                        borderWidth: 4,
                         pointBackgroundColor: '#ffffff',
                         pointBorderColor: colorLinea,
-                        pointBorderWidth: 2,
-                        pointRadius: 3,
-                        pointHoverRadius: 5,
+                        pointBorderWidth: 3,
+                        pointRadius: 5,
+                        pointHoverRadius: 8,
                         fill: true,
                         tension: 0.4,
-                        spanGaps: true // Conecta la línea si faltan datos
+                        spanGaps: true 
                     }]
                 },
                 options: {
@@ -281,28 +324,28 @@
                     plugins: { 
                         legend: { display: false },
                         tooltip: {
-                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                            padding: 10,
-                            titleFont: { size: 12, family: "'Plus Jakarta Sans', sans-serif" },
-                            bodyFont: { size: 13, weight: 'bold', family: "'Plus Jakarta Sans', sans-serif" },
+                            backgroundColor: '#1e293b',
+                            padding: 12,
+                            titleFont: { size: 14, family: "'Plus Jakarta Sans', sans-serif" },
+                            bodyFont: { size: 16, weight: '900', family: "'Plus Jakarta Sans', sans-serif" },
                             displayColors: false
                         }
                     },
                     scales: { 
                         y: { 
-                            grid: { color: '#f1f5f9', borderDash: [5, 5] },
-                            ticks: { font: { weight: 'bold', family: "'Plus Jakarta Sans', sans-serif" }, color: '#64748b' }
+                            grid: { color: '#f1f5f9', borderDash: [6, 6] },
+                            ticks: { font: { weight: '800', family: "'Plus Jakarta Sans', sans-serif" }, color: '#64748b' }
                         }, 
                         x: { 
                             grid: { display: false },
-                            ticks: { font: { family: "'Plus Jakarta Sans', sans-serif" }, color: '#94a3b8' }
+                            ticks: { font: { weight: '800', family: "'Plus Jakarta Sans', sans-serif" }, color: '#94a3b8' }
                         } 
                     }
                 }
             });
         }
 
-        // 3. Gráfico Comparativo
+        // 3. Gráfico de "Carrera" Comparativo
         function renderizarGraficoComparativo() {
             const ctxComp = document.getElementById('chartComparativo').getContext('2d');
             if (graficos.comp) graficos.comp.destroy();
@@ -314,9 +357,8 @@
                     datasets: [{
                         data: datosComparativos.temps,
                         backgroundColor: datosComparativos.colors,
-                        borderRadius: 8,
-                        barThickness: 'flex',
-                        maxBarThickness: 50
+                        borderRadius: 16,
+                        barThickness: 45
                     }]
                 },
                 options: {
@@ -325,52 +367,71 @@
                     plugins: { 
                         legend: { display: false },
                         tooltip: {
-                            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                            backgroundColor: '#ffffff',
                             titleColor: '#0f172a',
                             bodyColor: '#0f172a',
-                            padding: 10,
-                            bodyFont: { size: 14, weight: 'bold', family: "'Plus Jakarta Sans', sans-serif" },
+                            padding: 12,
+                            titleFont: { size: 14, family: "'Plus Jakarta Sans', sans-serif" },
+                            bodyFont: { size: 18, weight: '900', family: "'Plus Jakarta Sans', sans-serif" },
                             displayColors: false,
                             callbacks: { label: function(context) { return context.parsed.y + ' °C'; } }
                         }
                     },
                     scales: {
                         y: { 
-                            grid: { color: 'rgba(255,255,255,0.1)' },
-                            ticks: { font: { weight: 'bold', family: "'Plus Jakarta Sans', sans-serif" }, color: '#94a3b8' }
+                            grid: { color: 'rgba(255,255,255,0.1)', borderDash: [4, 4] },
+                            ticks: { font: { weight: '800', family: "'Plus Jakarta Sans', sans-serif" }, color: '#cbd5e1' }
                         },
                         x: { 
                             grid: { display: false },
-                            ticks: { font: { weight: 'bold', family: "'Plus Jakarta Sans', sans-serif" }, color: '#cbd5e1' }
+                            ticks: { font: { size: 14, weight: '900', family: "'Plus Jakarta Sans', sans-serif" }, color: '#ffffff' }
                         }
                     }
                 }
             });
         }
 
-        // 4. Lógica de Selección
+        // 4. Elegir Escuela Mágicamente
         async function seleccionarEscuela(p, btnElement, marker) {
             document.querySelectorAll('.station-btn').forEach(b => b.classList.remove('active'));
             btnElement.classList.add('active');
             document.getElementById('nombre-estacion-activa').innerText = p.n;
             
-            map.flyTo(p.c, 13, { duration: 1.2 });
+            map.flyTo(p.c, 13, { duration: 1.5 });
             marker.openPopup();
 
-            const hist = await fetchHistorialCanal(p.id);
+            const hist = await fetchHistorialCanal(p);
             
-            // Extrayendo los últimos valores válidos para las tarjetas
             if (hist.temps.length > 0) {
                 const getUltimoValido = (arr) => arr.slice().reverse().find(val => val !== null) || '--';
 
+                // Variables clásicas
                 document.getElementById('live-val-temp').innerText = `${getUltimoValido(hist.temps)}°C`;
                 document.getElementById('live-val-hum').innerText = `${getUltimoValido(hist.hums)}%`;
                 document.getElementById('live-val-pres').innerText = `${getUltimoValido(hist.press)} hPa`;
                 document.getElementById('live-val-rain').innerText = `${getUltimoValido(hist.rains)} mm`;
                 
-                // Dibujar los 4 gráficos individuales
-                crearGraficoEvolucion('chartTemp', 'temp', hist.horas, hist.temps, '#f97316', 'Temperatura (°C)');
-                crearGraficoEvolucion('chartHum', 'hum', hist.horas, hist.hums, '#3b82f6', 'Humedad (%)');
+                // Viento y Rocío (Solo para Monte Veloz o si existen)
+                const ultWind = getUltimoValido(hist.winds);
+                document.getElementById('live-val-wind').innerText = ultWind !== '--' ? ultWind : '--';
+                
+                const ultDir = getUltimoValido(hist.windDirs);
+                const dirContainer = document.getElementById('wind-dir-container');
+                const dirIcon = document.getElementById('live-val-winddir');
+                if (ultDir !== '--') {
+                    dirContainer.classList.remove('hidden');
+                    // Gira la flechita para indicar hacia dónde va el viento
+                    dirIcon.style.transform = `rotate(${ultDir}deg)`;
+                } else {
+                    dirContainer.classList.add('hidden');
+                }
+
+                const ultDew = getUltimoValido(hist.dews);
+                document.getElementById('live-val-dew').innerText = ultDew !== '--' ? `${ultDew}°C` : '--';
+                
+                // Dibujar gráficos infantiles
+                crearGraficoEvolucion('chartTemp', 'temp', hist.horas, hist.temps, '#f97316', 'Calor (°C)');
+                crearGraficoEvolucion('chartHum', 'hum', hist.horas, hist.hums, '#3b82f6', 'Agua en aire (%)');
                 crearGraficoEvolucion('chartPres', 'pres', hist.horas, hist.press, '#10b981', 'Presión (hPa)');
                 crearGraficoEvolucion('chartRain', 'rain', hist.horas, hist.rains, '#06b6d4', 'Lluvia (mm)');
             }
@@ -378,17 +439,17 @@
             if(window.innerWidth < 1024) document.getElementById('main-dashboard').scrollIntoView({ behavior: 'smooth' });
         }
 
-        // 5. Inicialización
+        // 5. Iniciar la diversión
         async function inicializarRed() {
             for (const [index, p] of puntos.entries()) {
                 const marker = L.circleMarker(p.c, {
-                    radius: 8, fillColor: p.clr, color: "#ffffff", weight: 2, fillOpacity: 1
+                    radius: 9, fillColor: p.clr, color: "#ffffff", weight: 3, fillOpacity: 1
                 }).addTo(map);
 
-                marker.bindPopup(`<b class="text-[11px] font-bold text-slate-800 m-0">${p.n}</b>`);
+                marker.bindPopup(`<b class="text-[14px] font-black text-slate-800 m-0">${p.n}</b>`);
 
-                const dataHistorial = await fetchHistorialCanal(p.id);
-                if (dataHistorial.temps.length > 0) {
+                const dataHistorial = await fetchHistorialCanal(p);
+                if (dataHistorial.temps && dataHistorial.temps.length > 0) {
                     const ultimaTemp = dataHistorial.temps.slice().reverse().find(val => val !== null);
                     if(ultimaTemp) {
                         datosComparativos.labels.push(p.n);
@@ -400,14 +461,13 @@
                 const btn = document.createElement('button');
                 btn.className = "station-btn shadow-sm";
                 btn.innerHTML = `
-                    <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border border-slate-100" style="background-color: ${p.clr}15">
-                        <i data-lucide="radio" class="w-5 h-5" style="color: ${p.clr}"></i>
+                    <div class="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border-2 border-slate-100" style="background-color: ${p.clr}20">
+                        <i data-lucide="map-pin" class="w-6 h-6" style="color: ${p.clr}"></i>
                     </div>
                     <div class="flex-grow">
-                        <span class="block font-bold text-sm text-slate-800 leading-tight">${p.n}</span>
-                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wide">${p.loc}</span>
+                        <span class="block font-black text-base text-slate-800 leading-tight">${p.n}</span>
+                        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-widest">${p.loc}</span>
                     </div>
-                    <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></div>
                 `;
                 
                 btn.onclick = () => seleccionarEscuela(p, btn, marker);
