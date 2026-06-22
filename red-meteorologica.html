@@ -40,9 +40,18 @@
             margin-bottom: 10px;
             text-align: left;
             cursor: pointer;
+            position: relative;
         }
-        .station-btn:hover { border-color: #93c5fd; transform: translateY(-3px); }
-        .station-btn.active { border-color: #3b82f6; background: #eff6ff; border-bottom-width: 3px; transform: translateY(3px); }
+        .station-btn:hover:not(.offline) { border-color: #93c5fd; transform: translateY(-3px); }
+        .station-btn.active:not(.offline) { border-color: #3b82f6; background: #eff6ff; border-bottom-width: 3px; transform: translateY(3px); }
+        
+        /* Estilo para estaciones Fuera de Servicio */
+        .station-btn.offline {
+            opacity: 0.6;
+            cursor: not-allowed;
+            border-color: #cbd5e1;
+            filter: grayscale(100%);
+        }
 
         .leaflet-popup-content-wrapper { border-radius: 16px; border: 4px solid #3b82f6; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
         .leaflet-popup-content { margin: 12px; font-family: 'Plus Jakarta Sans', sans-serif; text-align: center; }
@@ -75,19 +84,13 @@
     </style>
 </head>
 
-<!-- Sin h-screen ni overflow acá: mobile scrollea naturalmente -->
 <body class="text-slate-800 antialiased">
 
 <div id="layout-root" class="flex flex-col lg:flex-row w-full">
 
-    <!-- ═══════════════════════════════════════════════════
-         BARRA LATERAL
-         Mobile: altura automática, sin fixed
-         Desktop: h-screen con scroll interno
-    ════════════════════════════════════════════════════ -->
+    <!-- BARRA LATERAL -->
     <aside class="w-full lg:w-[400px] xl:w-[430px] bg-white border-b-4 lg:border-b-0 lg:border-r-4 border-slate-200 flex flex-col lg:h-screen shrink-0 z-20 shadow-lg">
         
-        <!-- Cabecera sticky en desktop, normal en mobile -->
         <div class="p-4 lg:p-6 bg-white border-b-2 border-slate-100 flex justify-between items-center shrink-0 lg:sticky lg:top-0 lg:z-10">
             <div class="flex items-center gap-3">
                 <div class="p-2 bg-yellow-400 rounded-full animate-float">
@@ -103,11 +106,9 @@
             </a>
         </div>
 
-        <!-- Mapa: más chico en mobile -->
         <div id="map" class="w-full h-44 lg:h-56 shrink-0 z-0 bg-slate-200 border-b-4 border-slate-200"></div>
 
-        <!-- Lista de estaciones: scroll interno solo en desktop -->
-        <div id="sidebar-scroll" class="p-4 lg:p-5 lg:flex-grow lg:overflow-y-auto bg-slate-50/80">
+        <div id="sidebar-scroll" class="p-4 lg:p-5 lg:flex-grow lg:overflow-y-auto bg-slate-50/80 relative">
             <h2 class="text-xs font-black text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
                 <i data-lucide="hand-pointing" class="w-4 h-4 text-blue-500 animate-bounce"></i> ¡Elegí una escuela!
             </h2>
@@ -120,16 +121,11 @@
         </div>
     </aside>
 
-    <!-- ═══════════════════════════════════════════════════
-         ÁREA PRINCIPAL
-         Mobile: altura automática, sin fixed
-         Desktop: h-screen overflow-y-auto
-    ════════════════════════════════════════════════════ -->
+    <!-- ÁREA PRINCIPAL -->
     <main id="main-dashboard" class="flex-grow lg:h-screen lg:overflow-y-auto bg-gradient-to-br from-sky-400 via-blue-300 to-sky-200 bg-sky-pattern scroll-smooth">
         
         <div class="max-w-5xl mx-auto space-y-5 p-4 lg:p-8 relative z-10">
             
-            <!-- Título con estación activa -->
             <header class="flex items-center gap-3 lg:gap-4 bg-white/90 backdrop-blur-md p-4 lg:p-5 rounded-[1.5rem] lg:rounded-[2rem] border-4 border-white shadow-xl">
                 <div class="p-3 lg:p-4 bg-gradient-to-tr from-blue-600 to-cyan-400 rounded-2xl text-white shadow-lg shrink-0 transform -rotate-6 hover:rotate-0 transition duration-300">
                     <i data-lucide="telescope" class="w-7 h-7 lg:w-10 lg:h-10 animate-float"></i>
@@ -143,10 +139,8 @@
                 </div>
             </header>
 
-            <!-- TARJETAS DE DATOS: 2 cols mobile → 3 cols md → 6 cols xl -->
             <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 lg:gap-5">
-                
-                <!-- Temperatura -->
+                <!-- Tarjetas de Datos -->
                 <div class="bg-gradient-to-b from-orange-50 to-orange-100 border-2 border-orange-300 border-b-[6px] rounded-2xl p-4 lg:p-5 kid-card shadow-md flex flex-col justify-between">
                     <div class="flex justify-between items-start mb-2">
                         <span class="block text-[9px] lg:text-[10px] uppercase font-black text-orange-600 leading-tight">🌡️ Calor/Frío</span>
@@ -155,7 +149,6 @@
                     <span class="text-2xl lg:text-4xl font-black text-slate-800 tracking-tighter" id="live-val-temp">--°C</span>
                 </div>
 
-                <!-- Humedad -->
                 <div class="bg-gradient-to-b from-blue-50 to-blue-100 border-2 border-blue-300 border-b-[6px] rounded-2xl p-4 lg:p-5 kid-card shadow-md flex flex-col justify-between">
                     <div class="flex justify-between items-start mb-2">
                         <span class="block text-[9px] lg:text-[10px] uppercase font-black text-blue-600 leading-tight">💧 Humedad</span>
@@ -164,7 +157,6 @@
                     <span class="text-2xl lg:text-4xl font-black text-slate-800 tracking-tighter" id="live-val-hum">--%</span>
                 </div>
 
-                <!-- Presión -->
                 <div class="bg-gradient-to-b from-emerald-50 to-emerald-100 border-2 border-emerald-300 border-b-[6px] rounded-2xl p-4 lg:p-5 kid-card shadow-md flex flex-col justify-between">
                     <div class="flex justify-between items-start mb-2">
                         <span class="block text-[9px] lg:text-[10px] uppercase font-black text-emerald-600 leading-tight">🎈 Presión</span>
@@ -173,7 +165,6 @@
                     <span class="text-xl lg:text-3xl font-black text-slate-800 tracking-tighter" id="live-val-pres">-- hPa</span>
                 </div>
 
-                <!-- Lluvia -->
                 <div class="bg-gradient-to-b from-cyan-50 to-cyan-100 border-2 border-cyan-300 border-b-[6px] rounded-2xl p-4 lg:p-5 kid-card shadow-md flex flex-col justify-between">
                     <div class="flex justify-between items-start mb-2">
                         <span class="block text-[9px] lg:text-[10px] uppercase font-black text-cyan-600 leading-tight">🌧️ Lluvia hoy</span>
@@ -182,7 +173,6 @@
                     <span class="text-2xl lg:text-4xl font-black text-slate-800 tracking-tighter" id="live-val-rain">-- mm</span>
                 </div>
 
-                <!-- Viento -->
                 <div class="bg-gradient-to-b from-indigo-50 to-indigo-100 border-2 border-indigo-300 border-b-[6px] rounded-2xl p-4 lg:p-5 kid-card shadow-md flex flex-col justify-between relative">
                     <span class="block text-[9px] lg:text-[10px] uppercase font-black text-indigo-600 mb-2">🌬️ Viento</span>
                     <div class="flex items-end gap-1">
@@ -194,7 +184,6 @@
                     </div>
                 </div>
 
-                <!-- Punto de Rocío -->
                 <div class="bg-gradient-to-b from-purple-50 to-purple-100 border-2 border-purple-300 border-b-[6px] rounded-2xl p-4 lg:p-5 kid-card shadow-md flex flex-col justify-between">
                     <div class="flex justify-between items-start mb-2">
                         <span class="block text-[9px] lg:text-[10px] uppercase font-black text-purple-600 leading-tight">🌿 Rocío</span>
@@ -202,12 +191,10 @@
                     </div>
                     <span class="text-2xl lg:text-4xl font-black text-slate-800 tracking-tighter" id="live-val-dew">--°C</span>
                 </div>
-
             </div>
 
-            <!-- GRÁFICOS: 1 col mobile → 2 cols xl -->
+            <!-- Gráficos -->
             <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6">
-                
                 <div class="bg-white/95 backdrop-blur-sm rounded-2xl lg:rounded-[2rem] p-5 lg:p-6 border-4 border-white shadow-xl">
                     <h3 class="text-base lg:text-lg font-black text-slate-800 flex items-center gap-2 lg:gap-3 mb-4">
                         <span class="bg-orange-100 p-1.5 lg:p-2 rounded-xl text-orange-500 border-2 border-orange-200 shadow-sm"><i data-lucide="sun" class="w-4 h-4 lg:w-5 lg:h-5"></i></span>
@@ -240,7 +227,6 @@
                     </h3>
                     <div class="h-[180px] lg:h-[220px] w-full relative z-10"><canvas id="chartRain"></canvas></div>
                 </div>
-
             </div>
 
             <!-- CARRERA DE TEMPERATURAS -->
@@ -271,9 +257,11 @@
     <script>
         lucide.createIcons();
 
+        // Configuración de las estaciones
+        // IMPORTANTE: EP N°34 (2218689) está marcada como live: false (Fuera de servicio)
         const puntos = [
-            { id: "2218686", n: "EP N°23", loc: "Bavio", c: [-35.0254, -57.7529], clr: "#10b981", live: true, img: "imagenes/escuela23.jpg" },
-            { id: "2218689", n: "EP N°34", loc: "Malagamba", c: [-35.0724, -57.8656], clr: "#3b82f6", live: true, img: "imagenes/escuela34.jpg" },
+            { id: "2218686", n: "EP N°23", loc: "Bavio / EMA Verde", c: [-35.0254, -57.7529], clr: "#10b981", live: true, img: "imagenes/escuela23.jpg" },
+            { id: "2218689", n: "EP N°34", loc: "Malagamba", c: [-35.0724, -57.8656], clr: "#3b82f6", live: false, img: "imagenes/escuela34.jpg" },
             { id: "3149195", n: "Monte Veloz", loc: "Ruta 36", c: [-35.3200, -57.4200], clr: "#f59e0b", live: true, img: "https://images.unsplash.com/photo-1592210454359-9043f067919b?auto=format&fit=crop&q=80&w=300" },
             { id: "2218687", key: "TH3V4TJLRFZD3JSG", n: "San Vicente", loc: "La Plata", c: [-34.9031, -57.9485], clr: "#8b5cf6", live: true, img: "https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&q=80&w=300" },
             { id: "2823820", key: "FFI1HK80ZKDNS6V8", n: "Observatorio", loc: "Bosque LP", c: [-34.9064, -57.9322], clr: "#ef4444", live: true, img: "imagenes/observatorio.png" }
@@ -287,7 +275,27 @@
         const graficos = { temp: null, hum: null, pres: null, rain: null, comp: null };
         let datosComparativos = { labels: [], temps: [], colors: [] };
 
+        // Función auxiliar para calcular cuánto tiempo pasó desde el último dato
+        function calcularTiempoTranscurrido(fechaISO) {
+            if (!fechaISO) return "Sin datos";
+            const fechaDato = new Date(fechaISO);
+            const ahora = new Date();
+            const diffMs = ahora - fechaDato;
+            const diffMins = Math.round(diffMs / 60000);
+
+            if (diffMins < 60) return `Hace ${diffMins} min`;
+            const diffHoras = Math.floor(diffMins / 60);
+            if (diffHoras < 24) return `Hace ${diffHoras} hs`;
+            const diffDias = Math.floor(diffHoras / 24);
+            return `Hace ${diffDias} ${diffDias === 1 ? 'día' : 'días'}`;
+        }
+
         async function fetchHistorialCanal(estacion) {
+            // Si la estación está offline manualment, devolvemos arrays vacíos directamente
+            if (!estacion.live) {
+                return { horas: [], temps: [], hums: [], press: [], rains: [], winds: [], windDirs: [], dews: [], lastEntryTime: null };
+            }
+
             try {
                 const channelId = estacion.id;
                 const apiKeyParam = estacion.key ? `&api_key=${estacion.key}` : "";
@@ -295,35 +303,52 @@
                 const data = await response.json();
                 
                 const horas = [], temps = [], hums = [], press = [], rains = [], winds = [], windDirs = [], dews = [];
+                
+                // Identificadores de estaciones
                 const isMonteVeloz = channelId === "3149195";
                 const isEP23 = channelId === "2218686";
+                const isObservatorio = channelId === "2823820";
+
+                let lastEntryTime = null;
+                if (data.feeds && data.feeds.length > 0) {
+                    lastEntryTime = data.feeds[data.feeds.length - 1].created_at;
+                }
 
                 data.feeds.forEach(f => {
                     const d = new Date(f.created_at);
                     horas.push(`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`);
+                    
+                    // 1. TEMPERATURA: Ya NO restamos 2.0 a la EP23
                     let t = parseFloat(f.field1);
-                    if (isEP23) t -= 2.0;
                     temps.push(isNaN(t) ? null : t.toFixed(1));
-                    let h = parseFloat(f.field2);
+                    
+                    // 2. HUMEDAD: Si es Observatorio (2823820), usar field4. Si no, field2.
+                    let hField = isObservatorio ? 'field4' : 'field2';
+                    let h = parseFloat(f[hField]);
                     hums.push(isNaN(h) ? null : h.toFixed(0));
+                    
                     let p = parseFloat(isMonteVeloz ? f.field3 : f.field6);
                     press.push(isNaN(p) ? null : p.toFixed(1));
+                    
                     let rainField = isMonteVeloz ? 'field6' : (isEP23 ? 'field3' : 'field5');
                     let r = parseFloat(f[rainField]);
                     r = isNaN(r) ? null : Math.max(0, r);
                     rains.push(r === null ? null : r.toFixed(1));
+                    
                     let ws = isMonteVeloz ? parseFloat(f.field4) : null;
                     winds.push(ws === null || isNaN(ws) ? null : ws.toFixed(1));
+                    
                     let wd = isMonteVeloz ? parseFloat(f.field5) : null;
                     windDirs.push(wd === null || isNaN(wd) ? null : wd);
+                    
                     let dp = isMonteVeloz ? parseFloat(f.field7) : null;
                     dews.push(dp === null || isNaN(dp) ? null : dp.toFixed(1));
                 });
 
-                return { horas, temps, hums, press, rains, winds, windDirs, dews };
+                return { horas, temps, hums, press, rains, winds, windDirs, dews, lastEntryTime };
             } catch (e) {
-                console.error(e);
-                return { horas: [], temps: [], hums: [], press: [], rains: [], winds: [], windDirs: [], dews: [] };
+                console.error("Error obteniendo datos de", estacion.n, e);
+                return { horas: [], temps: [], hums: [], press: [], rains: [], winds: [], windDirs: [], dews: [], lastEntryTime: null };
             }
         }
 
@@ -430,6 +455,9 @@
         }
 
         async function seleccionarEscuela(p, btnElement, marker) {
+            // No hacer nada si la estación está fuera de servicio
+            if (!p.live) return;
+
             document.querySelectorAll('.station-btn').forEach(b => b.classList.remove('active'));
             btnElement.classList.add('active');
             document.getElementById('nombre-estacion-activa').innerText = p.n;
@@ -437,12 +465,38 @@
             marker.openPopup();
 
             const hist = await fetchHistorialCanal(p);
-            if (hist.temps.length > 0) {
+            
+            // Función para limpiar campos si no hay datos
+            const limpiarCampos = () => {
+                document.getElementById('live-val-temp').innerText = '--°C';
+                document.getElementById('live-val-hum').innerText = '--%';
+                document.getElementById('live-val-pres').innerText = '-- hPa';
+                document.getElementById('live-val-rain').innerText = '-- mm';
+                document.getElementById('live-val-wind').innerText = '--';
+                document.getElementById('live-val-dew').innerText = '--°C';
+                document.getElementById('wind-dir-container').classList.add('hidden');
+                ['chartTemp', 'chartHum', 'chartPres', 'chartRain'].forEach(id => {
+                    const canvas = document.getElementById(id);
+                    const ctx = canvas.getContext('2d');
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    if(graficos[id.replace('chart','').toLowerCase()]) graficos[id.replace('chart','').toLowerCase()].destroy();
+                });
+            };
+
+            if (hist && hist.temps.length > 0) {
                 const getUltimoValido = (arr) => arr.slice().reverse().find(val => val !== null) || '--';
-                document.getElementById('live-val-temp').innerText = `${getUltimoValido(hist.temps)}°C`;
-                document.getElementById('live-val-hum').innerText = `${getUltimoValido(hist.hums)}%`;
-                document.getElementById('live-val-pres').innerText = `${getUltimoValido(hist.press)} hPa`;
-                document.getElementById('live-val-rain').innerText = `${getUltimoValido(hist.rains)} mm`;
+                
+                let ultTemp = getUltimoValido(hist.temps);
+                document.getElementById('live-val-temp').innerText = ultTemp !== '--' ? `${ultTemp}°C` : '--°C';
+                
+                let ultHum = getUltimoValido(hist.hums);
+                document.getElementById('live-val-hum').innerText = ultHum !== '--' ? `${ultHum}%` : '--%';
+                
+                let ultPres = getUltimoValido(hist.press);
+                document.getElementById('live-val-pres').innerText = ultPres !== '--' ? `${ultPres} hPa` : '-- hPa';
+                
+                let ultRain = getUltimoValido(hist.rains);
+                document.getElementById('live-val-rain').innerText = ultRain !== '--' ? `${ultRain} mm` : '-- mm';
 
                 const ultWind = getUltimoValido(hist.winds);
                 document.getElementById('live-val-wind').innerText = ultWind !== '--' ? ultWind : '--';
@@ -464,9 +518,10 @@
                 crearGraficoEvolucion('chartHum',  'hum',  hist.horas, hist.hums,  '#3b82f6', 'Humedad (%)');
                 crearGraficoEvolucion('chartPres', 'pres', hist.horas, hist.press, '#10b981', 'Presión (hPa)');
                 crearGraficoEvolucion('chartRain', 'rain', hist.horas, hist.rains, '#06b6d4', 'Lluvia (mm)');
+            } else {
+                limpiarCampos();
             }
 
-            // En mobile: scroll suave hacia el dashboard
             if (window.innerWidth < 1024) {
                 document.getElementById('main-dashboard').scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
@@ -474,13 +529,35 @@
 
         async function inicializarRed() {
             for (const [index, p] of puntos.entries()) {
+                const markerColor = p.live ? p.clr : '#94a3b8'; // Gris si está offline
+                
                 const marker = L.circleMarker(p.c, {
-                    radius: 10, fillColor: p.clr, color: "#ffffff", weight: 3, fillOpacity: 1
+                    radius: 10, fillColor: markerColor, color: "#ffffff", weight: 3, fillOpacity: 1
                 }).addTo(map);
                 marker.bindPopup(`<b class="text-[14px] font-black text-slate-800 m-0">${p.n}</b>`);
 
+                // Hacer fetch para saber cuándo fue la última vez que transmitió
                 const dataHistorial = await fetchHistorialCanal(p);
-                if (dataHistorial.temps && dataHistorial.temps.length > 0) {
+                
+                let etiquetaTiempo = "";
+                let indicatorColor = "bg-green-500"; // Verde = transmitiendo
+
+                if (!p.live) {
+                    etiquetaTiempo = "Desconectada temporalmente";
+                    indicatorColor = "bg-slate-400";
+                } else if (dataHistorial.lastEntryTime) {
+                    etiquetaTiempo = calcularTiempoTranscurrido(dataHistorial.lastEntryTime);
+                    // Si pasaron más de 2 horas (120 min) desde el último dato, se pone amarillo o rojo
+                    const fechaDato = new Date(dataHistorial.lastEntryTime);
+                    const diffMins = Math.round((new Date() - fechaDato) / 60000);
+                    if (diffMins > 120) indicatorColor = "bg-red-500"; // Rojo = Sin datos recientes
+                } else {
+                    etiquetaTiempo = "Sin datos recientes";
+                    indicatorColor = "bg-red-500";
+                }
+
+                // Alimentar el gráfico comparativo solo si está activa
+                if (p.live && dataHistorial.temps && dataHistorial.temps.length > 0) {
                     const ultimaTemp = dataHistorial.temps.slice().reverse().find(val => val !== null);
                     if (ultimaTemp) {
                         datosComparativos.labels.push(p.n);
@@ -490,21 +567,33 @@
                 }
 
                 const btn = document.createElement('button');
-                btn.className = "station-btn shadow-md";
+                btn.className = `station-btn shadow-md ${!p.live ? 'offline' : ''}`;
+                
+                // Estructura del botón con indicador de transmisión (Puntito de color y texto)
                 btn.innerHTML = `
-                    <div class="w-11 h-11 lg:w-12 lg:h-12 rounded-2xl flex items-center justify-center shrink-0 border-4 border-white shadow-sm" style="background-color: ${p.clr}">
+                    <div class="w-11 h-11 lg:w-12 lg:h-12 rounded-2xl flex items-center justify-center shrink-0 border-4 border-white shadow-sm" style="background-color: ${markerColor}">
                         <i data-lucide="map-pin" class="w-5 h-5 lg:w-6 lg:h-6 text-white"></i>
                     </div>
                     <div class="flex-grow min-w-0">
                         <span class="block font-black text-sm lg:text-base text-slate-800 leading-tight truncate">${p.n}</span>
-                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">${p.loc}</span>
+                        <div class="flex flex-col mt-0.5">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">${p.loc}</span>
+                            <div class="flex items-center gap-1 mt-1">
+                                <span class="w-2 h-2 rounded-full ${indicatorColor} animate-pulse"></span>
+                                <span class="text-[9px] font-bold text-slate-500">${etiquetaTiempo}</span>
+                            </div>
+                        </div>
                     </div>
                 `;
+                
                 btn.onclick = () => seleccionarEscuela(p, btn, marker);
                 btnContainer.appendChild(btn);
                 lucide.createIcons();
 
-                if (index === 0) setTimeout(() => seleccionarEscuela(p, btn, marker), 500);
+                // Autoseleccionar la primera estación ACTIVA al cargar
+                if (index === 0 && p.live) {
+                    setTimeout(() => seleccionarEscuela(p, btn, marker), 500);
+                }
             }
             renderizarGraficoComparativo();
         }
