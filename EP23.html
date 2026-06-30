@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EMA — Escuela Primaria N° 23</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --azul:      #004b87;
+            --azul-light:#e8f1f9;
+            --naranja:   #e07b20;
+            --naranja-bg:#fff5ea;
+            --celeste:   #0284c7;
+            --celeste-bg:#e0f2fe;
+            --verde:     #16a34a;
+            --verde-bg:  #dcfce7;
+            --violeta:   #7c3aed;
+            --violeta-bg:#ede9fe;
+            --lluvia:    #004b87;
+            --bg:        #f3f6fb;
+            --card-bg:   #ffffff;
+            --border:    #dde4ef;
+            --text:      #1e293b;
+            --muted:     #64748b;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            overflow-x: hidden;
+        }
+
+        /* ── Header ── */
+        .page-header {
+            background: linear-gradient(135deg, #003a6e 0%, #004b87 60%, #005fa3 100%);
+            color: white;
+            padding: 1.5rem 2rem;
+            border-radius: 16px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 8px 24px rgba(0,75,135,0.25);
+        }
+        .page-header::before {
+            content: '';
+            position: absolute;
+            right: -60px; top: -60px;
+            width: 220px; height: 220px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 50%;
+        }
+        .page-header::after {
+            content: '';
+            position: absolute;
+            right: 60px; top: 30px;
+            width: 120px; height: 120px;
+            background: rgba(255,255,255,0.04);
+            border-radius: 50%;
+        }
+
+        /* ── Metric cards ── */
+        .metric-card {
+            background: var(--card-bg);
+            border: 1.5px solid var(--border);
+            border-radius: 14px;
+            padding: 1.2rem 1.3rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            transition: box-shadow 0.2s, transform 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+        .metric-card:hover {
+            box-shadow: 0 8px 24px rgba(0,0,0,0.10);
+            transform: translateY(-2px);
+        }
+        .metric-card .accent-bar {
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 5px;
+            border-radius: 14px 0 0 14px;
+        }
+        .metric-label {
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--muted);
+            margin-bottom: 0.5rem;
+        }
+        .metric-value {
+            font-family: 'Nunito', sans-serif;
+            font-size: 2.4rem;
+            font-weight: 900;
+            line-height: 1;
+            letter-spacing: -0.03em;
+        }
+        .metric-unit {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--muted);
+            margin-left: 0.2rem;
+        }
+        .metric-icon {
+            width: 38px; height: 38px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1rem;
+        }
+
+        /* ── Chart cards ── */
+        .chart-card {
+            background: var(--card-bg);
+            border: 1.5px solid var(--border);
+            border-radius: 14px;
+            padding: 1.4rem 1.6rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        .chart-title {
+            font-size: 0.72rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            color: var(--muted);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .chart-title .dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        /* ── Filtros / tabs ── */
+        .filter-bar {
+            background: var(--card-bg);
+            border: 1.5px solid var(--border);
+            border-radius: 14px;
+            padding: 0.9rem 1.2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        .tab-group {
+            background: var(--bg);
+            border: 1.5px solid var(--border);
+            border-radius: 10px;
+            padding: 3px;
+            display: flex; gap: 2px;
+        }
+        .tab-btn {
+            font-size: 0.82rem;
+            font-weight: 700;
+            padding: 0.45rem 1.2rem;
+            border-radius: 7px;
+            border: none;
+            cursor: pointer;
+            color: var(--muted);
+            background: transparent;
+            transition: all 0.18s;
+            white-space: nowrap;
+        }
+        .tab-btn:hover { background: #e8edf5; color: var(--text); }
+        .tab-btn.active {
+            background: var(--azul);
+            color: white;
+            box-shadow: 0 2px 8px rgba(0,75,135,0.25);
+        }
+        .dt-input-wrap {
+            display: flex; align-items: center; gap: 0.5rem;
+            background: var(--bg);
+            border: 1.5px solid var(--border);
+            border-radius: 8px;
+            padding: 0.4rem 0.75rem;
+        }
+        .dt-label {
+            font-size: 0.62rem; font-weight: 800;
+            text-transform: uppercase; letter-spacing: 0.07em;
+            color: var(--muted); white-space: nowrap;
+        }
+        .dt-input-wrap input {
+            background: transparent; border: none;
+            font-size: 0.82rem; color: var(--text);
+            outline: none; min-width: 0;
+        }
+        .apply-btn {
+            background: var(--azul);
+            color: white;
+            border: none;
+            padding: 0.55rem 1.2rem;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 0.82rem;
+            cursor: pointer;
+            display: flex; align-items: center; gap: 0.4rem;
+            white-space: nowrap;
+            transition: background 0.2s;
+            box-shadow: 0 2px 8px rgba(0,75,135,0.2);
+        }
+        .apply-btn:hover { background: #003a6e; }
+
+        /* ── Status badge ── */
+        .status-badge {
+            font-size: 0.65rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            padding: 0.35rem 0.75rem;
+            border-radius: 20px;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        /* ── Anomaly warning ── */
+        .anomaly-notice {
+            display: none;
+            background: #fff7ed;
+            border: 1.5px solid #fdba74;
+            border-radius: 10px;
+            padding: 0.6rem 1rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #92400e;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .anomaly-notice.visible { display: flex; }
+
+        /* ── Scrollbar ── */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: #c8d3e0; border-radius: 3px; }
+
+        /* ── Section divider ── */
+        .section-label {
+            font-size: 0.65rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #94a3b8;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .section-label::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+    </style>
+</head>
+
+<body class="p-3 md:p-5 lg:p-7">
+<div class="max-w-7xl mx-auto space-y-5">
+
+    <!-- ═══ HEADER ═══ -->
+    <header class="page-header">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative z-10">
+            <div class="flex items-center gap-4">
+                <div class="w-14 h-14 bg-white/15 rounded-2xl flex items-center justify-center border border-white/20 flex-shrink-0">
+                    <i class="fa-solid fa-cloud-sun text-2xl text-white"></i>
+                </div>
+                <div>
+                    <div class="text-white/60 text-[0.68rem] font-bold uppercase tracking-widest mb-0.5">
+                        Estación Meteorológica Automática
+                    </div>
+                    <h1 class="text-xl md:text-2xl font-black text-white tracking-tight leading-tight" style="font-family: 'Nunito', sans-serif;">
+                        Escuela Primaria N° 23
+                    </h1>
+                    <div class="flex items-center gap-3 mt-1.5 flex-wrap">
+                        <span class="text-white/70 text-xs flex items-center gap-1.5">
+                            <i class="fa-solid fa-location-dot text-white/50"></i>
+                            Zona Rural · Buenos Aires
+                        </span>
+                        <span class="text-white/40 text-xs">·</span>
+                        <span class="text-white/70 text-xs flex items-center gap-1.5">
+                            <i class="fa-solid fa-gauge text-white/50"></i>
+                            Factor pluviómetro: ×0.68 mm/pulso
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div class="flex flex-col items-start md:items-end gap-2">
+                <span id="systemStatus" class="status-badge bg-white/15 text-white/80 border border-white/20">
+                    <i class="fa-solid fa-arrows-rotate animate-spin"></i> Cargando...
+                </span>
+                <span id="lastUpdate" class="text-white/45 text-[0.65rem] font-medium"></span>
+            </div>
+        </div>
+    </header>
+
+    <!-- ═══ BARRA DE FILTROS ═══ -->
+    <div class="filter-bar">
+        <div class="flex flex-col xl:flex-row items-start xl:items-center gap-3">
+            <div class="tab-group flex-shrink-0">
+                <button onclick="setPreset('day')"   id="btn-day"   class="tab-btn active">Hoy</button>
+                <button onclick="setPreset('week')"  id="btn-week"  class="tab-btn">Semana</button>
+                <button onclick="setPreset('month')" id="btn-month" class="tab-btn">Mes</button>
+            </div>
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-1 w-full xl:w-auto">
+                <div class="dt-input-wrap flex-1">
+                    <span class="dt-label">Desde</span>
+                    <input type="datetime-local" id="startDatetime">
+                </div>
+                <div class="dt-input-wrap flex-1">
+                    <span class="dt-label">Hasta</span>
+                    <input type="datetime-local" id="endDatetime">
+                </div>
+                <button onclick="updateDashboard(true)" class="apply-btn">
+                    <i class="fa-solid fa-magnifying-glass"></i> Consultar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ TARJETAS DE MÉTRICAS ═══ -->
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+
+        <!-- Temperatura -->
+        <div class="metric-card pl-6">
+            <div class="accent-bar" style="background:var(--naranja)"></div>
+            <div class="flex justify-between items-center mb-3">
+                <span class="metric-label">Temperatura</span>
+                <div class="metric-icon" style="background:var(--naranja-bg)">
+                    <i class="fa-solid fa-temperature-half" style="color:var(--naranja)"></i>
+                </div>
+            </div>
+            <div class="flex items-baseline">
+                <span class="metric-value" id="valTemp" style="color:var(--naranja)">--</span>
+                <span class="metric-unit">°C</span>
+            </div>
+        </div>
+
+        <!-- Humedad Relativa -->
+        <div class="metric-card pl-6">
+            <div class="accent-bar" style="background:var(--celeste)"></div>
+            <div class="flex justify-between items-center mb-3">
+                <span class="metric-label">Humedad Rel.</span>
+                <div class="metric-icon" style="background:var(--celeste-bg)">
+                    <i class="fa-solid fa-droplet" style="color:var(--celeste)"></i>
+                </div>
+            </div>
+            <div class="flex items-baseline">
+                <span class="metric-value" id="valHum" style="color:var(--celeste)">--</span>
+                <span class="metric-unit">%</span>
+            </div>
+        </div>
+
+        <!-- Humedad Suelo -->
+        <div class="metric-card pl-6">
+            <div class="accent-bar" style="background:var(--verde)"></div>
+            <div class="flex justify-between items-center mb-3">
+                <span class="metric-label">Hum. Suelo</span>
+                <div class="metric-icon" style="background:var(--verde-bg)">
+                    <i class="fa-solid fa-seedling" style="color:var(--verde)"></i>
+                </div>
+            </div>
+            <div class="flex items-baseline">
+                <span class="metric-value" id="valHumTierra" style="color:var(--verde)">--</span>
+                <span class="metric-unit">%</span>
+            </div>
+        </div>
+
+        <!-- Presión -->
+        <div class="metric-card pl-6">
+            <div class="accent-bar" style="background:var(--violeta)"></div>
+            <div class="flex justify-between items-center mb-3">
+                <span class="metric-label">Presión Abs.</span>
+                <div class="metric-icon" style="background:var(--violeta-bg)">
+                    <i class="fa-solid fa-gauge-high" style="color:var(--violeta)"></i>
+                </div>
+            </div>
+            <div class="flex items-baseline">
+                <span class="metric-value" id="valPres" style="color:var(--violeta)">--</span>
+                <span class="metric-unit">hPa</span>
+            </div>
+        </div>
+
+        <!-- Lluvia acumulada -->
+        <div class="metric-card pl-6 md:col-span-1 col-span-2">
+            <div class="accent-bar" style="background:var(--azul)"></div>
+            <div class="flex justify-between items-center mb-3">
+                <span class="metric-label" style="color:var(--azul)">Lluvia Acum.</span>
+                <div class="metric-icon" style="background:var(--azul-light)">
+                    <i class="fa-solid fa-cloud-showers-heavy" style="color:var(--azul)"></i>
+                </div>
+            </div>
+            <div class="flex items-baseline">
+                <span class="metric-value" id="valPrecip" style="color:var(--azul)">0.0</span>
+                <span class="metric-unit" style="color:var(--azul)">mm</span>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ═══ ALERTA DE PRESIÓN ANÓMALA ═══ -->
+    <div id="anomalyNotice" class="anomaly-notice">
+        <i class="fa-solid fa-triangle-exclamation text-orange-400"></i>
+        <span id="anomalyText">Se detectaron y filtraron valores de presión anómalos.</span>
+    </div>
+
+    <!-- ═══ GRÁFICO PRECIPITACIÓN (ancho completo) ═══ -->
+    <div>
+        <div class="section-label mb-3">Precipitación</div>
+        <div class="chart-card">
+            <div class="chart-title">
+                <span class="dot" style="background:var(--azul)"></span>
+                Lluvia acumulada en el período
+            </div>
+            <div class="relative w-full" style="height:260px">
+                <canvas id="chartPrecip"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ TEMPERATURA + HUMEDAD (separadas, lado a lado) ═══ -->
+    <div>
+        <div class="section-label mb-3">Temperatura y Humedad Relativa</div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+            <div class="chart-card">
+                <div class="chart-title">
+                    <span class="dot" style="background:var(--naranja)"></span>
+                    Temperatura del Aire
+                    <span class="ml-auto text-xs font-semibold px-2 py-0.5 rounded-full" style="background:var(--naranja-bg);color:var(--naranja)">°C</span>
+                </div>
+                <div class="relative w-full" style="height:240px">
+                    <canvas id="chartTemp"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card">
+                <div class="chart-title">
+                    <span class="dot" style="background:var(--celeste)"></span>
+                    Humedad Relativa del Aire
+                    <span class="ml-auto text-xs font-semibold px-2 py-0.5 rounded-full" style="background:var(--celeste-bg);color:var(--celeste)">%</span>
+                </div>
+                <div class="relative w-full" style="height:240px">
+                    <canvas id="chartHum"></canvas>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ═══ PRESIÓN + SUELO ═══ -->
+    <div>
+        <div class="section-label mb-3">Presión y Humedad del Suelo</div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+            <div class="chart-card">
+                <div class="chart-title">
+                    <span class="dot" style="background:var(--violeta)"></span>
+                    Presión Atmosférica
+                    <span class="ml-auto text-xs font-semibold px-2 py-0.5 rounded-full" style="background:var(--violeta-bg);color:var(--violeta)">hPa</span>
+                </div>
+                <div class="relative w-full" style="height:220px">
+                    <canvas id="chartPres"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card">
+                <div class="chart-title">
+                    <span class="dot" style="background:var(--verde)"></span>
+                    Humedad del Suelo
+                    <span class="ml-auto text-xs font-semibold px-2 py-0.5 rounded-full" style="background:var(--verde-bg);color:var(--verde)">%</span>
+                </div>
+                <div class="relative w-full" style="height:220px">
+                    <canvas id="chartSoil"></canvas>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- footer -->
+    <footer class="text-center text-slate-400 text-xs pb-4 pt-2 font-medium">
+        Red de Monitoreo Ambiental · EMA EP N° 23 · Datos actualizados automáticamente cada 5 min
+    </footer>
+
+</div>
+
+<!-- ═══ SCRIPTS ═══ -->
+<script>
+    /* ── Configuración ── */
+    const V_ACTUAL    = { id: "2626952", api: "4XYH56YSV64HE17H" };
+    const V_HISTORICO = { id: "1778165", api: "OJ1JHKAPCCIQB4CB" };
+    const MULT_PRECIP = 0.68;
+
+    /* Rango válido de presión (hPa) — se filtran valores fuera de este rango */
+    const PRES_MIN = 850;
+    const PRES_MAX = 1100;
+    /* Umbral adicional: si un valor se aleja más de este delta de la mediana, también se descarta */
+    const PRES_MAX_DELTA = 30;
+
+    let charts = {};
+
+    /* ── Utilidades de fecha ── */
+    const pad = (n) => n.toString().padStart(2, '0');
+    function toDatetimeLocal(date) {
+        return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    }
+
+    /* ── Filtro de valores anómalos de presión ──
+       1. Rango físico absoluto (850–1100 hPa)
+       2. Detección IQR: se eliminan valores fuera de Q1-1.5·IQR … Q3+1.5·IQR
+       3. Spike: si un valor supera PRES_MAX_DELTA respecto a la mediana, se elimina  */
+    function filterPressure(rawValues) {
+        // Paso 1: rango físico
+        let valid = rawValues.filter(v => v >= PRES_MIN && v <= PRES_MAX);
+        if (valid.length === 0) return { filtered: [], anomalyCount: rawValues.length };
+
+        // Paso 2: IQR
+        const sorted = [...valid].sort((a, b) => a - b);
+        const q1 = sorted[Math.floor(sorted.length * 0.25)];
+        const q3 = sorted[Math.floor(sorted.length * 0.75)];
+        const iqr = q3 - q1;
+        const lo = q1 - 1.5 * iqr;
+        const hi = q3 + 1.5 * iqr;
+
+        // Paso 3: mediana para spike
+        const median = sorted[Math.floor(sorted.length / 2)];
+
+        const anomalyCount = rawValues.length - valid.length; // previo al IQR
+        let filtered = valid.filter(v => v >= lo && v <= hi && Math.abs(v - median) <= PRES_MAX_DELTA);
+        const totalAnomalies = rawValues.length - filtered.length;
+
+        return { filtered, anomalyCount: totalAnomalies };
+    }
+
+    /* ── Presets de rango temporal ── */
+    function setPreset(range) {
+        const now = new Date();
+        const start = new Date(now);
+        if      (range === 'day')   { start.setHours(0, 0, 0, 0); }
+        else if (range === 'week')  { start.setDate(start.getDate() - 7);  start.setHours(0, 0, 0, 0); }
+        else if (range === 'month') { start.setDate(start.getDate() - 30); start.setHours(0, 0, 0, 0); }
+
+        document.getElementById('startDatetime').value = toDatetimeLocal(start);
+        document.getElementById('endDatetime').value   = toDatetimeLocal(now);
+
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        const btn = document.getElementById('btn-' + range);
+        if (btn) btn.classList.add('active');
+
+        updateDashboard();
+    }
+
+    /* ── Fetch de feeds ThingSpeak ── */
+    async function fetchAllFeeds(station, startStr, endStr) {
+        const tsStart = startStr.replace('T', '%20') + ':00';
+        const tsEnd   = endStr.replace('T',   '%20') + ':59';
+        const url = `https://api.thingspeak.com/channels/${station.id}/feeds.json?api_key=${station.api}&start=${tsStart}&end=${tsEnd}&timezone=America/Argentina/Buenos_Aires&results=8000`;
+        try {
+            const res  = await fetch(url);
+            const data = await res.json();
+            return data.feeds || [];
+        } catch (e) { return []; }
+    }
+
+    /* ── Estado del sistema ── */
+    function setStatus(status) {
+        const badge = document.getElementById('systemStatus');
+        const map = {
+            loading:    { cls: 'bg-sky-100 text-sky-700 border border-sky-200',      html: '<i class="fa-solid fa-arrows-rotate animate-spin"></i> Sincronizando...' },
+            online:     { cls: 'bg-emerald-100 text-emerald-700 border border-emerald-200', html: '<i class="fa-solid fa-circle-check"></i> Sistema Activo' },
+            historical: { cls: 'bg-amber-100 text-amber-700 border border-amber-200', html: '<i class="fa-solid fa-clock-rotate-left"></i> Datos Históricos' },
+            error:      { cls: 'bg-red-100 text-red-700 border border-red-200',       html: '<i class="fa-solid fa-circle-xmark"></i> Sin datos' }
+        };
+        const s = map[status] || map.error;
+        badge.className = 'status-badge ' + s.cls;
+        badge.innerHTML = s.html;
+    }
+
+    /* ── Dashboard principal ── */
+    async function updateDashboard(isManual = false) {
+        if (isManual) document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+
+        const startStr = document.getElementById('startDatetime').value;
+        const endStr   = document.getElementById('endDatetime').value;
+        if (!startStr || !endStr) return;
+
+        setStatus('loading');
+
+        const [feedsActual, feedsHist] = await Promise.all([
+            fetchAllFeeds(V_ACTUAL,    startStr, endStr),
+            fetchAllFeeds(V_HISTORICO, startStr, endStr)
+        ]);
+
+        let allFeeds = [...feedsHist, ...feedsActual];
+        const uniqueMap = new Map();
+        allFeeds.forEach(f => uniqueMap.set(f.created_at, f));
+        allFeeds = Array.from(uniqueMap.values()).sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+
+        if      (feedsActual.length > 0) setStatus('online');
+        else if (feedsHist.length  > 0) setStatus('historical');
+        else                             setStatus('error');
+
+        // Timestamp de última actualización
+        if (allFeeds.length > 0) {
+            const last = new Date(allFeeds[allFeeds.length-1].created_at);
+            document.getElementById('lastUpdate').textContent =
+                `Última lectura: ${pad(last.getDate())}/${pad(last.getMonth()+1)}/${last.getFullYear()} ${pad(last.getHours())}:${pad(last.getMinutes())}`;
+        }
+
+        processData(allFeeds, startStr, endStr);
+    }
+
+    /* ── Procesamiento de datos ── */
+    function processData(feeds, startStr, endStr) {
+        const labels = [];
+        const dataTemp = [], dataHum = [], dataSoil = [], dataPresRaw = [];
+        let lastTemp = '--', lastHum = '--', lastSoil = '--', lastPres = '--';
+
+        const start = new Date(startStr), end = new Date(endStr);
+        const diffHours = (end - start) / 3600000;
+        const bucketByHour = diffHours <= 72;
+
+        /* Cubetas para precipitación acumulada */
+        const precipBuckets = new Map();
+        let current = new Date(start);
+        if (bucketByHour) {
+            current.setMinutes(0, 0, 0);
+            while (current <= end) {
+                precipBuckets.set(`${pad(current.getDate())}/${pad(current.getMonth()+1)} ${pad(current.getHours())}:00`, 0);
+                current.setHours(current.getHours() + 1);
+            }
+        } else {
+            current.setHours(0, 0, 0, 0);
+            while (current <= end) {
+                precipBuckets.set(`${pad(current.getDate())}/${pad(current.getMonth()+1)}/${current.getFullYear()}`, 0);
+                current.setDate(current.getDate() + 1);
+            }
+        }
+
+        let accumRain = 0;
+
+        feeds.forEach(f => {
+            const d = new Date(f.created_at);
+            const timeLabel = bucketByHour
+                ? `${pad(d.getDate())}/${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+                : `${pad(d.getDate())}/${pad(d.getMonth()+1)}`;
+
+            labels.push(timeLabel);
+
+            const temp      = parseFloat(f.field1);
+            const hum       = parseFloat(f.field2);
+            const soil      = parseFloat(f.field3);
+            const rainPulse = parseFloat(f.field5);
+            const pres      = parseFloat(f.field6);
+
+            if (!isNaN(temp)) { dataTemp.push(temp); lastTemp = temp.toFixed(1); }
+            if (!isNaN(hum))  { dataHum.push(hum);   lastHum  = hum.toFixed(0); }
+            if (!isNaN(soil)) { dataSoil.push(soil);  lastSoil = soil.toFixed(0); }
+            if (!isNaN(pres)) { dataPresRaw.push(pres); }
+
+            if (!isNaN(rainPulse) && rainPulse > 0) {
+                accumRain += MULT_PRECIP;
+                const bKey = bucketByHour
+                    ? `${pad(d.getDate())}/${pad(d.getMonth()+1)} ${pad(d.getHours())}:00`
+                    : `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`;
+                if (precipBuckets.has(bKey)) {
+                    precipBuckets.set(bKey, precipBuckets.get(bKey) + MULT_PRECIP);
+                }
+            }
+        });
+
+        /* ── Filtrado de presión anómala ── */
+        const { filtered: dataPres, anomalyCount } = filterPressure(dataPresRaw);
+
+        // Mostramos advertencia si hubo anomalías
+        const notice = document.getElementById('anomalyNotice');
+        if (anomalyCount > 0) {
+            notice.classList.add('visible');
+            document.getElementById('anomalyText').textContent =
+                `Se detectaron y filtraron ${anomalyCount} valor${anomalyCount > 1 ? 'es' : ''} de presión anómal${anomalyCount > 1 ? 'os' : 'o'} — el gráfico muestra solo lecturas válidas.`;
+        } else {
+            notice.classList.remove('visible');
+        }
+
+        /* Último valor de presión válido */
+        if (dataPres.length > 0) lastPres = dataPres[dataPres.length - 1].toFixed(1);
+
+        /* Etiquetas para el gráfico de presión (subset limpio, usamos índice) */
+        const presLabels = labels.slice(0, dataPres.length);
+
+        /* Precipitación acumulada */
+        const precipLabels = Array.from(precipBuckets.keys());
+        let runningSum = 0;
+        const precipData = Array.from(precipBuckets.values()).map(v => (runningSum += v, runningSum));
+
+        /* ── UI de métricas ── */
+        document.getElementById('valTemp').innerText       = lastTemp;
+        document.getElementById('valHum').innerText        = lastHum;
+        document.getElementById('valHumTierra').innerText  = lastSoil;
+        document.getElementById('valPres').innerText       = lastPres;
+        document.getElementById('valPrecip').innerText     = accumRain.toFixed(1);
+
+        /* ── Renderizado de gráficos ── */
+        renderPrecipChart(precipLabels, precipData);
+        renderTempChart(labels, dataTemp);
+        renderHumChart(labels, dataHum);
+        renderPresChart(presLabels, dataPres);
+        renderSoilChart(labels, dataSoil);
+    }
+
+    /* ── Opciones base de Chart.js ── */
+    const baseOpts = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                backgroundColor: '#1e293b',
+                padding: 10, cornerRadius: 8,
+                titleFont: { family: 'Inter', size: 11 },
+                bodyFont:  { family: 'Inter', size: 13, weight: 'bold' }
+            }
+        },
+        elements: { point: { radius: 0, hitRadius: 10 } },
+        scales: {
+            x: { grid: { display: false }, ticks: { maxTicksLimit: 8, color: '#94a3b8', font: { family: 'Inter', size: 11 } } },
+            y: { grid: { color: '#f1f5f9', lineWidth: 1 }, ticks: { color: '#64748b', font: { family: 'Inter', size: 11 } }, border: { display: false } }
+        }
+    };
+
+    function makeChart(id, config) {
+        const key = id.replace('chart', '').toLowerCase();
+        if (charts[key]) charts[key].destroy();
+        charts[key] = new Chart(document.getElementById(id).getContext('2d'), config);
+    }
+
+    function renderPrecipChart(labels, data) {
+        makeChart('chartPrecip', {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'Lluvia acumulada (mm)',
+                    data,
+                    borderColor: '#004b87',
+                    backgroundColor: 'rgba(0,75,135,0.07)',
+                    borderWidth: 2.5,
+                    fill: true,
+                    stepped: 'after',
+                    tension: 0
+                }]
+            },
+            options: { ...baseOpts }
+        });
+    }
+
+    function renderTempChart(labels, data) {
+        makeChart('chartTemp', {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'Temperatura (°C)',
+                    data,
+                    borderColor: '#e07b20',
+                    backgroundColor: 'rgba(224,123,32,0.08)',
+                    borderWidth: 2.5,
+                    fill: true,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                ...baseOpts,
+                scales: {
+                    x: baseOpts.scales.x,
+                    y: { ...baseOpts.scales.y, title: { display: true, text: '°C', color: '#94a3b8', font: { size: 11 } } }
+                }
+            }
+        });
+    }
+
+    function renderHumChart(labels, data) {
+        makeChart('chartHum', {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'Humedad relativa (%)',
+                    data,
+                    borderColor: '#0284c7',
+                    backgroundColor: 'rgba(2,132,199,0.07)',
+                    borderWidth: 2.5,
+                    fill: true,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                ...baseOpts,
+                scales: {
+                    x: baseOpts.scales.x,
+                    y: { ...baseOpts.scales.y, min: 0, max: 100, title: { display: true, text: '%', color: '#94a3b8', font: { size: 11 } } }
+                }
+            }
+        });
+    }
+
+    function renderPresChart(labels, data) {
+        makeChart('chartPres', {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'Presión (hPa)',
+                    data,
+                    borderColor: '#7c3aed',
+                    backgroundColor: 'rgba(124,58,237,0.07)',
+                    borderWidth: 2.5,
+                    fill: true,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                ...baseOpts,
+                scales: {
+                    x: baseOpts.scales.x,
+                    y: { ...baseOpts.scales.y, title: { display: true, text: 'hPa', color: '#94a3b8', font: { size: 11 } } }
+                }
+            }
+        });
+    }
+
+    function renderSoilChart(labels, data) {
+        makeChart('chartSoil', {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'Humedad suelo (%)',
+                    data,
+                    borderColor: '#16a34a',
+                    backgroundColor: 'rgba(22,163,74,0.07)',
+                    borderWidth: 2.5,
+                    fill: true,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                ...baseOpts,
+                scales: {
+                    x: baseOpts.scales.x,
+                    y: { ...baseOpts.scales.y, min: 0, max: 100, title: { display: true, text: '%', color: '#94a3b8', font: { size: 11 } } }
+                }
+            }
+        });
+    }
+
+    /* ── Inicio ── */
+    window.addEventListener('load', () => setPreset('day'));
+</script>
+</body>
+</html>
