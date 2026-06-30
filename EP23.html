@@ -661,7 +661,7 @@
             if (!isNaN(temp)) { dataTemp.push(temp); lastTemp = temp.toFixed(1); }
             if (!isNaN(hum))  { dataHum.push(hum);   lastHum  = hum.toFixed(0); }
             if (!isNaN(soil)) { dataSoil.push(soil);  lastSoil = soil.toFixed(0); }
-            if (!isNaN(pres)) { dataPresRaw.push(pres); }
+            if (!isNaN(pres)) { dataPresRaw.push(pres + 36.6); }
 
             if (!isNaN(rainPulse) && rainPulse > 0) {
                 accumRain += MULT_PRECIP;
