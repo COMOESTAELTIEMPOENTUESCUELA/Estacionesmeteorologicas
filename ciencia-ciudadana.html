@@ -595,7 +595,7 @@
         function normalizarImagenDrive(url) {
             if (!url) return '';
             const m = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-            if (m) return 'https://drive.google.com/uc?export=view&id=' + m[1];
+            if (m) return 'https://lh3.googleusercontent.com/d/' + m[1];
             return url;
         }
 
