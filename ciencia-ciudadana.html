@@ -75,7 +75,7 @@
 
     <!-- LIGHTBOX: click en cualquier foto de reporte para verla grande -->
     <div id="lightbox" onclick="cerrarLightbox()" style="display:none;" class="fixed inset-0 bg-black/90 z-[200] items-center justify-center p-6 cursor-zoom-out">
-        <img id="lightbox-img" src="" alt="" class="max-w-full max-h-full rounded-2xl shadow-2xl">
+        <img id="lightbox-img" src="" alt="" draggable="false" class="max-w-full max-h-full rounded-2xl shadow-2xl">
     </div>
 
     <!-- NAVEGACIÓN FLOTANTE -->
@@ -531,7 +531,10 @@
             }
         });
 
+        let mapaReportesInstancia = null;
+
         function abrirLightbox(src) {
+            if (mapaReportesInstancia) mapaReportesInstancia.closePopup();
             document.getElementById('lightbox-img').src = src;
             document.getElementById('lightbox').style.display = 'flex';
         }
@@ -540,8 +543,10 @@
             document.getElementById('lightbox-img').src = '';
         }
         // Delegación: cualquier foto de reporte (tarjeta o popup del mapa) abre el lightbox al tocarla.
+        // stopPropagation evita que el click "se filtre" al mapa de Leaflet que está debajo.
         document.addEventListener('click', function(e) {
             if (e.target.classList && e.target.classList.contains('reporte-foto')) {
+                e.stopPropagation();
                 abrirLightbox(e.target.src);
             }
         });
@@ -580,7 +585,7 @@
             contenedor.innerHTML = reportes.map(function(r) {
                 const tipo = TIPO_INFO[r.type] || TIPO_INFO.otro;
                 const foto = r.image
-                    ? '<div class="w-full h-48 bg-slate-100 rounded-2xl overflow-hidden mb-4 border-2 border-slate-200"><img src="' + r.image + '" alt="' + (r.title || '') + '" class="reporte-foto w-full h-full object-cover cursor-zoom-in"></div>'
+                    ? '<div class="w-full h-48 bg-slate-100 rounded-2xl overflow-hidden mb-4 border-2 border-slate-200"><img src="' + r.image + '" alt="' + (r.title || '') + '" draggable="false" class="reporte-foto w-full h-full object-cover cursor-zoom-in"></div>'
                     : '';
                 const datos = [];
                 if (r.rain_mm !== undefined && r.rain_mm !== null && r.rain_mm !== '') {
@@ -615,6 +620,7 @@
 
         function pintarMapa(reportes) {
             const mapa = L.map('mapa-reportes').setView([-34.95, -57.7], 9);
+            mapaReportesInstancia = mapa;
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
                 maxZoom: 19
@@ -637,7 +643,7 @@
                     fillOpacity: 0.9
                 }).addTo(mapa);
                 const fotoPopup = r.image
-                    ? '<img src="' + r.image + '" alt="" class="reporte-foto" style="width:160px;height:110px;object-fit:cover;border-radius:10px;margin-bottom:6px;display:block;cursor:zoom-in;">'
+                    ? '<img src="' + r.image + '" alt="" draggable="false" class="reporte-foto" style="width:160px;height:110px;object-fit:cover;border-radius:10px;margin-bottom:6px;display:block;cursor:zoom-in;">'
                     : '';
                 marcador.bindPopup(
                     fotoPopup +
