@@ -388,7 +388,6 @@
             <p class="text-xs text-slate-400 font-bold uppercase tracking-widest">
                 &copy; 2026.
             </p>
-            <a href="editar.html" class="text-[10px] text-slate-300 font-bold uppercase tracking-widest hover:text-fuchsia-400 transition">Coordinadores</a>
         </div>
     </footer>
 
@@ -522,19 +521,93 @@
             }
         }
 
-        async function cargarReportes() {
-            try {
-                const res = await fetch('_data/reportes.json');
-                const data = await res.json();
-                const reportes = (data.reportes || []).slice().sort(function(a, b) {
-                    return new Date(b.date) - new Date(a.date);
-                });
-                pintarMuro(reportes);
-                pintarMapa(reportes);
-            } catch (err) {
-                console.error('No se pudieron cargar los reportes', err);
-                document.getElementById('muro-reportes').innerHTML = '<p class="col-span-full text-center font-bold text-slate-400">No se pudieron cargar los reportes.</p>';
+        // ID de la Google Sheet donde los coordinadores cargan los reportes.
+        // La hoja debe estar compartida como "Cualquiera con el enlace puede ver".
+        const SHEET_ID = '1Zn_qMX4EIwkQ2qw33OYJfG4zOiPYOE6aqNErOG0-ERo';
+        const SHEET_GID = '0';
+
+        // Convierte un link de Google Drive ("...file/d/ID/view...") en un link directo de imagen.
+        function normalizarImagenDrive(url) {
+            if (!url) return '';
+            const m = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+            if (m) return 'https://drive.google.com/uc?export=view&id=' + m[1];
+            return url;
+        }
+
+        // Las celdas de fecha de Google Sheets vienen como "Date(2026,5,18)" (mes 0-indexado) o como texto simple.
+        function parsearFechaCelda(v) {
+            if (!v) return new Date().toISOString();
+            const m = String(v).match(/^Date\((\d+),(\d+),(\d+)/);
+            if (m) return new Date(Number(m[1]), Number(m[2]), Number(m[3])).toISOString();
+            const partes = String(v).split('/');
+            if (partes.length === 3) {
+                const d = new Date(Number(partes[2]), Number(partes[1]) - 1, Number(partes[0]));
+                if (!isNaN(d)) return d.toISOString();
             }
+            const d2 = new Date(v);
+            return isNaN(d2) ? new Date().toISOString() : d2.toISOString();
+        }
+
+        function celda(fila, i) {
+            return fila.c[i] && fila.c[i].v !== null && fila.c[i].v !== undefined ? fila.c[i].v : '';
+        }
+
+        function filasATabla(tabla) {
+            // Columnas esperadas (en orden): Fecha, Tipo, Escuela, Reportero, Lluvia_mm, Estado_Camino, Resumen, Imagen_URL, Lat, Lon
+            return tabla.rows.map(function(fila) {
+                const fecha = celda(fila, 0);
+                const tipo = celda(fila, 1) || 'otro';
+                const school = celda(fila, 2);
+                const reporter = celda(fila, 3);
+                const rainMm = celda(fila, 4);
+                const roadStatus = celda(fila, 5);
+                const summary = celda(fila, 6);
+                const imageUrl = celda(fila, 7);
+                const lat = celda(fila, 8);
+                const lon = celda(fila, 9);
+
+                const info = TIPO_INFO[tipo] || TIPO_INFO.otro;
+                const reporte = {
+                    title: info.label + (school ? ' — ' + school : ''),
+                    date: parsearFechaCelda(fecha),
+                    type: tipo,
+                    school: school,
+                    reporter: reporter,
+                    rain_mm: rainMm === '' ? null : rainMm,
+                    road_status: roadStatus,
+                    summary: summary,
+                    image: normalizarImagenDrive(imageUrl),
+                };
+                if (lat !== '' && lon !== '') {
+                    reporte.location = JSON.stringify({ type: 'Point', coordinates: [Number(lon), Number(lat)] });
+                }
+                return reporte;
+            }).filter(function(r) { return r.summary || r.school; }); // ignora filas vacías
+        }
+
+        function cargarReportes() {
+            window.google = window.google || {};
+            window.google.visualization = window.google.visualization || {};
+            window.google.visualization.Query = window.google.visualization.Query || {};
+            window.google.visualization.Query.setResponse = function(data) {
+                try {
+                    const reportes = filasATabla(data.table).sort(function(a, b) {
+                        return new Date(b.date) - new Date(a.date);
+                    });
+                    pintarMuro(reportes);
+                    pintarMapa(reportes);
+                } catch (err) {
+                    console.error('No se pudieron procesar los reportes', err);
+                    document.getElementById('muro-reportes').innerHTML = '<p class="col-span-full text-center font-bold text-slate-400">No se pudieron cargar los reportes.</p>';
+                }
+            };
+
+            const script = document.createElement('script');
+            script.src = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/gviz/tq?gid=' + SHEET_GID + '&tqx=out:json';
+            script.onerror = function() {
+                document.getElementById('muro-reportes').innerHTML = '<p class="col-span-full text-center font-bold text-slate-400">No se pudo conectar con la hoja de reportes.</p>';
+            };
+            document.body.appendChild(script);
         }
 
         cargarReportes();
