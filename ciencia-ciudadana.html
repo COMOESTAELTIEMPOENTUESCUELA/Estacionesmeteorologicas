@@ -335,13 +335,21 @@
                 <div class="inline-flex items-center gap-2 bg-blue-100 text-blue-800 px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest mb-4 shadow-sm border-2 border-blue-200 -rotate-2">
                     <i data-lucide="gallery-horizontal" class="w-4 h-4"></i> Galería
                 </div>
-                <h2 class="text-3xl md:text-5xl font-black mb-4 text-slate-800 tracking-tight">Muro de Investigadores</h2>
+                <h2 class="text-3xl md:text-5xl font-black mb-4 text-slate-800 tracking-tight">Muro de Investigadores de Hoy</h2>
                 <p class="text-lg text-slate-600 font-bold max-w-2xl mx-auto">¡Mirá las fotos y datos que nos comparten las escuelas y vecinos desde distintos parajes!</p>
             </div>
 
             <div id="muro-reportes" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 <p class="col-span-full text-center font-bold text-slate-400">Cargando reportes...</p>
             </div>
+
+            <!-- REPORTES ANTERIORES (plegado, para no perder el historial) -->
+            <div class="mt-16 text-center">
+                <button id="btn-ver-anteriores" class="kid-btn bg-white hover:bg-slate-50 text-slate-600 border-slate-200 px-6 py-3 rounded-full font-black text-sm inline-flex items-center gap-2 shadow-sm border-4">
+                    <i data-lucide="archive" class="w-4 h-4"></i> <span id="btn-ver-anteriores-texto">Ver reportes anteriores</span>
+                </button>
+            </div>
+            <div id="muro-anteriores" class="hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-8"></div>
         </div>
 
     </main>
@@ -507,10 +515,20 @@
             return f.toLocaleDateString('es-AR', { day: 'numeric', month: 'long' });
         }
 
-        function pintarMuro(reportes) {
-            const contenedor = document.getElementById('muro-reportes');
+        function esDeHoy(fechaISO) {
+            const f = new Date(fechaISO);
+            const hoy = new Date();
+            return !isNaN(f) &&
+                f.getFullYear() === hoy.getFullYear() &&
+                f.getMonth() === hoy.getMonth() &&
+                f.getDate() === hoy.getDate();
+        }
+
+        function pintarMuro(reportes, contenedorId, mensajeVacio) {
+            const contenedor = document.getElementById(contenedorId || 'muro-reportes');
             if (!reportes.length) {
-                contenedor.innerHTML = '<p class="col-span-full text-center font-bold text-slate-400">Todavía no hay reportes cargados. ¡Sé el primero en mandar uno!</p>';
+                contenedor.innerHTML = '<p class="col-span-full text-center font-bold text-slate-400">' +
+                    (mensajeVacio || 'Todavía no hay reportes cargados. ¡Sé el primero en mandar uno!') + '</p>';
                 return;
             }
             contenedor.innerHTML = reportes.map(function(r) {
@@ -663,8 +681,26 @@
                     const reportes = filasATabla(data.table).sort(function(a, b) {
                         return new Date(b.date) - new Date(a.date);
                     });
-                    pintarMuro(reportes);
-                    pintarMapa(reportes);
+                    const deHoy = reportes.filter(function(r) { return esDeHoy(r.date); });
+                    const anteriores = reportes.filter(function(r) { return !esDeHoy(r.date); });
+
+                    pintarMuro(deHoy, 'muro-reportes', 'Todavía no hay reportes de hoy. ¡Sé el primero en mandar uno!');
+                    pintarMapa(deHoy);
+
+                    const btnAnteriores = document.getElementById('btn-ver-anteriores');
+                    document.getElementById('btn-ver-anteriores-texto').textContent = anteriores.length
+                        ? 'Ver reportes anteriores (' + anteriores.length + ')'
+                        : 'No hay reportes anteriores';
+                    btnAnteriores.disabled = !anteriores.length;
+                    let anterioresPintados = false;
+                    btnAnteriores.addEventListener('click', function() {
+                        const contenedor = document.getElementById('muro-anteriores');
+                        if (!anterioresPintados) {
+                            pintarMuro(anteriores, 'muro-anteriores', 'No hay reportes anteriores.');
+                            anterioresPintados = true;
+                        }
+                        contenedor.classList.toggle('hidden');
+                    });
                 } catch (err) {
                     console.error('No se pudieron procesar los reportes', err);
                     document.getElementById('muro-reportes').innerHTML = '<p class="col-span-full text-center font-bold text-slate-400">No se pudieron cargar los reportes.</p>';
