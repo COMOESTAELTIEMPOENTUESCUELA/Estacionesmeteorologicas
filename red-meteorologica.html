@@ -384,10 +384,47 @@
                 dews.push(dp != null ? parseFloat(dp).toFixed(1) : null);
             });
 
-            return { horas, temps, hums, press, rains, winds, windDirs, dews, lastEntryTime };
+            return { horas, horasLluvia: horas, temps, hums, press, rains, winds, windDirs, dews, lastEntryTime };
         }
 
         // ─── THINGSPEAK (resto de las estaciones) ───────────────────────────────
+        // Los fields de lluvia de estas estaciones (field4 de EMA Verde, field5 de
+        // Campbell y de la EMA Violeta) NO son un acumulado corrido: cada lectura es
+        // el incremento de ESE intervalo nada más. Por eso "lluvia hoy" hay que
+        // calcularla sumando todas las lecturas de hoy, no mostrando la última nomás.
+        function formatearInicioDeHoyTS() {
+            const hoy = new Date();
+            const pad = (n) => n.toString().padStart(2, '0');
+            return `${hoy.getFullYear()}-${pad(hoy.getMonth() + 1)}-${pad(hoy.getDate())}%2000:00:00`;
+        }
+
+        async function fetchFeedsCanal(ch, extraParams = '') {
+            const apiKeyParam = ch.key ? `&api_key=${ch.key}` : '';
+            const res = await fetch(`https://api.thingspeak.com/channels/${ch.id}/feeds.json?results=8000${apiKeyParam}${extraParams}`);
+            return res.json();
+        }
+
+        async function acumularLluviaDeHoy(canales, rainField, rainMult) {
+            const inicioHoy = formatearInicioDeHoyTS();
+            const respuestas = await Promise.all(canales.map(ch => fetchFeedsCanal(ch, `&start=${inicioHoy}`)));
+            let feeds = respuestas.flatMap(d => d.feeds || []);
+            feeds.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+            let total = 0;
+            const horas = [], curva = [];
+            feeds.forEach(f => {
+                let v = parseFloat(f[rainField]);
+                if (isNaN(v) || v < 0) return;
+                if (rainMult) v = v * rainMult;
+                total += v;
+                const d = new Date(f.created_at);
+                horas.push(`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`);
+                curva.push(+total.toFixed(2));
+            });
+
+            return { total: +total.toFixed(2), horas, curva };
+        }
+
         async function fetchHistorialCanal(estacion) {
             // Si la estación está offline manualmente, devolvemos arrays vacíos directamente
             if (!estacion.live) {
@@ -402,21 +439,26 @@
                 // Algunas estaciones (EP N°23 / EMA Violeta) combinan más de un canal
                 // de ThingSpeak porque migraron de canal en algún momento.
                 const canales = estacion.channels || [{ id: estacion.id, key: estacion.key }];
-                const respuestas = await Promise.all(canales.map(ch => {
-                    const apiKeyParam = ch.key ? `&api_key=${ch.key}` : "";
-                    return fetch(`https://api.thingspeak.com/channels/${ch.id}/feeds.json?results=15${apiKeyParam}`).then(r => r.json());
-                }));
+                const isEmaVerde = !!estacion.isEmaVerde;        // EMA Verde: lluvia en field4 (mm directos)
+                const rainField = isEmaVerde ? 'field4' : 'field5';
+
+                const [respuestas, acumuladoHoy] = await Promise.all([
+                    Promise.all(canales.map(ch => {
+                        const apiKeyParam = ch.key ? `&api_key=${ch.key}` : "";
+                        return fetch(`https://api.thingspeak.com/channels/${ch.id}/feeds.json?results=15${apiKeyParam}`).then(r => r.json());
+                    })),
+                    acumularLluviaDeHoy(canales, rainField, estacion.rainMult)
+                ]);
 
                 let feeds = respuestas.flatMap(d => d.feeds || []);
                 feeds.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
                 if (feeds.length > 15) feeds = feeds.slice(feeds.length - 15);
 
-                const horas = [], temps = [], hums = [], press = [], rains = [], winds = [], windDirs = [], dews = [];
+                const horas = [], temps = [], hums = [], press = [], winds = [], windDirs = [], dews = [];
 
                 // Identificadores de estaciones (por canal principal)
                 const channelId = estacion.id || canales[0].id;
                 const isObservatorio = channelId === "2823820"; // Campbell: humedad en field4, viento en field7/field8
-                const isEmaVerde = !!estacion.isEmaVerde;        // EMA Verde: lluvia en field4 (mm directos)
 
                 let lastEntryTime = null;
                 if (feeds.length > 0) {
@@ -437,12 +479,6 @@
                     let p = parseFloat(f.field6);
                     press.push(isNaN(p) ? null : p.toFixed(1));
 
-                    let rainField = isEmaVerde ? 'field4' : 'field5';
-                    let r = parseFloat(f[rainField]);
-                    if (!isNaN(r) && estacion.rainMult) r = r * estacion.rainMult;
-                    r = isNaN(r) ? null : Math.max(0, r);
-                    rains.push(r === null ? null : r.toFixed(2));
-
                     let ws = isObservatorio ? parseFloat(f.field7) : null;
                     winds.push(ws === null || isNaN(ws) ? null : ws.toFixed(1));
 
@@ -452,10 +488,15 @@
                     dews.push(null); // sin dato de rocío en estos canales
                 });
 
-                return { horas, temps, hums, press, rains, winds, windDirs, dews, lastEntryTime };
+                // La lluvia se grafica como acumulado del día (suma corrida desde las
+                // 00:00), no como lecturas sueltas, así "Lluvia hoy" muestra el total real.
+                const horasLluvia = acumuladoHoy.horas.length ? acumuladoHoy.horas : horas;
+                const rains = acumuladoHoy.curva.length ? acumuladoHoy.curva.map(v => v.toFixed(2)) : [];
+
+                return { horas, horasLluvia, temps, hums, press, rains, winds, windDirs, dews, lastEntryTime };
             } catch (e) {
                 console.error("Error obteniendo datos de", estacion.n, e);
-                return { horas: [], temps: [], hums: [], press: [], rains: [], winds: [], windDirs: [], dews: [], lastEntryTime: null };
+                return { horas: [], horasLluvia: [], temps: [], hums: [], press: [], rains: [], winds: [], windDirs: [], dews: [], lastEntryTime: null };
             }
         }
 
@@ -624,7 +665,7 @@
                 crearGraficoEvolucion('chartTemp', 'temp', hist.horas, hist.temps, '#f97316', 'Calor (°C)');
                 crearGraficoEvolucion('chartHum',  'hum',  hist.horas, hist.hums,  '#3b82f6', 'Humedad (%)');
                 crearGraficoEvolucion('chartPres', 'pres', hist.horas, hist.press, '#10b981', 'Presión (hPa)');
-                crearGraficoEvolucion('chartRain', 'rain', hist.horas, hist.rains, '#06b6d4', 'Lluvia (mm)');
+                crearGraficoEvolucion('chartRain', 'rain', hist.horasLluvia || hist.horas, hist.rains, '#06b6d4', 'Lluvia acumulada (mm)');
             } else {
                 limpiarCampos();
             }
