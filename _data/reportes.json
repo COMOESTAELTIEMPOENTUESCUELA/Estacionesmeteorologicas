@@ -1,0 +1,43 @@
+{
+  "reportes": [
+    {
+      "title": "Camino con mucho barro",
+      "date": "2026-06-18T00:00:00.000Z",
+      "type": "calle_anegada",
+      "school": "Monte Veloz",
+      "reporter": "Familia García",
+      "rain_mm": 12.5,
+      "road_status": "Intransitable",
+      "location": "{\"type\":\"Point\",\"coordinates\":[-57.85,-35.05]}",
+      "summary": "Después de la lluvia el camino de tierra quedó con mucho barro y agua, difícil de pasar.",
+      "image": "https://images.unsplash.com/photo-1592210454359-9043f067919b?auto=format&fit=crop&q=80&w=400",
+      "body": ""
+    },
+    {
+      "title": "Nubes Cirrus en el cielo",
+      "date": "2026-06-19T00:00:00.000Z",
+      "type": "otro",
+      "school": "EP N°34",
+      "reporter": "Alumnos 5to",
+      "rain_mm": 0,
+      "road_status": "Seco",
+      "location": "{\"type\":\"Point\",\"coordinates\":[-57.65,-34.95]}",
+      "summary": "Hoy miramos el cielo y vimos nubes altas como hilos, la profe dijo que son Cirrus.",
+      "image": "",
+      "body": ""
+    },
+    {
+      "title": "Buena lluvia registrada",
+      "date": "2026-06-20T00:00:00.000Z",
+      "type": "lluvia",
+      "school": "EP N°23",
+      "reporter": "Seño Mónica",
+      "rain_mm": 22.0,
+      "road_status": "Resbaladizo",
+      "location": "{\"type\":\"Point\",\"coordinates\":[-57.479,-35.033]}",
+      "summary": "El pluviómetro de la escuela marcó una buena lluvia, el camino quedó resbaladizo.",
+      "image": "https://images.unsplash.com/photo-1516912481808-3406841bd33c?auto=format&fit=crop&q=80&w=400",
+      "body": ""
+    }
+  ]
+}
