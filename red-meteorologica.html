@@ -259,12 +259,27 @@
 
         // Configuración de las estaciones
         // IMPORTANTE: EP N°34 (2218689) está marcada como live: false (Fuera de servicio)
+        //
+        // EP N°23 (Bavío) es la EMA Violeta: se combinan su canal actual y el histórico
+        // porque migraron de canal de ThingSpeak en algún momento. rainMult convierte los
+        // pulsos crudos del pluviómetro a mm (cada pulso = 0.68mm).
+        //
+        // EMA Verde, Observatorio (Campbell) y Daza están las tres en el mismo lugar,
+        // en la Facultad (FCAG) — no en ninguna escuela — por eso comparten zona en el mapa
+        // con las coordenadas apenas separadas para que se puedan distinguir los marcadores.
         const puntos = [
-            { id: "2218686", n: "EP N°23", loc: "Bavio / EMA Verde", c: [-35.0254, -57.7529], clr: "#10b981", live: true, img: "imagenes/escuela23.jpg" },
+            { channels: [{ id: "2626952", key: "4XYH56YSV64HE17H" }, { id: "1778165", key: "OJ1JHKAPCCIQB4CB" }], rainMult: 0.68,
+              n: "EP N°23", loc: "Bavío (EMA Violeta)", c: [-35.0254, -57.7529], clr: "#10b981", live: true, img: "imagenes/escuela23.jpg" },
             { id: "2218689", n: "EP N°34", loc: "Malagamba", c: [-35.0724, -57.8656], clr: "#3b82f6", live: false, img: "imagenes/escuela34.jpg" },
-            { id: "3149195", n: "Monte Veloz", loc: "Ruta 36", c: [-35.3200, -57.4200], clr: "#f59e0b", live: true, img: "https://images.unsplash.com/photo-1592210454359-9043f067919b?auto=format&fit=crop&q=80&w=300" },
+            { source: "wunderground", wuId: "IVERNI9", wuKey: "6b6ee16ebab34fe5aee16ebab38fe57a",
+              n: "Monte Veloz", loc: "Ruta 36", c: [-35.3200, -57.4200], clr: "#f59e0b", live: true, img: "https://images.unsplash.com/photo-1592210454359-9043f067919b?auto=format&fit=crop&q=80&w=300" },
             { id: "2218687", key: "TH3V4TJLRFZD3JSG", n: "San Vicente", loc: "La Plata", c: [-34.9031, -57.9485], clr: "#8b5cf6", live: true, img: "https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&q=80&w=300" },
-            { id: "2823820", key: "FFI1HK80ZKDNS6V8", n: "Observatorio", loc: "Bosque LP", c: [-34.9064, -57.9322], clr: "#ef4444", live: true, img: "imagenes/observatorio.png" }
+            { id: "2823820", key: "FFI1HK80ZKDNS6V8",
+              n: "Observatorio", loc: "Facultad (FCAG) · Campbell", c: [-34.908364, -57.933164], clr: "#ef4444", live: true, img: "imagenes/observatorio.png" },
+            { id: "2218686", key: "O85A0DJ31L8MQZ6F", isEmaVerde: true,
+              n: "EMA Verde", loc: "Facultad (FCAG) · en prueba", c: [-34.9086, -57.9339], clr: "#22c55e", live: true, img: "imagenes/observatorio.png" },
+            { source: "wunderground", wuId: "ILAPLA66", wuKey: "470147c769f6493f8147c769f6693fd9",
+              n: "Daza", loc: "Facultad (FCAG) · Wunderground", c: [-34.9091, -57.9325], clr: "#f43f5e", live: true, img: "imagenes/observatorio.png" }
         ];
 
         const map = L.map('map', { zoomControl: false }).setView([-35.10, -57.75], 9);
@@ -290,59 +305,151 @@
             return `Hace ${diffDias} ${diffDias === 1 ? 'día' : 'días'}`;
         }
 
+        // ─── WEATHER UNDERGROUND (Monte Veloz, Daza) ────────────────────────────
+        function formatearFechaWU(date) {
+            const pad = (n) => n.toString().padStart(2, '0');
+            return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}`;
+        }
+
+        async function fetchWUHistorialHoy(stationId, apiKey) {
+            const url = `https://api.weather.com/v2/pws/history/all?stationId=${stationId}&format=json&units=m&date=${formatearFechaWU(new Date())}&apiKey=${apiKey}`;
+            try {
+                const res = await fetch(url);
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const data = await res.json();
+                return data.observations || [];
+            } catch (e) {
+                console.error('Error consultando historial de Wunderground:', e);
+                return [];
+            }
+        }
+
+        async function fetchWUActual(stationId, apiKey) {
+            const url = `https://api.weather.com/v2/pws/observations/current?stationId=${stationId}&format=json&units=m&apiKey=${apiKey}`;
+            try {
+                const res = await fetch(url, { cache: 'no-store' });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const data = await res.json();
+                return (data.observations && data.observations[0]) || null;
+            } catch (e) {
+                console.error('Error consultando el dato en vivo de Wunderground:', e);
+                return null;
+            }
+        }
+
+        async function fetchHistorialWU(estacion) {
+            const [obsHistoricas, obsActual] = await Promise.all([
+                fetchWUHistorialHoy(estacion.wuId, estacion.wuKey),
+                fetchWUActual(estacion.wuId, estacion.wuKey)
+            ]);
+
+            let observaciones = obsHistoricas.slice();
+            if (obsActual) observaciones.push(obsActual);
+            if (observaciones.length > 15) observaciones = observaciones.slice(observaciones.length - 15);
+
+            const horas = [], temps = [], hums = [], press = [], rains = [], winds = [], windDirs = [], dews = [];
+            let lastEntryTime = null;
+
+            observaciones.forEach(o => {
+                const rawTs = o.obsTimeLocal || o.obsTimeUtc;
+                if (rawTs) {
+                    const ts = new Date(rawTs.replace(' ', 'T'));
+                    horas.push(`${String(ts.getHours()).padStart(2,'0')}:${String(ts.getMinutes()).padStart(2,'0')}`);
+                    lastEntryTime = rawTs;
+                } else {
+                    horas.push('--:--');
+                }
+
+                const m = o.metric || {};
+                const t = m.tempAvg != null ? m.tempAvg : m.temp;
+                temps.push(t != null ? parseFloat(t).toFixed(1) : null);
+
+                const h = o.humidityAvg != null ? o.humidityAvg : o.humidity;
+                hums.push(h != null ? parseFloat(h).toFixed(0) : null);
+
+                const p = m.pressureMax != null ? m.pressureMax : m.pressure;
+                press.push(p != null ? parseFloat(p).toFixed(1) : null);
+
+                // precipTotal de Wunderground ya es el acumulado del día (se resetea a las 00:00 local)
+                const r = m.precipTotal;
+                rains.push(r != null ? parseFloat(r).toFixed(1) : null);
+
+                const ws = m.windspeedAvg != null ? m.windspeedAvg : m.windSpeed;
+                winds.push(ws != null ? parseFloat(ws).toFixed(1) : null);
+
+                const wd = o.winddirAvg != null ? o.winddirAvg : o.winddir;
+                windDirs.push(wd != null ? parseFloat(wd) : null);
+
+                const dp = m.dewptAvg != null ? m.dewptAvg : m.dewpt;
+                dews.push(dp != null ? parseFloat(dp).toFixed(1) : null);
+            });
+
+            return { horas, temps, hums, press, rains, winds, windDirs, dews, lastEntryTime };
+        }
+
+        // ─── THINGSPEAK (resto de las estaciones) ───────────────────────────────
         async function fetchHistorialCanal(estacion) {
-            // Si la estación está offline manualment, devolvemos arrays vacíos directamente
+            // Si la estación está offline manualmente, devolvemos arrays vacíos directamente
             if (!estacion.live) {
                 return { horas: [], temps: [], hums: [], press: [], rains: [], winds: [], windDirs: [], dews: [], lastEntryTime: null };
             }
 
+            if (estacion.source === 'wunderground') {
+                return fetchHistorialWU(estacion);
+            }
+
             try {
-                const channelId = estacion.id;
-                const apiKeyParam = estacion.key ? `&api_key=${estacion.key}` : "";
-                const response = await fetch(`https://api.thingspeak.com/channels/${channelId}/feeds.json?results=15${apiKeyParam}`);
-                const data = await response.json();
-                
+                // Algunas estaciones (EP N°23 / EMA Violeta) combinan más de un canal
+                // de ThingSpeak porque migraron de canal en algún momento.
+                const canales = estacion.channels || [{ id: estacion.id, key: estacion.key }];
+                const respuestas = await Promise.all(canales.map(ch => {
+                    const apiKeyParam = ch.key ? `&api_key=${ch.key}` : "";
+                    return fetch(`https://api.thingspeak.com/channels/${ch.id}/feeds.json?results=15${apiKeyParam}`).then(r => r.json());
+                }));
+
+                let feeds = respuestas.flatMap(d => d.feeds || []);
+                feeds.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+                if (feeds.length > 15) feeds = feeds.slice(feeds.length - 15);
+
                 const horas = [], temps = [], hums = [], press = [], rains = [], winds = [], windDirs = [], dews = [];
-                
-                // Identificadores de estaciones
-                const isMonteVeloz = channelId === "3149195";
-                const isEP23 = channelId === "2218686";
-                const isObservatorio = channelId === "2823820";
+
+                // Identificadores de estaciones (por canal principal)
+                const channelId = estacion.id || canales[0].id;
+                const isObservatorio = channelId === "2823820"; // Campbell: humedad en field4, viento en field7/field8
+                const isEmaVerde = !!estacion.isEmaVerde;        // EMA Verde: lluvia en field4 (mm directos)
 
                 let lastEntryTime = null;
-                if (data.feeds && data.feeds.length > 0) {
-                    lastEntryTime = data.feeds[data.feeds.length - 1].created_at;
+                if (feeds.length > 0) {
+                    lastEntryTime = feeds[feeds.length - 1].created_at;
                 }
 
-                data.feeds.forEach(f => {
+                feeds.forEach(f => {
                     const d = new Date(f.created_at);
                     horas.push(`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`);
-                    
-                    // 1. TEMPERATURA: Ya NO restamos 2.0 a la EP23
+
                     let t = parseFloat(f.field1);
                     temps.push(isNaN(t) ? null : t.toFixed(1));
-                    
-                    // 2. HUMEDAD: Si es Observatorio (2823820), usar field4. Si no, field2.
+
                     let hField = isObservatorio ? 'field4' : 'field2';
                     let h = parseFloat(f[hField]);
                     hums.push(isNaN(h) ? null : h.toFixed(0));
-                    
-                    let p = parseFloat(isMonteVeloz ? f.field3 : f.field6);
+
+                    let p = parseFloat(f.field6);
                     press.push(isNaN(p) ? null : p.toFixed(1));
-                    
-                    let rainField = isMonteVeloz ? 'field6' : (isEP23 ? 'field3' : 'field5');
+
+                    let rainField = isEmaVerde ? 'field4' : 'field5';
                     let r = parseFloat(f[rainField]);
+                    if (!isNaN(r) && estacion.rainMult) r = r * estacion.rainMult;
                     r = isNaN(r) ? null : Math.max(0, r);
-                    rains.push(r === null ? null : r.toFixed(1));
-                    
-                    let ws = isMonteVeloz ? parseFloat(f.field4) : null;
+                    rains.push(r === null ? null : r.toFixed(2));
+
+                    let ws = isObservatorio ? parseFloat(f.field7) : null;
                     winds.push(ws === null || isNaN(ws) ? null : ws.toFixed(1));
-                    
-                    let wd = isMonteVeloz ? parseFloat(f.field5) : null;
+
+                    let wd = isObservatorio ? parseFloat(f.field8) : null;
                     windDirs.push(wd === null || isNaN(wd) ? null : wd);
-                    
-                    let dp = isMonteVeloz ? parseFloat(f.field7) : null;
-                    dews.push(dp === null || isNaN(dp) ? null : dp.toFixed(1));
+
+                    dews.push(null); // sin dato de rocío en estos canales
                 });
 
                 return { horas, temps, hums, press, rains, winds, windDirs, dews, lastEntryTime };
