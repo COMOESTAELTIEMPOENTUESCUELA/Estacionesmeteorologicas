@@ -279,7 +279,9 @@
             { id: "2218686", key: "O85A0DJ31L8MQZ6F", isEmaVerde: true,
               n: "EMA Verde", loc: "Facultad (FCAG) · en prueba", c: [-34.9086, -57.9339], clr: "#22c55e", live: true, img: "imagenes/observatorio.png" },
             { source: "wunderground", wuId: "ILAPLA66", wuKey: "470147c769f6493f8147c769f6693fd9",
-              n: "Daza", loc: "Facultad (FCAG) · Wunderground", c: [-34.9091, -57.9325], clr: "#f43f5e", live: true, img: "imagenes/observatorio.png" }
+              n: "Daza", loc: "Facultad (FCAG) · Wunderground", c: [-34.9091, -57.9325], clr: "#f43f5e", live: true, img: "imagenes/observatorio.png" },
+            { source: "wunderground", wuId: "ILOSTA2", wuKey: "f1d7143d25a24b7197143d25a23b711d",
+              n: "ES7 / EP20", loc: "Wunderground", c: [-34.95767209016535, -57.81756279329484], clr: "#0ea5e9", live: true, img: "imagenes/observatorio.png" }
         ];
 
         const map = L.map('map', { zoomControl: false }).setView([-35.10, -57.75], 9);
@@ -305,7 +307,7 @@
             return `Hace ${diffDias} ${diffDias === 1 ? 'día' : 'días'}`;
         }
 
-        // ─── WEATHER UNDERGROUND (Monte Veloz, Daza) ────────────────────────────
+        // ─── WEATHER UNDERGROUND (Monte Veloz, Daza, ES7/EP20) ──────────────────
         function formatearFechaWU(date) {
             const pad = (n) => n.toString().padStart(2, '0');
             return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}`;
