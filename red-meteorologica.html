@@ -97,7 +97,7 @@
                     <i data-lucide="sun" class="w-7 h-7 lg:w-8 lg:h-8 text-white"></i>
                 </div>
                 <div>
-                    <h1 class="text-xl lg:text-2xl font-black text-slate-900 tracking-tight">Red de Escuelas</h1>
+                    <h1 class="text-xl lg:text-2xl font-black text-slate-900 tracking-tight">Red de estaciones meteorológicas</h1>
                     <p class="text-[10px] text-blue-600 font-bold uppercase tracking-widest mt-0.5">FCAG · UNLP</p>
                 </div>
             </div>
@@ -114,7 +114,7 @@
             </h2>
             <div id="button-container"></div>
             
-            <div class="mt-4 p-4 bg-yellow-100 rounded-3xl border-4 border-yellow-300 text-xs text-yellow-800 font-bold leading-relaxed shadow-sm flex gap-3 items-center">
+            <div id="secreto-meteo" class="mt-4 p-4 bg-yellow-100 rounded-3xl border-4 border-yellow-300 text-xs text-yellow-800 font-bold leading-relaxed shadow-sm flex gap-3 items-center hidden">
                 <i data-lucide="lightbulb" class="w-7 h-7 text-yellow-500 animate-pulse shrink-0"></i>
                 <span><b>¡Secreto de Meteo!</b> El viento es aire en movimiento que trae temperatura y humedad. ¡Mirá la flecha azul para descubrir de dónde sopla!</span>
             </div>
@@ -143,7 +143,7 @@
                 <!-- Tarjetas de Datos -->
                 <div class="bg-gradient-to-b from-orange-50 to-orange-100 border-2 border-orange-300 border-b-[6px] rounded-2xl p-4 lg:p-5 kid-card shadow-md flex flex-col justify-between">
                     <div class="flex justify-between items-start mb-2">
-                        <span class="block text-[9px] lg:text-[10px] uppercase font-black text-orange-600 leading-tight">🌡️ Calor/Frío</span>
+                        <span class="block text-[9px] lg:text-[10px] uppercase font-black text-orange-600 leading-tight">🌡️ Temperatura</span>
                         <i data-lucide="sun" class="text-orange-400 opacity-50 w-6 h-6 lg:w-8 lg:h-8 shrink-0"></i>
                     </div>
                     <span class="text-2xl lg:text-4xl font-black text-slate-800 tracking-tighter" id="live-val-temp">--°C</span>
@@ -625,6 +625,7 @@
                 document.getElementById('live-val-wind').innerText = '--';
                 document.getElementById('live-val-dew').innerText = '--°C';
                 document.getElementById('wind-dir-container').classList.add('hidden');
+                document.getElementById('secreto-meteo').classList.add('hidden');
                 ['chartTemp', 'chartHum', 'chartPres', 'chartRain'].forEach(id => {
                     const canvas = document.getElementById(id);
                     const ctx = canvas.getContext('2d');
@@ -654,17 +655,20 @@
                 const ultDir = getUltimoValido(hist.windDirs);
                 const dirContainer = document.getElementById('wind-dir-container');
                 const dirIcon = document.getElementById('live-val-winddir');
+                const secretoMeteo = document.getElementById('secreto-meteo');
                 if (ultDir !== '--') {
                     dirContainer.classList.remove('hidden');
                     dirIcon.style.transform = `rotate(${ultDir}deg)`;
+                    secretoMeteo.classList.remove('hidden');
                 } else {
                     dirContainer.classList.add('hidden');
+                    secretoMeteo.classList.add('hidden');
                 }
 
                 const ultDew = getUltimoValido(hist.dews);
                 document.getElementById('live-val-dew').innerText = ultDew !== '--' ? `${ultDew}°C` : '--';
 
-                crearGraficoEvolucion('chartTemp', 'temp', hist.horas, hist.temps, '#f97316', 'Calor (°C)');
+                crearGraficoEvolucion('chartTemp', 'temp', hist.horas, hist.temps, '#f97316', 'Temperatura (°C)');
                 crearGraficoEvolucion('chartHum',  'hum',  hist.horas, hist.hums,  '#3b82f6', 'Humedad (%)');
                 crearGraficoEvolucion('chartPres', 'pres', hist.horas, hist.press, '#10b981', 'Presión (hPa)');
                 crearGraficoEvolucion('chartRain', 'rain', hist.horasLluvia || hist.horas, hist.rains, '#06b6d4', 'Lluvia acumulada (mm)');
