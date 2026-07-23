@@ -694,9 +694,11 @@
         }
 
         async function inicializarRed() {
-            for (const [index, p] of puntos.entries()) {
+            const estacionesInfo = [];
+
+            for (const p of puntos) {
                 const markerColor = p.live ? p.clr : '#94a3b8'; // Gris si está offline
-                
+
                 const marker = L.circleMarker(p.c, {
                     radius: 10, fillColor: markerColor, color: "#ffffff", weight: 3, fillOpacity: 1
                 }).addTo(map);
@@ -704,9 +706,10 @@
 
                 // Hacer fetch para saber cuándo fue la última vez que transmitió
                 const dataHistorial = await fetchHistorialCanal(p);
-                
+
                 let etiquetaTiempo = "";
                 let indicatorColor = "bg-green-500"; // Verde = transmitiendo
+                let minutosSinDato = Number.MAX_SAFE_INTEGER; // por defecto, "sin datos" (peor caso salvo offline)
 
                 if (!p.live) {
                     etiquetaTiempo = "Desconectada temporalmente";
@@ -715,8 +718,8 @@
                     etiquetaTiempo = calcularTiempoTranscurrido(dataHistorial.lastEntryTime);
                     // Si pasaron más de 2 horas (120 min) desde el último dato, se pone amarillo o rojo
                     const fechaDato = new Date(dataHistorial.lastEntryTime);
-                    const diffMins = Math.round((new Date() - fechaDato) / 60000);
-                    if (diffMins > 120) indicatorColor = "bg-red-500"; // Rojo = Sin datos recientes
+                    minutosSinDato = Math.round((new Date() - fechaDato) / 60000);
+                    if (minutosSinDato > 120) indicatorColor = "bg-red-500"; // Rojo = Sin datos recientes
                 } else {
                     etiquetaTiempo = "Sin datos recientes";
                     indicatorColor = "bg-red-500";
@@ -732,9 +735,20 @@
                     }
                 }
 
+                // Orden de la lista: primero la estación con dato más reciente. Las que
+                // no tienen datos recientes quedan al final, y las desconectadas
+                // manualmente (p.live=false) quedan siempre últimas de todas.
+                const ordenClave = !p.live ? Infinity : minutosSinDato;
+
+                estacionesInfo.push({ p, marker, markerColor, etiquetaTiempo, indicatorColor, ordenClave });
+            }
+
+            estacionesInfo.sort((a, b) => a.ordenClave - b.ordenClave);
+
+            estacionesInfo.forEach(({ p, marker, markerColor, etiquetaTiempo, indicatorColor }, index) => {
                 const btn = document.createElement('button');
                 btn.className = `station-btn shadow-md ${!p.live ? 'offline' : ''}`;
-                
+
                 // Estructura del botón con indicador de transmisión (Puntito de color y texto)
                 btn.innerHTML = `
                     <div class="w-11 h-11 lg:w-12 lg:h-12 rounded-2xl flex items-center justify-center shrink-0 border-4 border-white shadow-sm" style="background-color: ${markerColor}">
@@ -751,16 +765,17 @@
                         </div>
                     </div>
                 `;
-                
+
                 btn.onclick = () => seleccionarEscuela(p, btn, marker);
                 btnContainer.appendChild(btn);
                 lucide.createIcons();
 
-                // Autoseleccionar la primera estación ACTIVA al cargar
+                // Autoseleccionar la primera estación de la lista ya ordenada (la de dato más reciente)
                 if (index === 0 && p.live) {
                     setTimeout(() => seleccionarEscuela(p, btn, marker), 500);
                 }
-            }
+            });
+
             renderizarGraficoComparativo();
         }
 
