@@ -346,12 +346,12 @@
                 fetchWUActual(estacion.wuId, estacion.wuKey)
             ]);
 
-            // Solo usamos el histórico (promedios con decimales) para los valores numéricos.
-            // El endpoint de "condición actual" de Wunderground devuelve el campo metric.temp
-            // (y el resto de metric.*) redondeado a un entero, así que si lo sumáramos acá
-            // pisaría el último dato con uno sin decimales. Lo usamos solo para la marca de
-            // "hace cuánto fue el último dato".
+            // La observación "actual" es la única realmente en vivo (el histórico del día
+            // puede tardar bastante en incorporar la última lectura), así que la sumamos
+            // igual aunque a veces venga con menos decimales: es más importante que el dato
+            // sea el correcto/reciente a que se vea prolijo.
             let observaciones = obsHistoricas.slice();
+            if (obsActual) observaciones.push(obsActual);
             if (observaciones.length > 15) observaciones = observaciones.slice(observaciones.length - 15);
 
             const horas = [], temps = [], hums = [], press = [], rains = [], winds = [], windDirs = [], dews = [];
@@ -390,13 +390,6 @@
                 const dp = m.dewptAvg != null ? m.dewptAvg : m.dewpt;
                 dews.push(dp != null ? parseFloat(dp).toFixed(1) : null);
             });
-
-            if (obsActual) {
-                const actualTs = obsActual.obsTimeLocal || obsActual.obsTimeUtc;
-                if (actualTs && (!lastEntryTime || new Date(actualTs.replace(' ', 'T')) > new Date(lastEntryTime.replace(' ', 'T')))) {
-                    lastEntryTime = actualTs;
-                }
-            }
 
             return { horas, horasLluvia: horas, temps, hums, press, rains, winds, windDirs, dews, lastEntryTime };
         }
