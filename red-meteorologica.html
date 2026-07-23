@@ -309,13 +309,22 @@
         }
 
         // ─── WEATHER UNDERGROUND (Monte Veloz, Daza, ES7/EP20) ──────────────────
+        // Pedimos las lecturas en unidades imperiales (units=e) y las convertimos acá.
+        // El campo "metric" que devuelve la API viene con la temperatura ya redondeada
+        // a un entero (ej: 11°C en vez de 11.4°C); "imperial" retiene la resolución real
+        // del sensor, y al convertir Fahrenheit -> Celsius sí recuperamos el decimal.
         function formatearFechaWU(date) {
             const pad = (n) => n.toString().padStart(2, '0');
             return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}`;
         }
 
+        function fAcC(f) { return (f - 32) * 5 / 9; }
+        function mphAKmh(mph) { return mph * 1.609344; }
+        function inHgAHpa(inHg) { return inHg * 33.8639; }
+        function inAMm(inch) { return inch * 25.4; }
+
         async function fetchWUHistorialHoy(stationId, apiKey) {
-            const url = `https://api.weather.com/v2/pws/history/all?stationId=${stationId}&format=json&units=m&date=${formatearFechaWU(new Date())}&apiKey=${apiKey}`;
+            const url = `https://api.weather.com/v2/pws/history/all?stationId=${stationId}&format=json&units=e&date=${formatearFechaWU(new Date())}&apiKey=${apiKey}`;
             try {
                 const res = await fetch(url);
                 if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -328,7 +337,7 @@
         }
 
         async function fetchWUActual(stationId, apiKey) {
-            const url = `https://api.weather.com/v2/pws/observations/current?stationId=${stationId}&format=json&units=m&apiKey=${apiKey}`;
+            const url = `https://api.weather.com/v2/pws/observations/current?stationId=${stationId}&format=json&units=e&apiKey=${apiKey}`;
             try {
                 const res = await fetch(url, { cache: 'no-store' });
                 if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -367,28 +376,28 @@
                     horas.push('--:--');
                 }
 
-                const m = o.metric || {};
+                const m = o.imperial || {};
                 const t = m.tempAvg != null ? m.tempAvg : m.temp;
-                temps.push(t != null ? parseFloat(t).toFixed(1) : null);
+                temps.push(t != null ? fAcC(parseFloat(t)).toFixed(1) : null);
 
                 const h = o.humidityAvg != null ? o.humidityAvg : o.humidity;
                 hums.push(h != null ? parseFloat(h).toFixed(0) : null);
 
                 const p = m.pressureMax != null ? m.pressureMax : m.pressure;
-                press.push(p != null ? parseFloat(p).toFixed(1) : null);
+                press.push(p != null ? inHgAHpa(parseFloat(p)).toFixed(1) : null);
 
                 // precipTotal de Wunderground ya es el acumulado del día (se resetea a las 00:00 local)
                 const r = m.precipTotal;
-                rains.push(r != null ? parseFloat(r).toFixed(1) : null);
+                rains.push(r != null ? inAMm(parseFloat(r)).toFixed(1) : null);
 
                 const ws = m.windspeedAvg != null ? m.windspeedAvg : m.windSpeed;
-                winds.push(ws != null ? parseFloat(ws).toFixed(1) : null);
+                winds.push(ws != null ? mphAKmh(parseFloat(ws)).toFixed(1) : null);
 
                 const wd = o.winddirAvg != null ? o.winddirAvg : o.winddir;
                 windDirs.push(wd != null ? parseFloat(wd) : null);
 
                 const dp = m.dewptAvg != null ? m.dewptAvg : m.dewpt;
-                dews.push(dp != null ? parseFloat(dp).toFixed(1) : null);
+                dews.push(dp != null ? fAcC(parseFloat(dp)).toFixed(1) : null);
             });
 
             return { horas, horasLluvia: horas, temps, hums, press, rains, winds, windDirs, dews, lastEntryTime };
