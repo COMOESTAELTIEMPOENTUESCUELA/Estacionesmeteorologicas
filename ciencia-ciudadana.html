@@ -279,9 +279,10 @@
                         <select name="Tipo_Reporte" required class="w-full border-4 border-slate-100 p-4 rounded-2xl font-bold text-slate-700 focus:outline-none focus:border-fuchsia-400 bg-slate-50 appearance-none transition">
                             <option value="">Elegí el tipo de reporte...</option>
                             <option value="lluvia">🌧️ Lluvia / Precipitación</option>
-                            <option value="calle_anegada">🌊 Calle anegada</option>
                             <option value="rocio">💧 Rocío</option>
                             <option value="escarcha">❄️ Escarcha / Helada</option>
+                            <option value="granizo">🧊 Granizo</option>
+                            <option value="niebla">🌫️ Niebla</option>
                             <option value="otro">📝 Otro</option>
                         </select>
                     </div>
@@ -387,16 +388,28 @@
             <div class="h-2 w-16 bg-blue-200 rounded-full"></div>
         </div>
 
-        <!-- MAPA DE REPORTES -->
-        <div class="mt-8 mb-20">
+        <!-- MAPA DE PRECIPITACIÓN -->
+        <div class="mt-8 mb-16">
             <div class="text-center mb-10 relative">
                 <div class="inline-flex items-center gap-2 bg-sky-100 text-sky-800 px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest mb-4 shadow-sm border-2 border-sky-200 rotate-2">
-                    <i data-lucide="map-pin" class="w-4 h-4"></i> Mapa en vivo
+                    <i data-lucide="cloud-rain" class="w-4 h-4"></i> Mapa en vivo
                 </div>
-                <h2 class="text-3xl md:text-5xl font-black mb-4 text-slate-800 tracking-tight">¿Dónde están reportando?</h2>
-                <p class="text-lg text-slate-600 font-bold max-w-2xl mx-auto">Lluvia, calles anegadas, rocío y heladas: mirá los últimos reportes ubicados en el mapa.</p>
+                <h2 class="text-3xl md:text-5xl font-black mb-4 text-slate-800 tracking-tight">¿Dónde está lloviendo?</h2>
+                <p class="text-lg text-slate-600 font-bold max-w-2xl mx-auto">Mirá los reportes de lluvia y precipitación que mandó la comunidad.</p>
             </div>
-            <div id="mapa-reportes" class="w-full h-[420px] rounded-[2rem] border-4 border-sky-200 shadow-xl overflow-hidden bg-slate-100"></div>
+            <div id="mapa-reportes-lluvia" class="w-full h-[420px] rounded-[2rem] border-4 border-sky-200 shadow-xl overflow-hidden bg-slate-100"></div>
+        </div>
+
+        <!-- MAPA DE OTROS FENÓMENOS -->
+        <div class="mt-8 mb-20">
+            <div class="text-center mb-10 relative">
+                <div class="inline-flex items-center gap-2 bg-slate-200 text-slate-700 px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest mb-4 shadow-sm border-2 border-slate-300 -rotate-2">
+                    <i data-lucide="cloud-fog" class="w-4 h-4"></i> Mapa en vivo
+                </div>
+                <h2 class="text-3xl md:text-5xl font-black mb-4 text-slate-800 tracking-tight">¿Qué más están reportando?</h2>
+                <p class="text-lg text-slate-600 font-bold max-w-2xl mx-auto">Rocío, heladas, granizo, niebla y otras observaciones de la comunidad.</p>
+            </div>
+            <div id="mapa-reportes-fenomenos" class="w-full h-[420px] rounded-[2rem] border-4 border-slate-300 shadow-xl overflow-hidden bg-slate-100"></div>
         </div>
 
         <!-- DIVISOR ESTRELLAS -->
@@ -598,10 +611,10 @@
             }
         });
 
-        let mapaReportesInstancia = null;
+        let mapasReportesInstancias = [];
 
         function abrirLightbox(src) {
-            if (mapaReportesInstancia) mapaReportesInstancia.closePopup();
+            mapasReportesInstancias.forEach(function(m) { m.closePopup(); });
             document.getElementById('lightbox-img').src = src;
             document.getElementById('lightbox').style.display = 'flex';
         }
@@ -621,11 +634,15 @@
         // Tipos de reporte: ícono y color para el mapa y las tarjetas.
         const TIPO_INFO = {
             lluvia: { label: '🌧️ Lluvia / Precipitación', icon: 'cloud-rain', border: 'border-sky-200', badge: 'bg-sky-100 text-sky-600 border-sky-300', dot: '#0ea5e9' },
-            calle_anegada: { label: '🌊 Calle anegada', icon: 'car', border: 'border-orange-200', badge: 'bg-orange-100 text-orange-600 border-orange-300', dot: '#f97316' },
             rocio: { label: '💧 Rocío', icon: 'droplet', border: 'border-blue-200', badge: 'bg-blue-100 text-blue-600 border-blue-300', dot: '#3b82f6' },
             escarcha: { label: '❄️ Escarcha / Helada', icon: 'snowflake', border: 'border-cyan-200', badge: 'bg-cyan-100 text-cyan-600 border-cyan-300', dot: '#06b6d4' },
+            granizo: { label: '🧊 Granizo', icon: 'cloud-hail', border: 'border-indigo-200', badge: 'bg-indigo-100 text-indigo-600 border-indigo-300', dot: '#6366f1' },
+            niebla: { label: '🌫️ Niebla', icon: 'cloud-fog', border: 'border-slate-200', badge: 'bg-slate-100 text-slate-600 border-slate-300', dot: '#94a3b8' },
             otro: { label: '📝 Otro', icon: 'message-circle', border: 'border-yellow-200', badge: 'bg-yellow-100 text-yellow-600 border-yellow-300', dot: '#64748b' },
         };
+
+        // Tipos que van al mapa de "otros fenómenos" (todo menos lluvia)
+        const TIPOS_OTROS_FENOMENOS = ['rocio', 'escarcha', 'granizo', 'niebla', 'otro'];
 
         function formatearFecha(fechaISO) {
             const f = new Date(fechaISO);
@@ -685,9 +702,9 @@
             lucide.createIcons();
         }
 
-        function pintarMapa(reportes) {
-            const mapa = L.map('mapa-reportes').setView([-34.95, -57.7], 9);
-            mapaReportesInstancia = mapa;
+        function pintarMapa(reportes, contenedorId) {
+            const mapa = L.map(contenedorId).setView([-34.95, -57.7], 9);
+            mapasReportesInstancias.push(mapa);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
                 maxZoom: 19
@@ -804,7 +821,11 @@
                     const anteriores = reportes.filter(function(r) { return !esDeHoy(r.date); });
 
                     pintarMuro(deHoy, 'muro-reportes', 'Todavía no hay reportes de hoy. ¡Sé el primero en mandar uno!');
-                    pintarMapa(deHoy);
+
+                    const lluviaDeHoy = deHoy.filter(function(r) { return r.type === 'lluvia'; });
+                    const fenomenosDeHoy = deHoy.filter(function(r) { return TIPOS_OTROS_FENOMENOS.indexOf(r.type) !== -1; });
+                    pintarMapa(lluviaDeHoy, 'mapa-reportes-lluvia');
+                    pintarMapa(fenomenosDeHoy, 'mapa-reportes-fenomenos');
 
                     const btnAnteriores = document.getElementById('btn-ver-anteriores');
                     document.getElementById('btn-ver-anteriores-texto').textContent = anteriores.length
