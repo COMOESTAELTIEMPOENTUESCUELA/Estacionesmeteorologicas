@@ -148,6 +148,7 @@
                         <i data-lucide="sun" class="text-orange-400 opacity-50 w-6 h-6 lg:w-8 lg:h-8 shrink-0"></i>
                     </div>
                     <span class="text-2xl lg:text-4xl font-black text-slate-800 tracking-tighter" id="live-val-temp">--°C</span>
+                    <span id="live-val-tempminmax" class="block text-[9px] lg:text-[10px] font-bold text-slate-400 mt-1">Hoy: mín --° · máx --°</span>
                 </div>
 
                 <div class="bg-gradient-to-b from-blue-50 to-blue-100 border-2 border-blue-300 border-b-[6px] rounded-2xl p-4 lg:p-5 kid-card shadow-md flex flex-col justify-between">
@@ -194,12 +195,18 @@
                 </div>
             </div>
 
+            <!-- SELECTOR DE PERÍODO -->
+            <div class="flex items-center gap-1.5 bg-white/90 backdrop-blur-md p-1.5 rounded-2xl border-4 border-white shadow-md w-fit">
+                <button id="btn-periodo-hoy" class="periodo-btn px-4 py-2 rounded-xl font-black text-xs lg:text-sm transition">Hoy</button>
+                <button id="btn-periodo-semana" class="periodo-btn px-4 py-2 rounded-xl font-black text-xs lg:text-sm transition">Última semana</button>
+            </div>
+
             <!-- Gráficos -->
             <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6">
                 <div class="bg-white/95 backdrop-blur-sm rounded-2xl lg:rounded-[2rem] p-5 lg:p-6 border-4 border-white shadow-xl">
                     <h3 class="text-base lg:text-lg font-black text-slate-800 flex items-center gap-2 lg:gap-3 mb-4">
                         <span class="bg-orange-100 p-1.5 lg:p-2 rounded-xl text-orange-500 border-2 border-orange-200 shadow-sm"><i data-lucide="sun" class="w-4 h-4 lg:w-5 lg:h-5"></i></span>
-                        Temperatura de hoy
+                        <span id="titulo-chart-temp">Temperatura de hoy</span>
                     </h3>
                     <div class="h-[180px] lg:h-[220px] w-full"><canvas id="chartTemp"></canvas></div>
                 </div>
@@ -207,7 +214,7 @@
                 <div class="bg-white/95 backdrop-blur-sm rounded-2xl lg:rounded-[2rem] p-5 lg:p-6 border-4 border-white shadow-xl">
                     <h3 class="text-base lg:text-lg font-black text-slate-800 flex items-center gap-2 lg:gap-3 mb-4">
                         <span class="bg-blue-100 p-1.5 lg:p-2 rounded-xl text-blue-500 border-2 border-blue-200 shadow-sm"><i data-lucide="droplets" class="w-4 h-4 lg:w-5 lg:h-5"></i></span>
-                        Humedad de hoy
+                        <span id="titulo-chart-hum">Humedad de hoy</span>
                     </h3>
                     <div class="h-[180px] lg:h-[220px] w-full"><canvas id="chartHum"></canvas></div>
                 </div>
@@ -215,7 +222,7 @@
                 <div class="bg-white/95 backdrop-blur-sm rounded-2xl lg:rounded-[2rem] p-5 lg:p-6 border-4 border-white shadow-xl">
                     <h3 class="text-base lg:text-lg font-black text-slate-800 flex items-center gap-2 lg:gap-3 mb-4">
                         <span class="bg-emerald-100 p-1.5 lg:p-2 rounded-xl text-emerald-500 border-2 border-emerald-200 shadow-sm"><i data-lucide="gauge" class="w-4 h-4 lg:w-5 lg:h-5"></i></span>
-                        Presión de hoy
+                        <span id="titulo-chart-pres">Presión de hoy</span>
                     </h3>
                     <div class="h-[180px] lg:h-[220px] w-full"><canvas id="chartPres"></canvas></div>
                 </div>
@@ -224,7 +231,7 @@
                     <div class="absolute -right-4 -bottom-4 opacity-5"><i data-lucide="cloud-rain" class="w-32 h-32"></i></div>
                     <h3 class="text-base lg:text-lg font-black text-slate-800 flex items-center gap-2 lg:gap-3 mb-4 relative z-10">
                         <span class="bg-cyan-100 p-1.5 lg:p-2 rounded-xl text-cyan-500 border-2 border-cyan-200 shadow-sm"><i data-lucide="cloud-rain" class="w-4 h-4 lg:w-5 lg:h-5"></i></span>
-                        Lluvia acumulada
+                        <span id="titulo-chart-rain">Lluvia acumulada hoy</span>
                     </h3>
                     <div class="h-[180px] lg:h-[220px] w-full relative z-10"><canvas id="chartRain"></canvas></div>
                 </div>
@@ -323,8 +330,24 @@
         function inHgAHpa(inHg) { return inHg * 33.8639; }
         function inAMm(inch) { return inch * 25.4; }
 
-        async function fetchWUHistorialHoy(stationId, apiKey) {
-            const url = `https://api.weather.com/v2/pws/history/all?stationId=${stationId}&format=json&units=e&date=${formatearFechaWU(new Date())}&apiKey=${apiKey}`;
+        // Etiqueta del eje X: solo hora ("14:20") para "hoy", con fecha ("23/07 14:20") para la semana
+        function formatearEtiquetaFecha(date, incluirFecha) {
+            const hhmm = `${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`;
+            if (!incluirFecha) return hhmm;
+            const dd = String(date.getDate()).padStart(2, '0');
+            const mm = String(date.getMonth() + 1).padStart(2, '0');
+            return `${dd}/${mm} ${hhmm}`;
+        }
+
+        // Mínima/máxima de una lista de valores (strings numéricos u números), redondeadas a 1 decimal
+        function calcularMinMax(valores) {
+            const nums = (valores || []).map(v => parseFloat(v)).filter(v => !isNaN(v));
+            if (!nums.length) return { tempMin: null, tempMax: null };
+            return { tempMin: Math.min(...nums).toFixed(1), tempMax: Math.max(...nums).toFixed(1) };
+        }
+
+        async function fetchWUHistorialDia(stationId, apiKey, date) {
+            const url = `https://api.weather.com/v2/pws/history/all?stationId=${stationId}&format=json&units=e&date=${formatearFechaWU(date)}&apiKey=${apiKey}`;
             try {
                 const res = await fetch(url);
                 if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -349,20 +372,9 @@
             }
         }
 
-        async function fetchHistorialWU(estacion) {
-            const [obsHistoricas, obsActual] = await Promise.all([
-                fetchWUHistorialHoy(estacion.wuId, estacion.wuKey),
-                fetchWUActual(estacion.wuId, estacion.wuKey)
-            ]);
-
-            // La observación "actual" es la única realmente en vivo (el histórico del día
-            // puede tardar bastante en incorporar la última lectura), así que la sumamos
-            // igual aunque a veces venga con menos decimales: es más importante que el dato
-            // sea el correcto/reciente a que se vea prolijo.
-            let observaciones = obsHistoricas.slice();
-            if (obsActual) observaciones.push(obsActual);
-            if (observaciones.length > 15) observaciones = observaciones.slice(observaciones.length - 15);
-
+        // Arma horas/temps/hums/etc. a partir de una lista de observaciones ya combinadas.
+        // incluirFecha=true agrega la fecha a la etiqueta (necesario cuando son varios días).
+        function procesarObservacionesWU(observaciones, incluirFecha) {
             const horas = [], temps = [], hums = [], press = [], rains = [], winds = [], windDirs = [], dews = [];
             let lastEntryTime = null;
 
@@ -370,7 +382,7 @@
                 const rawTs = o.obsTimeLocal || o.obsTimeUtc;
                 if (rawTs) {
                     const ts = new Date(rawTs.replace(' ', 'T'));
-                    horas.push(`${String(ts.getHours()).padStart(2,'0')}:${String(ts.getMinutes()).padStart(2,'0')}`);
+                    horas.push(formatearEtiquetaFecha(ts, incluirFecha));
                     lastEntryTime = rawTs;
                 } else {
                     horas.push('--:--');
@@ -403,15 +415,54 @@
             return { horas, horasLluvia: horas, temps, hums, press, rains, winds, windDirs, dews, lastEntryTime };
         }
 
+        async function fetchHistorialWU(estacion) {
+            const [obsHistoricas, obsActual] = await Promise.all([
+                fetchWUHistorialDia(estacion.wuId, estacion.wuKey, new Date()),
+                fetchWUActual(estacion.wuId, estacion.wuKey)
+            ]);
+
+            // La observación "actual" es la única realmente en vivo (el histórico del día
+            // puede tardar bastante en incorporar la última lectura), así que la sumamos
+            // igual aunque a veces venga con menos decimales: es más importante que el dato
+            // sea el correcto/reciente a que se vea prolijo.
+            let observaciones = obsHistoricas.slice();
+            if (obsActual) observaciones.push(obsActual);
+            if (observaciones.length > 15) observaciones = observaciones.slice(observaciones.length - 15);
+
+            return procesarObservacionesWU(observaciones, false);
+        }
+
+        // Últimos 7 días (hoy incluido): una consulta de historial por día + el dato en vivo al final.
+        async function fetchHistorialWUSemana(estacion) {
+            const hoy = new Date();
+            const dias = [];
+            for (let i = 6; i >= 0; i--) {
+                const d = new Date(hoy);
+                d.setDate(d.getDate() - i);
+                dias.push(d);
+            }
+
+            const [porDia, obsActual] = await Promise.all([
+                Promise.all(dias.map(d => fetchWUHistorialDia(estacion.wuId, estacion.wuKey, d))),
+                fetchWUActual(estacion.wuId, estacion.wuKey)
+            ]);
+
+            let observaciones = porDia.flat();
+            if (obsActual) observaciones.push(obsActual);
+
+            return procesarObservacionesWU(observaciones, true);
+        }
+
         // ─── THINGSPEAK (resto de las estaciones) ───────────────────────────────
         // Los fields de lluvia de estas estaciones (field4 de EMA Verde, field5 de
         // Campbell y de la EMA Violeta) NO son un acumulado corrido: cada lectura es
         // el incremento de ESE intervalo nada más. Por eso "lluvia hoy" hay que
-        // calcularla sumando todas las lecturas de hoy, no mostrando la última nomás.
-        function formatearInicioDeHoyTS() {
-            const hoy = new Date();
+        // calcularla sumando todas las lecturas del período, no mostrando la última nomás.
+        function formatearInicioNDiasAtras(dias) {
+            const fecha = new Date();
+            fecha.setDate(fecha.getDate() - (dias - 1));
             const pad = (n) => n.toString().padStart(2, '0');
-            return `${hoy.getFullYear()}-${pad(hoy.getMonth() + 1)}-${pad(hoy.getDate())}%2000:00:00`;
+            return `${fecha.getFullYear()}-${pad(fecha.getMonth() + 1)}-${pad(fecha.getDate())}%2000:00:00`;
         }
 
         async function fetchFeedsCanal(ch, extraParams = '') {
@@ -420,12 +471,15 @@
             return res.json();
         }
 
-        async function acumularLluviaDeHoy(canales, rainField, rainMult) {
-            const inicioHoy = formatearInicioDeHoyTS();
-            const respuestas = await Promise.all(canales.map(ch => fetchFeedsCanal(ch, `&start=${inicioHoy}`)));
+        // Acumulado de lluvia de los últimos `dias` días (1 = solo hoy), y de paso la
+        // mínima/máxima de temperatura de HOY (aunque el período pedido sea más largo).
+        async function datosDelPeriodoTS(canales, rainField, rainMult, dias) {
+            const inicioPeriodo = formatearInicioNDiasAtras(dias);
+            const respuestas = await Promise.all(canales.map(ch => fetchFeedsCanal(ch, `&start=${inicioPeriodo}`)));
             let feeds = respuestas.flatMap(d => d.feeds || []);
             feeds.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
+            const incluirFecha = dias > 1;
             let total = 0;
             const horas = [], curva = [];
             feeds.forEach(f => {
@@ -433,22 +487,37 @@
                 if (isNaN(v) || v < 0) return;
                 if (rainMult) v = v * rainMult;
                 total += v;
-                const d = new Date(f.created_at);
-                horas.push(`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`);
+                horas.push(formatearEtiquetaFecha(new Date(f.created_at), incluirFecha));
                 curva.push(+total.toFixed(2));
             });
 
-            return { total: +total.toFixed(2), horas, curva };
+            const hoyStr = new Date().toDateString();
+            const tempsHoy = feeds
+                .filter(f => new Date(f.created_at).toDateString() === hoyStr)
+                .map(f => f.field1);
+            const { tempMin, tempMax } = calcularMinMax(tempsHoy);
+
+            return { total: +total.toFixed(2), horas, curva, tempMin, tempMax };
         }
 
-        async function fetchHistorialCanal(estacion) {
+        async function fetchHistorialCanal(estacion, periodo = 'hoy') {
             // Si la estación está offline manualmente, devolvemos arrays vacíos directamente
             if (!estacion.live) {
-                return { horas: [], temps: [], hums: [], press: [], rains: [], winds: [], windDirs: [], dews: [], lastEntryTime: null };
+                return { horas: [], temps: [], hums: [], press: [], rains: [], winds: [], windDirs: [], dews: [], lastEntryTime: null, tempMin: null, tempMax: null };
             }
 
             if (estacion.source === 'wunderground') {
-                return fetchHistorialWU(estacion);
+                if (periodo === 'semana') {
+                    const [hoyData, semanaData] = await Promise.all([
+                        fetchHistorialWU(estacion),
+                        fetchHistorialWUSemana(estacion)
+                    ]);
+                    const { tempMin, tempMax } = calcularMinMax(hoyData.temps);
+                    return { ...semanaData, tempMin, tempMax };
+                }
+                const hoyData = await fetchHistorialWU(estacion);
+                const { tempMin, tempMax } = calcularMinMax(hoyData.temps);
+                return { ...hoyData, tempMin, tempMax };
             }
 
             try {
@@ -457,18 +526,22 @@
                 const canales = estacion.channels || [{ id: estacion.id, key: estacion.key }];
                 const isEmaVerde = !!estacion.isEmaVerde;        // EMA Verde: lluvia en field4 (mm directos)
                 const rainField = isEmaVerde ? 'field4' : 'field5';
+                const dias = periodo === 'semana' ? 7 : 1;
+                const incluirFecha = dias > 1;
 
-                const [respuestas, acumuladoHoy] = await Promise.all([
+                const [respuestas, datosPeriodo] = await Promise.all([
                     Promise.all(canales.map(ch => {
                         const apiKeyParam = ch.key ? `&api_key=${ch.key}` : "";
-                        return fetch(`https://api.thingspeak.com/channels/${ch.id}/feeds.json?results=15${apiKeyParam}`).then(r => r.json());
+                        const paramResultados = periodo === 'semana' ? 'days=7' : 'results=15';
+                        return fetch(`https://api.thingspeak.com/channels/${ch.id}/feeds.json?${paramResultados}${apiKeyParam}`).then(r => r.json());
                     })),
-                    acumularLluviaDeHoy(canales, rainField, estacion.rainMult)
+                    datosDelPeriodoTS(canales, rainField, estacion.rainMult, dias)
                 ]);
 
                 let feeds = respuestas.flatMap(d => d.feeds || []);
                 feeds.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-                if (feeds.length > 15) feeds = feeds.slice(feeds.length - 15);
+                if (periodo !== 'semana' && feeds.length > 15) feeds = feeds.slice(feeds.length - 15);
+                if (feeds.length > 2000) feeds = feeds.slice(feeds.length - 2000); // límite de seguridad para no saturar el gráfico
 
                 const horas = [], temps = [], hums = [], press = [], winds = [], windDirs = [], dews = [];
 
@@ -482,8 +555,7 @@
                 }
 
                 feeds.forEach(f => {
-                    const d = new Date(f.created_at);
-                    horas.push(`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`);
+                    horas.push(formatearEtiquetaFecha(new Date(f.created_at), incluirFecha));
 
                     let t = parseFloat(f.field1);
                     temps.push(isNaN(t) ? null : t.toFixed(1));
@@ -504,15 +576,15 @@
                     dews.push(null); // sin dato de rocío en estos canales
                 });
 
-                // La lluvia se grafica como acumulado del día (suma corrida desde las
-                // 00:00), no como lecturas sueltas, así "Lluvia hoy" muestra el total real.
-                const horasLluvia = acumuladoHoy.horas.length ? acumuladoHoy.horas : horas;
-                const rains = acumuladoHoy.curva.length ? acumuladoHoy.curva.map(v => v.toFixed(2)) : [];
+                // La lluvia se grafica como acumulado del período (suma corrida desde el
+                // inicio), no como lecturas sueltas, así "Lluvia" muestra el total real.
+                const horasLluvia = datosPeriodo.horas.length ? datosPeriodo.horas : horas;
+                const rains = datosPeriodo.curva.length ? datosPeriodo.curva.map(v => v.toFixed(2)) : [];
 
-                return { horas, horasLluvia, temps, hums, press, rains, winds, windDirs, dews, lastEntryTime };
+                return { horas, horasLluvia, temps, hums, press, rains, winds, windDirs, dews, lastEntryTime, tempMin: datosPeriodo.tempMin, tempMax: datosPeriodo.tempMax };
             } catch (e) {
                 console.error("Error obteniendo datos de", estacion.n, e);
-                return { horas: [], horasLluvia: [], temps: [], hums: [], press: [], rains: [], winds: [], windDirs: [], dews: [], lastEntryTime: null };
+                return { horas: [], horasLluvia: [], temps: [], hums: [], press: [], rains: [], winds: [], windDirs: [], dews: [], lastEntryTime: null, tempMin: null, tempMax: null };
             }
         }
 
@@ -618,48 +690,65 @@
             });
         }
 
-        async function seleccionarEscuela(p, btnElement, marker) {
-            // No hacer nada si la estación está fuera de servicio
-            if (!p.live) return;
+        let periodoActual = 'hoy';
+        let estacionActual = null;
 
-            document.querySelectorAll('.station-btn').forEach(b => b.classList.remove('active'));
-            btnElement.classList.add('active');
-            document.getElementById('nombre-estacion-activa').innerText = p.n;
-            map.flyTo(p.c, 13, { duration: 1.5 });
-            marker.openPopup();
+        function actualizarTitulosDeGraficos() {
+            const sufijo = periodoActual === 'semana' ? 'de la última semana' : 'de hoy';
+            document.getElementById('titulo-chart-temp').textContent = `Temperatura ${sufijo}`;
+            document.getElementById('titulo-chart-hum').textContent = `Humedad ${sufijo}`;
+            document.getElementById('titulo-chart-pres').textContent = `Presión ${sufijo}`;
+            document.getElementById('titulo-chart-rain').textContent = periodoActual === 'semana'
+                ? 'Lluvia acumulada de la última semana'
+                : 'Lluvia acumulada hoy';
+        }
 
-            const hist = await fetchHistorialCanal(p);
-            
-            // Función para limpiar campos si no hay datos
-            const limpiarCampos = () => {
-                document.getElementById('live-val-temp').innerText = '--°C';
-                document.getElementById('live-val-hum').innerText = '--%';
-                document.getElementById('live-val-pres').innerText = '-- hPa';
-                document.getElementById('live-val-rain').innerText = '-- mm';
-                document.getElementById('live-val-wind').innerText = '--';
-                document.getElementById('live-val-dew').innerText = '--°C';
-                document.getElementById('wind-dir-container').classList.add('hidden');
-                document.getElementById('secreto-meteo').classList.add('hidden');
-                ['chartTemp', 'chartHum', 'chartPres', 'chartRain'].forEach(id => {
-                    const canvas = document.getElementById(id);
-                    const ctx = canvas.getContext('2d');
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    if(graficos[id.replace('chart','').toLowerCase()]) graficos[id.replace('chart','').toLowerCase()].destroy();
-                });
-            };
+        function actualizarBotonesDePeriodo() {
+            const activo = 'bg-blue-500 text-white';
+            const inactivo = 'text-slate-500 hover:bg-slate-100';
+            const btnHoy = document.getElementById('btn-periodo-hoy');
+            const btnSemana = document.getElementById('btn-periodo-semana');
+            btnHoy.className = `periodo-btn px-4 py-2 rounded-xl font-black text-xs lg:text-sm transition ${periodoActual === 'hoy' ? activo : inactivo}`;
+            btnSemana.className = `periodo-btn px-4 py-2 rounded-xl font-black text-xs lg:text-sm transition ${periodoActual === 'semana' ? activo : inactivo}`;
+        }
 
+        // Función para limpiar campos si no hay datos
+        function limpiarCampos() {
+            document.getElementById('live-val-temp').innerText = '--°C';
+            document.getElementById('live-val-tempminmax').innerText = 'Hoy: mín --° · máx --°';
+            document.getElementById('live-val-hum').innerText = '--%';
+            document.getElementById('live-val-pres').innerText = '-- hPa';
+            document.getElementById('live-val-rain').innerText = '-- mm';
+            document.getElementById('live-val-wind').innerText = '--';
+            document.getElementById('live-val-dew').innerText = '--°C';
+            document.getElementById('wind-dir-container').classList.add('hidden');
+            document.getElementById('secreto-meteo').classList.add('hidden');
+            ['chartTemp', 'chartHum', 'chartPres', 'chartRain'].forEach(id => {
+                const canvas = document.getElementById(id);
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                if(graficos[id.replace('chart','').toLowerCase()]) graficos[id.replace('chart','').toLowerCase()].destroy();
+            });
+        }
+
+        function renderizarPanel(hist) {
             if (hist && hist.temps.length > 0) {
                 const getUltimoValido = (arr) => arr.slice().reverse().find(val => val !== null) || '--';
-                
+
                 let ultTemp = getUltimoValido(hist.temps);
                 document.getElementById('live-val-temp').innerText = ultTemp !== '--' ? `${ultTemp}°C` : '--°C';
-                
+
+                document.getElementById('live-val-tempminmax').innerText =
+                    (hist.tempMin != null && hist.tempMax != null)
+                        ? `Hoy: mín ${hist.tempMin}° · máx ${hist.tempMax}°`
+                        : 'Hoy: mín --° · máx --°';
+
                 let ultHum = getUltimoValido(hist.hums);
                 document.getElementById('live-val-hum').innerText = ultHum !== '--' ? `${ultHum}%` : '--%';
-                
+
                 let ultPres = getUltimoValido(hist.press);
                 document.getElementById('live-val-pres').innerText = ultPres !== '--' ? `${ultPres} hPa` : '-- hPa';
-                
+
                 let ultRain = getUltimoValido(hist.rains);
                 document.getElementById('live-val-rain').innerText = ultRain !== '--' ? `${ultRain} mm` : '-- mm';
 
@@ -689,11 +778,42 @@
             } else {
                 limpiarCampos();
             }
+        }
+
+        async function seleccionarEscuela(p, btnElement, marker) {
+            // No hacer nada si la estación está fuera de servicio
+            if (!p.live) return;
+
+            estacionActual = { p, btnElement, marker };
+
+            document.querySelectorAll('.station-btn').forEach(b => b.classList.remove('active'));
+            btnElement.classList.add('active');
+            document.getElementById('nombre-estacion-activa').innerText = p.n;
+            map.flyTo(p.c, 13, { duration: 1.5 });
+            marker.openPopup();
+
+            const hist = await fetchHistorialCanal(p, periodoActual);
+            renderizarPanel(hist);
 
             if (window.innerWidth < 1024) {
                 document.getElementById('main-dashboard').scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
         }
+
+        async function cambiarPeriodo(nuevoPeriodo) {
+            if (nuevoPeriodo === periodoActual) return;
+            periodoActual = nuevoPeriodo;
+            actualizarBotonesDePeriodo();
+            actualizarTitulosDeGraficos();
+            if (estacionActual) {
+                const hist = await fetchHistorialCanal(estacionActual.p, periodoActual);
+                renderizarPanel(hist);
+            }
+        }
+
+        document.getElementById('btn-periodo-hoy').addEventListener('click', () => cambiarPeriodo('hoy'));
+        document.getElementById('btn-periodo-semana').addEventListener('click', () => cambiarPeriodo('semana'));
+        actualizarBotonesDePeriodo();
 
         async function inicializarRed() {
             const estacionesInfo = [];
