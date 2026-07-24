@@ -254,15 +254,15 @@
                     <h3 class="text-xl lg:text-2xl font-black text-white flex items-center gap-3 mb-1">
                         🏆 ¡Carrera de Temperaturas!
                     </h3>
-                    <p class="text-sm font-bold text-blue-200 mb-5">¿En qué escuela hace más calor ahora?</p>
+                    <p class="text-sm font-bold text-blue-200 mb-5">¿Dónde hizo más calor y más frío hoy?</p>
                     <div class="h-[200px] lg:h-[250px] w-full"><canvas id="chartComparativo"></canvas></div>
                 </div>
             </div>
             
             <footer class="text-center pb-6 pt-2">
-                <p class="text-[11px] font-black text-blue-800 uppercase tracking-widest bg-white/80 backdrop-blur inline-block px-5 py-3 rounded-full border-2 border-white shadow-lg">
-                    Envianos tu reporte en foto o video
-                </p>
+                <a href="ciencia-ciudadana.html#enviar-reporte" class="text-[11px] font-black text-blue-800 uppercase tracking-widest bg-white/80 backdrop-blur inline-block px-5 py-3 rounded-full border-2 border-white shadow-lg hover:bg-white transition">
+                    Envianos tu reporte en foto
+                </a>
             </footer>
 
         </div>
@@ -306,7 +306,7 @@
 
         const btnContainer = document.getElementById('button-container');
         const graficos = { temp: null, hum: null, pres: null, rain: null, comp: null };
-        let datosComparativos = { labels: [], temps: [], colors: [] };
+        let datosComparativos = { labels: [], mins: [], maxs: [] };
 
         // Función auxiliar para calcular cuánto tiempo pasó desde el último dato
         function calcularTiempoTranscurrido(fechaISO) {
@@ -508,6 +508,23 @@
                 });
             }
 
+            // Mínima/máxima de HOY (día calendario), no de la ventana rolling de 24hs:
+            // se calcula aparte, sobre las observaciones de hoy nomás.
+            const hoyStr = ahora.toDateString();
+            const obsSoloHoy = obsHoy.concat(obsActual ? [obsActual] : []).filter(o => {
+                const rawTs = o.obsTimeLocal || o.obsTimeUtc;
+                if (!rawTs) return false;
+                return new Date(rawTs.replace(' ', 'T')).toDateString() === hoyStr;
+            });
+            const tempsHoy = obsSoloHoy.map(o => {
+                const m = o.imperial || {};
+                const t = m.tempAvg != null ? m.tempAvg : m.temp;
+                return t != null ? fAcC(parseFloat(t)) : null;
+            }).filter(v => v != null);
+            const { tempMin, tempMax } = calcularMinMax(tempsHoy);
+            resultado.tempMin = tempMin;
+            resultado.tempMax = tempMax;
+
             return resultado;
         }
 
@@ -606,12 +623,10 @@
                         fetchHistorialWU(estacion, convencionLluvia),
                         fetchHistorialWUSemana(estacion)
                     ]);
-                    const { tempMin, tempMax } = calcularMinMax(hoyData.temps);
-                    return { ...semanaData, tempMin, tempMax };
+                    return { ...semanaData, tempMin: hoyData.tempMin, tempMax: hoyData.tempMax };
                 }
                 const hoyData = await fetchHistorialWU(estacion, convencionLluvia);
-                const { tempMin, tempMax } = calcularMinMax(hoyData.temps);
-                return { ...hoyData, tempMin, tempMax };
+                return hoyData;
             }
 
             try {
@@ -744,30 +759,47 @@
                 type: 'bar',
                 data: {
                     labels: datosComparativos.labels,
-                    datasets: [{
-                        data: datosComparativos.temps,
-                        backgroundColor: datosComparativos.colors,
-                        borderRadius: 14,
-                        borderSkipped: false,
-                        barThickness: 'flex',
-                        maxBarThickness: 50
-                    }]
+                    datasets: [
+                        {
+                            label: 'Mínima',
+                            data: datosComparativos.mins,
+                            backgroundColor: '#38bdf8',
+                            borderRadius: 14,
+                            borderSkipped: false,
+                            barThickness: 'flex',
+                            maxBarThickness: 40
+                        },
+                        {
+                            label: 'Máxima',
+                            data: datosComparativos.maxs,
+                            backgroundColor: '#f97316',
+                            borderRadius: 14,
+                            borderSkipped: false,
+                            barThickness: 'flex',
+                            maxBarThickness: 40
+                        }
+                    ]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: { display: false },
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            align: 'end',
+                            labels: { color: '#ffffff', boxWidth: 12, font: { weight: '800', family: "'Plus Jakarta Sans', sans-serif", size: 11 } }
+                        },
                         tooltip: {
                             backgroundColor: '#ffffff',
                             titleColor: '#0f172a',
                             bodyColor: '#0f172a',
                             padding: 12,
                             titleFont: { size: 13, family: "'Plus Jakarta Sans', sans-serif" },
-                            bodyFont: { size: 18, weight: '900', family: "'Plus Jakarta Sans', sans-serif" },
-                            displayColors: false,
+                            bodyFont: { size: 16, weight: '900', family: "'Plus Jakarta Sans', sans-serif" },
+                            displayColors: true,
                             cornerRadius: 14,
-                            callbacks: { label: (ctx) => ctx.parsed.y + ' °C' }
+                            callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y} °C` }
                         }
                     },
                     scales: {
@@ -973,14 +1005,13 @@
                     indicatorColor = "bg-red-500";
                 }
 
-                // Alimentar el gráfico comparativo solo si está activa
-                if (p.live && dataHistorial.temps && dataHistorial.temps.length > 0) {
-                    const ultimaTemp = dataHistorial.temps.slice().reverse().find(val => val !== null);
-                    if (ultimaTemp) {
-                        datosComparativos.labels.push(p.n);
-                        datosComparativos.temps.push(parseFloat(ultimaTemp));
-                        datosComparativos.colors.push(p.clr);
-                    }
+                // Alimentar el gráfico comparativo con la mínima/máxima de HOY. Las
+                // estaciones que todavía no tienen ese dato (offline, sin lecturas hoy)
+                // directamente no entran en el gráfico.
+                if (p.live && dataHistorial.tempMin != null && dataHistorial.tempMax != null) {
+                    datosComparativos.labels.push(p.n);
+                    datosComparativos.mins.push(parseFloat(dataHistorial.tempMin));
+                    datosComparativos.maxs.push(parseFloat(dataHistorial.tempMax));
                 }
 
                 // Orden de la lista: primero la estación con dato más reciente. Las que
