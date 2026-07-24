@@ -70,6 +70,22 @@
             background-image: radial-gradient(#fbcfe8 2px, transparent 2px);
             background-size: 30px 30px;
         }
+
+        /* Globito con el valor de lluvia (mm) al lado del punto en el mapa de precipitación */
+        .leaflet-tooltip.tooltip-lluvia {
+            background: #0ea5e9;
+            color: #ffffff;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-weight: 900;
+            font-size: 12px;
+            border: 2px solid #ffffff;
+            border-radius: 999px;
+            padding: 3px 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+        .leaflet-tooltip.tooltip-lluvia.leaflet-tooltip-top::before {
+            border-top-color: #0ea5e9;
+        }
     </style>
 </head>
 <body class="text-slate-800 antialiased selection:bg-fuchsia-300 selection:text-slate-900 bg-dots">
@@ -702,7 +718,7 @@
             lucide.createIcons();
         }
 
-        function pintarMapa(reportes, contenedorId) {
+        function pintarMapa(reportes, contenedorId, mostrarValorLluvia) {
             const mapa = L.map(contenedorId).setView([-34.95, -57.7], 9);
             mapasReportesInstancias.push(mapa);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -719,6 +735,7 @@
                 const lon = geo.coordinates[0];
                 const lat = geo.coordinates[1];
                 const tipo = TIPO_INFO[r.type] || TIPO_INFO.otro;
+                const hayLluvia = r.rain_mm !== undefined && r.rain_mm !== null && r.rain_mm !== '';
                 const marcador = L.circleMarker([lat, lon], {
                     radius: 10,
                     color: '#fff',
@@ -726,6 +743,17 @@
                     fillColor: tipo.dot,
                     fillOpacity: 0.9
                 }).addTo(mapa);
+
+                // Globito con el valor de lluvia siempre visible al lado del punto
+                if (mostrarValorLluvia && hayLluvia) {
+                    marcador.bindTooltip(r.rain_mm + ' mm', {
+                        permanent: true,
+                        direction: 'top',
+                        offset: [0, -8],
+                        className: 'tooltip-lluvia'
+                    });
+                }
+
                 const fotoPopup = r.image
                     ? '<img src="' + r.image + '" alt="" draggable="false" class="reporte-foto" style="width:160px;height:110px;object-fit:cover;border-radius:10px;margin-bottom:6px;display:block;cursor:zoom-in;">'
                     : '';
@@ -734,6 +762,7 @@
                     '<strong>' + (r.title || tipo.label) + '</strong><br>' +
                     (r.school ? r.school + '<br>' : '') +
                     tipo.label + '<br>' +
+                    (hayLluvia ? '🌧️ ' + r.rain_mm + ' mm<br>' : '') +
                     '<span style="color:#64748b">' + formatearFecha(r.date) + '</span>'
                 );
                 puntos.push([lat, lon]);
@@ -824,8 +853,8 @@
 
                     const lluviaDeHoy = deHoy.filter(function(r) { return r.type === 'lluvia'; });
                     const fenomenosDeHoy = deHoy.filter(function(r) { return TIPOS_OTROS_FENOMENOS.indexOf(r.type) !== -1; });
-                    pintarMapa(lluviaDeHoy, 'mapa-reportes-lluvia');
-                    pintarMapa(fenomenosDeHoy, 'mapa-reportes-fenomenos');
+                    pintarMapa(lluviaDeHoy, 'mapa-reportes-lluvia', true);
+                    pintarMapa(fenomenosDeHoy, 'mapa-reportes-fenomenos', false);
 
                     const btnAnteriores = document.getElementById('btn-ver-anteriores');
                     document.getElementById('btn-ver-anteriores-texto').textContent = anteriores.length
