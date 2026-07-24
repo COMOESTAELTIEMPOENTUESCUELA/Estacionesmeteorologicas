@@ -201,7 +201,7 @@
 
             <!-- SELECTOR DE PERÍODO -->
             <div class="flex items-center gap-1.5 bg-white/90 backdrop-blur-md p-1.5 rounded-2xl border-4 border-white shadow-md w-fit">
-                <button id="btn-periodo-hoy" class="periodo-btn px-4 py-2 rounded-xl font-black text-xs lg:text-sm transition">Hoy</button>
+                <button id="btn-periodo-hoy" class="periodo-btn px-4 py-2 rounded-xl font-black text-xs lg:text-sm transition">Últimas 24 hs</button>
                 <button id="btn-periodo-semana" class="periodo-btn px-4 py-2 rounded-xl font-black text-xs lg:text-sm transition">Última semana</button>
             </div>
 
@@ -233,10 +233,14 @@
 
                 <div class="bg-white/95 backdrop-blur-sm rounded-2xl lg:rounded-[2rem] p-5 lg:p-6 border-4 border-white shadow-xl relative overflow-hidden">
                     <div class="absolute -right-4 -bottom-4 opacity-5"><i data-lucide="cloud-rain" class="w-32 h-32"></i></div>
-                    <h3 class="text-base lg:text-lg font-black text-slate-800 flex items-center gap-2 lg:gap-3 mb-4 relative z-10">
+                    <h3 class="text-base lg:text-lg font-black text-slate-800 flex items-center gap-2 lg:gap-3 mb-3 relative z-10">
                         <span class="bg-cyan-100 p-1.5 lg:p-2 rounded-xl text-cyan-500 border-2 border-cyan-200 shadow-sm"><i data-lucide="cloud-rain" class="w-4 h-4 lg:w-5 lg:h-5"></i></span>
                         <span id="titulo-chart-rain">Lluvia acumulada hoy</span>
                     </h3>
+                    <div id="lluvia-convencion-toggle" class="flex items-center gap-1.5 mb-3 relative z-10">
+                        <button id="btn-lluvia-calendario" class="lluvia-btn px-3 py-1.5 rounded-lg font-bold text-[10px] lg:text-xs transition">Día calendario (00 a 00)</button>
+                        <button id="btn-lluvia-meteorologico" class="lluvia-btn px-3 py-1.5 rounded-lg font-bold text-[10px] lg:text-xs transition">Día meteorológico (9 a 9)</button>
+                    </div>
                     <div class="h-[180px] lg:h-[220px] w-full relative z-10"><canvas id="chartRain"></canvas></div>
                 </div>
             </div>
@@ -419,9 +423,61 @@
             return { horas, horasLluvia: horas, temps, hums, press, rains, winds, windDirs, dews, lastEntryTime };
         }
 
-        async function fetchHistorialWU(estacion) {
-            const [obsHistoricas, obsActual] = await Promise.all([
-                fetchWUHistorialDia(estacion.wuId, estacion.wuKey, new Date()),
+        // Busca, entre observaciones de Wunderground, el precipTotal (acumulado desde la
+        // medianoche de SU propio día) de la lectura más cercana sin pasarse de "target".
+        function precipTotalEnHora(observaciones, target) {
+            let mejor = null, mejorTs = null;
+            observaciones.forEach(o => {
+                const rawTs = o.obsTimeLocal || o.obsTimeUtc;
+                if (!rawTs) return;
+                const ts = new Date(rawTs.replace(' ', 'T'));
+                const m = o.imperial || {};
+                if (m.precipTotal == null) return;
+                if (ts <= target && (!mejorTs || ts > mejorTs)) {
+                    mejorTs = ts;
+                    mejor = parseFloat(m.precipTotal);
+                }
+            });
+            return mejor;
+        }
+
+        // Lluvia acumulada del "día meteorológico" (9 a 9) vigente en el momento "momento",
+        // reconstruida a partir del precipTotal de Wunderground (que solo resetea a medianoche).
+        // Devuelve pulgadas (unidad nativa de precipTotal) o null si no hay datos suficientes.
+        function lluviaMeteorologicaEnMomento(observaciones, momento) {
+            const inicio9am = new Date(momento);
+            inicio9am.setHours(9, 0, 0, 0);
+
+            if (momento < inicio9am) {
+                // El día meteorológico en curso empezó ayer a las 9: sumamos lo que llovió
+                // ayer entre las 9 y la medianoche, más lo que ya lleva acumulado hoy.
+                const ayer9am = new Date(inicio9am);
+                ayer9am.setDate(ayer9am.getDate() - 1);
+                const finDiaAyer = new Date(ayer9am);
+                finDiaAyer.setHours(23, 59, 59, 999);
+
+                const baseAyer = precipTotalEnHora(observaciones, ayer9am);
+                const finAyer = precipTotalEnHora(observaciones, finDiaAyer);
+                const lluviaAyer = (baseAyer != null && finAyer != null) ? Math.max(0, finAyer - baseAyer) : 0;
+                const lluviaHoy = precipTotalEnHora(observaciones, momento) || 0;
+                return lluviaAyer + lluviaHoy;
+            }
+
+            const base = precipTotalEnHora(observaciones, inicio9am);
+            const actual = precipTotalEnHora(observaciones, momento);
+            if (actual == null) return null;
+            if (base == null) return actual; // sin datos antes de las 9: asumimos 0 previo
+            return Math.max(0, actual - base);
+        }
+
+        async function fetchHistorialWU(estacion, convencion) {
+            const ahora = new Date();
+            const ayer = new Date(ahora);
+            ayer.setDate(ayer.getDate() - 1);
+
+            const [obsAyer, obsHoy, obsActual] = await Promise.all([
+                fetchWUHistorialDia(estacion.wuId, estacion.wuKey, ayer),
+                fetchWUHistorialDia(estacion.wuId, estacion.wuKey, ahora),
                 fetchWUActual(estacion.wuId, estacion.wuKey)
             ]);
 
@@ -429,11 +485,30 @@
             // puede tardar bastante en incorporar la última lectura), así que la sumamos
             // igual aunque a veces venga con menos decimales: es más importante que el dato
             // sea el correcto/reciente a que se vea prolijo.
-            let observaciones = obsHistoricas.slice();
-            if (obsActual) observaciones.push(obsActual);
-            if (observaciones.length > 15) observaciones = observaciones.slice(observaciones.length - 15);
+            const combinadas = obsAyer.concat(obsHoy);
+            if (obsActual) combinadas.push(obsActual);
 
-            return procesarObservacionesWU(observaciones, false);
+            // Ventana real de últimas 24hs (no solo "desde la medianoche de hoy")
+            const limite24h = new Date(ahora.getTime() - 24 * 60 * 60 * 1000);
+            const observaciones = combinadas.filter(o => {
+                const rawTs = o.obsTimeLocal || o.obsTimeUtc;
+                if (!rawTs) return false;
+                return new Date(rawTs.replace(' ', 'T')) >= limite24h;
+            });
+
+            const resultado = procesarObservacionesWU(observaciones, false);
+
+            if (convencion === 'meteorologico') {
+                resultado.rains = observaciones.map(o => {
+                    const rawTs = o.obsTimeLocal || o.obsTimeUtc;
+                    if (!rawTs) return null;
+                    const ts = new Date(rawTs.replace(' ', 'T'));
+                    const valor = lluviaMeteorologicaEnMomento(combinadas, ts);
+                    return valor != null ? inAMm(valor).toFixed(1) : null;
+                });
+            }
+
+            return resultado;
         }
 
         // Últimos 7 días (hoy incluido): una consulta de historial por día + el dato en vivo al final.
@@ -469,6 +544,17 @@
             return `${fecha.getFullYear()}-${pad(fecha.getMonth() + 1)}-${pad(fecha.getDate())}%2000:00:00`;
         }
 
+        // Inicio del "día meteorológico" en curso (9 a 9): si todavía no son las 9,
+        // el día meteorológico empezó ayer a esa hora.
+        function formatearInicioDiaMeteorologico() {
+            const ahora = new Date();
+            const inicio = new Date(ahora);
+            inicio.setHours(9, 0, 0, 0);
+            if (ahora < inicio) inicio.setDate(inicio.getDate() - 1);
+            const pad = (n) => n.toString().padStart(2, '0');
+            return `${inicio.getFullYear()}-${pad(inicio.getMonth() + 1)}-${pad(inicio.getDate())}%2009:00:00`;
+        }
+
         async function fetchFeedsCanal(ch, extraParams = '') {
             const apiKeyParam = ch.key ? `&api_key=${ch.key}` : '';
             const res = await fetch(`https://api.thingspeak.com/channels/${ch.id}/feeds.json?results=8000${apiKeyParam}${extraParams}`);
@@ -477,8 +563,12 @@
 
         // Acumulado de lluvia de los últimos `dias` días (1 = solo hoy), y de paso la
         // mínima/máxima de temperatura de HOY (aunque el período pedido sea más largo).
-        async function datosDelPeriodoTS(canales, rainField, rainMult, dias) {
-            const inicioPeriodo = formatearInicioNDiasAtras(dias);
+        // Para dias=1, "convencion" define si el día arranca a las 00 (calendario) o a
+        // las 9 (meteorológico); para la semana siempre se usa el día calendario.
+        async function datosDelPeriodoTS(canales, rainField, rainMult, dias, convencion) {
+            const inicioPeriodo = (dias === 1 && convencion === 'meteorologico')
+                ? formatearInicioDiaMeteorologico()
+                : formatearInicioNDiasAtras(dias);
             const respuestas = await Promise.all(canales.map(ch => fetchFeedsCanal(ch, `&start=${inicioPeriodo}`)));
             let feeds = respuestas.flatMap(d => d.feeds || []);
             feeds.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
@@ -513,13 +603,13 @@
             if (estacion.source === 'wunderground') {
                 if (periodo === 'semana') {
                     const [hoyData, semanaData] = await Promise.all([
-                        fetchHistorialWU(estacion),
+                        fetchHistorialWU(estacion, convencionLluvia),
                         fetchHistorialWUSemana(estacion)
                     ]);
                     const { tempMin, tempMax } = calcularMinMax(hoyData.temps);
                     return { ...semanaData, tempMin, tempMax };
                 }
-                const hoyData = await fetchHistorialWU(estacion);
+                const hoyData = await fetchHistorialWU(estacion, convencionLluvia);
                 const { tempMin, tempMax } = calcularMinMax(hoyData.temps);
                 return { ...hoyData, tempMin, tempMax };
             }
@@ -536,15 +626,15 @@
                 const [respuestas, datosPeriodo] = await Promise.all([
                     Promise.all(canales.map(ch => {
                         const apiKeyParam = ch.key ? `&api_key=${ch.key}` : "";
-                        const paramResultados = periodo === 'semana' ? 'days=7' : 'results=15';
+                        // "Últimas 24hs" pide un día completo (days=1), no solo las últimas 15 lecturas
+                        const paramResultados = periodo === 'semana' ? 'days=7' : 'days=1';
                         return fetch(`https://api.thingspeak.com/channels/${ch.id}/feeds.json?${paramResultados}${apiKeyParam}`).then(r => r.json());
                     })),
-                    datosDelPeriodoTS(canales, rainField, estacion.rainMult, dias)
+                    datosDelPeriodoTS(canales, rainField, estacion.rainMult, dias, convencionLluvia)
                 ]);
 
                 let feeds = respuestas.flatMap(d => d.feeds || []);
                 feeds.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-                if (periodo !== 'semana' && feeds.length > 15) feeds = feeds.slice(feeds.length - 15);
                 if (feeds.length > 2000) feeds = feeds.slice(feeds.length - 2000); // límite de seguridad para no saturar el gráfico
 
                 const horas = [], temps = [], hums = [], press = [], winds = [], windDirs = [], dews = [];
@@ -695,16 +785,44 @@
         }
 
         let periodoActual = 'hoy';
+        let convencionLluvia = 'calendario'; // 'calendario' (00 a 00) | 'meteorologico' (9 a 9)
         let estacionActual = null;
 
         function actualizarTitulosDeGraficos() {
-            const sufijo = periodoActual === 'semana' ? 'de la última semana' : 'de hoy';
+            const sufijo = periodoActual === 'semana' ? 'de la última semana' : 'de las últimas 24 hs';
             document.getElementById('titulo-chart-temp').textContent = `Temperatura ${sufijo}`;
             document.getElementById('titulo-chart-hum').textContent = `Humedad ${sufijo}`;
             document.getElementById('titulo-chart-pres').textContent = `Presión ${sufijo}`;
-            document.getElementById('titulo-chart-rain').textContent = periodoActual === 'semana'
-                ? 'Lluvia acumulada de la última semana'
-                : 'Lluvia acumulada hoy';
+
+            if (periodoActual === 'semana') {
+                document.getElementById('titulo-chart-rain').textContent = 'Lluvia acumulada de la última semana';
+            } else {
+                document.getElementById('titulo-chart-rain').textContent = convencionLluvia === 'meteorologico'
+                    ? 'Lluvia del día meteorológico (9 a 9)'
+                    : 'Lluvia acumulada hoy (00 a 00)';
+            }
+
+            document.getElementById('lluvia-convencion-toggle').classList.toggle('hidden', periodoActual === 'semana');
+        }
+
+        function actualizarBotonesLluvia() {
+            const activo = 'bg-cyan-500 text-white';
+            const inactivo = 'bg-slate-100 text-slate-500 hover:bg-slate-200';
+            document.getElementById('btn-lluvia-calendario').className =
+                `lluvia-btn px-3 py-1.5 rounded-lg font-bold text-[10px] lg:text-xs transition ${convencionLluvia === 'calendario' ? activo : inactivo}`;
+            document.getElementById('btn-lluvia-meteorologico').className =
+                `lluvia-btn px-3 py-1.5 rounded-lg font-bold text-[10px] lg:text-xs transition ${convencionLluvia === 'meteorologico' ? activo : inactivo}`;
+        }
+
+        async function cambiarConvencionLluvia(nueva) {
+            if (nueva === convencionLluvia) return;
+            convencionLluvia = nueva;
+            actualizarBotonesLluvia();
+            actualizarTitulosDeGraficos();
+            if (estacionActual) {
+                const hist = await fetchHistorialCanal(estacionActual.p, periodoActual);
+                renderizarPanel(hist);
+            }
         }
 
         function actualizarBotonesDePeriodo() {
@@ -817,7 +935,11 @@
 
         document.getElementById('btn-periodo-hoy').addEventListener('click', () => cambiarPeriodo('hoy'));
         document.getElementById('btn-periodo-semana').addEventListener('click', () => cambiarPeriodo('semana'));
+        document.getElementById('btn-lluvia-calendario').addEventListener('click', () => cambiarConvencionLluvia('calendario'));
+        document.getElementById('btn-lluvia-meteorologico').addEventListener('click', () => cambiarConvencionLluvia('meteorologico'));
         actualizarBotonesDePeriodo();
+        actualizarBotonesLluvia();
+        actualizarTitulosDeGraficos();
 
         async function inicializarRed() {
             const estacionesInfo = [];
