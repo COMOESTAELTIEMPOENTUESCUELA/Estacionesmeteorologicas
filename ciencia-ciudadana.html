@@ -86,6 +86,18 @@
         .leaflet-tooltip.tooltip-lluvia.leaflet-tooltip-top::before {
             border-top-color: #0ea5e9;
         }
+
+        /* Menú móvil: transición suave */
+        #mobile-menu {
+            transition: max-height 0.35s ease, opacity 0.3s ease;
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+        }
+        #mobile-menu.open {
+            max-height: 400px;
+            opacity: 1;
+        }
     </style>
 </head>
 <body class="text-slate-800 antialiased selection:bg-fuchsia-300 selection:text-slate-900 bg-dots">
@@ -97,26 +109,56 @@
 
     <!-- NAVEGACIÓN FLOTANTE -->
     <nav class="fixed w-full z-50 px-4 py-4 top-0 pointer-events-none">
-        <div class="max-w-7xl mx-auto flex justify-between items-center bg-white/90 backdrop-blur-md rounded-full shadow-lg border-4 border-fuchsia-200 px-6 py-3 pointer-events-auto transition-all duration-300">
-            <div class="flex items-center gap-3">
-                <!-- LOGO PRINCIPAL -->
-                <img src="imagenes/Logo1.jpg" alt="Logo del Proyecto" class="w-12 h-12 object-cover rounded-full border-2 border-yellow-400 shadow-sm" onerror="this.src='https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&q=80&w=100'">
-                <div class="flex flex-col">
-                    <span class="font-black text-slate-900 tracking-tight text-sm md:text-lg leading-none">Comunidad</span>
-                    <span class="text-[10px] font-bold text-fuchsia-600 uppercase tracking-widest mt-0.5">FCAG · UNLP</span>
+        <div class="max-w-7xl mx-auto bg-white/90 backdrop-blur-md rounded-[2rem] shadow-lg border-4 border-fuchsia-200 px-6 py-3 pointer-events-auto transition-all duration-300">
+
+            <!-- Fila principal: logo + hamburguesa -->
+            <div class="flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <!-- LOGO PRINCIPAL -->
+                    <img src="imagenes/Logo1.jpg" alt="Logo del Proyecto" class="w-12 h-12 object-cover rounded-full border-2 border-yellow-400 shadow-sm" onerror="this.src='https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&q=80&w=100'">
+                    <div class="flex flex-col">
+                        <span class="font-black text-slate-900 tracking-tight text-sm md:text-lg leading-none">Comunidad</span>
+                        <span class="text-[10px] font-bold text-fuchsia-600 uppercase tracking-widest mt-0.5">FCAG · UNLP</span>
+                    </div>
                 </div>
-            </div>
-            
-            <!-- Menú para PC -->
-            <div class="hidden lg:flex items-center gap-6 text-sm font-black text-slate-500">
-                <a href="index.html" class="hover:text-fuchsia-500 transition">Inicio</a>
-                <a href="red-meteorologica.html" class="hover:text-blue-500 transition">Red de estaciones</a>
-                <a href="ciencia-ciudadana.html" class="text-fuchsia-600">Comunidad</a>
+
+                <!-- Menú para PC -->
+                <div class="hidden lg:flex items-center gap-6 text-sm font-black text-slate-500">
+                    <a href="index.html" class="hover:text-fuchsia-500 transition">Inicio</a>
+                    <a href="red-meteorologica.html" class="hover:text-blue-500 transition">Red de estaciones</a>
+                    <a href="ciencia-ciudadana.html" class="text-fuchsia-600">Comunidad</a>
+                    <a href="recursos.html" class="hover:text-purple-500 transition">Aprender</a>
+                    <a href="index.html#contacto" class="bg-fuchsia-500 text-white px-5 py-2 rounded-full border-b-4 border-fuchsia-700 hover:bg-fuchsia-400 hover:-translate-y-1 transition-all active:border-b-0 active:translate-y-1">¡Escribinos!</a>
+                </div>
+
+                <!-- Botón Hamburguesa -->
+                <button id="menu-toggle" class="lg:hidden p-2 text-slate-500 bg-slate-100 rounded-full" aria-label="Abrir menú" aria-expanded="false">
+                    <i id="icon-menu" data-lucide="menu" class="w-6 h-6"></i>
+                    <i id="icon-close" data-lucide="x" class="w-6 h-6 hidden"></i>
+                </button>
             </div>
 
-            <a href="index.html" class="lg:hidden p-2 text-slate-500 bg-slate-100 rounded-full hover:bg-fuchsia-100 hover:text-fuchsia-600 transition">
-                <i data-lucide="home" class="w-6 h-6"></i>
-            </a>
+            <!-- Menú Móvil desplegable -->
+            <div id="mobile-menu" role="navigation" aria-label="Menú móvil">
+                <div class="flex flex-col gap-2 pt-4 pb-2">
+                    <a href="index.html" class="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-blue-50 text-slate-600 font-black text-base transition">
+                        <i data-lucide="home" class="w-5 h-5 text-blue-400"></i> Inicio
+                    </a>
+                    <a href="red-meteorologica.html" class="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-blue-50 text-slate-600 font-black text-base transition">
+                        <i data-lucide="layout-dashboard" class="w-5 h-5 text-blue-400"></i> Red de estaciones
+                    </a>
+                    <a href="ciencia-ciudadana.html" class="flex items-center gap-3 px-4 py-3 rounded-2xl bg-fuchsia-50 text-fuchsia-600 font-black text-base">
+                        <i data-lucide="camera" class="w-5 h-5"></i> Comunidad
+                    </a>
+                    <a href="recursos.html" class="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-purple-50 text-slate-600 font-black text-base transition">
+                        <i data-lucide="book-open" class="w-5 h-5 text-purple-500"></i> Aprender
+                    </a>
+                    <a href="index.html#contacto" class="mt-1 bg-fuchsia-500 text-white px-5 py-3 rounded-2xl font-black text-base flex items-center justify-center gap-2 border-b-4 border-fuchsia-700 active:border-b-0 active:translate-y-1 transition-all">
+                        <i data-lucide="mail" class="w-5 h-5"></i> ¡Escribinos!
+                    </a>
+                </div>
+            </div>
+
         </div>
     </nav>
 
@@ -492,6 +534,28 @@
 
     <script>
         lucide.createIcons();
+
+        // ── Menú móvil ──────────────────────────────────────────
+        const menuToggle = document.getElementById('menu-toggle');
+        const mobileMenu = document.getElementById('mobile-menu');
+        const iconMenu   = document.getElementById('icon-menu');
+        const iconClose  = document.getElementById('icon-close');
+
+        menuToggle.addEventListener('click', () => {
+            const isOpen = mobileMenu.classList.toggle('open');
+            menuToggle.setAttribute('aria-expanded', isOpen);
+            iconMenu.classList.toggle('hidden', isOpen);
+            iconClose.classList.toggle('hidden', !isOpen);
+        });
+
+        mobileMenu.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', () => {
+                mobileMenu.classList.remove('open');
+                menuToggle.setAttribute('aria-expanded', 'false');
+                iconMenu.classList.remove('hidden');
+                iconClose.classList.add('hidden');
+            });
+        });
 
         // URL del Google Apps Script (Web App) que recibe el formulario y arma la fila "Pendiente" en la Sheet.
         // Se completa cuando el coordinador despliega el script (ver scripts/apps-script-reportes.gs).
