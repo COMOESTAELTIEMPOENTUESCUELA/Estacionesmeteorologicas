@@ -315,22 +315,10 @@
                         <p class="text-xs font-bold text-slate-400 mt-1">O tocá el mapa para marcar el lugar exacto.</p>
                     </div>
 
-                    <!-- MEDICIÓN Y CAMINOS -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-blue-50 p-6 rounded-3xl border-4 border-blue-100">
-                        <div>
-                            <label class="block text-sm font-black text-blue-800 mb-2">🌧️ Agua en el pluviómetro (mm) <span class="font-semibold normal-case">— si aplica</span></label>
-                            <input type="number" step="0.1" name="Lluvia_mm" class="w-full border-4 border-white p-4 rounded-2xl font-bold text-blue-900 focus:outline-none focus:border-blue-400 bg-white transition shadow-sm" placeholder="Ej: 14.5">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-black text-blue-800 mb-2">🚜 ¿Cómo está el camino de tierra? <span class="font-semibold normal-case">— si aplica</span></label>
-                            <select name="Estado_Camino" class="w-full border-4 border-white p-4 rounded-2xl font-bold text-blue-900 focus:outline-none focus:border-blue-400 bg-white appearance-none transition shadow-sm">
-                                <option value="">Contanos...</option>
-                                <option value="Seco">Seco y súper bien</option>
-                                <option value="Resbaladizo">Un poco de barro (resbaladizo)</option>
-                                <option value="Intransitable">Mucho barro y agua (difícil pasar)</option>
-                                <option value="Asfalto">Camino de asfalto (todo bien)</option>
-                            </select>
-                        </div>
+                    <!-- MEDICIÓN DE LLUVIA -->
+                    <div class="bg-blue-50 p-6 rounded-3xl border-4 border-blue-100">
+                        <label class="block text-sm font-black text-blue-800 mb-2">🌧️ Agua en el pluviómetro (mm) <span class="font-semibold normal-case">— si aplica</span></label>
+                        <input type="number" step="0.1" name="Lluvia_mm" class="w-full border-4 border-white p-4 rounded-2xl font-bold text-blue-900 focus:outline-none focus:border-blue-400 bg-white transition shadow-sm" placeholder="Ej: 14.5">
                     </div>
 
                     <!-- NOTAS PARA ROCÍO / ESCARCHA / OTRO -->
@@ -594,7 +582,6 @@
                 school: form.Escuela_Zona.value,
                 type: form.Tipo_Reporte.value,
                 rain_mm: form.Lluvia_mm.value,
-                road_status: form.Estado_Camino.value,
                 summary: form.Notas_Adicionales.value,
                 lat: form.Latitud.value,
                 lon: form.Longitud.value,
