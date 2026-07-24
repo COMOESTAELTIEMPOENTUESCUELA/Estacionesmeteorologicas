@@ -3,110 +3,344 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Recursos Educativos y Talleres Meteorológicos</title>
+    <title>Aprender · ¿Como esta el tiempo en tu escuela?</title>
+    <meta name="description" content="Videos, guías descargables y fotos de nuestras visitas a las escuelas.">
     <link rel="icon" type="image/jpeg" href="imagenes/Logo1.jpg">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@0.475.0/dist/umd/lucide.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <style>body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; }</style>
-</head>
-<body class="text-slate-800 antialiased">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800;900&display=swap" rel="stylesheet">
 
-    <!-- NAVEGACIÓN COMPARTIDA -->
-    <nav class="bg-white/90 backdrop-blur-md border-b border-slate-100">
-        <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-            <div class="flex items-center gap-3">
-                <div class="p-2 bg-blue-600 rounded-xl text-white"><i data-lucide="cloud-sun" class="w-6 h-6"></i></div>
-                <div class="flex flex-col">
-                    <span class="font-extrabold text-slate-900 tracking-tight text-sm">¿CÓMO ESTÁ EL TIEMPO EN TU ESCUELA?</span>
-                    <span class="text-[10px] font-bold text-blue-600 uppercase">FCAG · UNLP</span>
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #faf5ff;
+            overflow-x: hidden;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
+        }
+        .animate-float { animation: float 4s ease-in-out infinite; }
+
+        @keyframes float-delayed {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
+        }
+        .animate-float-delayed { animation: float-delayed 5s ease-in-out infinite 2s; }
+
+        .kid-btn {
+            border-bottom-width: 6px;
+            transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .kid-btn:hover {
+            transform: translateY(-4px);
+            filter: brightness(1.05);
+        }
+        .kid-btn:active {
+            border-bottom-width: 0px;
+            transform: translateY(6px);
+        }
+
+        .kid-card {
+            border-bottom-width: 8px;
+            transition: all 0.3s ease;
+        }
+        .kid-card:hover {
+            transform: scale(1.02) translateY(-4px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        .wave-divider {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            overflow: hidden;
+            line-height: 0;
+            transform: rotate(180deg);
+        }
+        .wave-divider svg {
+            position: relative;
+            display: block;
+            width: calc(130% + 1.3px);
+            height: 70px;
+        }
+        .wave-divider .shape-fill { fill: #faf5ff; }
+
+        /* Menú móvil: transición suave */
+        #mobile-menu {
+            transition: max-height 0.35s ease, opacity 0.3s ease;
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+        }
+        #mobile-menu.open {
+            max-height: 400px;
+            opacity: 1;
+        }
+
+        .foto-taller { cursor: zoom-in; }
+    </style>
+</head>
+<body class="text-slate-800 antialiased selection:bg-purple-300 selection:text-slate-900">
+
+    <!-- LIGHTBOX: click en cualquier foto para verla grande -->
+    <div id="lightbox" onclick="cerrarLightbox()" style="display:none;" class="fixed inset-0 bg-black/90 z-[200] items-center justify-center p-6 cursor-zoom-out">
+        <img id="lightbox-img" src="" alt="" draggable="false" class="max-w-full max-h-full rounded-2xl shadow-2xl">
+    </div>
+
+    <!-- NAVEGACIÓN FLOTANTE -->
+    <nav class="fixed w-full z-50 px-4 py-4 top-0 pointer-events-none">
+        <div class="max-w-7xl mx-auto bg-white/90 backdrop-blur-md rounded-[2rem] shadow-lg border-4 border-purple-100 px-6 py-3 pointer-events-auto transition-all duration-300">
+
+            <!-- Fila principal: logo + hamburguesa -->
+            <div class="flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <img src="imagenes/Logo1.jpg" alt="Logo del Proyecto" class="w-12 h-12 object-cover rounded-full border-2 border-yellow-400 shadow-sm" onerror="this.src='https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&q=80&w=100'">
+                    <div class="flex flex-col">
+                        <span class="font-black text-slate-900 tracking-tight text-sm md:text-lg leading-none">¿Como esta el Tiempo en tu Escuela?</span>
+                        <span class="text-[10px] font-bold text-purple-600 uppercase tracking-widest mt-0.5">FCAG · UNLP</span>
+                    </div>
+                </div>
+
+                <!-- Menú para PC -->
+                <div class="hidden lg:flex items-center gap-6 text-sm font-black text-slate-500">
+                    <a href="index.html" class="hover:text-blue-500 transition">Inicio</a>
+                    <a href="red-meteorologica.html" class="hover:text-blue-500 transition">Red de estaciones</a>
+                    <a href="ciencia-ciudadana.html" class="hover:text-emerald-500 transition">Comunidad</a>
+                    <a href="recursos.html" class="text-purple-600">Aprender</a>
+                    <a href="index.html#contacto" class="bg-purple-500 text-white px-5 py-2 rounded-full border-b-4 border-purple-700 hover:bg-purple-400 hover:-translate-y-1 transition-all active:border-b-0 active:translate-y-1">¡Escribinos!</a>
+                </div>
+
+                <!-- Botón Hamburguesa -->
+                <button id="menu-toggle" class="lg:hidden p-2 text-slate-500 bg-slate-100 rounded-full" aria-label="Abrir menú" aria-expanded="false">
+                    <i id="icon-menu" data-lucide="menu" class="w-6 h-6"></i>
+                    <i id="icon-close" data-lucide="x" class="w-6 h-6 hidden"></i>
+                </button>
+            </div>
+
+            <!-- Menú Móvil desplegable -->
+            <div id="mobile-menu" role="navigation" aria-label="Menú móvil">
+                <div class="flex flex-col gap-2 pt-4 pb-2">
+                    <a href="index.html" class="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-blue-50 text-slate-600 font-black text-base transition">
+                        <i data-lucide="home" class="w-5 h-5 text-blue-400"></i> Inicio
+                    </a>
+                    <a href="red-meteorologica.html" class="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-blue-50 text-slate-600 font-black text-base transition">
+                        <i data-lucide="layout-dashboard" class="w-5 h-5 text-blue-400"></i> Red de estaciones
+                    </a>
+                    <a href="ciencia-ciudadana.html" class="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-emerald-50 text-slate-600 font-black text-base transition">
+                        <i data-lucide="camera" class="w-5 h-5 text-emerald-500"></i> Comunidad
+                    </a>
+                    <a href="recursos.html" class="flex items-center gap-3 px-4 py-3 rounded-2xl bg-purple-50 text-purple-600 font-black text-base">
+                        <i data-lucide="book-open" class="w-5 h-5"></i> Aprender
+                    </a>
+                    <a href="index.html#contacto" class="mt-1 bg-purple-500 text-white px-5 py-3 rounded-2xl font-black text-base flex items-center justify-center gap-2 border-b-4 border-purple-700 active:border-b-0 active:translate-y-1 transition-all">
+                        <i data-lucide="mail" class="w-5 h-5"></i> ¡Escribinos!
+                    </a>
                 </div>
             </div>
-            <div class="flex items-center gap-6 text-sm font-bold text-slate-600">
-                <a href="index.html" class="hover:text-blue-600">Inicio</a>
-                <a href="red-meteorologica.html" class="hover:text-blue-600">Red Escolar</a>
-                <a href="ciencia-ciudadana.html" class="hover:text-blue-600">Ciencia Ciudadana</a>
-                <a href="recursos.html" class="text-blue-600">Recursos</a>
-            </div>
+
         </div>
     </nav>
 
-    <main class="max-w-6xl mx-auto px-6 py-12">
-        <!-- CABECERA -->
-        <div class="mb-12">
-            <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">Material Didáctico y Calendario de Talleres</h1>
-            <p class="text-slate-500">Descargá recursos libres diseñados especialmente por la carrera de Meteorología para el aula.</p>
+    <!-- HERO SECTION -->
+    <header class="pt-40 pb-32 px-6 relative overflow-hidden bg-gradient-to-b from-purple-400 via-purple-300 to-purple-100 text-center">
+        <i data-lucide="book-open" class="absolute top-32 left-[10%] w-20 h-20 text-white/30 animate-float"></i>
+        <i data-lucide="play-circle" class="absolute top-20 right-[15%] w-24 h-24 text-white/30 animate-float-delayed"></i>
+        <i data-lucide="sparkles" class="absolute top-48 right-[28%] w-8 h-8 text-yellow-200 animate-float"></i>
+
+        <div class="max-w-4xl mx-auto relative z-10">
+            <div class="inline-flex items-center gap-2 bg-yellow-300 text-yellow-900 px-4 py-2 rounded-full text-xs md:text-sm font-black uppercase tracking-widest mb-6 shadow-sm border-2 border-yellow-400 rotate-2">
+                <i data-lucide="stars" class="w-4 h-4"></i> ¡Sigamos aprendiendo!
+            </div>
+
+            <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight tracking-tight text-white drop-shadow-lg">
+                Un montón de cosas para <span class="text-yellow-300 underline decoration-wavy decoration-yellow-400">aprender</span>
+            </h1>
+
+            <p class="text-lg md:text-xl text-purple-950 font-bold mb-10 max-w-2xl mx-auto drop-shadow-sm leading-relaxed">
+                Videos, guías y fotos de nuestras visitas a las escuelas. ¡Mirá, descargá y compartí!
+            </p>
+
+            <div class="flex flex-col sm:flex-row justify-center gap-4">
+                <a href="#videos" class="kid-btn bg-white text-purple-600 border-purple-200 px-8 py-4 rounded-full font-black text-lg flex items-center justify-center gap-3">
+                    <i data-lucide="play-circle" class="w-6 h-6 text-purple-500"></i> Ver los videos
+                </a>
+                <a href="#guias" class="kid-btn bg-emerald-500 text-white border-emerald-700 px-8 py-4 rounded-full font-black text-lg flex items-center justify-center gap-3">
+                    <i data-lucide="download-cloud" class="w-6 h-6"></i> Descargar guías
+                </a>
+            </div>
         </div>
 
-        <!-- VIDEOS PARA APRENDER -->
-        <h2 class="font-black text-xl mb-6 text-slate-900 flex items-center gap-2"><i data-lucide="play-circle" class="text-purple-600"></i> Videos para aprender</h2>
-        <section class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
+        <div class="wave-divider">
+            <svg data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none">
+                <path d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z" class="shape-fill"></path>
+            </svg>
+        </div>
+    </header>
 
-            <div class="bg-white border border-slate-100 shadow-sm rounded-2xl overflow-hidden">
-                <div class="aspect-video w-full bg-slate-900">
+    <main class="max-w-6xl mx-auto px-6 py-16">
+
+        <!-- VIDEOS PARA APRENDER -->
+        <div id="videos" class="flex items-center gap-3 mb-8">
+            <div class="w-12 h-12 bg-purple-500 text-white rounded-2xl flex items-center justify-center rotate-3 shadow-md shrink-0">
+                <i data-lucide="play-circle" class="w-6 h-6"></i>
+            </div>
+            <h2 class="text-2xl md:text-3xl font-black text-slate-800 tracking-tight">Videos para aprender</h2>
+        </div>
+        <section class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-20">
+
+            <div class="bg-white border-4 border-purple-200 rounded-[2rem] p-4 kid-card shadow-lg">
+                <div class="aspect-video w-full rounded-2xl overflow-hidden border-4 border-purple-100 bg-slate-900">
                     <iframe src="https://drive.google.com/file/d/1yGGl-yU4LZEFOBYpxid-GWO8ICVwaPOS/preview" class="w-full h-full" allow="autoplay" allowfullscreen></iframe>
                 </div>
-                <div class="p-4">
-                    <h3 class="font-bold text-lg text-slate-900">¿Por qué el cielo es celeste?</h3>
-                </div>
+                <h3 class="font-black text-lg text-slate-800 mt-4 px-1">¿Por qué el cielo es celeste?</h3>
             </div>
 
-            <div class="bg-white border border-slate-100 shadow-sm rounded-2xl overflow-hidden">
-                <div class="aspect-video w-full bg-slate-900">
+            <div class="bg-white border-4 border-sky-200 rounded-[2rem] p-4 kid-card shadow-lg">
+                <div class="aspect-video w-full rounded-2xl overflow-hidden border-4 border-sky-100 bg-slate-900">
                     <iframe src="https://drive.google.com/file/d/14Dks7Lnyehr41xo_LJJ3D_LM1XfKeQNf/preview" class="w-full h-full" allow="autoplay" allowfullscreen></iframe>
                 </div>
-                <div class="p-4">
-                    <h3 class="font-bold text-lg text-slate-900">¿Qué son las nubes?</h3>
-                </div>
+                <h3 class="font-black text-lg text-slate-800 mt-4 px-1">¿Qué son las nubes?</h3>
             </div>
 
         </section>
 
-        <!-- RECURSOS PARA DESCARGAR -->
-        <h2 class="font-black text-xl mb-6 text-slate-900 flex items-center gap-2"><i data-lucide="download-cloud" class="text-blue-600"></i> Guías Metodológicas Descargables</h2>
-        <section class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
-            
-            <div class="bg-white p-6 border border-slate-100 shadow-sm rounded-2xl flex flex-col justify-between">
+        <!-- DIVISOR DIVERTIDO -->
+        <div class="flex items-center justify-center gap-4 mb-16">
+            <div class="h-2 w-16 bg-purple-200 rounded-full"></div>
+            <i data-lucide="star" class="w-8 h-8 text-yellow-400 fill-yellow-400"></i>
+            <div class="h-2 w-16 bg-purple-200 rounded-full"></div>
+        </div>
+
+        <!-- GUÍAS DESCARGABLES -->
+        <div id="guias" class="flex items-center gap-3 mb-8">
+            <div class="w-12 h-12 bg-blue-500 text-white rounded-2xl flex items-center justify-center -rotate-3 shadow-md shrink-0">
+                <i data-lucide="download-cloud" class="w-6 h-6"></i>
+            </div>
+            <h2 class="text-2xl md:text-3xl font-black text-slate-800 tracking-tight">Guías Metodológicas Descargables</h2>
+        </div>
+        <section class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-20">
+
+            <div class="bg-white border-4 border-blue-200 rounded-[2rem] p-6 kid-card shadow-lg flex flex-col justify-between">
                 <div>
-                    <span class="text-[10px] font-extrabold bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full uppercase tracking-wider inline-block mb-4">Docentes</span>
-                    <h3 class="font-bold text-lg mb-2 text-slate-900">Manual de Registro y Lectura del Tiempo</h3>
-                    <p class="text-sm text-slate-500 mb-4">Guía práctica para armar planillas diarias de observación visual y escalas de nubes en colegios rurales.</p>
+                    <span class="text-[10px] font-black bg-blue-100 text-blue-700 px-3 py-1 rounded-full uppercase tracking-wider inline-block mb-4">Docentes</span>
+                    <h3 class="font-black text-lg mb-2 text-slate-900">Manual de Registro y Lectura del Tiempo</h3>
+                    <p class="text-sm text-slate-500 mb-4 font-medium">Guía práctica para armar planillas diarias de observación visual y escalas de nubes en colegios rurales.</p>
                 </div>
-                <button onclick="alert('Iniciando descarga de PDF Institucional...')" class="w-full text-center bg-slate-900 text-white font-bold text-xs py-3 rounded-xl hover:bg-blue-600 transition">DESCARGAR MANUAL (PDF)</button>
+                <button onclick="alert('Iniciando descarga de PDF Institucional...')" class="kid-btn w-full text-center bg-blue-500 border-blue-700 text-white font-black text-sm py-3 rounded-2xl">DESCARGAR MANUAL (PDF)</button>
             </div>
 
-            <div class="bg-white p-6 border border-slate-100 shadow-sm rounded-2xl flex flex-col justify-between">
+            <div class="bg-white border-4 border-purple-200 rounded-[2rem] p-6 kid-card shadow-lg flex flex-col justify-between">
                 <div>
-                    <span class="text-[10px] font-extrabold bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full uppercase tracking-wider inline-block mb-4">Tecnología</span>
-                    <h3 class="font-bold text-lg mb-2 text-slate-900">Montaje de Estaciones Arduino</h3>
-                    <p class="text-sm text-slate-500 mb-4">Esquemas electrónicos, cableado de sensores de temperatura DHT22 y calibración del código fuente C++.</p>
+                    <span class="text-[10px] font-black bg-purple-100 text-purple-700 px-3 py-1 rounded-full uppercase tracking-wider inline-block mb-4">Alumnos</span>
+                    <h3 class="font-black text-lg mb-2 text-slate-900">Cuadernillo Climatológico Infantil</h3>
+                    <p class="text-sm text-slate-500 mb-4 font-medium">Actividades didácticas e ilustraciones lúdicas acerca del ciclo del agua y fenómenos meteorológicos regionales.</p>
                 </div>
-                <button onclick="alert('Iniciando descarga de Guía de Hardware...')" class="w-full text-center bg-slate-900 text-white font-bold text-xs py-3 rounded-xl hover:bg-blue-600 transition">DESCARGAR ESQUEMAS (ZIP)</button>
-            </div>
-
-            <div class="bg-white p-6 border border-slate-100 shadow-sm rounded-2xl flex flex-col justify-between">
-                <div>
-                    <span class="text-[10px] font-extrabold bg-purple-50 text-purple-700 px-2.5 py-1 rounded-full uppercase tracking-wider inline-block mb-4">Alumnos</span>
-                    <h3 class="font-bold text-lg mb-2 text-slate-900">Cuadernillo Climatológico Infantil</h3>
-                    <p class="text-sm text-slate-500 mb-4">Actividades didácticas e ilustraciones lúdicas acerca del ciclo del agua y fenómenos meteorológicos regionales.</p>
-                </div>
-                <button onclick="alert('Iniciando descarga de Cuadernillo didáctico...')" class="w-full text-center bg-slate-900 text-white font-bold text-xs py-3 rounded-xl hover:bg-blue-600 transition">DESCARGAR CARTILLA (PDF)</button>
+                <button onclick="alert('Iniciando descarga de Cuadernillo didáctico...')" class="kid-btn w-full text-center bg-purple-500 border-purple-700 text-white font-black text-sm py-3 rounded-2xl">DESCARGAR CARTILLA (PDF)</button>
             </div>
 
         </section>
+
+        <!-- DIVISOR DIVERTIDO -->
+        <div class="flex items-center justify-center gap-4 mb-16">
+            <div class="h-2 w-16 bg-emerald-200 rounded-full"></div>
+            <i data-lucide="camera" class="w-8 h-8 text-emerald-500"></i>
+            <div class="h-2 w-16 bg-emerald-200 rounded-full"></div>
+        </div>
 
         <!-- GALERÍA DE VISITAS Y TALLERES -->
-        <h2 class="font-black text-xl mb-6 text-slate-900 flex items-center gap-2"><i data-lucide="images" class="text-emerald-600"></i> Así fueron nuestras visitas</h2>
-        <section class="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <img src="imagenes/foto-taller-1.jpg" alt="Taller en una escuela" class="w-full h-40 object-cover rounded-2xl border border-slate-100 shadow-sm">
-            <img src="imagenes/foto-taller-2.jpg" alt="Taller en una escuela" class="w-full h-40 object-cover rounded-2xl border border-slate-100 shadow-sm">
-            <img src="imagenes/foto-taller-3.jpg" alt="Taller en una escuela" class="w-full h-40 object-cover rounded-2xl border border-slate-100 shadow-sm">
-            <img src="imagenes/foto-taller-4.jpg" alt="Taller en una escuela" class="w-full h-40 object-cover rounded-2xl border border-slate-100 shadow-sm">
-            <img src="imagenes/foto-taller-5.jpg" alt="Taller en una escuela" class="w-full h-40 object-cover rounded-2xl border border-slate-100 shadow-sm">
-            <img src="imagenes/foto-taller-32.jpg" alt="Taller en una escuela" class="w-full h-40 object-cover rounded-2xl border border-slate-100 shadow-sm">
+        <div class="flex items-center gap-3 mb-8">
+            <div class="w-12 h-12 bg-emerald-500 text-white rounded-2xl flex items-center justify-center rotate-3 shadow-md shrink-0">
+                <i data-lucide="images" class="w-6 h-6"></i>
+            </div>
+            <h2 class="text-2xl md:text-3xl font-black text-slate-800 tracking-tight">Así fueron nuestras visitas</h2>
+        </div>
+        <section class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-10">
+            <img src="imagenes/foto-taller-1.jpg" alt="Taller en una escuela" class="foto-taller w-full h-40 object-cover rounded-2xl border-4 border-white shadow-md hover:scale-105 transition">
+            <img src="imagenes/foto-taller-2.jpg" alt="Taller en una escuela" class="foto-taller w-full h-40 object-cover rounded-2xl border-4 border-white shadow-md hover:scale-105 transition">
+            <img src="imagenes/foto-taller-3.jpg" alt="Taller en una escuela" class="foto-taller w-full h-40 object-cover rounded-2xl border-4 border-white shadow-md hover:scale-105 transition">
+            <img src="imagenes/foto-taller-4.jpg" alt="Taller en una escuela" class="foto-taller w-full h-40 object-cover rounded-2xl border-4 border-white shadow-md hover:scale-105 transition">
+            <img src="imagenes/foto-taller-5.jpg" alt="Taller en una escuela" class="foto-taller w-full h-40 object-cover rounded-2xl border-4 border-white shadow-md hover:scale-105 transition">
+            <img src="imagenes/foto-taller-32.jpg" alt="Taller en una escuela" class="foto-taller w-full h-40 object-cover rounded-2xl border-4 border-white shadow-md hover:scale-105 transition">
         </section>
+
     </main>
 
-    <script>lucide.createIcons();</script>
+    <!-- FOOTER -->
+    <footer id="contacto" class="bg-white pt-16 pb-8 px-6 border-t-4 border-purple-200">
+        <div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-12 mb-12 text-center md:text-left">
+            <div>
+                <div class="flex items-center justify-center md:justify-start gap-3 mb-4">
+                    <img src="imagenes/Logo1.jpg" alt="Logo" class="w-10 h-10 object-cover rounded-full border-2 border-purple-200 shadow-sm" onerror="this.src='https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&q=80&w=50'">
+                    <span class="block text-slate-800 font-black tracking-tight text-xl">¿Cómo está el tiempo en tu escuela?</span>
+                </div>
+                <p class="text-sm font-medium text-slate-500">Un proyecto de extensión de la Universidad Nacional de La Plata para conectar meteorología, escuelas y facultad a través de la ciencia participativa.</p>
+            </div>
+            <div>
+                <h4 class="text-slate-800 font-black text-sm uppercase tracking-widest mb-4">¡Contactanos!</h4>
+                <ul class="space-y-3 text-sm font-bold text-slate-500 inline-block text-left">
+                    <li class="flex items-center gap-3">
+                        <div class="w-8 h-8 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center"><i data-lucide="mail" class="w-4 h-4"></i></div>
+                        tiempoentuescuela@gmail.com
+                    </li>
+                    <li class="flex items-center gap-3">
+                        <div class="w-8 h-8 bg-pink-100 text-pink-600 rounded-full flex items-center justify-center"><i data-lucide="instagram" class="w-4 h-4"></i></div>
+                        <a href="https://www.instagram.com/tiempoentuescuela/" target="_blank" class="hover:underline">@tiempoentuescuela</a>
+                    </li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="text-slate-800 font-black text-sm uppercase tracking-widest mb-4">Nuestra Facultad</h4>
+                <ul class="space-y-3 text-sm font-bold">
+                    <li><a href="https://www.fcaglp.unlp.edu.ar/" target="_blank" class="text-purple-500 hover:text-purple-700 hover:underline transition">Fac. de Cs. Astronómicas y Geofísicas</a></li>
+                    <li><a href="https://unlp.edu.ar/" target="_blank" class="text-purple-500 hover:text-purple-700 hover:underline transition">Universidad Nacional de La Plata</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="max-w-7xl mx-auto border-t-2 border-slate-100 pt-8 text-center">
+            <p class="text-xs text-slate-400 font-bold uppercase tracking-widest">&copy; 2026.</p>
+        </div>
+    </footer>
+
+    <script>
+        lucide.createIcons();
+
+        // ── Menú móvil ──────────────────────────────────────────
+        const toggle    = document.getElementById('menu-toggle');
+        const menu      = document.getElementById('mobile-menu');
+        const iconMenu  = document.getElementById('icon-menu');
+        const iconClose = document.getElementById('icon-close');
+
+        toggle.addEventListener('click', () => {
+            const isOpen = menu.classList.toggle('open');
+            toggle.setAttribute('aria-expanded', isOpen);
+            iconMenu.classList.toggle('hidden', isOpen);
+            iconClose.classList.toggle('hidden', !isOpen);
+        });
+
+        menu.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', () => {
+                menu.classList.remove('open');
+                toggle.setAttribute('aria-expanded', 'false');
+                iconMenu.classList.remove('hidden');
+                iconClose.classList.add('hidden');
+            });
+        });
+
+        // ── Lightbox de fotos ────────────────────────────────────
+        function cerrarLightbox() {
+            document.getElementById('lightbox').style.display = 'none';
+            document.getElementById('lightbox-img').src = '';
+        }
+        document.addEventListener('click', function(e) {
+            if (e.target.classList && e.target.classList.contains('foto-taller')) {
+                document.getElementById('lightbox-img').src = e.target.src;
+                document.getElementById('lightbox').style.display = 'flex';
+            }
+        });
+    </script>
 </body>
 </html>
