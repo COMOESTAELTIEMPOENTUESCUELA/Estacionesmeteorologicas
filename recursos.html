@@ -52,6 +52,12 @@
             box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
         }
 
+        /* Textura de hoja de cuaderno, para diferenciar Aprender del resto */
+        .bg-notebook {
+            background-image: repeating-linear-gradient(to bottom, transparent, transparent 27px, #dbeafe 28px);
+            background-size: 100% 28px;
+        }
+
         .wave-divider {
             position: absolute;
             bottom: 0;
@@ -84,7 +90,7 @@
         .foto-taller { cursor: zoom-in; }
     </style>
 </head>
-<body class="text-slate-800 antialiased selection:bg-blue-300 selection:text-slate-900">
+<body class="text-slate-800 antialiased selection:bg-blue-300 selection:text-slate-900 bg-notebook">
 
     <!-- LIGHTBOX: click en cualquier foto para verla grande -->
     <div id="lightbox" onclick="cerrarLightbox()" style="display:none;" class="fixed inset-0 bg-black/90 z-[200] items-center justify-center p-6 cursor-zoom-out">
@@ -146,10 +152,10 @@
     </nav>
 
     <!-- HERO SECTION -->
-    <header class="pt-40 pb-32 px-6 relative overflow-hidden bg-gradient-to-b from-sky-400 via-sky-300 to-sky-100 text-center">
-        <i data-lucide="book-open" class="absolute top-32 left-[10%] w-20 h-20 text-white/30 animate-float"></i>
-        <i data-lucide="play-circle" class="absolute top-20 right-[15%] w-24 h-24 text-white/30 animate-float-delayed"></i>
-        <i data-lucide="sparkles" class="absolute top-48 right-[28%] w-8 h-8 text-yellow-200 animate-float"></i>
+    <header class="pt-40 pb-32 px-6 relative overflow-hidden bg-gradient-to-br from-blue-950 via-blue-900 to-sky-800 text-center">
+        <i data-lucide="book-open" class="absolute top-32 left-[10%] w-20 h-20 text-white/10 animate-float"></i>
+        <i data-lucide="graduation-cap" class="absolute top-20 right-[15%] w-24 h-24 text-white/10 animate-float-delayed"></i>
+        <i data-lucide="sparkles" class="absolute top-48 right-[28%] w-8 h-8 text-yellow-300/70 animate-float"></i>
 
         <div class="max-w-4xl mx-auto relative z-10">
             <div class="inline-flex items-center gap-2 bg-yellow-300 text-yellow-900 px-4 py-2 rounded-full text-xs md:text-sm font-black uppercase tracking-widest mb-6 shadow-sm border-2 border-yellow-400 rotate-2">
@@ -160,7 +166,7 @@
                 Un montón de cosas para <span class="text-yellow-300 underline decoration-wavy decoration-yellow-400">aprender</span>
             </h1>
 
-            <p class="text-lg md:text-xl text-sky-950 font-bold mb-10 max-w-2xl mx-auto drop-shadow-sm leading-relaxed">
+            <p class="text-lg md:text-xl text-sky-100 font-bold mb-10 max-w-2xl mx-auto drop-shadow-sm leading-relaxed">
                 Videos, guías y fotos de nuestras visitas a las escuelas. ¡Mirá, descargá y compartí!
             </p>
 
