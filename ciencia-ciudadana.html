@@ -103,12 +103,12 @@
 <body class="text-slate-800 antialiased selection:bg-blue-300 selection:text-slate-900 bg-dots">
 
     <!-- LIGHTBOX: click en cualquier foto de reporte para verla grande -->
-    <div id="lightbox" onclick="cerrarLightbox()" style="display:none;" class="fixed inset-0 bg-black/90 z-[200] items-center justify-center p-6 cursor-zoom-out">
+    <div id="lightbox" onclick="cerrarLightbox()" style="display:none;" class="fixed inset-0 bg-black/90 z-[10000] items-center justify-center p-6 cursor-zoom-out">
         <img id="lightbox-img" src="" alt="" draggable="false" class="max-w-full max-h-full rounded-2xl shadow-2xl">
     </div>
 
     <!-- NAVEGACIÓN FLOTANTE -->
-    <nav class="fixed w-full z-50 px-4 py-4 top-0 pointer-events-none">
+    <nav class="fixed w-full z-[9999] px-4 py-4 top-0 pointer-events-none">
         <div class="max-w-7xl mx-auto bg-white/90 backdrop-blur-md rounded-[2rem] shadow-lg border-4 border-blue-200 px-6 py-3 pointer-events-auto transition-all duration-300">
 
             <!-- Fila principal: logo + hamburguesa -->
@@ -321,11 +321,17 @@
                             <label class="block text-sm font-black text-slate-700 mb-2">📍 ¿De dónde sos?</label>
                             <select name="Escuela_Zona" required class="w-full border-4 border-slate-100 p-4 rounded-2xl font-bold text-slate-700 focus:outline-none focus:border-blue-400 bg-slate-50 appearance-none transition">
                                 <option value="">Elegí tu escuela o zona...</option>
-                                <option value="EP 23">EP N°23 (Bavio)</option>
+                                <option value="EP 23 Bavio">EP N°23 (Bavío)</option>
                                 <option value="EP 34">EP N°34 (Malagamba)</option>
+                                <option value="San Vicente">San Vicente de Paul (La Plata)</option>
+                                <option value="EP 20">EP N°20 (Berisso)</option>
+                                <option value="EP 21">EP N°21 (Paraje Starace)</option>
+                                <option value="EP 24">EP N°24 (Roberto Payró)</option>
+                                <option value="EP 26">EP N°26 (Paraje José Vergara)</option>
+                                <option value="EP 27">EP N°27 (Paraje El Destino)</option>
+                                <option value="EP 2">EP N°2 (Monte Veloz)</option>
+                                <option value="EP 23 Los Talas">EP N°23 (Los Talas)</option>
                                 <option value="Monte Veloz">Monte Veloz (Ruta 36)</option>
-                                <option value="San Vicente">San Vicente de Paul</option>
-                                <option value="EP 20">EP N°20</option>
                                 <option value="Otro Lugar">Otro lugar / Soy vecino</option>
                             </select>
                         </div>
