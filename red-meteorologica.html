@@ -119,7 +119,7 @@
             
             <div id="secreto-meteo" class="mt-4 p-4 bg-yellow-100 rounded-3xl border-4 border-yellow-300 text-xs text-yellow-800 font-bold leading-relaxed shadow-sm flex gap-3 items-center hidden">
                 <i data-lucide="lightbulb" class="w-7 h-7 text-yellow-500 animate-pulse shrink-0"></i>
-                <span><b>¡Secreto de Meteo!</b> El viento es aire en movimiento que trae temperatura y humedad. ¡Mirá la flecha azul para descubrir de dónde sopla!</span>
+                <span><b>¡Secreto de Meteo!</b> El viento es aire en movimiento que trae temperatura y humedad. ¡Mirá la flecha para descubrir hacia dónde va el viento!</span>
             </div>
         </div>
     </aside>
@@ -183,6 +183,7 @@
                         <span class="text-2xl lg:text-4xl font-black text-slate-800 tracking-tighter leading-none" id="live-val-wind">--</span>
                         <span class="text-xs font-bold text-slate-500 mb-0.5">km/h</span>
                     </div>
+                    <span class="block text-[8px] lg:text-[9px] font-bold text-indigo-400 mt-1">La flecha muestra hacia dónde va el viento</span>
                     <div id="wind-dir-container" class="absolute top-3 right-3 w-9 h-9 bg-white rounded-full flex items-center justify-center border-2 border-indigo-200 shadow-sm transition-all duration-700 hidden">
                         <i data-lucide="arrow-up" id="live-val-winddir" class="w-5 h-5 text-indigo-500 transition-transform duration-1000 ease-in-out"></i>
                     </div>
@@ -913,7 +914,9 @@
                 const secretoMeteo = document.getElementById('secreto-meteo');
                 if (ultDir !== '--') {
                     dirContainer.classList.remove('hidden');
-                    dirIcon.style.transform = `rotate(${ultDir}deg)`;
+                    // La variable "windDir" viene en convención meteorológica (de dónde SOPLA
+                    // el viento). Sumamos 180° para que la flecha apunte hacia dónde VA el viento.
+                    dirIcon.style.transform = `rotate(${Number(ultDir) + 180}deg)`;
                     secretoMeteo.classList.remove('hidden');
                 } else {
                     dirContainer.classList.add('hidden');
