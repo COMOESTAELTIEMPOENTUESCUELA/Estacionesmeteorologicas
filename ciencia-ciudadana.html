@@ -772,6 +772,35 @@
             lucide.createIcons();
         }
 
+        // Ubicación de cada escuela de la red, para mostrarlas siempre fijas en los
+        // mapas de reportes (haya o no reportes cargados todavía en esa zona).
+        const ESCUELAS = [
+            { n: 'EP N°23 (Bavío)', c: [-35.0254, -57.7529] },
+            { n: 'EP N°34 (Malagamba)', c: [-35.0724, -57.8656] },
+            { n: 'San Vicente de Paul (La Plata)', c: [-34.9031, -57.9485] },
+            { n: 'EP N°20 (Berisso)', c: [-34.95767, -57.81757] },
+            { n: 'EP N°21 (Paraje Starace)', c: [-35.22795, -57.71827] },
+            { n: 'EP N°24 (Roberto Payró)', c: [-35.18352, -57.65420] },
+            { n: 'EP N°26 (Paraje José Vergara)', c: [-35.38250, -57.80414] },
+            { n: 'EP N°27 (Paraje El Destino)', c: [-35.14141, -57.41025] },
+            { n: 'EP N°2 (Monte Veloz)', c: [-35.46483, -57.28108] },
+            { n: 'EP N°23 (Los Talas)', c: [-34.92712, -57.76241] }
+        ];
+
+        function agregarEscuelasAlMapa(mapa) {
+            const icono = L.divIcon({
+                html: '<div style="background:#ffffff;border:2px solid #1e293b;border-radius:9999px;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 4px rgba(0,0,0,0.3);">🏫</div>',
+                className: '',
+                iconSize: [26, 26],
+                iconAnchor: [13, 13]
+            });
+            ESCUELAS.forEach(function(esc) {
+                L.marker(esc.c, { icon: icono, zIndexOffset: -1000 })
+                    .addTo(mapa)
+                    .bindPopup('<b>' + esc.n + '</b>');
+            });
+        }
+
         function pintarMapa(reportes, contenedorId, mostrarValorLluvia) {
             const mapa = L.map(contenedorId).setView([-34.95, -57.7], 9);
             mapasReportesInstancias.push(mapa);
@@ -780,7 +809,9 @@
                 maxZoom: 19
             }).addTo(mapa);
 
-            const puntos = [];
+            agregarEscuelasAlMapa(mapa);
+
+            const puntos = ESCUELAS.map(function(esc) { return esc.c; });
             reportes.forEach(function(r) {
                 if (!r.location) return;
                 let geo;
