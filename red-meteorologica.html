@@ -177,7 +177,7 @@
                     <span class="text-2xl lg:text-4xl font-black text-slate-800 tracking-tighter" id="live-val-rain">-- mm</span>
                 </div>
 
-                <div class="bg-gradient-to-b from-indigo-50 to-indigo-100 border-2 border-indigo-300 border-b-[6px] rounded-2xl p-4 lg:p-5 kid-card shadow-md flex flex-col justify-between relative">
+                <div id="card-viento" class="bg-gradient-to-b from-indigo-50 to-indigo-100 border-2 border-indigo-300 border-b-[6px] rounded-2xl p-4 lg:p-5 kid-card shadow-md flex flex-col justify-between relative">
                     <span class="block text-[9px] lg:text-[10px] uppercase font-black text-indigo-600 mb-2">🌬️ Viento</span>
                     <div class="flex items-end gap-1">
                         <span class="text-2xl lg:text-4xl font-black text-slate-800 tracking-tighter leading-none" id="live-val-wind">--</span>
@@ -189,9 +189,9 @@
                     </div>
                 </div>
 
-                <div class="bg-gradient-to-b from-purple-50 to-purple-100 border-2 border-purple-300 border-b-[6px] rounded-2xl p-4 lg:p-5 kid-card shadow-md flex flex-col justify-between">
+                <div id="card-rocio" class="bg-gradient-to-b from-purple-50 to-purple-100 border-2 border-purple-300 border-b-[6px] rounded-2xl p-4 lg:p-5 kid-card shadow-md flex flex-col justify-between">
                     <div class="flex justify-between items-start mb-2">
-                        <span class="block text-[9px] lg:text-[10px] uppercase font-black text-purple-600 leading-tight">🌿 Rocío</span>
+                        <span class="block text-[9px] lg:text-[10px] uppercase font-black text-purple-600 leading-tight">🌿 Temperatura de rocío</span>
                         <i data-lucide="flower-2" class="text-purple-400 opacity-50 w-6 h-6 lg:w-8 lg:h-8 shrink-0"></i>
                     </div>
                     <span class="text-2xl lg:text-4xl font-black text-slate-800 tracking-tighter" id="live-val-dew">--°C</span>
@@ -876,6 +876,8 @@
             document.getElementById('live-val-dew').innerText = '--°C';
             document.getElementById('wind-dir-container').classList.add('hidden');
             document.getElementById('secreto-meteo').classList.add('hidden');
+            document.getElementById('card-viento').classList.add('hidden');
+            document.getElementById('card-rocio').classList.add('hidden');
             ['chartTemp', 'chartHum', 'chartPres', 'chartRain'].forEach(id => {
                 const canvas = document.getElementById(id);
                 const ctx = canvas.getContext('2d');
@@ -907,6 +909,7 @@
 
                 const ultWind = getUltimoValido(hist.winds);
                 document.getElementById('live-val-wind').innerText = ultWind !== '--' ? ultWind : '--';
+                document.getElementById('card-viento').classList.toggle('hidden', ultWind === '--');
 
                 const ultDir = getUltimoValido(hist.windDirs);
                 const dirContainer = document.getElementById('wind-dir-container');
@@ -925,6 +928,7 @@
 
                 const ultDew = getUltimoValido(hist.dews);
                 document.getElementById('live-val-dew').innerText = ultDew !== '--' ? `${ultDew}°C` : '--';
+                document.getElementById('card-rocio').classList.toggle('hidden', ultDew === '--');
 
                 crearGraficoEvolucion('chartTemp', 'temp', hist.horas, hist.temps, '#f97316', 'Temperatura (°C)');
                 crearGraficoEvolucion('chartHum',  'hum',  hist.horas, hist.hums,  '#3b82f6', 'Humedad (%)');
