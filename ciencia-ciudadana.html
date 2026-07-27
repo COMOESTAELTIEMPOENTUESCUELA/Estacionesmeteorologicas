@@ -593,6 +593,43 @@
     <script>
         lucide.createIcons();
 
+        // Ubicación de cada escuela de la red: se muestran siempre fijas en los
+        // mapas de reportes (haya o no reportes cargados) y en el mapa del
+        // formulario, para poder marcar la ubicación tocando directamente la escuela.
+        const ESCUELAS = [
+            { n: 'EP N°23 (Bavío)', c: [-35.0254, -57.7529] },
+            { n: 'EP N°34 (Malagamba)', c: [-35.0724, -57.8656] },
+            { n: 'San Vicente de Paul (La Plata)', c: [-34.9031, -57.9485] },
+            { n: 'EP N°21 (Paraje Starace)', c: [-35.22795, -57.71827] },
+            { n: 'EP N°24 (Roberto Payró)', c: [-35.18352, -57.65420] },
+            { n: 'EP N°26 (Paraje José Vergara)', c: [-35.38250, -57.80414] },
+            { n: 'EP N°27 (Paraje El Destino)', c: [-35.14141, -57.41025] },
+            { n: 'EP N°2 (Monte Veloz)', c: [-35.46483, -57.28108] },
+            { n: 'EP N°23 (Los Talas)', c: [-34.92712, -57.76241] },
+            { n: 'EP N°10 (Julio Arditi)', c: [-35.12884, -57.64942] },
+            // Mismo predio para las dos escuelas (La Hermosura)
+            { n: 'EP N°20 / ES N°7 (La Hermosura)', c: [-34.95767, -57.81757] }
+        ];
+
+        // onClick (opcional) se dispara al tocar el ícono de una escuela, además
+        // del popup con el nombre que siempre se muestra.
+        function agregarEscuelasAlMapa(mapa, onClick) {
+            const icono = L.divIcon({
+                html: '<div style="background:#ffffff;border:2px solid #1e293b;border-radius:9999px;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 4px rgba(0,0,0,0.3);">🏫</div>',
+                className: '',
+                iconSize: [26, 26],
+                iconAnchor: [13, 13]
+            });
+            ESCUELAS.forEach(function(esc) {
+                const marcador = L.marker(esc.c, { icon: icono, zIndexOffset: -1000 })
+                    .addTo(mapa)
+                    .bindPopup('<b>' + esc.n + '</b>');
+                if (onClick) {
+                    marcador.on('click', function() { onClick(esc); });
+                }
+            });
+        }
+
         // ── Menú móvil ──────────────────────────────────────────
         const menuToggle = document.getElementById('menu-toggle');
         const mobileMenu = document.getElementById('mobile-menu');
@@ -646,6 +683,13 @@
             marcadorFormulario = L.marker([lat, lon]).addTo(mapaFormulario);
             if (centrar) mapaFormulario.setView([lat, lon], 14);
         }
+
+        // Tocar el ícono de una escuela marca directamente su ubicación en el reporte.
+        agregarEscuelasAlMapa(mapaFormulario, function(esc) {
+            marcarUbicacionFormulario(esc.c[0], esc.c[1], true);
+            ubicacionStatus.textContent = '¡Ubicación de ' + esc.n + ' marcada! ✅';
+            ubicacionStatus.classList.remove('hidden');
+        });
 
         mapaFormulario.on('click', function(e) {
             marcarUbicacionFormulario(e.latlng.lat, e.latlng.lng, false);
@@ -825,37 +869,6 @@
                     '</div>';
             }).join('');
             lucide.createIcons();
-        }
-
-        // Ubicación de cada escuela de la red, para mostrarlas siempre fijas en los
-        // mapas de reportes (haya o no reportes cargados todavía en esa zona).
-        const ESCUELAS = [
-            { n: 'EP N°23 (Bavío)', c: [-35.0254, -57.7529] },
-            { n: 'EP N°34 (Malagamba)', c: [-35.0724, -57.8656] },
-            { n: 'San Vicente de Paul (La Plata)', c: [-34.9031, -57.9485] },
-            { n: 'EP N°21 (Paraje Starace)', c: [-35.22795, -57.71827] },
-            { n: 'EP N°24 (Roberto Payró)', c: [-35.18352, -57.65420] },
-            { n: 'EP N°26 (Paraje José Vergara)', c: [-35.38250, -57.80414] },
-            { n: 'EP N°27 (Paraje El Destino)', c: [-35.14141, -57.41025] },
-            { n: 'EP N°2 (Monte Veloz)', c: [-35.46483, -57.28108] },
-            { n: 'EP N°23 (Los Talas)', c: [-34.92712, -57.76241] },
-            { n: 'EP N°10 (Julio Arditi)', c: [-35.12884, -57.64942] },
-            // Mismo predio para las dos escuelas (La Hermosura)
-            { n: 'EP N°20 / ES N°7 (La Hermosura)', c: [-34.95767, -57.81757] }
-        ];
-
-        function agregarEscuelasAlMapa(mapa) {
-            const icono = L.divIcon({
-                html: '<div style="background:#ffffff;border:2px solid #1e293b;border-radius:9999px;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 4px rgba(0,0,0,0.3);">🏫</div>',
-                className: '',
-                iconSize: [26, 26],
-                iconAnchor: [13, 13]
-            });
-            ESCUELAS.forEach(function(esc) {
-                L.marker(esc.c, { icon: icono, zIndexOffset: -1000 })
-                    .addTo(mapa)
-                    .bindPopup('<b>' + esc.n + '</b>');
-            });
         }
 
         function pintarMapa(reportes, contenedorId, mostrarValorLluvia) {
