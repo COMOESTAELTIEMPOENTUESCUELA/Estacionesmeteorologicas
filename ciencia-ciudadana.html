@@ -702,7 +702,7 @@
                     const mm = estacion.source === 'wunderground'
                         ? await fetchLluviaHoyWU(estacion)
                         : await fetchLluviaHoyThingSpeak(estacion);
-                    if (mm == null || isNaN(mm)) return;
+                    if (mm == null || isNaN(mm) || mm <= 0) return;
                     const marcador = L.marker(estacion.c, { icon: iconoEma, zIndexOffset: 500 }).addTo(mapa);
                     marcador.bindPopup('<b>' + estacion.n + '</b><br>Estación meteorológica (EMA)<br>' + mm.toFixed(1) + ' mm hoy');
                     marcador.bindTooltip(mm.toFixed(1) + ' mm', {
