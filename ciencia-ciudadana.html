@@ -499,7 +499,7 @@
                     <i data-lucide="cloud-rain" class="w-4 h-4"></i> Mapa en vivo
                 </div>
                 <h2 class="text-3xl md:text-5xl font-black mb-4 text-slate-800 tracking-tight">¿Dónde está lloviendo?</h2>
-                <p class="text-lg text-slate-600 font-bold max-w-2xl mx-auto">Mirá los reportes de lluvia y precipitación que mandó la comunidad.</p>
+                <p class="text-lg text-slate-600 font-bold max-w-2xl mx-auto">Mirá los reportes de lluvia de la comunidad (🌧️) y el acumulado de hoy de las estaciones meteorológicas (📡).</p>
             </div>
             <div id="mapa-reportes-lluvia" class="w-full h-[420px] rounded-[2rem] border-4 border-sky-200 shadow-xl overflow-hidden bg-slate-100"></div>
         </div>
@@ -628,6 +628,93 @@
                     marcador.on('click', function() { onClick(esc); });
                 }
             });
+        }
+
+        // ─── RED DE ESTACIONES (EMAs): acumulado de lluvia de hoy ───────────────
+        // Mismas estaciones/canales que en red-meteorologica.html, para mostrar
+        // el acumulado de lluvia del día calendario (00 a 00) junto a los reportes.
+        const ESTACIONES_EMA = [
+            { channels: [{ id: "2626952", key: "4XYH56YSV64HE17H" }, { id: "1778165", key: "OJ1JHKAPCCIQB4CB" }], rainMult: 0.68,
+              n: "EP N°23 (Bavío)", c: [-35.0254, -57.7529], live: true },
+            { source: "wunderground", wuId: "IVERNI9", wuKey: "6b6ee16ebab34fe5aee16ebab38fe57a",
+              n: "Monte Veloz", c: [-35.3200, -57.4200], live: true },
+            { id: "2218687", key: "TH3V4TJLRFZD3JSG", n: "San Vicente", c: [-34.9031, -57.9485], live: true },
+            { id: "2823820", key: "FFI1HK80ZKDNS6V8", n: "Observatorio (Campbell)", c: [-34.908364, -57.933164], live: true },
+            { id: "2218686", key: "O85A0DJ31L8MQZ6F", isEmaVerde: true, n: "EMA Verde", c: [-34.9086, -57.9339], live: true },
+            { source: "wunderground", wuId: "ILAPLA66", wuKey: "470147c769f6493f8147c769f6693fd9",
+              n: "Daza", c: [-34.9091, -57.9325], live: true },
+            { source: "wunderground", wuId: "ILOSTA2", wuKey: "f1d7143d25a24b7197143d25a23b711d",
+              n: "ES7 / EP20", c: [-34.95767209016535, -57.81756279329484], live: true }
+        ];
+
+        function formatearInicioDeHoyEmas() {
+            const hoy = new Date();
+            const pad = (n) => n.toString().padStart(2, '0');
+            return `${hoy.getFullYear()}-${pad(hoy.getMonth() + 1)}-${pad(hoy.getDate())}%2000:00:00`;
+        }
+
+        async function fetchLluviaHoyThingSpeak(estacion) {
+            const canales = estacion.channels || [{ id: estacion.id, key: estacion.key }];
+            const rainField = estacion.isEmaVerde ? 'field4' : 'field5';
+            const inicioHoy = formatearInicioDeHoyEmas();
+            const respuestas = await Promise.all(canales.map(function(ch) {
+                const apiKeyParam = ch.key ? `&api_key=${ch.key}` : '';
+                return fetch(`https://api.thingspeak.com/channels/${ch.id}/feeds.json?results=8000${apiKeyParam}&start=${inicioHoy}`).then(function(r) { return r.json(); });
+            }));
+            let total = 0;
+            respuestas.forEach(function(d) {
+                (d.feeds || []).forEach(function(f) {
+                    let v = parseFloat(f[rainField]);
+                    if (isNaN(v) || v < 0) return;
+                    if (estacion.rainMult) v = v * estacion.rainMult;
+                    total += v;
+                });
+            });
+            return +total.toFixed(2);
+        }
+
+        async function fetchLluviaHoyWU(estacion) {
+            const url = `https://api.weather.com/v2/pws/observations/current?stationId=${estacion.wuId}&format=json&units=e&apiKey=${estacion.wuKey}`;
+            try {
+                const res = await fetch(url, { cache: 'no-store' });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const data = await res.json();
+                const obs = data.observations && data.observations[0];
+                const precip = obs && obs.imperial && obs.imperial.precipTotal;
+                return precip != null ? +(precip * 25.4).toFixed(2) : null;
+            } catch (e) {
+                console.error('Error consultando lluvia de', estacion.n, e);
+                return null;
+            }
+        }
+
+        async function agregarEmasAlMapaLluvia(mapa) {
+            if (!mapa) return;
+            const iconoEma = L.divIcon({
+                html: '<div style="background:#1e3a8a;border:2px solid #ffffff;border-radius:9999px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 2px 4px rgba(0,0,0,0.3);">📡</div>',
+                className: '',
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
+            });
+
+            await Promise.all(ESTACIONES_EMA.filter(function(e) { return e.live; }).map(async function(estacion) {
+                try {
+                    const mm = estacion.source === 'wunderground'
+                        ? await fetchLluviaHoyWU(estacion)
+                        : await fetchLluviaHoyThingSpeak(estacion);
+                    if (mm == null || isNaN(mm)) return;
+                    const marcador = L.marker(estacion.c, { icon: iconoEma, zIndexOffset: 500 }).addTo(mapa);
+                    marcador.bindPopup('<b>' + estacion.n + '</b><br>Estación meteorológica (EMA)<br>' + mm.toFixed(1) + ' mm hoy');
+                    marcador.bindTooltip(mm.toFixed(1) + ' mm', {
+                        permanent: true,
+                        direction: 'top',
+                        offset: [0, -6],
+                        className: 'tooltip-lluvia'
+                    });
+                } catch (e) {
+                    console.error('No se pudo cargar la lluvia de', estacion.n, e);
+                }
+            }));
         }
 
         // ── Menú móvil ──────────────────────────────────────────
@@ -926,6 +1013,8 @@
             if (puntos.length) {
                 mapa.fitBounds(puntos, { padding: [30, 30], maxZoom: 13 });
             }
+
+            return mapa;
         }
 
         // ID de la Google Sheet donde los coordinadores cargan los reportes.
@@ -1008,8 +1097,9 @@
 
                     const lluviaDeHoy = deHoy.filter(function(r) { return r.type === 'lluvia'; });
                     const fenomenosDeHoy = deHoy.filter(function(r) { return TIPOS_OTROS_FENOMENOS.indexOf(r.type) !== -1; });
-                    pintarMapa(lluviaDeHoy, 'mapa-reportes-lluvia', true);
+                    const mapaLluvia = pintarMapa(lluviaDeHoy, 'mapa-reportes-lluvia', true);
                     pintarMapa(fenomenosDeHoy, 'mapa-reportes-fenomenos', false);
+                    agregarEmasAlMapaLluvia(mapaLluvia);
 
                     const btnAnteriores = document.getElementById('btn-ver-anteriores');
                     document.getElementById('btn-ver-anteriores-texto').textContent = anteriores.length
