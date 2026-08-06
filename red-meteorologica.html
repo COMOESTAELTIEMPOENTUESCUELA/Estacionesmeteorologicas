@@ -589,13 +589,25 @@
             let feeds = respuestas.flatMap(d => d.feeds || []);
             feeds.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
+            // Si se combinan varios canales (caso EMA Violeta), evitamos contar dos
+            // veces la misma lectura si apareciera con el mismo timestamp en ambos.
+            const timestampsVistos = new Set();
+            feeds = feeds.filter(f => {
+                if (timestampsVistos.has(f.created_at)) return false;
+                timestampsVistos.add(f.created_at);
+                return true;
+            });
+
             const incluirFecha = dias > 1;
             let total = 0;
             const horas = [], curva = [];
             feeds.forEach(f => {
                 let v = parseFloat(f[rainField]);
                 if (isNaN(v) || v < 0) return;
-                if (rainMult) v = v * rainMult;
+                // Igual que en la Comparación de Pluviómetros: cada lectura con pulso
+                // (valor > 0) cuenta como un ciclo completo del pluviómetro y suma el
+                // multiplicador fijo, sin escalar por la magnitud cruda del campo.
+                if (rainMult) v = v > 0 ? rainMult : 0;
                 total += v;
                 horas.push(formatearEtiquetaFecha(new Date(f.created_at), incluirFecha));
                 curva.push(+total.toFixed(2));
