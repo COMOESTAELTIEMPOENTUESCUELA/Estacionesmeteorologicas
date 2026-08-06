@@ -662,11 +662,21 @@
                 return fetch(`https://api.thingspeak.com/channels/${ch.id}/feeds.json?results=8000${apiKeyParam}&start=${inicioHoy}`).then(function(r) { return r.json(); });
             }));
             let total = 0;
+            const timestampsVistos = new Set();
             respuestas.forEach(function(d) {
                 (d.feeds || []).forEach(function(f) {
                     let v = parseFloat(f[rainField]);
                     if (isNaN(v) || v < 0) return;
-                    if (estacion.rainMult) v = v * estacion.rainMult;
+                    if (estacion.rainMult) {
+                        // Pluviómetro de cazoleta (EMA Violeta): cada lectura > 0 es UN
+                        // volcado de la cazoleta (0.68mm fijos), no una magnitud a escalar.
+                        // Al combinar el canal actual con el histórico puede haber
+                        // timestamps duplicados: los ignoramos para no contar el mismo
+                        // volcado dos veces.
+                        if (v === 0 || timestampsVistos.has(f.created_at)) return;
+                        timestampsVistos.add(f.created_at);
+                        v = estacion.rainMult;
+                    }
                     total += v;
                 });
             });
