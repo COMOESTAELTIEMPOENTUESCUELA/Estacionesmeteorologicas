@@ -1260,8 +1260,10 @@
                     datosComparativos.maxs.push(parseFloat(dataHistorial.tempMax));
                 }
 
-                // Alimentar la comparativa semanal de lluvia con el acumulado de los últimos 7 días.
-                if (p.live && lluviaSemana != null) {
+                // Alimentar la comparativa semanal de lluvia con el acumulado de los últimos 7
+                // días. Las estaciones sin dato (null) o que no registraron lluvia (0mm) no
+                // entran, para no ensuciar la comparación con barras vacías.
+                if (p.live && lluviaSemana != null && lluviaSemana > 0) {
                     datosLluviaSemana.labels.push(p.n);
                     datosLluviaSemana.valores.push(lluviaSemana);
                 }
