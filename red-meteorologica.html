@@ -296,7 +296,22 @@
                     <div class="h-[200px] lg:h-[250px] w-full"><canvas id="chartComparativo"></canvas></div>
                 </div>
             </div>
-            
+
+            <!-- CARRERA DE LLUVIA -->
+            <div class="bg-gradient-to-r from-cyan-900 to-blue-900 rounded-2xl lg:rounded-[2rem] p-6 lg:p-8 border-4 border-slate-800 shadow-2xl text-white relative overflow-hidden">
+                <div class="absolute right-0 top-0 opacity-10 transform translate-x-1/4 -translate-y-1/4">
+                    <i data-lucide="cloud-rain" class="w-48 h-48 lg:w-64 lg:h-64 text-cyan-300 animate-pulse"></i>
+                </div>
+                <div class="relative z-10">
+                    <h3 class="text-xl lg:text-2xl font-black text-white flex items-center gap-3 mb-1">
+                        🌧️ ¡Carrera de Lluvia!
+                    </h3>
+                    <p class="text-sm font-bold text-cyan-200 mb-1">¿Dónde llovió más esta semana?</p>
+                    <p id="texto-mas-lluvia-semana" class="text-xs font-black text-yellow-300 mb-5 hidden"></p>
+                    <div class="h-[200px] lg:h-[250px] w-full"><canvas id="chartComparativoLluvia"></canvas></div>
+                </div>
+            </div>
+
             <footer class="text-center pb-6 pt-2">
                 <a href="ciencia-ciudadana.html#enviar-reporte" class="text-[11px] font-black text-blue-800 uppercase tracking-widest bg-white/80 backdrop-blur inline-block px-5 py-3 rounded-full border-2 border-white shadow-lg hover:bg-white transition">
                     Envianos tu reporte en foto
@@ -357,8 +372,9 @@
         setTimeout(() => map.invalidateSize(), 500);
 
         const btnContainer = document.getElementById('button-container');
-        const graficos = { temp: null, hum: null, pres: null, rain: null, comp: null };
+        const graficos = { temp: null, hum: null, pres: null, rain: null, comp: null, compLluvia: null };
         let datosComparativos = { labels: [], mins: [], maxs: [] };
+        let datosLluviaSemana = { labels: [], valores: [] };
 
         // Función auxiliar para calcular cuánto tiempo pasó desde el último dato
         function calcularTiempoTranscurrido(fechaISO) {
@@ -601,6 +617,34 @@
             return procesarObservacionesWU(observaciones, true);
         }
 
+        // Lluvia acumulada de los últimos 7 días para una estación Wunderground. El
+        // precipTotal que da la API ya es el acumulado DEL DÍA (se resetea a las 00
+        // locales), así que sumar todas las lecturas de la semana contaría de más:
+        // hay que quedarse con el máximo de cada día y sumar esos 7 máximos.
+        async function fetchLluviaSemanaWU(estacion) {
+            const hoy = new Date();
+            const dias = [];
+            for (let i = 6; i >= 0; i--) {
+                const d = new Date(hoy);
+                d.setDate(d.getDate() - i);
+                dias.push(d);
+            }
+
+            const porDia = await Promise.all(dias.map(d => fetchWUHistorialDia(estacion.wuId, estacion.wuKey, d)));
+            let total = 0;
+            porDia.forEach(observacionesDelDia => {
+                let maxDelDia = 0;
+                observacionesDelDia.forEach(o => {
+                    const r = (o.imperial || {}).precipTotal;
+                    if (r == null) return;
+                    const mm = inAMm(parseFloat(r));
+                    if (mm > maxDelDia) maxDelDia = mm;
+                });
+                total += maxDelDia;
+            });
+            return +total.toFixed(2);
+        }
+
         // ─── THINGSPEAK (resto de las estaciones) ───────────────────────────────
         // Los fields de lluvia de estas estaciones (field4 de EMA Verde, field5 de
         // Campbell y de la EMA Violeta) NO son un acumulado corrido: cada lectura es
@@ -673,6 +717,25 @@
             const { tempMin, tempMax } = calcularMinMax(tempsHoy);
 
             return { total: +total.toFixed(2), horas, curva, tempMin, tempMax };
+        }
+
+        // Lluvia acumulada de los últimos 7 días de UNA estación, sea Wunderground o
+        // ThingSpeak. Se usa para la "Carrera de Lluvia" que compara todas las
+        // escuelas entre sí.
+        async function fetchLluviaSemanaEstacion(estacion) {
+            if (!estacion.live) return null;
+            try {
+                if (estacion.source === 'wunderground') {
+                    return await fetchLluviaSemanaWU(estacion);
+                }
+                const canales = estacion.channels || [{ id: estacion.id, key: estacion.key }];
+                const rainField = estacion.isEmaVerde ? 'field4' : 'field5';
+                const datosSemana = await datosDelPeriodoTS(canales, rainField, estacion.rainMult, 7, 'calendario');
+                return datosSemana.total;
+            } catch (e) {
+                console.error('No se pudo obtener la lluvia semanal de', estacion.n, e);
+                return null;
+            }
         }
 
         async function fetchHistorialCanal(estacion, periodo = 'hoy') {
@@ -911,6 +974,64 @@
             });
         }
 
+        function renderizarGraficoComparativoLluvia() {
+            const textoMasLluvia = document.getElementById('texto-mas-lluvia-semana');
+            if (datosLluviaSemana.valores.length > 0) {
+                const iMax = datosLluviaSemana.valores.indexOf(Math.max(...datosLluviaSemana.valores));
+                textoMasLluvia.textContent = `🥇 Esta semana llovió más en ${datosLluviaSemana.labels[iMax]}: ${datosLluviaSemana.valores[iMax].toFixed(1)} mm`;
+                textoMasLluvia.classList.remove('hidden');
+            } else {
+                textoMasLluvia.classList.add('hidden');
+            }
+
+            const ctxCompLluvia = document.getElementById('chartComparativoLluvia').getContext('2d');
+            if (graficos.compLluvia) graficos.compLluvia.destroy();
+            graficos.compLluvia = new Chart(ctxCompLluvia, {
+                type: 'bar',
+                data: {
+                    labels: datosLluviaSemana.labels,
+                    datasets: [{
+                        label: 'Lluvia (mm)',
+                        data: datosLluviaSemana.valores,
+                        backgroundColor: '#22d3ee',
+                        borderRadius: 14,
+                        borderSkipped: false,
+                        barThickness: 'flex',
+                        maxBarThickness: 40
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#ffffff',
+                            titleColor: '#0f172a',
+                            bodyColor: '#0f172a',
+                            padding: 12,
+                            titleFont: { size: 13, family: "'Plus Jakarta Sans', sans-serif" },
+                            bodyFont: { size: 16, weight: '900', family: "'Plus Jakarta Sans', sans-serif" },
+                            displayColors: false,
+                            cornerRadius: 14,
+                            callbacks: { label: (ctx) => `${ctx.parsed.y} mm` }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(255,255,255,0.1)', borderDash: [4, 4], lineWidth: 2 },
+                            ticks: { font: { weight: '800', family: "'Plus Jakarta Sans', sans-serif", size: 12 }, color: '#94a3b8' }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { font: { size: 12, weight: '800', family: "'Plus Jakarta Sans', sans-serif" }, color: '#ffffff' }
+                        }
+                    }
+                }
+            });
+        }
+
         let periodoActual = 'hoy';
         let convencionLluvia = 'calendario'; // 'calendario' (00 a 00) | 'meteorologico' (9 a 9)
         let estacionActual = null;
@@ -1096,8 +1217,12 @@
                 }).addTo(map);
                 marker.bindPopup(`<b class="text-[14px] font-black text-slate-800 m-0">${p.n}</b>`);
 
-                // Hacer fetch para saber cuándo fue la última vez que transmitió
-                const dataHistorial = await fetchHistorialCanal(p);
+                // Hacer fetch para saber cuándo fue la última vez que transmitió, y de
+                // paso (en paralelo) la lluvia de los últimos 7 días para la Carrera de Lluvia.
+                const [dataHistorial, lluviaSemana] = await Promise.all([
+                    fetchHistorialCanal(p),
+                    fetchLluviaSemanaEstacion(p)
+                ]);
 
                 // Guardamos el último valor válido de cada variable para poder
                 // mostrarlo en el mapa expandido sin tener que volver a pedirlo.
@@ -1135,6 +1260,12 @@
                     datosComparativos.labels.push(p.n);
                     datosComparativos.mins.push(parseFloat(dataHistorial.tempMin));
                     datosComparativos.maxs.push(parseFloat(dataHistorial.tempMax));
+                }
+
+                // Alimentar la Carrera de Lluvia con el acumulado de los últimos 7 días.
+                if (p.live && lluviaSemana != null) {
+                    datosLluviaSemana.labels.push(p.n);
+                    datosLluviaSemana.valores.push(lluviaSemana);
                 }
 
                 // Orden de la lista: primero la estación con dato más reciente. Las que
@@ -1179,6 +1310,7 @@
             });
 
             renderizarGraficoComparativo();
+            renderizarGraficoComparativoLluvia();
         }
 
         // ─── MAPA EXPANDIDO (selector de variable) ──────────────────────────────
