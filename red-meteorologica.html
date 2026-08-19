@@ -86,6 +86,40 @@
         /* Scrollbar más chico en la sidebar de escritorio */
         #sidebar-scroll::-webkit-scrollbar { width: 6px; }
         #sidebar-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 6px; }
+
+        /* Globitos con el valor de la variable elegida en el mapa expandido. El
+           color lo pone el JS con la variable --tt-bg según la variable activa. */
+        .leaflet-tooltip.tooltip-variable {
+            background: var(--tt-bg, #3b82f6);
+            color: #ffffff;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-weight: 900;
+            font-size: 12px;
+            border: 2px solid #ffffff;
+            border-radius: 999px;
+            padding: 3px 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+        .leaflet-tooltip.tooltip-variable.leaflet-tooltip-top::before {
+            border-top-color: var(--tt-bg, #3b82f6);
+        }
+
+        /* Chips selectoras de variable en el mapa expandido */
+        .chip-variable {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-weight: 800;
+            font-size: 12px;
+            padding: 8px 14px;
+            border-radius: 999px;
+            border: 2px solid #e2e8f0;
+            background: #ffffff;
+            color: #64748b;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+        .chip-variable:hover { border-color: #93c5fd; }
+        .chip-variable.active { color: #ffffff; border-color: transparent; }
     </style>
 </head>
 
@@ -109,7 +143,12 @@
             </a>
         </div>
 
-        <div id="map" class="w-full h-44 lg:h-56 shrink-0 z-0 bg-slate-200 border-b-4 border-slate-200"></div>
+        <div class="relative w-full shrink-0">
+            <div id="map" class="w-full h-44 lg:h-56 z-0 bg-slate-200 border-b-4 border-slate-200"></div>
+            <button id="btn-expandir-mapa" class="absolute top-3 right-3 z-[400] bg-white/90 backdrop-blur hover:bg-white text-blue-700 p-2 rounded-xl shadow-md border-2 border-white transition" title="Ver mapa completo">
+                <i data-lucide="maximize" class="w-4 h-4"></i>
+            </button>
+        </div>
 
         <div id="sidebar-scroll" class="p-4 lg:p-5 lg:flex-grow lg:overflow-y-auto bg-slate-50/80 relative">
             <h2 class="text-xs font-black text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
@@ -268,6 +307,20 @@
     </main>
 
 </div><!-- #layout-root -->
+
+<!-- MAPA EXPANDIDO (mapa grande con selector de variable) -->
+<div id="mapa-expandido-overlay" class="fixed inset-0 z-[10000] bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-3 lg:p-8">
+    <div class="bg-white rounded-[1.5rem] lg:rounded-[2rem] shadow-2xl w-full h-full lg:max-w-5xl lg:max-h-[85vh] flex flex-col overflow-hidden border-4 border-white">
+        <div class="flex items-center justify-between gap-3 p-4 lg:p-5 border-b-2 border-slate-100 shrink-0">
+            <h3 class="text-base lg:text-xl font-black text-slate-800">Mapa de la red</h3>
+            <button id="btn-cerrar-mapa-expandido" class="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition" title="Cerrar">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+        <div id="selector-variable-mapa" class="flex flex-wrap gap-2 px-4 lg:px-5 py-3 border-b-2 border-slate-100 shrink-0"></div>
+        <div id="mapa-expandido" class="flex-grow w-full z-0 bg-slate-200"></div>
+    </div>
+</div>
 
     <script>
         lucide.createIcons();
@@ -763,6 +816,37 @@
             });
         }
 
+        // Junta lecturas consecutivas en "baldes" y promedia, para que el gráfico no
+        // se vea con ruido cuando hay muchos puntos (lecturas cada pocos minutos).
+        // Para "rain" (acumulado corrido) usa el último valor del balde en vez de
+        // promediar, porque promediar una suma corrida no tiene sentido.
+        function suavizarParaGrafico(horas, valores, modo = 'avg') {
+            const maxPuntos = 48;
+            const n = valores.length;
+            if (n <= maxPuntos) return { horas, valores };
+
+            const tamBalde = Math.ceil(n / maxPuntos);
+            const horasOut = [], valoresOut = [];
+            for (let i = 0; i < n; i += tamBalde) {
+                const horasBalde = horas.slice(i, i + tamBalde);
+                const valoresBalde = valores.slice(i, i + tamBalde)
+                    .map(v => parseFloat(v))
+                    .filter(v => !isNaN(v));
+
+                horasOut.push(horasBalde[Math.floor(horasBalde.length / 2)]);
+
+                if (valoresBalde.length === 0) {
+                    valoresOut.push(null);
+                } else if (modo === 'last') {
+                    valoresOut.push(valoresBalde[valoresBalde.length - 1].toFixed(2));
+                } else {
+                    const promedio = valoresBalde.reduce((a, b) => a + b, 0) / valoresBalde.length;
+                    valoresOut.push(promedio.toFixed(1));
+                }
+            }
+            return { horas: horasOut, valores: valoresOut };
+        }
+
         function renderizarGraficoComparativo() {
             const ctxComp = document.getElementById('chartComparativo').getContext('2d');
             if (graficos.comp) graficos.comp.destroy();
@@ -942,10 +1026,17 @@
                 document.getElementById('live-val-dew').innerText = ultDew !== '--' ? `${ultDew}°C` : '--';
                 document.getElementById('card-rocio').classList.toggle('hidden', ultDew === '--');
 
-                crearGraficoEvolucion('chartTemp', 'temp', hist.horas, hist.temps, '#f97316', 'Temperatura (°C)');
-                crearGraficoEvolucion('chartHum',  'hum',  hist.horas, hist.hums,  '#3b82f6', 'Humedad (%)');
-                crearGraficoEvolucion('chartPres', 'pres', hist.horas, hist.press, '#10b981', 'Presión (hPa)');
-                crearGraficoEvolucion('chartRain', 'rain', hist.horasLluvia || hist.horas, hist.rains, '#06b6d4', 'Lluvia acumulada (mm)');
+                const gTemp = suavizarParaGrafico(hist.horas, hist.temps);
+                crearGraficoEvolucion('chartTemp', 'temp', gTemp.horas, gTemp.valores, '#f97316', 'Temperatura (°C)');
+
+                const gHum = suavizarParaGrafico(hist.horas, hist.hums);
+                crearGraficoEvolucion('chartHum', 'hum', gHum.horas, gHum.valores, '#3b82f6', 'Humedad (%)');
+
+                const gPres = suavizarParaGrafico(hist.horas, hist.press);
+                crearGraficoEvolucion('chartPres', 'pres', gPres.horas, gPres.valores, '#10b981', 'Presión (hPa)');
+
+                const gRain = suavizarParaGrafico(hist.horasLluvia || hist.horas, hist.rains, 'last');
+                crearGraficoEvolucion('chartRain', 'rain', gRain.horas, gRain.valores, '#06b6d4', 'Lluvia acumulada (mm)');
             } else {
                 limpiarCampos();
             }
@@ -1003,6 +1094,17 @@
 
                 // Hacer fetch para saber cuándo fue la última vez que transmitió
                 const dataHistorial = await fetchHistorialCanal(p);
+
+                // Guardamos el último valor válido de cada variable para poder
+                // mostrarlo en el mapa expandido sin tener que volver a pedirlo.
+                const ultimoValido = (arr) => (arr || []).slice().reverse().find(v => v !== null) ?? null;
+                p.valorActual = {
+                    temp: ultimoValido(dataHistorial.temps),
+                    hum: ultimoValido(dataHistorial.hums),
+                    pres: ultimoValido(dataHistorial.press),
+                    rain: ultimoValido(dataHistorial.rains),
+                    wind: ultimoValido(dataHistorial.winds)
+                };
 
                 let etiquetaTiempo = "";
                 let indicatorColor = "bg-green-500"; // Verde = transmitiendo
@@ -1074,6 +1176,98 @@
 
             renderizarGraficoComparativo();
         }
+
+        // ─── MAPA EXPANDIDO (selector de variable) ──────────────────────────────
+        const VARIABLES_MAPA = [
+            { id: 'temp', label: '🌡️ Temperatura', unidad: '°C', clr: '#f97316' },
+            { id: 'hum',  label: '💧 Humedad',      unidad: '%',   clr: '#3b82f6' },
+            { id: 'pres', label: '🎈 Presión',      unidad: 'hPa', clr: '#10b981' },
+            { id: 'rain', label: '🌧️ Lluvia hoy',   unidad: 'mm',  clr: '#06b6d4' },
+            { id: 'wind', label: '🌬️ Viento',       unidad: 'km/h', clr: '#6366f1' }
+        ];
+
+        let mapaExpandido = null;
+        let marcadoresExpandido = []; // { p, marker }
+        let variableMapaActual = 'temp';
+
+        function crearSelectorVariableMapa() {
+            const cont = document.getElementById('selector-variable-mapa');
+            cont.innerHTML = '';
+            VARIABLES_MAPA.forEach(v => {
+                const chip = document.createElement('button');
+                chip.className = 'chip-variable';
+                chip.textContent = v.label;
+                chip.dataset.variable = v.id;
+                chip.addEventListener('click', () => cambiarVariableMapa(v.id));
+                cont.appendChild(chip);
+            });
+            actualizarSelectorVariableMapa();
+        }
+
+        function actualizarSelectorVariableMapa() {
+            document.querySelectorAll('#selector-variable-mapa .chip-variable').forEach(chip => {
+                const v = VARIABLES_MAPA.find(v => v.id === chip.dataset.variable);
+                const activo = chip.dataset.variable === variableMapaActual;
+                chip.classList.toggle('active', activo);
+                chip.style.background = activo ? v.clr : '';
+            });
+        }
+
+        function cambiarVariableMapa(id) {
+            variableMapaActual = id;
+            actualizarSelectorVariableMapa();
+            actualizarMarcadoresExpandido();
+        }
+
+        function actualizarMarcadoresExpandido() {
+            const v = VARIABLES_MAPA.find(v => v.id === variableMapaActual);
+            marcadoresExpandido.forEach(({ p, marker }) => {
+                const valor = p.valorActual ? p.valorActual[v.id] : null;
+                const texto = (!p.live) ? 'Fuera de servicio'
+                    : (valor === null ? 'Sin datos' : `${valor} ${v.unidad}`);
+                marker.setTooltipContent(`<b>${p.n}</b><br>${texto}`);
+                const el = marker.getTooltip() && marker.getTooltip().getElement();
+                if (el) el.style.setProperty('--tt-bg', p.live ? v.clr : '#94a3b8');
+            });
+        }
+
+        function abrirMapaExpandido() {
+            const overlay = document.getElementById('mapa-expandido-overlay');
+            overlay.classList.remove('hidden');
+            overlay.classList.add('flex');
+
+            if (!mapaExpandido) {
+                mapaExpandido = L.map('mapa-expandido', { zoomControl: true }).setView([-35.10, -57.75], 9);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(mapaExpandido);
+
+                puntos.forEach(p => {
+                    const marker = L.circleMarker(p.c, {
+                        radius: 10, fillColor: p.live ? p.clr : '#94a3b8', color: '#ffffff', weight: 3, fillOpacity: 1
+                    }).addTo(mapaExpandido);
+                    marker.bindTooltip('', { permanent: true, direction: 'top', offset: [0, -12], className: 'tooltip-variable' });
+                    marcadoresExpandido.push({ p, marker });
+                });
+
+                crearSelectorVariableMapa();
+                actualizarMarcadoresExpandido();
+            } else {
+                actualizarMarcadoresExpandido();
+            }
+
+            setTimeout(() => mapaExpandido.invalidateSize(), 200);
+        }
+
+        function cerrarMapaExpandido() {
+            const overlay = document.getElementById('mapa-expandido-overlay');
+            overlay.classList.add('hidden');
+            overlay.classList.remove('flex');
+        }
+
+        document.getElementById('btn-expandir-mapa').addEventListener('click', abrirMapaExpandido);
+        document.getElementById('btn-cerrar-mapa-expandido').addEventListener('click', cerrarMapaExpandido);
+        document.getElementById('mapa-expandido-overlay').addEventListener('click', (e) => {
+            if (e.target.id === 'mapa-expandido-overlay') cerrarMapaExpandido();
+        });
 
         inicializarRed();
     </script>
