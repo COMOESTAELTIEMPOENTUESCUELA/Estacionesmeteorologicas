@@ -286,27 +286,25 @@
             <!-- CARRERA DE TEMPERATURAS -->
             <div class="bg-gradient-to-r from-slate-900 to-blue-900 rounded-2xl lg:rounded-[2rem] p-6 lg:p-8 border-4 border-slate-800 shadow-2xl text-white relative overflow-hidden">
                 <div class="absolute right-0 top-0 opacity-10 transform translate-x-1/4 -translate-y-1/4">
-                    <i data-lucide="star" class="w-48 h-48 lg:w-64 lg:h-64 text-yellow-400 animate-pulse"></i>
+                    <i data-lucide="thermometer" class="w-48 h-48 lg:w-64 lg:h-64 text-orange-400 animate-pulse"></i>
                 </div>
                 <div class="relative z-10">
-                    <h3 class="text-xl lg:text-2xl font-black text-white flex items-center gap-3 mb-1">
-                        🏆 ¡Carrera de Temperaturas!
+                    <h3 class="text-xl lg:text-2xl font-black text-white flex items-center gap-3 mb-5">
+                        🌡️ ¿Dónde hizo más calor y más frío hoy?
                     </h3>
-                    <p class="text-sm font-bold text-blue-200 mb-5">¿Dónde hizo más calor y más frío hoy?</p>
                     <div class="h-[200px] lg:h-[250px] w-full"><canvas id="chartComparativo"></canvas></div>
                 </div>
             </div>
 
-            <!-- CARRERA DE LLUVIA -->
+            <!-- TEMPERATURA Y LLUVIA ENTRE ESCUELAS -->
             <div class="bg-gradient-to-r from-cyan-900 to-blue-900 rounded-2xl lg:rounded-[2rem] p-6 lg:p-8 border-4 border-slate-800 shadow-2xl text-white relative overflow-hidden">
                 <div class="absolute right-0 top-0 opacity-10 transform translate-x-1/4 -translate-y-1/4">
                     <i data-lucide="cloud-rain" class="w-48 h-48 lg:w-64 lg:h-64 text-cyan-300 animate-pulse"></i>
                 </div>
                 <div class="relative z-10">
-                    <h3 class="text-xl lg:text-2xl font-black text-white flex items-center gap-3 mb-1">
-                        🌧️ ¡Carrera de Lluvia!
+                    <h3 class="text-xl lg:text-2xl font-black text-white flex items-center gap-3 mb-2">
+                        🌧️ ¿Dónde llovió más esta semana?
                     </h3>
-                    <p class="text-sm font-bold text-cyan-200 mb-1">¿Dónde llovió más esta semana?</p>
                     <p id="texto-mas-lluvia-semana" class="text-xs font-black text-yellow-300 mb-5 hidden"></p>
                     <div class="h-[200px] lg:h-[250px] w-full"><canvas id="chartComparativoLluvia"></canvas></div>
                 </div>
@@ -720,7 +718,7 @@
         }
 
         // Lluvia acumulada de los últimos 7 días de UNA estación, sea Wunderground o
-        // ThingSpeak. Se usa para la "Carrera de Lluvia" que compara todas las
+        // ThingSpeak. Se usa para la tarjeta "¿Dónde llovió más esta semana?" que compara todas las
         // escuelas entre sí.
         async function fetchLluviaSemanaEstacion(estacion) {
             if (!estacion.live) return null;
@@ -978,7 +976,7 @@
             const textoMasLluvia = document.getElementById('texto-mas-lluvia-semana');
             if (datosLluviaSemana.valores.length > 0) {
                 const iMax = datosLluviaSemana.valores.indexOf(Math.max(...datosLluviaSemana.valores));
-                textoMasLluvia.textContent = `🥇 Esta semana llovió más en ${datosLluviaSemana.labels[iMax]}: ${datosLluviaSemana.valores[iMax].toFixed(1)} mm`;
+                textoMasLluvia.textContent = `📍 Esta semana llovió más en ${datosLluviaSemana.labels[iMax]}: ${datosLluviaSemana.valores[iMax].toFixed(1)} mm`;
                 textoMasLluvia.classList.remove('hidden');
             } else {
                 textoMasLluvia.classList.add('hidden');
@@ -1218,7 +1216,7 @@
                 marker.bindPopup(`<b class="text-[14px] font-black text-slate-800 m-0">${p.n}</b>`);
 
                 // Hacer fetch para saber cuándo fue la última vez que transmitió, y de
-                // paso (en paralelo) la lluvia de los últimos 7 días para la Carrera de Lluvia.
+                // paso (en paralelo) la lluvia de los últimos 7 días para la comparativa semanal.
                 const [dataHistorial, lluviaSemana] = await Promise.all([
                     fetchHistorialCanal(p),
                     fetchLluviaSemanaEstacion(p)
@@ -1262,7 +1260,7 @@
                     datosComparativos.maxs.push(parseFloat(dataHistorial.tempMax));
                 }
 
-                // Alimentar la Carrera de Lluvia con el acumulado de los últimos 7 días.
+                // Alimentar la comparativa semanal de lluvia con el acumulado de los últimos 7 días.
                 if (p.live && lluviaSemana != null) {
                     datosLluviaSemana.labels.push(p.n);
                     datosLluviaSemana.valores.push(lluviaSemana);
