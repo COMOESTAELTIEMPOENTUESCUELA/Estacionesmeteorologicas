@@ -1223,11 +1223,18 @@
             const v = VARIABLES_MAPA.find(v => v.id === variableMapaActual);
             marcadoresExpandido.forEach(({ p, marker }) => {
                 const valor = p.valorActual ? p.valorActual[v.id] : null;
-                const texto = (!p.live) ? 'Fuera de servicio'
-                    : (valor === null ? 'Sin datos' : `${valor} ${v.unidad}`);
-                marker.setTooltipContent(`<b>${p.n}</b><br>${texto}`);
+
+                // Las estaciones sin dato de esta variable (o fuera de servicio) no
+                // se muestran en el mapa expandido.
+                if (!p.live || valor === null) {
+                    mapaExpandido.removeLayer(marker);
+                    return;
+                }
+                if (!mapaExpandido.hasLayer(marker)) marker.addTo(mapaExpandido);
+
+                marker.setTooltipContent(`<b>${p.n}</b><br>${valor} ${v.unidad}`);
                 const el = marker.getTooltip() && marker.getTooltip().getElement();
-                if (el) el.style.setProperty('--tt-bg', p.live ? v.clr : '#94a3b8');
+                if (el) el.style.setProperty('--tt-bg', v.clr);
             });
         }
 
