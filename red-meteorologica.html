@@ -1608,10 +1608,13 @@
             URL.revokeObjectURL(url);
         }
 
+        // Excel en español (es-AR, es-ES, etc.) usa ";" como separador de columnas al
+        // abrir un CSV directamente (reserva la "," para los decimales), así que con
+        // "," como separador todo aparecía amontonado en una sola columna.
         function filasACsv(filas) {
-            const encabezado = 'fecha_hora,temperatura_c,humedad_pct,presion_hpa,viento_kmh,lluvia_acumulada_mm';
-            const cuerpo = filas.map(f => [f.fecha, f.temp, f.hum, f.pres, f.viento, f.lluvia].join(',')).join('\n');
-            return encabezado + '\n' + cuerpo;
+            const encabezado = 'fecha_hora;temperatura_c;humedad_pct;presion_hpa;viento_kmh;lluvia_acumulada_mm';
+            const cuerpo = filas.map(f => [f.fecha, f.temp, f.hum, f.pres, f.viento, f.lluvia].join(';')).join('\n');
+            return '﻿' + encabezado + '\n' + cuerpo;
         }
 
         async function descargarHistoricoAdmin() {
