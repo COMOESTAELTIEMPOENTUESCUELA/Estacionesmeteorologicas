@@ -404,7 +404,9 @@
             { source: "wunderground", wuId: "ILAPLA66", wuKey: "470147c769f6493f8147c769f6693fd9",
               n: "Daza", loc: "Facultad (FCAG) · Wunderground", c: [-34.9091, -57.9325], clr: "#f43f5e", live: true, img: "imagenes/observatorio.png" },
             { source: "wunderground", wuId: "ILOSTA2", wuKey: "f1d7143d25a24b7197143d25a23b711d",
-              n: "ES7 / EP20", loc: "Wunderground", c: [-34.95767209016535, -57.81756279329484], clr: "#0ea5e9", live: true, img: "imagenes/observatorio.png" }
+              n: "ES7 / EP20", loc: "Wunderground", c: [-34.95767209016535, -57.81756279329484], clr: "#0ea5e9", live: true, img: "imagenes/observatorio.png" },
+            { source: "wunderground", wuId: "IBERIS14", wuKey: "af815b5b4b804cfd815b5b4b80dcfd07",
+              n: "EP N°23 (Los Talas)", loc: "Berisso", c: [-34.92712, -57.76241], clr: "#ec4899", live: true, img: "https://images.unsplash.com/photo-1592210454359-9043f067919b?auto=format&fit=crop&q=80&w=300" }
         ];
 
         const map = L.map('map', { zoomControl: false }).setView([-35.10, -57.75], 9);
@@ -431,7 +433,7 @@
             return `Hace ${diffDias} ${diffDias === 1 ? 'día' : 'días'}`;
         }
 
-        // ─── WEATHER UNDERGROUND (Monte Veloz, Daza, ES7/EP20) ──────────────────
+        // ─── WEATHER UNDERGROUND (Monte Veloz, Daza, ES7/EP20, EP N°23 Los Talas) ──
         // Pedimos las lecturas en unidades imperiales (units=e) y las convertimos acá.
         // El campo "metric" que devuelve la API viene con la temperatura ya redondeada
         // a un entero (ej: 11°C en vez de 11.4°C); "imperial" retiene la resolución real
