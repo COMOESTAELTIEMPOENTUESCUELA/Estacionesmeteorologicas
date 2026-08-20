@@ -652,11 +652,34 @@
                 Promise.all(dias.map(d => fetchWUHistorialDia(estacion.wuId, estacion.wuKey, d))),
                 fetchWUActual(estacion.wuId, estacion.wuKey)
             ]);
+            if (obsActual) porDia[porDia.length - 1] = porDia[porDia.length - 1].concat([obsActual]);
 
-            let observaciones = porDia.flat();
-            if (obsActual) observaciones.push(obsActual);
+            // El precipTotal que da la API es el acumulado DEL DÍA (se resetea a las 00
+            // locales). Para que la tarjeta y el gráfico de "última semana" muestren el
+            // acumulado real de los 7 días, a cada lectura hay que sumarle el total de
+            // los días anteriores, no solo concatenar los precipTotal sueltos de cada
+            // lectura (eso hacía que el último valor mostrado fuera solo el de HOY).
+            let offsetMm = 0;
+            const observaciones = [];
+            porDia.forEach(observacionesDelDia => {
+                let maxDelDiaMm = 0;
+                observacionesDelDia.forEach(o => {
+                    const r = (o.imperial || {}).precipTotal;
+                    if (r == null) return;
+                    const mm = inAMm(parseFloat(r));
+                    if (mm > maxDelDiaMm) maxDelDiaMm = mm;
+                });
+                observacionesDelDia.forEach(o => observaciones.push({ o, offsetMm }));
+                offsetMm += maxDelDiaMm;
+            });
 
-            return procesarObservacionesWU(observaciones, true);
+            const resultado = procesarObservacionesWU(observaciones.map(x => x.o), true);
+            resultado.rains = observaciones.map(({ o, offsetMm: off }) => {
+                const r = (o.imperial || {}).precipTotal;
+                return r != null ? (off + inAMm(parseFloat(r))).toFixed(1) : null;
+            });
+
+            return resultado;
         }
 
         // Lluvia acumulada de los últimos 7 días para una estación Wunderground. El
