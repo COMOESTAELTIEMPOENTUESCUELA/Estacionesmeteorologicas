@@ -335,6 +335,48 @@
     </div>
 </div>
 
+<!-- Acceso oculto al modo administrador (descarga de históricos) -->
+<button id="btn-admin-trigger" class="fixed bottom-2 right-2 w-3 h-3 rounded-full bg-transparent hover:bg-slate-300 opacity-0 hover:opacity-40 transition z-[9000]" aria-hidden="true" tabindex="-1"></button>
+
+<div id="admin-overlay" class="fixed inset-0 z-[10001] bg-slate-900/70 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-white rounded-[1.5rem] shadow-2xl w-full max-w-sm overflow-hidden border-4 border-white">
+        <div class="flex items-center justify-between gap-3 p-4 border-b-2 border-slate-100">
+            <h3 class="text-base font-black text-slate-800">Modo administrador</h3>
+            <button id="btn-cerrar-admin" class="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition" title="Cerrar">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <div id="admin-paso-clave" class="p-5 space-y-3">
+            <p class="text-xs font-bold text-slate-500">Ingresá la clave para acceder a la descarga de históricos.</p>
+            <input id="admin-input-clave" type="password" placeholder="Clave" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:border-blue-400">
+            <p id="admin-clave-error" class="text-xs font-bold text-red-500 hidden">Clave incorrecta.</p>
+            <button id="btn-admin-entrar" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black text-sm py-2.5 rounded-xl transition">Entrar</button>
+        </div>
+
+        <div id="admin-paso-descarga" class="p-5 space-y-3 hidden">
+            <div>
+                <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Estación</label>
+                <select id="admin-select-estacion" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-bold"></select>
+            </div>
+            <div class="flex gap-2">
+                <div class="flex-1">
+                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Desde</label>
+                    <input id="admin-fecha-desde" type="date" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-bold">
+                </div>
+                <div class="flex-1">
+                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Hasta</label>
+                    <input id="admin-fecha-hasta" type="date" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-bold">
+                </div>
+            </div>
+            <button id="btn-admin-descargar" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm py-2.5 rounded-xl transition flex items-center justify-center gap-2">
+                <i data-lucide="download" class="w-4 h-4"></i> Descargar CSV
+            </button>
+            <p id="admin-descarga-estado" class="text-xs font-bold text-slate-500 text-center"></p>
+        </div>
+    </div>
+</div>
+
     <script>
         lucide.createIcons();
 
@@ -1411,6 +1453,211 @@
         document.getElementById('mapa-expandido-overlay').addEventListener('click', (e) => {
             if (e.target.id === 'mapa-expandido-overlay') cerrarMapaExpandido();
         });
+
+        // ─── MODO ADMINISTRADOR (descarga de históricos en CSV) ─────────────────
+        const CLAVE_ADMIN = 'Observatorio';
+        let adminAutenticado = false;
+
+        function abrirAdmin() {
+            document.getElementById('admin-overlay').classList.remove('hidden');
+            document.getElementById('admin-overlay').classList.add('flex');
+
+            if (adminAutenticado) {
+                mostrarPasoDescargaAdmin();
+            } else {
+                document.getElementById('admin-input-clave').value = '';
+                document.getElementById('admin-clave-error').classList.add('hidden');
+                document.getElementById('admin-paso-clave').classList.remove('hidden');
+                document.getElementById('admin-paso-descarga').classList.add('hidden');
+                setTimeout(() => document.getElementById('admin-input-clave').focus(), 100);
+            }
+        }
+
+        function cerrarAdmin() {
+            document.getElementById('admin-overlay').classList.add('hidden');
+            document.getElementById('admin-overlay').classList.remove('flex');
+        }
+
+        function intentarLoginAdmin() {
+            const valor = document.getElementById('admin-input-clave').value;
+            if (valor === CLAVE_ADMIN) {
+                adminAutenticado = true;
+                mostrarPasoDescargaAdmin();
+            } else {
+                document.getElementById('admin-clave-error').classList.remove('hidden');
+            }
+        }
+
+        function mostrarPasoDescargaAdmin() {
+            document.getElementById('admin-paso-clave').classList.add('hidden');
+            document.getElementById('admin-paso-descarga').classList.remove('hidden');
+
+            const select = document.getElementById('admin-select-estacion');
+            if (!select.dataset.poblado) {
+                select.innerHTML = puntos.map((p, i) => `<option value="${i}">${p.n}${p.loc ? ' — ' + p.loc : ''}</option>`).join('');
+                select.dataset.poblado = '1';
+
+                const pad = (n) => n.toString().padStart(2, '0');
+                const hoy = new Date();
+                const haceUnaSemana = new Date(hoy);
+                haceUnaSemana.setDate(haceUnaSemana.getDate() - 7);
+                const aInputDate = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+                document.getElementById('admin-fecha-hasta').value = aInputDate(hoy);
+                document.getElementById('admin-fecha-desde').value = aInputDate(haceUnaSemana);
+            }
+        }
+
+        // Trae el historial de una estación Wunderground entre dos fechas (inclusive),
+        // un pedido por día porque así funciona el endpoint history/all.
+        async function fetchHistoricoRangoWU(estacion, desde, hasta) {
+            const dias = [];
+            const cursor = new Date(desde);
+            while (cursor <= hasta) {
+                dias.push(new Date(cursor));
+                cursor.setDate(cursor.getDate() + 1);
+            }
+
+            const porDia = await Promise.all(dias.map(d => fetchWUHistorialDia(estacion.wuId, estacion.wuKey, d)));
+            const observaciones = porDia.flat().sort((a, b) => {
+                const ta = new Date((a.obsTimeLocal || a.obsTimeUtc).replace(' ', 'T'));
+                const tb = new Date((b.obsTimeLocal || b.obsTimeUtc).replace(' ', 'T'));
+                return ta - tb;
+            });
+
+            return observaciones.map(o => {
+                const rawTs = o.obsTimeLocal || o.obsTimeUtc;
+                const m = o.imperial || {};
+                const t = m.tempAvg != null ? m.tempAvg : m.temp;
+                const h = o.humidityAvg != null ? o.humidityAvg : o.humidity;
+                const p = m.pressureMax != null ? m.pressureMax : m.pressure;
+                const ws = m.windspeedAvg != null ? m.windspeedAvg : m.windSpeed;
+                return {
+                    fecha: rawTs ? rawTs.replace('T', ' ') : '',
+                    temp: t != null ? fAcC(parseFloat(t)).toFixed(1) : '',
+                    hum: h != null ? parseFloat(h).toFixed(0) : '',
+                    pres: p != null ? inHgAHpa(parseFloat(p)).toFixed(1) : '',
+                    viento: ws != null ? mphAKmh(parseFloat(ws)).toFixed(1) : '',
+                    lluvia: m.precipTotal != null ? inAMm(parseFloat(m.precipTotal)).toFixed(1) : ''
+                };
+            });
+        }
+
+        // Trae el historial de una estación ThingSpeak entre dos fechas (inclusive).
+        // La lluvia se exporta como acumulado corrido del período pedido (misma lógica
+        // que datosDelPeriodoTS: pulso fijo para pluviómetros de cazoleta con rainMult,
+        // magnitud cruda para el resto).
+        async function fetchHistoricoRangoTS(estacion, desde, hasta) {
+            const pad = (n) => n.toString().padStart(2, '0');
+            const aParam = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+            const startParam = `${aParam(desde)}%2000:00:00`;
+            const endParam = `${aParam(hasta)}%2023:59:59`;
+
+            const canales = estacion.channels || [{ id: estacion.id, key: estacion.key }];
+            const respuestas = await Promise.all(canales.map(ch => fetchFeedsCanal(ch, `&start=${startParam}&end=${endParam}`)));
+            let feeds = respuestas.flatMap(d => d.feeds || []);
+            feeds.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+            const timestampsVistos = new Set();
+            feeds = feeds.filter(f => {
+                if (timestampsVistos.has(f.created_at)) return false;
+                timestampsVistos.add(f.created_at);
+                return true;
+            });
+
+            const channelId = estacion.id || canales[0].id;
+            const isObservatorio = channelId === '2823820';
+            const isEmaVerde = !!estacion.isEmaVerde;
+            const rainField = isEmaVerde ? 'field4' : 'field5';
+
+            let lluviaAcumulada = 0;
+            return feeds.map(f => {
+                const t = parseFloat(f.field1);
+                const hField = isObservatorio ? 'field4' : 'field2';
+                const h = parseFloat(f[hField]);
+                const p = parseFloat(f.field6);
+                const ws = isObservatorio ? parseFloat(f.field7) : null;
+
+                let v = parseFloat(f[rainField]);
+                if (!isNaN(v) && v >= 0) {
+                    if (estacion.rainMult) v = v > 0 ? estacion.rainMult : 0;
+                    lluviaAcumulada += v;
+                }
+
+                return {
+                    fecha: f.created_at ? f.created_at.replace('T', ' ').replace('Z', '') : '',
+                    temp: isNaN(t) ? '' : t.toFixed(1),
+                    hum: isNaN(h) ? '' : h.toFixed(0),
+                    pres: isNaN(p) ? '' : p.toFixed(1),
+                    viento: (ws === null || isNaN(ws)) ? '' : ws.toFixed(1),
+                    lluvia: lluviaAcumulada.toFixed(2)
+                };
+            });
+        }
+
+        function descargarArchivo(nombre, contenido) {
+            const blob = new Blob([contenido], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = nombre;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+
+        function filasACsv(filas) {
+            const encabezado = 'fecha_hora,temperatura_c,humedad_pct,presion_hpa,viento_kmh,lluvia_acumulada_mm';
+            const cuerpo = filas.map(f => [f.fecha, f.temp, f.hum, f.pres, f.viento, f.lluvia].join(',')).join('\n');
+            return encabezado + '\n' + cuerpo;
+        }
+
+        async function descargarHistoricoAdmin() {
+            const estado = document.getElementById('admin-descarga-estado');
+            const btn = document.getElementById('btn-admin-descargar');
+
+            const estacion = puntos[parseInt(document.getElementById('admin-select-estacion').value, 10)];
+            const desde = new Date(document.getElementById('admin-fecha-desde').value + 'T00:00:00');
+            const hasta = new Date(document.getElementById('admin-fecha-hasta').value + 'T00:00:00');
+
+            if (isNaN(desde) || isNaN(hasta) || desde > hasta) {
+                estado.textContent = 'Revisá las fechas elegidas.';
+                return;
+            }
+
+            btn.disabled = true;
+            estado.textContent = 'Generando el archivo...';
+
+            try {
+                const filas = estacion.source === 'wunderground'
+                    ? await fetchHistoricoRangoWU(estacion, desde, hasta)
+                    : await fetchHistoricoRangoTS(estacion, desde, hasta);
+
+                if (filas.length === 0) {
+                    estado.textContent = 'No hay datos en ese período.';
+                } else {
+                    const nombreArchivo = `${estacion.n.replace(/[^a-z0-9]+/gi, '_')}_${document.getElementById('admin-fecha-desde').value}_${document.getElementById('admin-fecha-hasta').value}.csv`;
+                    descargarArchivo(nombreArchivo, filasACsv(filas));
+                    estado.textContent = `Listo: ${filas.length} lecturas descargadas.`;
+                }
+            } catch (e) {
+                console.error('Error generando el CSV del admin:', e);
+                estado.textContent = 'Ocurrió un error al traer los datos.';
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        document.getElementById('btn-admin-trigger').addEventListener('click', abrirAdmin);
+        document.getElementById('btn-cerrar-admin').addEventListener('click', cerrarAdmin);
+        document.getElementById('admin-overlay').addEventListener('click', (e) => {
+            if (e.target.id === 'admin-overlay') cerrarAdmin();
+        });
+        document.getElementById('btn-admin-entrar').addEventListener('click', intentarLoginAdmin);
+        document.getElementById('admin-input-clave').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') intentarLoginAdmin();
+        });
+        document.getElementById('btn-admin-descargar').addEventListener('click', descargarHistoricoAdmin);
 
         inicializarRed();
     </script>
