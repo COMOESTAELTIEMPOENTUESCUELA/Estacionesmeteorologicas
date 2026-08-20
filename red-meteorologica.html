@@ -639,6 +639,21 @@
         }
 
         // Últimos 7 días (hoy incluido): una consulta de historial por día + el dato en vivo al final.
+        // Total de lluvia de UN día a partir de sus observaciones: la última lectura
+        // cronológica (no el máximo). Wunderground a veces reporta un precipTotal más
+        // alto en una lectura intermedia que después se autocorrige a la baja (ruido
+        // del sensor, viento, etc.); quedarse con el máximo del día suma ese pico
+        // fantasma. La ÚLTIMA lectura es la que realmente coincide con lo que muestra
+        // el dashboard de Wunderground para ese día.
+        function precipTotalFinalDelDiaMm(observacionesDelDia) {
+            const conFecha = observacionesDelDia
+                .filter(o => (o.imperial || {}).precipTotal != null && (o.obsTimeLocal || o.obsTimeUtc))
+                .map(o => ({ o, ts: new Date((o.obsTimeLocal || o.obsTimeUtc).replace(' ', 'T')) }))
+                .sort((a, b) => a.ts - b.ts);
+            if (!conFecha.length) return 0;
+            return inAMm(parseFloat(conFecha[conFecha.length - 1].o.imperial.precipTotal));
+        }
+
         async function fetchHistorialWUSemana(estacion) {
             const hoy = new Date();
             const dias = [];
@@ -662,15 +677,8 @@
             let offsetMm = 0;
             const observaciones = [];
             porDia.forEach(observacionesDelDia => {
-                let maxDelDiaMm = 0;
-                observacionesDelDia.forEach(o => {
-                    const r = (o.imperial || {}).precipTotal;
-                    if (r == null) return;
-                    const mm = inAMm(parseFloat(r));
-                    if (mm > maxDelDiaMm) maxDelDiaMm = mm;
-                });
                 observacionesDelDia.forEach(o => observaciones.push({ o, offsetMm }));
-                offsetMm += maxDelDiaMm;
+                offsetMm += precipTotalFinalDelDiaMm(observacionesDelDia);
             });
 
             const resultado = procesarObservacionesWU(observaciones.map(x => x.o), true);
@@ -685,7 +693,8 @@
         // Lluvia acumulada de los últimos 7 días para una estación Wunderground. El
         // precipTotal que da la API ya es el acumulado DEL DÍA (se resetea a las 00
         // locales), así que sumar todas las lecturas de la semana contaría de más:
-        // hay que quedarse con el máximo de cada día y sumar esos 7 máximos.
+        // hay que quedarse con la última lectura de cada día (ver precipTotalFinalDelDiaMm)
+        // y sumar esos 7 valores.
         async function fetchLluviaSemanaWU(estacion) {
             const hoy = new Date();
             const dias = [];
@@ -696,17 +705,7 @@
             }
 
             const porDia = await Promise.all(dias.map(d => fetchWUHistorialDia(estacion.wuId, estacion.wuKey, d)));
-            let total = 0;
-            porDia.forEach(observacionesDelDia => {
-                let maxDelDia = 0;
-                observacionesDelDia.forEach(o => {
-                    const r = (o.imperial || {}).precipTotal;
-                    if (r == null) return;
-                    const mm = inAMm(parseFloat(r));
-                    if (mm > maxDelDia) maxDelDia = mm;
-                });
-                total += maxDelDia;
-            });
+            const total = porDia.reduce((acc, observacionesDelDia) => acc + precipTotalFinalDelDiaMm(observacionesDelDia), 0);
             return +total.toFixed(2);
         }
 
