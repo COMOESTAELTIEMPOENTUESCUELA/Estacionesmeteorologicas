@@ -457,9 +457,22 @@
             return `${dd}/${mm} ${hhmm}`;
         }
 
-        // Mínima/máxima de una lista de valores (strings numéricos u números), redondeadas a 1 decimal
+        // Rangos plausibles para esta zona (La Plata y alrededores), para descartar
+        // lecturas de sensores con fallas antes de que entren a las comparativas entre
+        // escuelas (ej. una temperatura actual absurda de Monte Veloz, o una presión
+        // de -40 hPa en algún momento en la EMA Verde: son errores del sensor, no
+        // datos reales). Son bien generosos a propósito, para no descartar días
+        // realmente extremos.
+        const TEMP_MIN_PLAUSIBLE = -10;
+        const TEMP_MAX_PLAUSIBLE = 48;
+        const LLUVIA_SEMANA_MAX_PLAUSIBLE = 300; // mm
+
+        // Mínima/máxima de una lista de valores (strings numéricos u números), redondeadas a 1
+        // decimal. Descarta lecturas fuera del rango plausible antes de calcular el mín/máx.
         function calcularMinMax(valores) {
-            const nums = (valores || []).map(v => parseFloat(v)).filter(v => !isNaN(v));
+            const nums = (valores || [])
+                .map(v => parseFloat(v))
+                .filter(v => !isNaN(v) && v >= TEMP_MIN_PLAUSIBLE && v <= TEMP_MAX_PLAUSIBLE);
             if (!nums.length) return { tempMin: null, tempMax: null };
             return { tempMin: Math.min(...nums).toFixed(1), tempMax: Math.max(...nums).toFixed(1) };
         }
@@ -1327,9 +1340,9 @@
                 }
 
                 // Alimentar la comparativa semanal de lluvia con el acumulado de los últimos 7
-                // días. Las estaciones sin dato (null) o que no registraron lluvia (0mm) no
-                // entran, para no ensuciar la comparación con barras vacías.
-                if (p.live && lluviaSemana != null && lluviaSemana > 0) {
+                // días. Las estaciones sin dato (null), que no registraron lluvia (0mm) o con
+                // un acumulado fuera de todo rango plausible (falla del sensor) no entran.
+                if (p.live && lluviaSemana != null && lluviaSemana > 0 && lluviaSemana <= LLUVIA_SEMANA_MAX_PLAUSIBLE) {
                     datosLluviaSemana.labels.push(p.n);
                     datosLluviaSemana.valores.push(lluviaSemana);
                 }
