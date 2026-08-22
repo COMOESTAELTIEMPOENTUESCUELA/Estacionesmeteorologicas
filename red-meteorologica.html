@@ -381,19 +381,22 @@
         lucide.createIcons();
 
         // Configuración de las estaciones
-        // IMPORTANTE: EP N°34 (2218689) está marcada como live: false (Fuera de servicio)
+        // IMPORTANTE: el canal 2218689 era de EP N°34 (Malagamba, marcada live: false),
+        // pero ese equipo se reinstaló en el Observatorio (FCAG) como "EMA Blanca".
         //
         // EP N°23 (Bavío) es la EMA Violeta: se combinan su canal actual y el histórico
         // porque migraron de canal de ThingSpeak en algún momento. rainMult convierte los
         // pulsos crudos del pluviómetro a mm (cada pulso = 0.68mm).
         //
-        // EMA Verde, Observatorio (Campbell) y Daza están las tres en el mismo lugar,
-        // en la Facultad (FCAG) — no en ninguna escuela — por eso comparten zona en el mapa
-        // con las coordenadas apenas separadas para que se puedan distinguir los marcadores.
+        // EMA Verde, Observatorio (Campbell), Daza y EMA Blanca están las cuatro en el
+        // mismo lugar, en la Facultad (FCAG) — no en ninguna escuela — por eso comparten
+        // zona en el mapa con las coordenadas apenas separadas para que se puedan
+        // distinguir los marcadores.
         const puntos = [
             { channels: [{ id: "2626952", key: "4XYH56YSV64HE17H" }, { id: "1778165", key: "OJ1JHKAPCCIQB4CB" }], rainMult: 0.68,
               n: "EP N°23", loc: "Bavío (EMA Violeta)", c: [-35.0254, -57.7529], clr: "#10b981", live: true, img: "imagenes/escuela23.jpg" },
-            { id: "2218689", n: "EP N°34", loc: "Malagamba", c: [-35.0724, -57.8656], clr: "#3b82f6", live: false, img: "imagenes/escuela34.jpg" },
+            { id: "2218689", key: "ZLNOSLZJPQM3H7SD",
+              n: "EMA Blanca", loc: "Facultad (FCAG)", c: [-34.9089, -57.9327], clr: "#facc15", live: true, img: "imagenes/observatorio.png" },
             { source: "wunderground", wuId: "IVERNI9", wuKey: "6b6ee16ebab34fe5aee16ebab38fe57a",
               n: "Monte Veloz", loc: "Ruta 36", c: [-35.3200, -57.4200], clr: "#f59e0b", live: true, img: "https://images.unsplash.com/photo-1592210454359-9043f067919b?auto=format&fit=crop&q=80&w=300" },
             { id: "2218687", key: "TH3V4TJLRFZD3JSG", n: "San Vicente", loc: "La Plata", c: [-34.9031, -57.9485], clr: "#8b5cf6", live: true, img: "https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&q=80&w=300" },
