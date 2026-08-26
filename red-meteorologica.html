@@ -200,7 +200,7 @@
                     <span class="text-2xl lg:text-4xl font-black text-slate-800 tracking-tighter" id="live-val-hum">--%</span>
                 </div>
 
-                <div class="bg-gradient-to-b from-emerald-50 to-emerald-100 border-2 border-emerald-300 border-b-[6px] rounded-2xl p-4 lg:p-5 kid-card shadow-md flex flex-col justify-between">
+                <div id="card-pres" class="bg-gradient-to-b from-emerald-50 to-emerald-100 border-2 border-emerald-300 border-b-[6px] rounded-2xl p-4 lg:p-5 kid-card shadow-md flex flex-col justify-between">
                     <div class="flex justify-between items-start mb-2">
                         <span class="block text-[9px] lg:text-[10px] uppercase font-black text-emerald-600 leading-tight">🎈 Presión</span>
                         <i data-lucide="gauge" class="text-emerald-400 opacity-50 w-6 h-6 lg:w-8 lg:h-8 shrink-0"></i>
@@ -261,7 +261,7 @@
                     <div class="h-[180px] lg:h-[220px] w-full"><canvas id="chartHum"></canvas></div>
                 </div>
 
-                <div class="bg-white/95 backdrop-blur-sm rounded-2xl lg:rounded-[2rem] p-5 lg:p-6 border-4 border-white shadow-xl">
+                <div id="grafico-pres" class="bg-white/95 backdrop-blur-sm rounded-2xl lg:rounded-[2rem] p-5 lg:p-6 border-4 border-white shadow-xl">
                     <h3 class="text-base lg:text-lg font-black text-slate-800 flex items-center gap-2 lg:gap-3 mb-4">
                         <span class="bg-emerald-100 p-1.5 lg:p-2 rounded-xl text-emerald-500 border-2 border-emerald-200 shadow-sm"><i data-lucide="gauge" class="w-4 h-4 lg:w-5 lg:h-5"></i></span>
                         <span id="titulo-chart-pres">Presión de hoy</span>
@@ -394,7 +394,7 @@
         // distinguir los marcadores.
         const puntos = [
             { channels: [{ id: "2626952", key: "4XYH56YSV64HE17H" }, { id: "1778165", key: "OJ1JHKAPCCIQB4CB" }], rainMult: 0.68,
-              n: "EP N°23", loc: "Bavío (EMA Violeta)", c: [-35.0254, -57.7529], clr: "#10b981", live: true, img: "imagenes/escuela23.jpg" },
+              n: "EP N°23", loc: "Bavío (EMA Violeta)", c: [-35.0254, -57.7529], clr: "#10b981", live: true, img: "imagenes/escuela23.jpg", ocultarPresion: true },
             { id: "2218689", key: "ZLNOSLZJPQM3H7SD",
               n: "EMA Blanca", loc: "Facultad (FCAG)", c: [-34.9089, -57.9327], clr: "#facc15", live: true, img: "imagenes/observatorio.png" },
             { source: "wunderground", wuId: "IVERNI9", wuKey: "6b6ee16ebab34fe5aee16ebab38fe57a",
@@ -1206,6 +1206,13 @@
             if (hist && hist.temps.length > 0) {
                 const getUltimoValido = (arr) => arr.slice().reverse().find(val => val !== null) || '--';
 
+                // La EMA Violeta (EP N°23) tiene un sensor de presión poco confiable: se
+                // oculta del panel público y del gráfico; el dato crudo sigue disponible
+                // para quien tenga acceso al modo administrador (descarga de históricos).
+                const ocultarPresion = !!(estacionActual && estacionActual.p && estacionActual.p.ocultarPresion);
+                document.getElementById('card-pres').classList.toggle('hidden', ocultarPresion);
+                document.getElementById('grafico-pres').classList.toggle('hidden', ocultarPresion);
+
                 let ultTemp = getUltimoValido(hist.temps);
                 document.getElementById('live-val-temp').innerText = ultTemp !== '--' ? `${ultTemp}°C` : '--°C';
 
@@ -1252,8 +1259,12 @@
                 const gHum = suavizarParaGrafico(hist.horas, hist.hums);
                 crearGraficoEvolucion('chartHum', 'hum', gHum.horas, gHum.valores, '#3b82f6', 'Humedad (%)');
 
-                const gPres = suavizarParaGrafico(hist.horas, hist.press);
-                crearGraficoEvolucion('chartPres', 'pres', gPres.horas, gPres.valores, '#10b981', 'Presión (hPa)');
+                if (ocultarPresion) {
+                    if (graficos.pres) { graficos.pres.destroy(); graficos.pres = null; }
+                } else {
+                    const gPres = suavizarParaGrafico(hist.horas, hist.press);
+                    crearGraficoEvolucion('chartPres', 'pres', gPres.horas, gPres.valores, '#10b981', 'Presión (hPa)');
+                }
 
                 const gRain = suavizarParaGrafico(hist.horasLluvia || hist.horas, hist.rains, 'last');
                 crearGraficoEvolucion('chartRain', 'rain', gRain.horas, gRain.valores, '#06b6d4', 'Lluvia acumulada (mm)');
