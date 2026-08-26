@@ -470,13 +470,28 @@
         const TEMP_MAX_PLAUSIBLE = 48;
         const LLUVIA_SEMANA_MAX_PLAUSIBLE = 300; // mm
 
+        // Además del rango físico, una lectura individual que se aleje mucho de la
+        // mediana del resto del día casi seguro es un glitch del sensor (ej. una
+        // estación recién reinstalada, como la EMA Blanca, mandando un dato suelto muy
+        // distinto al resto), aunque esté dentro del rango plausible general.
+        const DESVIO_MAX_TEMP_MEDIANA = 15; // °C
+
         // Mínima/máxima de una lista de valores (strings numéricos u números), redondeadas a 1
         // decimal. Descarta lecturas fuera del rango plausible antes de calcular el mín/máx.
         function calcularMinMax(valores) {
-            const nums = (valores || [])
+            let nums = (valores || [])
                 .map(v => parseFloat(v))
                 .filter(v => !isNaN(v) && v >= TEMP_MIN_PLAUSIBLE && v <= TEMP_MAX_PLAUSIBLE);
             if (!nums.length) return { tempMin: null, tempMax: null };
+
+            // Con pocos datos no hay forma confiable de saber qué lectura es la "rara",
+            // así que el filtro por mediana solo se aplica si hay una muestra mínima.
+            if (nums.length >= 4) {
+                const ordenados = nums.slice().sort((a, b) => a - b);
+                const mediana = ordenados[Math.floor(ordenados.length / 2)];
+                const sinOutliers = nums.filter(v => Math.abs(v - mediana) <= DESVIO_MAX_TEMP_MEDIANA);
+                if (sinOutliers.length) nums = sinOutliers;
+            }
             return { tempMin: Math.min(...nums).toFixed(1), tempMax: Math.max(...nums).toFixed(1) };
         }
 
