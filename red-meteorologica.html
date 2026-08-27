@@ -388,10 +388,10 @@
         // porque migraron de canal de ThingSpeak en algún momento. rainMult convierte los
         // pulsos crudos del pluviómetro a mm (cada pulso = 0.68mm).
         //
-        // EMA Verde, Observatorio (Campbell), Daza y EMA Blanca están las cuatro en el
-        // mismo lugar, en la Facultad (FCAG) — no en ninguna escuela — por eso comparten
-        // zona en el mapa con las coordenadas apenas separadas para que se puedan
-        // distinguir los marcadores.
+        // EMA Verde, Observatorio (Campbell), Daza, EMA Blanca y Observatorio (Davis)
+        // están las cinco en el mismo lugar, en la Facultad (FCAG) — no en ninguna
+        // escuela — por eso comparten zona en el mapa con las coordenadas apenas
+        // separadas para que se puedan distinguir los marcadores.
         const puntos = [
             { channels: [{ id: "2626952", key: "4XYH56YSV64HE17H" }, { id: "1778165", key: "OJ1JHKAPCCIQB4CB" }], rainMult: 0.68,
               n: "EP N°23", loc: "Bavío (EMA Violeta)", c: [-35.0254, -57.7529], clr: "#10b981", live: true, img: "imagenes/escuela23.jpg", ocultarPresion: true },
@@ -406,6 +406,8 @@
               n: "EMA Verde", loc: "Facultad (FCAG) · en prueba", c: [-34.9086, -57.9328], clr: "#22c55e", live: true, img: "imagenes/observatorio.png" },
             { source: "wunderground", wuId: "ILAPLA66", wuKey: "470147c769f6493f8147c769f6693fd9",
               n: "Daza", loc: "Facultad (FCAG) · Wunderground", c: [-34.9091, -57.9325], clr: "#f43f5e", live: true, img: "imagenes/observatorio.png" },
+            { source: "davis", davisUrl: "https://meteo.fcaglp.unlp.edu.ar/davis/campo/downld08.txt",
+              n: "Observatorio (Davis)", loc: "Facultad (FCAG)", c: [-34.9088, -57.933], clr: "#14b8a6", live: true, img: "imagenes/observatorio.png" },
             { source: "wunderground", wuId: "ILOSTA2", wuKey: "f1d7143d25a24b7197143d25a23b711d",
               n: "ES7 / EP20", loc: "Wunderground", c: [-34.95767209016535, -57.81756279329484], clr: "#0ea5e9", live: true, img: "imagenes/observatorio.png" },
             { source: "wunderground", wuId: "IBERIS14", wuKey: "af815b5b4b804cfd815b5b4b80dcfd07",
@@ -814,12 +816,92 @@
             return { total: +total.toFixed(2), horas, curva, tempMin, tempMax };
         }
 
-        // Lluvia acumulada de los últimos 7 días de UNA estación, sea Wunderground o
-        // ThingSpeak. Se usa para la tarjeta "¿Dónde llovió más esta semana?" que compara todas las
-        // escuelas entre sí.
+        // ─── DAVIS (Observatorio, archivo de texto plano de WeatherLink) ────────
+        // El archivo (downld08.txt) es un log de solo HOY: se sobrescribe día a día,
+        // así que no hay forma de pedirle un histórico de 7 días a esta fuente. El dato
+        // más reciente queda al final del archivo.
+        const RUMBOS_A_GRADOS_DAVIS = {
+            N: 0, NNE: 22.5, NE: 45, ENE: 67.5, E: 90, ESE: 112.5, SE: 135, SSE: 157.5,
+            S: 180, SSW: 202.5, SW: 225, WSW: 247.5, W: 270, WNW: 292.5, NW: 315, NNW: 337.5
+        };
+        function gradosDesdeRumboDavis(rumbo) {
+            if (!rumbo || rumbo === '---') return null;
+            const grados = RUMBOS_A_GRADOS_DAVIS[rumbo];
+            return grados === undefined ? null : grados;
+        }
+
+        // Fecha "DD/MM/YY" + hora "H:MM" (24hs) del archivo, como Date.
+        function parsearFechaHoraDavis(fechaStr, horaStr) {
+            const [dd, mm, yy] = fechaStr.split('/').map(Number);
+            const [hh, min] = horaStr.split(':').map(Number);
+            return new Date(2000 + yy, mm - 1, dd, hh, min);
+        }
+
+        // Parsea las filas de datos del archivo. Cada línea son 28 columnas separadas
+        // por espacios; nos interesan: [0] fecha, [1] hora, [2] temp. exterior,
+        // [5] humedad exterior, [6] punto de rocío, [7] velocidad de viento,
+        // [8] dirección de viento (rumbo, ej. "NNE" o "---" en calma), [15] presión
+        // (hPa), [16] lluvia del intervalo (mm).
+        function parsearFilasDavis(texto) {
+            const lineas = texto.split('\n').map(l => l.trim()).filter(l => l.length);
+            const filas = [];
+            lineas.forEach(linea => {
+                if (/^-+$/.test(linea)) return; // línea separadora de guiones
+                const cols = linea.split(/\s+/);
+                if (cols.length < 28 || !/^\d{2}\/\d{2}\/\d{2}$/.test(cols[0])) return; // no es una fila de datos
+                filas.push(cols);
+            });
+            return filas;
+        }
+
+        async function fetchHistorialDavis(estacion) {
+            const res = await fetch(estacion.davisUrl);
+            const texto = await res.text();
+            const filas = parsearFilasDavis(texto);
+
+            const horas = [], temps = [], hums = [], press = [], rains = [], winds = [], windDirs = [], dews = [];
+            let total = 0;
+            let lastEntryTime = null;
+
+            filas.forEach(cols => {
+                const fecha = parsearFechaHoraDavis(cols[0], cols[1]);
+                horas.push(formatearEtiquetaFecha(fecha, false));
+                lastEntryTime = fecha.toISOString();
+
+                const t = parseFloat(cols[2]);
+                temps.push(isNaN(t) ? null : t.toFixed(1));
+
+                const h = parseFloat(cols[5]);
+                hums.push(isNaN(h) ? null : h.toFixed(0));
+
+                const dp = parseFloat(cols[6]);
+                dews.push(isNaN(dp) ? null : dp.toFixed(1));
+
+                const ws = parseFloat(cols[7]);
+                winds.push(isNaN(ws) ? null : ws.toFixed(1));
+
+                windDirs.push(gradosDesdeRumboDavis(cols[8]));
+
+                const p = parseFloat(cols[15]);
+                press.push(isNaN(p) ? null : p.toFixed(1));
+
+                const r = parseFloat(cols[16]);
+                if (!isNaN(r) && r >= 0) total += r;
+                rains.push(+total.toFixed(2));
+            });
+
+            const { tempMin, tempMax } = calcularMinMax(temps);
+
+            return { horas, horasLluvia: horas, temps, hums, press, rains, winds, windDirs, dews, lastEntryTime, tempMin, tempMax };
+        }
+
+        // Lluvia acumulada de los últimos 7 días de UNA estación (Wunderground,
+        // ThingSpeak o Davis). Se usa para la tarjeta "¿Dónde llovió más esta semana?"
+        // que compara todas las escuelas entre sí.
         async function fetchLluviaSemanaEstacion(estacion) {
             if (!estacion.live) return null;
             try {
+                if (estacion.source === 'davis') return null; // sin histórico de 7 días disponible
                 if (estacion.source === 'wunderground') {
                     return await fetchLluviaSemanaWU(estacion);
                 }
@@ -837,6 +919,12 @@
             // Si la estación está offline manualmente, devolvemos arrays vacíos directamente
             if (!estacion.live) {
                 return { horas: [], temps: [], hums: [], press: [], rains: [], winds: [], windDirs: [], dews: [], lastEntryTime: null, tempMin: null, tempMax: null };
+            }
+
+            if (estacion.source === 'davis') {
+                // Mismo resultado para "hoy" y "semana": el archivo solo tiene el día
+                // actual, no hay forma de pedirle un histórico más largo.
+                return await fetchHistorialDavis(estacion);
             }
 
             if (estacion.source === 'wunderground') {
@@ -1660,6 +1748,38 @@
             });
         }
 
+        // La fuente Davis (Observatorio) solo tiene el día de HOY disponible en el
+        // archivo: se ignora el rango pedido, se devuelve lo que haya ahí, y
+        // descargarHistoricoAdmin() avisa si el rango elegido no incluía hoy.
+        async function fetchHistoricoRangoDavis(estacion) {
+            const res = await fetch(estacion.davisUrl);
+            const texto = await res.text();
+            const filas = parsearFilasDavis(texto);
+
+            const pad = (n) => n.toString().padStart(2, '0');
+            let lluviaAcumulada = 0;
+            return filas.map(cols => {
+                const fecha = parsearFechaHoraDavis(cols[0], cols[1]);
+                const t = parseFloat(cols[2]);
+                const h = parseFloat(cols[5]);
+                const p = parseFloat(cols[15]);
+                const ws = parseFloat(cols[7]);
+
+                const r = parseFloat(cols[16]);
+                if (!isNaN(r) && r >= 0) lluviaAcumulada += r;
+
+                const fechaStr = `${fecha.getFullYear()}-${pad(fecha.getMonth() + 1)}-${pad(fecha.getDate())} ${pad(fecha.getHours())}:${pad(fecha.getMinutes())}:00`;
+                return {
+                    fecha: fechaStr,
+                    temp: isNaN(t) ? '' : t.toFixed(1),
+                    hum: isNaN(h) ? '' : h.toFixed(0),
+                    pres: isNaN(p) ? '' : p.toFixed(1),
+                    viento: isNaN(ws) ? '' : ws.toFixed(1),
+                    lluvia: lluviaAcumulada.toFixed(2)
+                };
+            });
+        }
+
         function descargarArchivo(nombre, contenido) {
             const blob = new Blob([contenido], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
@@ -1698,8 +1818,17 @@
             estado.textContent = 'Generando el archivo...';
 
             try {
-                const filas = estacion.source === 'wunderground'
-                    ? await fetchHistoricoRangoWU(estacion, desde, hasta)
+                if (estacion.source === 'davis') {
+                    const hoyStr = new Date().toDateString();
+                    if (desde.toDateString() !== hoyStr || hasta.toDateString() !== hoyStr) {
+                        estado.textContent = 'Esta estación solo tiene datos de HOY disponibles (elegí desde y hasta = hoy).';
+                        btn.disabled = false;
+                        return;
+                    }
+                }
+
+                const filas = estacion.source === 'davis' ? await fetchHistoricoRangoDavis(estacion)
+                    : estacion.source === 'wunderground' ? await fetchHistoricoRangoWU(estacion, desde, hasta)
                     : await fetchHistoricoRangoTS(estacion, desde, hasta);
 
                 if (filas.length === 0) {
