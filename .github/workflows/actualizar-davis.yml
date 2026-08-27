@@ -25,7 +25,11 @@ jobs:
         run: |
           mkdir -p data
           set +e
-          HTTP_CODE=$(curl -s -L --max-time 30 -A "Mozilla/5.0 (compatible; EstacionesMeteorologicasBot/1.0)" \
+          # -k: el certificado SSL del servidor de la Facultad no valida (curl
+          # exit code 60, típico de certificados autofirmados/mal configurados en
+          # infraestructura institucional). El archivo es de solo lectura y no
+          # tiene datos sensibles ni credenciales, así que se acepta el riesgo.
+          HTTP_CODE=$(curl -s -k -L --max-time 30 -A "Mozilla/5.0 (compatible; EstacionesMeteorologicasBot/1.0)" \
             -w "%{http_code}" -o /tmp/davis.txt "https://meteo.fcaglp.unlp.edu.ar/davis/campo/downld08.txt")
           CURL_EXIT=$?
           set -e
