@@ -24,16 +24,31 @@ jobs:
       - name: Descargar el archivo de la estación Davis
         run: |
           mkdir -p data
-          if curl -sf --max-time 30 "https://meteo.fcaglp.unlp.edu.ar/davis/campo/downld08.txt" -o /tmp/davis.txt && [ -s /tmp/davis.txt ]; then
+          set +e
+          HTTP_CODE=$(curl -s -L --max-time 30 -A "Mozilla/5.0 (compatible; EstacionesMeteorologicasBot/1.0)" \
+            -w "%{http_code}" -o /tmp/davis.txt "https://meteo.fcaglp.unlp.edu.ar/davis/campo/downld08.txt")
+          CURL_EXIT=$?
+          set -e
+          echo "curl exit code: $CURL_EXIT, HTTP status: $HTTP_CODE"
+          if [ "$CURL_EXIT" = "0" ] && [ "$HTTP_CODE" = "200" ] && [ -s /tmp/davis.txt ]; then
             mv /tmp/davis.txt data/davis-ultimo.txt
           else
-            echo "No se pudo descargar el archivo; se mantiene la copia anterior."
+            echo "No se pudo descargar el archivo; se mantiene la copia anterior si existe. Primeras líneas de la respuesta (si hay):"
+            head -c 500 /tmp/davis.txt 2>/dev/null || true
           fi
 
       - name: Commitear si cambió
         run: |
+          if [ ! -f data/davis-ultimo.txt ]; then
+            echo "Todavía no hay archivo para commitear (la descarga falló y no había una copia previa)."
+            exit 0
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data/davis-ultimo.txt
-          git diff --staged --quiet || git commit -m "Actualizar datos de la EMA Davis"
-          git push
+          if git diff --staged --quiet; then
+            echo "Sin cambios, no hace falta commitear."
+          else
+            git commit -m "Actualizar datos de la EMA Davis"
+            git push
+          fi
