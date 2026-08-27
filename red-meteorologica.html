@@ -406,7 +406,11 @@
               n: "EMA Verde", loc: "Facultad (FCAG) · en prueba", c: [-34.9086, -57.9328], clr: "#22c55e", live: true, img: "imagenes/observatorio.png", grupoObservatorio: true },
             { source: "wunderground", wuId: "ILAPLA66", wuKey: "470147c769f6493f8147c769f6693fd9",
               n: "Daza", loc: "Facultad (FCAG) · Wunderground", c: [-34.9091, -57.9325], clr: "#f43f5e", live: true, img: "imagenes/observatorio.png", grupoObservatorio: true },
-            { source: "davis", davisUrl: "https://meteo.fcaglp.unlp.edu.ar/davis/campo/downld08.txt",
+            // davisUrl apunta a la copia que un GitHub Action baja cada 15 min y guarda
+            // en el propio repo (data/davis-ultimo.txt), no al servidor original
+            // (meteo.fcaglp.unlp.edu.ar), porque ese servidor no tiene CORS habilitado
+            // y el navegador no le puede pedir el archivo directamente.
+            { source: "davis", davisUrl: "data/davis-ultimo.txt",
               n: "Observatorio (Davis)", loc: "Facultad (FCAG)", c: [-34.9088, -57.933], clr: "#14b8a6", live: true, img: "imagenes/observatorio.png", grupoObservatorio: true },
             { source: "wunderground", wuId: "ILOSTA2", wuKey: "f1d7143d25a24b7197143d25a23b711d",
               n: "ES7 / EP20", loc: "Wunderground", c: [-34.95767209016535, -57.81756279329484], clr: "#0ea5e9", live: true, img: "imagenes/observatorio.png" },
@@ -855,7 +859,7 @@
         }
 
         async function fetchHistorialDavis(estacion) {
-            const res = await fetch(estacion.davisUrl);
+            const res = await fetch(estacion.davisUrl, { cache: 'no-store' });
             const texto = await res.text();
             const filas = parsearFilasDavis(texto);
 
@@ -1798,7 +1802,7 @@
         // archivo: se ignora el rango pedido, se devuelve lo que haya ahí, y
         // descargarHistoricoAdmin() avisa si el rango elegido no incluía hoy.
         async function fetchHistoricoRangoDavis(estacion) {
-            const res = await fetch(estacion.davisUrl);
+            const res = await fetch(estacion.davisUrl, { cache: 'no-store' });
             const texto = await res.text();
             const filas = parsearFilasDavis(texto);
 
