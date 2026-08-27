@@ -647,7 +647,10 @@
             { source: "wunderground", wuId: "IBERIS14", wuKey: "af815b5b4b804cfd815b5b4b80dcfd07",
               n: "EP N°23 (Los Talas)", c: [-34.92712, -57.76241], live: true },
             { id: "2218689", key: "ZLNOSLZJPQM3H7SD", n: "EMA Blanca", c: [-34.9089, -57.9327], live: true },
-            { source: "davis", davisUrl: "https://meteo.fcaglp.unlp.edu.ar/davis/campo/downld08.txt",
+            // davisUrl apunta a la copia que un GitHub Action baja cada 15 min (ver
+            // .github/workflows/actualizar-davis.yml), no al servidor original, que no
+            // tiene CORS habilitado para pedidos desde el navegador.
+            { source: "davis", davisUrl: "data/davis-ultimo.txt",
               n: "Observatorio (Davis)", c: [-34.9088, -57.933], live: true }
         ];
 
@@ -708,7 +711,7 @@
         // fecha como con ThingSpeak/Wunderground.
         async function fetchLluviaHoyDavis(estacion) {
             try {
-                const res = await fetch(estacion.davisUrl);
+                const res = await fetch(estacion.davisUrl, { cache: 'no-store' });
                 const texto = await res.text();
                 const lineas = texto.split('\n').map(function(l) { return l.trim(); }).filter(function(l) { return l.length; });
                 let total = 0;

@@ -1,0 +1,39 @@
+name: Actualizar datos de la EMA Davis
+
+# El servidor de la Facultad (meteo.fcaglp.unlp.edu.ar) no tiene CORS habilitado,
+# así que el navegador no puede pedirle el archivo directamente desde la página
+# (ver PR #57/#59). Este workflow baja el archivo cada 15 minutos desde los
+# servidores de GitHub (sin restricción de CORS, es solo lectura, no toca nada
+# de la estación) y lo guarda dentro del propio repositorio, para que la página
+# lea esa copia en vez del servidor original.
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  actualizar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Descargar el archivo de la estación Davis
+        run: |
+          mkdir -p data
+          if curl -sf --max-time 30 "https://meteo.fcaglp.unlp.edu.ar/davis/campo/downld08.txt" -o /tmp/davis.txt && [ -s /tmp/davis.txt ]; then
+            mv /tmp/davis.txt data/davis-ultimo.txt
+          else
+            echo "No se pudo descargar el archivo; se mantiene la copia anterior."
+          fi
+
+      - name: Commitear si cambió
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/davis-ultimo.txt
+          git diff --staged --quiet || git commit -m "Actualizar datos de la EMA Davis"
+          git push
