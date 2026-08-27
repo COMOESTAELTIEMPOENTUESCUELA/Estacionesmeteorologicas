@@ -104,6 +104,45 @@
             border-top-color: var(--tt-bg, #3b82f6);
         }
 
+        /* Globito con varias estaciones juntas (grupo del Observatorio, cuando el
+           mapa está tan alejado que sus marcadores se pisarían). Es una tarjeta
+           blanca en vez de la píldora de una sola estación, para que se pueda leer
+           una lista de varias filas sin verse deforme. */
+        .leaflet-tooltip.tooltip-grupo {
+            background: #ffffff;
+            color: #0f172a;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            border: 3px solid var(--tt-bg, #475569);
+            border-radius: 16px;
+            padding: 8px 12px;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.25);
+            font-size: 12px;
+        }
+        .leaflet-tooltip.tooltip-grupo.leaflet-tooltip-top::before {
+            border-top-color: var(--tt-bg, #475569);
+        }
+        .tt-grupo-header {
+            font-weight: 900;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #64748b;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 4px;
+            margin-bottom: 4px;
+            white-space: nowrap;
+        }
+        .tt-grupo-fila {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 1px 0;
+            white-space: nowrap;
+        }
+        .tt-grupo-fila span { color: #64748b; font-weight: 700; }
+        .tt-grupo-fila b { color: #0f172a; font-weight: 900; margin-left: auto; }
+
         /* Chips selectoras de variable en el mapa expandido */
         .chip-variable {
             font-family: 'Plus Jakarta Sans', sans-serif;
@@ -1531,8 +1570,14 @@
         ];
 
         let mapaExpandido = null;
-        let marcadoresExpandido = []; // { p, marker }
+        let marcadoresExpandido = []; // { p, marker } — estaciones sueltas
+        let marcadorGrupoObservatorio = null; // { grupo, marker } — vista de lejos
+        let marcadoresObservatorioIndividual = []; // { p, marker } — vista de cerca
         let variableMapaActual = 'temp';
+
+        // A partir de este zoom, el grupo del Observatorio se separa en un marcador
+        // por estación; con menos zoom se ven todas juntas en un solo globito.
+        const ZOOM_SEPARAR_OBSERVATORIO = 15;
 
         function crearSelectorVariableMapa() {
             const cont = document.getElementById('selector-variable-mapa');
@@ -1560,48 +1605,64 @@
         function cambiarVariableMapa(id) {
             variableMapaActual = id;
             actualizarSelectorVariableMapa();
-            actualizarMarcadoresExpandido();
+            actualizarMapaExpandido();
         }
 
-        function actualizarMarcadoresExpandido() {
+        function actualizarMarcadorSuelto(p, marker, v) {
+            const valor = p.valorActual ? p.valorActual[v.id] : null;
+
+            // Las estaciones sin dato de esta variable (o fuera de servicio) no se
+            // muestran en el mapa expandido.
+            if (!p.live || valor === null) {
+                mapaExpandido.removeLayer(marker);
+                return;
+            }
+            if (!mapaExpandido.hasLayer(marker)) marker.addTo(mapaExpandido);
+
+            marker.setTooltipContent(`<b>${p.n}</b><br>${valor} ${v.unidad}`);
+            const el = marker.getTooltip() && marker.getTooltip().getElement();
+            if (el) el.style.setProperty('--tt-bg', v.clr);
+        }
+
+        // Actualiza todos los marcadores del mapa expandido: las estaciones sueltas
+        // (sin cambios), y el grupo del Observatorio, que se muestra como un solo
+        // globito con todas las estaciones juntas cuando el mapa está alejado, o
+        // como un marcador por estación cuando se hace zoom (ver
+        // ZOOM_SEPARAR_OBSERVATORIO). Se llama tanto al cambiar de variable como al
+        // hacer zoom.
+        function actualizarMapaExpandido() {
+            if (!mapaExpandido) return;
             const v = VARIABLES_MAPA.find(v => v.id === variableMapaActual);
-            marcadoresExpandido.forEach(({ p, grupo, marker }) => {
-                // Marcador agrupado (todas las estaciones del predio del Observatorio):
-                // junta el valor de cada una en un solo globito en vez de un marcador
-                // por estación, para que no se pisen entre sí en el mapa.
-                if (grupo) {
-                    const filas = grupo
-                        .filter(est => est.live)
-                        .map(est => ({ est, valor: est.valorActual ? est.valorActual[v.id] : null }))
-                        .filter(({ valor }) => valor !== null);
 
-                    if (!filas.length) {
-                        mapaExpandido.removeLayer(marker);
-                        return;
-                    }
-                    if (!mapaExpandido.hasLayer(marker)) marker.addTo(mapaExpandido);
+            marcadoresExpandido.forEach(({ p, marker }) => actualizarMarcadorSuelto(p, marker, v));
 
-                    const contenido = '<b>Observatorio (FCAG)</b><br>' +
-                        filas.map(({ est, valor }) => `${est.n}: ${valor} ${v.unidad}`).join('<br>');
-                    marker.setTooltipContent(contenido);
-                    const el = marker.getTooltip() && marker.getTooltip().getElement();
-                    if (el) el.style.setProperty('--tt-bg', v.clr);
-                    return;
-                }
+            if (!marcadorGrupoObservatorio) return;
 
-                const valor = p.valorActual ? p.valorActual[v.id] : null;
+            const zoomCerca = mapaExpandido.getZoom() >= ZOOM_SEPARAR_OBSERVATORIO;
+            const { grupo, marker: markerGrupo } = marcadorGrupoObservatorio;
 
-                // Las estaciones sin dato de esta variable (o fuera de servicio) no
-                // se muestran en el mapa expandido.
-                if (!p.live || valor === null) {
+            const filas = grupo
+                .filter(est => est.live)
+                .map(est => ({ est, valor: est.valorActual ? est.valorActual[v.id] : null }))
+                .filter(({ valor }) => valor !== null);
+
+            if (zoomCerca || !filas.length) {
+                mapaExpandido.removeLayer(markerGrupo);
+            } else {
+                if (!mapaExpandido.hasLayer(markerGrupo)) markerGrupo.addTo(mapaExpandido);
+                const contenido = '<div class="tt-grupo-header">Observatorio (FCAG)</div>' +
+                    filas.map(({ est, valor }) => `<div class="tt-grupo-fila"><span>${est.n}</span><b>${valor} ${v.unidad}</b></div>`).join('');
+                markerGrupo.setTooltipContent(contenido);
+                const el = markerGrupo.getTooltip() && markerGrupo.getTooltip().getElement();
+                if (el) el.style.setProperty('--tt-bg', '#475569');
+            }
+
+            marcadoresObservatorioIndividual.forEach(({ p, marker }) => {
+                if (!zoomCerca) {
                     mapaExpandido.removeLayer(marker);
                     return;
                 }
-                if (!mapaExpandido.hasLayer(marker)) marker.addTo(mapaExpandido);
-
-                marker.setTooltipContent(`<b>${p.n}</b><br>${valor} ${v.unidad}`);
-                const el = marker.getTooltip() && marker.getTooltip().getElement();
-                if (el) el.style.setProperty('--tt-bg', v.clr);
+                actualizarMarcadorSuelto(p, marker, v);
             });
         }
 
@@ -1630,17 +1691,29 @@
                         estacionesObservatorio.reduce((s, p) => s + p.c[0], 0) / estacionesObservatorio.length,
                         estacionesObservatorio.reduce((s, p) => s + p.c[1], 0) / estacionesObservatorio.length
                     ];
-                    const marker = L.circleMarker(centro, {
-                        radius: 12, fillColor: '#475569', color: '#ffffff', weight: 3, fillOpacity: 1
+                    const markerGrupo = L.circleMarker(centro, {
+                        radius: 13, fillColor: '#475569', color: '#ffffff', weight: 3, fillOpacity: 1
                     }).addTo(mapaExpandido);
-                    marker.bindTooltip('', { permanent: true, direction: 'top', offset: [0, -14], className: 'tooltip-variable' });
-                    marcadoresExpandido.push({ grupo: estacionesObservatorio, marker });
+                    markerGrupo.bindTooltip('', { permanent: true, direction: 'top', offset: [0, -15], className: 'tooltip-grupo' });
+                    marcadorGrupoObservatorio = { grupo: estacionesObservatorio, marker: markerGrupo };
+
+                    // Marcadores individuales: arrancan sin agregar al mapa, recién se
+                    // muestran al hacer zoom (los agrega actualizarMapaExpandido()).
+                    estacionesObservatorio.forEach(p => {
+                        const marker = L.circleMarker(p.c, {
+                            radius: 10, fillColor: p.live ? p.clr : '#94a3b8', color: '#ffffff', weight: 3, fillOpacity: 1
+                        });
+                        marker.bindTooltip('', { permanent: true, direction: 'top', offset: [0, -12], className: 'tooltip-variable' });
+                        marcadoresObservatorioIndividual.push({ p, marker });
+                    });
+
+                    mapaExpandido.on('zoomend', actualizarMapaExpandido);
                 }
 
                 crearSelectorVariableMapa();
-                actualizarMarcadoresExpandido();
+                actualizarMapaExpandido();
             } else {
-                actualizarMarcadoresExpandido();
+                actualizarMapaExpandido();
             }
 
             setTimeout(() => mapaExpandido.invalidateSize(), 200);
