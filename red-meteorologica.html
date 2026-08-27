@@ -923,8 +923,16 @@
 
             if (estacion.source === 'davis') {
                 // Mismo resultado para "hoy" y "semana": el archivo solo tiene el día
-                // actual, no hay forma de pedirle un histórico más largo.
-                return await fetchHistorialDavis(estacion);
+                // actual, no hay forma de pedirle un histórico más largo. Va en un
+                // try/catch aparte porque este servidor puede no tener CORS habilitado
+                // para pedidos desde el navegador: si falla, la estación queda sin
+                // datos en vez de trabar la carga de toda la red.
+                try {
+                    return await fetchHistorialDavis(estacion);
+                } catch (e) {
+                    console.error('Error obteniendo datos de', estacion.n, e);
+                    return { horas: [], temps: [], hums: [], press: [], rains: [], winds: [], windDirs: [], dews: [], lastEntryTime: null, tempMin: null, tempMax: null };
+                }
             }
 
             if (estacion.source === 'wunderground') {
