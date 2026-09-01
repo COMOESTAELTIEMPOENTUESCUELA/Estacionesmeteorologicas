@@ -86,6 +86,79 @@
         /* Scrollbar más chico en la sidebar de escritorio */
         #sidebar-scroll::-webkit-scrollbar { width: 6px; }
         #sidebar-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 6px; }
+
+        /* Globitos con el valor de la variable elegida en el mapa expandido. El
+           color lo pone el JS con la variable --tt-bg según la variable activa. */
+        .leaflet-tooltip.tooltip-variable {
+            background: var(--tt-bg, #3b82f6);
+            color: #ffffff;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-weight: 900;
+            font-size: 12px;
+            border: 2px solid #ffffff;
+            border-radius: 999px;
+            padding: 3px 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+        .leaflet-tooltip.tooltip-variable.leaflet-tooltip-top::before {
+            border-top-color: var(--tt-bg, #3b82f6);
+        }
+
+        /* Globito con varias estaciones juntas (grupo del Observatorio, cuando el
+           mapa está tan alejado que sus marcadores se pisarían). Es una tarjeta
+           blanca en vez de la píldora de una sola estación, para que se pueda leer
+           una lista de varias filas sin verse deforme. */
+        .leaflet-tooltip.tooltip-grupo {
+            background: #ffffff;
+            color: #0f172a;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            border: 3px solid var(--tt-bg, #475569);
+            border-radius: 16px;
+            padding: 8px 12px;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.25);
+            font-size: 12px;
+        }
+        .leaflet-tooltip.tooltip-grupo.leaflet-tooltip-top::before {
+            border-top-color: var(--tt-bg, #475569);
+        }
+        .tt-grupo-header {
+            font-weight: 900;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #64748b;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 4px;
+            margin-bottom: 4px;
+            white-space: nowrap;
+        }
+        .tt-grupo-fila {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 1px 0;
+            white-space: nowrap;
+        }
+        .tt-grupo-fila span { color: #64748b; font-weight: 700; }
+        .tt-grupo-fila b { color: #0f172a; font-weight: 900; margin-left: auto; }
+
+        /* Chips selectoras de variable en el mapa expandido */
+        .chip-variable {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-weight: 800;
+            font-size: 12px;
+            padding: 8px 14px;
+            border-radius: 999px;
+            border: 2px solid #e2e8f0;
+            background: #ffffff;
+            color: #64748b;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+        .chip-variable:hover { border-color: #93c5fd; }
+        .chip-variable.active { color: #ffffff; border-color: transparent; }
     </style>
 </head>
 
@@ -109,7 +182,12 @@
             </a>
         </div>
 
-        <div id="map" class="w-full h-44 lg:h-56 shrink-0 z-0 bg-slate-200 border-b-4 border-slate-200"></div>
+        <div class="relative w-full shrink-0">
+            <div id="map" class="w-full h-44 lg:h-56 z-0 bg-slate-200 border-b-4 border-slate-200"></div>
+            <button id="btn-expandir-mapa" class="absolute top-3 right-3 z-[400] bg-white/90 backdrop-blur hover:bg-white text-blue-700 p-2 rounded-xl shadow-md border-2 border-white transition" title="Ver mapa completo">
+                <i data-lucide="maximize" class="w-4 h-4"></i>
+            </button>
+        </div>
 
         <div id="sidebar-scroll" class="p-4 lg:p-5 lg:flex-grow lg:overflow-y-auto bg-slate-50/80 relative">
             <h2 class="text-xs font-black text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
@@ -161,7 +239,7 @@
                     <span class="text-2xl lg:text-4xl font-black text-slate-800 tracking-tighter" id="live-val-hum">--%</span>
                 </div>
 
-                <div class="bg-gradient-to-b from-emerald-50 to-emerald-100 border-2 border-emerald-300 border-b-[6px] rounded-2xl p-4 lg:p-5 kid-card shadow-md flex flex-col justify-between">
+                <div id="card-pres" class="bg-gradient-to-b from-emerald-50 to-emerald-100 border-2 border-emerald-300 border-b-[6px] rounded-2xl p-4 lg:p-5 kid-card shadow-md flex flex-col justify-between">
                     <div class="flex justify-between items-start mb-2">
                         <span class="block text-[9px] lg:text-[10px] uppercase font-black text-emerald-600 leading-tight">🎈 Presión</span>
                         <i data-lucide="gauge" class="text-emerald-400 opacity-50 w-6 h-6 lg:w-8 lg:h-8 shrink-0"></i>
@@ -171,7 +249,7 @@
 
                 <div class="bg-gradient-to-b from-cyan-50 to-cyan-100 border-2 border-cyan-300 border-b-[6px] rounded-2xl p-4 lg:p-5 kid-card shadow-md flex flex-col justify-between">
                     <div class="flex justify-between items-start mb-2">
-                        <span class="block text-[9px] lg:text-[10px] uppercase font-black text-cyan-600 leading-tight">🌧️ Lluvia hoy</span>
+                        <span class="block text-[9px] lg:text-[10px] uppercase font-black text-cyan-600 leading-tight" id="label-live-rain">🌧️ Lluvia hoy</span>
                         <i data-lucide="cloud-rain" class="text-cyan-400 opacity-50 w-6 h-6 lg:w-8 lg:h-8 shrink-0"></i>
                     </div>
                     <span class="text-2xl lg:text-4xl font-black text-slate-800 tracking-tighter" id="live-val-rain">-- mm</span>
@@ -222,7 +300,7 @@
                     <div class="h-[180px] lg:h-[220px] w-full"><canvas id="chartHum"></canvas></div>
                 </div>
 
-                <div class="bg-white/95 backdrop-blur-sm rounded-2xl lg:rounded-[2rem] p-5 lg:p-6 border-4 border-white shadow-xl">
+                <div id="grafico-pres" class="bg-white/95 backdrop-blur-sm rounded-2xl lg:rounded-[2rem] p-5 lg:p-6 border-4 border-white shadow-xl">
                     <h3 class="text-base lg:text-lg font-black text-slate-800 flex items-center gap-2 lg:gap-3 mb-4">
                         <span class="bg-emerald-100 p-1.5 lg:p-2 rounded-xl text-emerald-500 border-2 border-emerald-200 shadow-sm"><i data-lucide="gauge" class="w-4 h-4 lg:w-5 lg:h-5"></i></span>
                         <span id="titulo-chart-pres">Presión de hoy</span>
@@ -247,17 +325,30 @@
             <!-- CARRERA DE TEMPERATURAS -->
             <div class="bg-gradient-to-r from-slate-900 to-blue-900 rounded-2xl lg:rounded-[2rem] p-6 lg:p-8 border-4 border-slate-800 shadow-2xl text-white relative overflow-hidden">
                 <div class="absolute right-0 top-0 opacity-10 transform translate-x-1/4 -translate-y-1/4">
-                    <i data-lucide="star" class="w-48 h-48 lg:w-64 lg:h-64 text-yellow-400 animate-pulse"></i>
+                    <i data-lucide="thermometer" class="w-48 h-48 lg:w-64 lg:h-64 text-orange-400 animate-pulse"></i>
                 </div>
                 <div class="relative z-10">
-                    <h3 class="text-xl lg:text-2xl font-black text-white flex items-center gap-3 mb-1">
-                        🏆 ¡Carrera de Temperaturas!
+                    <h3 class="text-xl lg:text-2xl font-black text-white flex items-center gap-3 mb-5">
+                        🌡️ ¿Dónde hizo más calor y más frío hoy?
                     </h3>
-                    <p class="text-sm font-bold text-blue-200 mb-5">¿Dónde hizo más calor y más frío hoy?</p>
                     <div class="h-[200px] lg:h-[250px] w-full"><canvas id="chartComparativo"></canvas></div>
                 </div>
             </div>
-            
+
+            <!-- TEMPERATURA Y LLUVIA ENTRE ESCUELAS -->
+            <div class="bg-gradient-to-r from-cyan-900 to-blue-900 rounded-2xl lg:rounded-[2rem] p-6 lg:p-8 border-4 border-slate-800 shadow-2xl text-white relative overflow-hidden">
+                <div class="absolute right-0 top-0 opacity-10 transform translate-x-1/4 -translate-y-1/4">
+                    <i data-lucide="cloud-rain" class="w-48 h-48 lg:w-64 lg:h-64 text-cyan-300 animate-pulse"></i>
+                </div>
+                <div class="relative z-10">
+                    <h3 class="text-xl lg:text-2xl font-black text-white flex items-center gap-3 mb-2">
+                        🌧️ ¿Dónde llovió más esta semana?
+                    </h3>
+                    <p id="texto-mas-lluvia-semana" class="text-xs font-black text-yellow-300 mb-5 hidden"></p>
+                    <div class="h-[200px] lg:h-[250px] w-full"><canvas id="chartComparativoLluvia"></canvas></div>
+                </div>
+            </div>
+
             <footer class="text-center pb-6 pt-2">
                 <a href="ciencia-ciudadana.html#enviar-reporte" class="text-[11px] font-black text-blue-800 uppercase tracking-widest bg-white/80 backdrop-blur inline-block px-5 py-3 rounded-full border-2 border-white shadow-lg hover:bg-white transition">
                     Envianos tu reporte en foto
@@ -269,34 +360,101 @@
 
 </div><!-- #layout-root -->
 
+<!-- MAPA EXPANDIDO (mapa grande con selector de variable) -->
+<div id="mapa-expandido-overlay" class="fixed inset-0 z-[10000] bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-3 lg:p-8">
+    <div class="bg-white rounded-[1.5rem] lg:rounded-[2rem] shadow-2xl w-full h-full lg:max-w-5xl lg:max-h-[85vh] flex flex-col overflow-hidden border-4 border-white">
+        <div class="flex items-center justify-between gap-3 p-4 lg:p-5 border-b-2 border-slate-100 shrink-0">
+            <h3 class="text-base lg:text-xl font-black text-slate-800">Mapa de la red</h3>
+            <button id="btn-cerrar-mapa-expandido" class="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition" title="Cerrar">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+        <div id="selector-variable-mapa" class="flex flex-wrap gap-2 px-4 lg:px-5 py-3 border-b-2 border-slate-100 shrink-0"></div>
+        <div id="mapa-expandido" class="flex-grow w-full z-0 bg-slate-200"></div>
+    </div>
+</div>
+
+<!-- Acceso oculto al modo administrador (descarga de históricos) -->
+<button id="btn-admin-trigger" class="fixed bottom-4 right-3 w-6 h-6 rounded-full bg-slate-400 opacity-20 hover:opacity-70 active:opacity-70 transition z-[9000]" title="⚙"></button>
+
+<div id="admin-overlay" class="fixed inset-0 z-[10001] bg-slate-900/70 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-white rounded-[1.5rem] shadow-2xl w-full max-w-sm overflow-hidden border-4 border-white">
+        <div class="flex items-center justify-between gap-3 p-4 border-b-2 border-slate-100">
+            <h3 class="text-base font-black text-slate-800">Modo administrador</h3>
+            <button id="btn-cerrar-admin" class="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition" title="Cerrar">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <div id="admin-paso-clave" class="p-5 space-y-3">
+            <p class="text-xs font-bold text-slate-500">Ingresá la clave para acceder a la descarga de históricos.</p>
+            <input id="admin-input-clave" type="password" placeholder="Clave" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:border-blue-400">
+            <p id="admin-clave-error" class="text-xs font-bold text-red-500 hidden">Clave incorrecta.</p>
+            <button id="btn-admin-entrar" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black text-sm py-2.5 rounded-xl transition">Entrar</button>
+        </div>
+
+        <div id="admin-paso-descarga" class="p-5 space-y-3 hidden">
+            <div>
+                <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Estación</label>
+                <select id="admin-select-estacion" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-bold"></select>
+            </div>
+            <div class="flex gap-2">
+                <div class="flex-1">
+                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Desde</label>
+                    <input id="admin-fecha-desde" type="date" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-bold">
+                </div>
+                <div class="flex-1">
+                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Hasta</label>
+                    <input id="admin-fecha-hasta" type="date" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-bold">
+                </div>
+            </div>
+            <button id="btn-admin-descargar" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm py-2.5 rounded-xl transition flex items-center justify-center gap-2">
+                <i data-lucide="download" class="w-4 h-4"></i> Descargar CSV
+            </button>
+            <p id="admin-descarga-estado" class="text-xs font-bold text-slate-500 text-center"></p>
+        </div>
+    </div>
+</div>
+
     <script>
         lucide.createIcons();
 
         // Configuración de las estaciones
-        // IMPORTANTE: EP N°34 (2218689) está marcada como live: false (Fuera de servicio)
+        // IMPORTANTE: el canal 2218689 era de EP N°34 (Malagamba, marcada live: false),
+        // pero ese equipo se reinstaló en el Observatorio (FCAG) como "EMA Blanca".
         //
         // EP N°23 (Bavío) es la EMA Violeta: se combinan su canal actual y el histórico
         // porque migraron de canal de ThingSpeak en algún momento. rainMult convierte los
         // pulsos crudos del pluviómetro a mm (cada pulso = 0.68mm).
         //
-        // EMA Verde, Observatorio (Campbell) y Daza están las tres en el mismo lugar,
-        // en la Facultad (FCAG) — no en ninguna escuela — por eso comparten zona en el mapa
-        // con las coordenadas apenas separadas para que se puedan distinguir los marcadores.
+        // EMA Verde, Observatorio (Campbell), Daza, EMA Blanca y Observatorio (Davis)
+        // están las cinco en el mismo lugar, en la Facultad (FCAG) — no en ninguna
+        // escuela — por eso comparten zona en el mapa con las coordenadas apenas
+        // separadas para que se puedan distinguir los marcadores.
         const puntos = [
             { channels: [{ id: "2626952", key: "4XYH56YSV64HE17H" }, { id: "1778165", key: "OJ1JHKAPCCIQB4CB" }], rainMult: 0.68,
-              n: "EP N°23", loc: "Bavío (EMA Violeta)", c: [-35.0254, -57.7529], clr: "#10b981", live: true, img: "imagenes/escuela23.jpg" },
-            { id: "2218689", n: "EP N°34", loc: "Malagamba", c: [-35.0724, -57.8656], clr: "#3b82f6", live: false, img: "imagenes/escuela34.jpg" },
+              n: "EP N°23", loc: "Bavío (EMA Violeta)", c: [-35.0254, -57.7529], clr: "#10b981", live: true, img: "imagenes/escuela23.jpg", ocultarPresion: true },
+            { id: "2218689", key: "ZLNOSLZJPQM3H7SD",
+              n: "EMA Blanca", loc: "Facultad (FCAG)", c: [-34.9089, -57.9327], clr: "#facc15", live: true, img: "imagenes/observatorio.png", grupoObservatorio: true },
             { source: "wunderground", wuId: "IVERNI9", wuKey: "6b6ee16ebab34fe5aee16ebab38fe57a",
               n: "Monte Veloz", loc: "Ruta 36", c: [-35.3200, -57.4200], clr: "#f59e0b", live: true, img: "https://images.unsplash.com/photo-1592210454359-9043f067919b?auto=format&fit=crop&q=80&w=300" },
             { id: "2218687", key: "TH3V4TJLRFZD3JSG", n: "San Vicente", loc: "La Plata", c: [-34.9031, -57.9485], clr: "#8b5cf6", live: true, img: "https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&q=80&w=300" },
             { id: "2823820", key: "FFI1HK80ZKDNS6V8",
-              n: "Observatorio", loc: "Facultad (FCAG) · Campbell", c: [-34.908364, -57.933164], clr: "#ef4444", live: true, img: "imagenes/observatorio.png" },
+              n: "Observatorio", loc: "Facultad (FCAG) · Campbell", c: [-34.908364, -57.933164], clr: "#ef4444", live: true, img: "imagenes/observatorio.png", grupoObservatorio: true },
             { id: "2218686", key: "O85A0DJ31L8MQZ6F", isEmaVerde: true,
-              n: "EMA Verde", loc: "Facultad (FCAG) · en prueba", c: [-34.9086, -57.9339], clr: "#22c55e", live: true, img: "imagenes/observatorio.png" },
+              n: "EMA Verde", loc: "Facultad (FCAG) · en prueba", c: [-34.9086, -57.9328], clr: "#22c55e", live: true, img: "imagenes/observatorio.png", grupoObservatorio: true },
             { source: "wunderground", wuId: "ILAPLA66", wuKey: "470147c769f6493f8147c769f6693fd9",
-              n: "Daza", loc: "Facultad (FCAG) · Wunderground", c: [-34.9091, -57.9325], clr: "#f43f5e", live: true, img: "imagenes/observatorio.png" },
+              n: "Daza", loc: "Facultad (FCAG) · Wunderground", c: [-34.9091, -57.9325], clr: "#f43f5e", live: true, img: "imagenes/observatorio.png", grupoObservatorio: true },
+            // davisUrl apunta a la copia que un GitHub Action baja cada 15 min y guarda
+            // en el propio repo (data/davis-ultimo.txt), no al servidor original
+            // (meteo.fcaglp.unlp.edu.ar), porque ese servidor no tiene CORS habilitado
+            // y el navegador no le puede pedir el archivo directamente.
+            { source: "davis", davisUrl: "data/davis-ultimo.txt",
+              n: "Observatorio (Davis)", loc: "Facultad (FCAG)", c: [-34.9088, -57.933], clr: "#14b8a6", live: true, img: "imagenes/observatorio.png", grupoObservatorio: true },
             { source: "wunderground", wuId: "ILOSTA2", wuKey: "f1d7143d25a24b7197143d25a23b711d",
-              n: "ES7 / EP20", loc: "Wunderground", c: [-34.95767209016535, -57.81756279329484], clr: "#0ea5e9", live: true, img: "imagenes/observatorio.png" }
+              n: "ES7 / EP20", loc: "Wunderground", c: [-34.95767209016535, -57.81756279329484], clr: "#0ea5e9", live: true, img: "imagenes/observatorio.png" },
+            { source: "wunderground", wuId: "IBERIS14", wuKey: "af815b5b4b804cfd815b5b4b80dcfd07",
+              n: "EP N°23 (Los Talas)", loc: "Berisso", c: [-34.92712, -57.76241], clr: "#ec4899", live: true, img: "imagenes/Ep_23_LOSTALAS.jpeg" }
         ];
 
         const map = L.map('map', { zoomControl: false }).setView([-35.10, -57.75], 9);
@@ -304,8 +462,9 @@
         setTimeout(() => map.invalidateSize(), 500);
 
         const btnContainer = document.getElementById('button-container');
-        const graficos = { temp: null, hum: null, pres: null, rain: null, comp: null };
+        const graficos = { temp: null, hum: null, pres: null, rain: null, comp: null, compLluvia: null };
         let datosComparativos = { labels: [], mins: [], maxs: [] };
+        let datosLluviaSemana = { labels: [], valores: [] };
 
         // Función auxiliar para calcular cuánto tiempo pasó desde el último dato
         function calcularTiempoTranscurrido(fechaISO) {
@@ -322,7 +481,7 @@
             return `Hace ${diffDias} ${diffDias === 1 ? 'día' : 'días'}`;
         }
 
-        // ─── WEATHER UNDERGROUND (Monte Veloz, Daza, ES7/EP20) ──────────────────
+        // ─── WEATHER UNDERGROUND (Monte Veloz, Daza, ES7/EP20, EP N°23 Los Talas) ──
         // Pedimos las lecturas en unidades imperiales (units=e) y las convertimos acá.
         // El campo "metric" que devuelve la API viene con la temperatura ya redondeada
         // a un entero (ej: 11°C en vez de 11.4°C); "imperial" retiene la resolución real
@@ -346,10 +505,38 @@
             return `${dd}/${mm} ${hhmm}`;
         }
 
-        // Mínima/máxima de una lista de valores (strings numéricos u números), redondeadas a 1 decimal
+        // Rangos plausibles para esta zona (La Plata y alrededores), para descartar
+        // lecturas de sensores con fallas antes de que entren a las comparativas entre
+        // escuelas (ej. una temperatura actual absurda de Monte Veloz, o una presión
+        // de -40 hPa en algún momento en la EMA Verde: son errores del sensor, no
+        // datos reales). Son bien generosos a propósito, para no descartar días
+        // realmente extremos.
+        const TEMP_MIN_PLAUSIBLE = -10;
+        const TEMP_MAX_PLAUSIBLE = 48;
+        const LLUVIA_SEMANA_MAX_PLAUSIBLE = 300; // mm
+
+        // Además del rango físico, una lectura individual que se aleje mucho de la
+        // mediana del resto del día casi seguro es un glitch del sensor (ej. una
+        // estación recién reinstalada, como la EMA Blanca, mandando un dato suelto muy
+        // distinto al resto), aunque esté dentro del rango plausible general.
+        const DESVIO_MAX_TEMP_MEDIANA = 15; // °C
+
+        // Mínima/máxima de una lista de valores (strings numéricos u números), redondeadas a 1
+        // decimal. Descarta lecturas fuera del rango plausible antes de calcular el mín/máx.
         function calcularMinMax(valores) {
-            const nums = (valores || []).map(v => parseFloat(v)).filter(v => !isNaN(v));
+            let nums = (valores || [])
+                .map(v => parseFloat(v))
+                .filter(v => !isNaN(v) && v >= TEMP_MIN_PLAUSIBLE && v <= TEMP_MAX_PLAUSIBLE);
             if (!nums.length) return { tempMin: null, tempMax: null };
+
+            // Con pocos datos no hay forma confiable de saber qué lectura es la "rara",
+            // así que el filtro por mediana solo se aplica si hay una muestra mínima.
+            if (nums.length >= 4) {
+                const ordenados = nums.slice().sort((a, b) => a - b);
+                const mediana = ordenados[Math.floor(ordenados.length / 2)];
+                const sinOutliers = nums.filter(v => Math.abs(v - mediana) <= DESVIO_MAX_TEMP_MEDIANA);
+                if (sinOutliers.length) nums = sinOutliers;
+            }
             return { tempMin: Math.min(...nums).toFixed(1), tempMax: Math.max(...nums).toFixed(1) };
         }
 
@@ -528,6 +715,21 @@
         }
 
         // Últimos 7 días (hoy incluido): una consulta de historial por día + el dato en vivo al final.
+        // Total de lluvia de UN día a partir de sus observaciones: la última lectura
+        // cronológica (no el máximo). Wunderground a veces reporta un precipTotal más
+        // alto en una lectura intermedia que después se autocorrige a la baja (ruido
+        // del sensor, viento, etc.); quedarse con el máximo del día suma ese pico
+        // fantasma. La ÚLTIMA lectura es la que realmente coincide con lo que muestra
+        // el dashboard de Wunderground para ese día.
+        function precipTotalFinalDelDiaMm(observacionesDelDia) {
+            const conFecha = observacionesDelDia
+                .filter(o => (o.imperial || {}).precipTotal != null && (o.obsTimeLocal || o.obsTimeUtc))
+                .map(o => ({ o, ts: new Date((o.obsTimeLocal || o.obsTimeUtc).replace(' ', 'T')) }))
+                .sort((a, b) => a.ts - b.ts);
+            if (!conFecha.length) return 0;
+            return inAMm(parseFloat(conFecha[conFecha.length - 1].o.imperial.precipTotal));
+        }
+
         async function fetchHistorialWUSemana(estacion) {
             const hoy = new Date();
             const dias = [];
@@ -541,11 +743,46 @@
                 Promise.all(dias.map(d => fetchWUHistorialDia(estacion.wuId, estacion.wuKey, d))),
                 fetchWUActual(estacion.wuId, estacion.wuKey)
             ]);
+            if (obsActual) porDia[porDia.length - 1] = porDia[porDia.length - 1].concat([obsActual]);
 
-            let observaciones = porDia.flat();
-            if (obsActual) observaciones.push(obsActual);
+            // El precipTotal que da la API es el acumulado DEL DÍA (se resetea a las 00
+            // locales). Para que la tarjeta y el gráfico de "última semana" muestren el
+            // acumulado real de los 7 días, a cada lectura hay que sumarle el total de
+            // los días anteriores, no solo concatenar los precipTotal sueltos de cada
+            // lectura (eso hacía que el último valor mostrado fuera solo el de HOY).
+            let offsetMm = 0;
+            const observaciones = [];
+            porDia.forEach(observacionesDelDia => {
+                observacionesDelDia.forEach(o => observaciones.push({ o, offsetMm }));
+                offsetMm += precipTotalFinalDelDiaMm(observacionesDelDia);
+            });
 
-            return procesarObservacionesWU(observaciones, true);
+            const resultado = procesarObservacionesWU(observaciones.map(x => x.o), true);
+            resultado.rains = observaciones.map(({ o, offsetMm: off }) => {
+                const r = (o.imperial || {}).precipTotal;
+                return r != null ? (off + inAMm(parseFloat(r))).toFixed(1) : null;
+            });
+
+            return resultado;
+        }
+
+        // Lluvia acumulada de los últimos 7 días para una estación Wunderground. El
+        // precipTotal que da la API ya es el acumulado DEL DÍA (se resetea a las 00
+        // locales), así que sumar todas las lecturas de la semana contaría de más:
+        // hay que quedarse con la última lectura de cada día (ver precipTotalFinalDelDiaMm)
+        // y sumar esos 7 valores.
+        async function fetchLluviaSemanaWU(estacion) {
+            const hoy = new Date();
+            const dias = [];
+            for (let i = 6; i >= 0; i--) {
+                const d = new Date(hoy);
+                d.setDate(d.getDate() - i);
+                dias.push(d);
+            }
+
+            const porDia = await Promise.all(dias.map(d => fetchWUHistorialDia(estacion.wuId, estacion.wuKey, d)));
+            const total = porDia.reduce((acc, observacionesDelDia) => acc + precipTotalFinalDelDiaMm(observacionesDelDia), 0);
+            return +total.toFixed(2);
         }
 
         // ─── THINGSPEAK (resto de las estaciones) ───────────────────────────────
@@ -622,10 +859,123 @@
             return { total: +total.toFixed(2), horas, curva, tempMin, tempMax };
         }
 
+        // ─── DAVIS (Observatorio, archivo de texto plano de WeatherLink) ────────
+        // El archivo (downld08.txt) es un log de solo HOY: se sobrescribe día a día,
+        // así que no hay forma de pedirle un histórico de 7 días a esta fuente. El dato
+        // más reciente queda al final del archivo.
+        const RUMBOS_A_GRADOS_DAVIS = {
+            N: 0, NNE: 22.5, NE: 45, ENE: 67.5, E: 90, ESE: 112.5, SE: 135, SSE: 157.5,
+            S: 180, SSW: 202.5, SW: 225, WSW: 247.5, W: 270, WNW: 292.5, NW: 315, NNW: 337.5
+        };
+        function gradosDesdeRumboDavis(rumbo) {
+            if (!rumbo || rumbo === '---') return null;
+            const grados = RUMBOS_A_GRADOS_DAVIS[rumbo];
+            return grados === undefined ? null : grados;
+        }
+
+        // Fecha "DD/MM/YY" + hora "H:MM" (24hs) del archivo, como Date.
+        function parsearFechaHoraDavis(fechaStr, horaStr) {
+            const [dd, mm, yy] = fechaStr.split('/').map(Number);
+            const [hh, min] = horaStr.split(':').map(Number);
+            return new Date(2000 + yy, mm - 1, dd, hh, min);
+        }
+
+        // Parsea las filas de datos del archivo. Cada línea son 28 columnas separadas
+        // por espacios; nos interesan: [0] fecha, [1] hora, [2] temp. exterior,
+        // [5] humedad exterior, [6] punto de rocío, [7] velocidad de viento,
+        // [8] dirección de viento (rumbo, ej. "NNE" o "---" en calma), [15] presión
+        // (hPa), [16] lluvia del intervalo (mm).
+        function parsearFilasDavis(texto) {
+            const lineas = texto.split('\n').map(l => l.trim()).filter(l => l.length);
+            const filas = [];
+            lineas.forEach(linea => {
+                if (/^-+$/.test(linea)) return; // línea separadora de guiones
+                const cols = linea.split(/\s+/);
+                if (cols.length < 28 || !/^\d{2}\/\d{2}\/\d{2}$/.test(cols[0])) return; // no es una fila de datos
+                filas.push(cols);
+            });
+            return filas;
+        }
+
+        async function fetchHistorialDavis(estacion) {
+            const res = await fetch(estacion.davisUrl, { cache: 'no-store' });
+            const texto = await res.text();
+            const filas = parsearFilasDavis(texto);
+
+            const horas = [], temps = [], hums = [], press = [], rains = [], winds = [], windDirs = [], dews = [];
+            let total = 0;
+            let lastEntryTime = null;
+
+            filas.forEach(cols => {
+                const fecha = parsearFechaHoraDavis(cols[0], cols[1]);
+                horas.push(formatearEtiquetaFecha(fecha, false));
+                lastEntryTime = fecha.toISOString();
+
+                const t = parseFloat(cols[2]);
+                temps.push(isNaN(t) ? null : t.toFixed(1));
+
+                const h = parseFloat(cols[5]);
+                hums.push(isNaN(h) ? null : h.toFixed(0));
+
+                const dp = parseFloat(cols[6]);
+                dews.push(isNaN(dp) ? null : dp.toFixed(1));
+
+                const ws = parseFloat(cols[7]);
+                winds.push(isNaN(ws) ? null : ws.toFixed(1));
+
+                windDirs.push(gradosDesdeRumboDavis(cols[8]));
+
+                const p = parseFloat(cols[15]);
+                press.push(isNaN(p) ? null : p.toFixed(1));
+
+                const r = parseFloat(cols[16]);
+                if (!isNaN(r) && r >= 0) total += r;
+                rains.push(+total.toFixed(2));
+            });
+
+            const { tempMin, tempMax } = calcularMinMax(temps);
+
+            return { horas, horasLluvia: horas, temps, hums, press, rains, winds, windDirs, dews, lastEntryTime, tempMin, tempMax };
+        }
+
+        // Lluvia acumulada de los últimos 7 días de UNA estación (Wunderground,
+        // ThingSpeak o Davis). Se usa para la tarjeta "¿Dónde llovió más esta semana?"
+        // que compara todas las escuelas entre sí.
+        async function fetchLluviaSemanaEstacion(estacion) {
+            if (!estacion.live) return null;
+            try {
+                if (estacion.source === 'davis') return null; // sin histórico de 7 días disponible
+                if (estacion.source === 'wunderground') {
+                    return await fetchLluviaSemanaWU(estacion);
+                }
+                const canales = estacion.channels || [{ id: estacion.id, key: estacion.key }];
+                const rainField = estacion.isEmaVerde ? 'field4' : 'field5';
+                const datosSemana = await datosDelPeriodoTS(canales, rainField, estacion.rainMult, 7, 'calendario');
+                return datosSemana.total;
+            } catch (e) {
+                console.error('No se pudo obtener la lluvia semanal de', estacion.n, e);
+                return null;
+            }
+        }
+
         async function fetchHistorialCanal(estacion, periodo = 'hoy') {
             // Si la estación está offline manualmente, devolvemos arrays vacíos directamente
             if (!estacion.live) {
                 return { horas: [], temps: [], hums: [], press: [], rains: [], winds: [], windDirs: [], dews: [], lastEntryTime: null, tempMin: null, tempMax: null };
+            }
+
+            if (estacion.source === 'davis') {
+                // Mismo resultado para "hoy" y "semana": el archivo solo tiene el día
+                // actual, no hay forma de pedirle un histórico más largo. Va en un
+                // try/catch aparte porque este servidor puede no tener CORS habilitado
+                // para pedidos desde el navegador: si falla, la estación queda sin
+                // datos en vez de trabar la carga de toda la red.
+                try {
+                    return await fetchHistorialDavis(estacion);
+                } catch (e) {
+                    console.error('Error obteniendo datos de', estacion.n, e);
+                    return { horas: [], temps: [], hums: [], press: [], rains: [], winds: [], windDirs: [], dews: [], lastEntryTime: null, tempMin: null, tempMax: null };
+                }
             }
 
             if (estacion.source === 'wunderground') {
@@ -763,6 +1113,37 @@
             });
         }
 
+        // Junta lecturas consecutivas en "baldes" y promedia, para que el gráfico no
+        // se vea con ruido cuando hay muchos puntos (lecturas cada pocos minutos).
+        // Para "rain" (acumulado corrido) usa el último valor del balde en vez de
+        // promediar, porque promediar una suma corrida no tiene sentido.
+        function suavizarParaGrafico(horas, valores, modo = 'avg') {
+            const maxPuntos = 48;
+            const n = valores.length;
+            if (n <= maxPuntos) return { horas, valores };
+
+            const tamBalde = Math.ceil(n / maxPuntos);
+            const horasOut = [], valoresOut = [];
+            for (let i = 0; i < n; i += tamBalde) {
+                const horasBalde = horas.slice(i, i + tamBalde);
+                const valoresBalde = valores.slice(i, i + tamBalde)
+                    .map(v => parseFloat(v))
+                    .filter(v => !isNaN(v));
+
+                horasOut.push(horasBalde[Math.floor(horasBalde.length / 2)]);
+
+                if (valoresBalde.length === 0) {
+                    valoresOut.push(null);
+                } else if (modo === 'last') {
+                    valoresOut.push(valoresBalde[valoresBalde.length - 1].toFixed(2));
+                } else {
+                    const promedio = valoresBalde.reduce((a, b) => a + b, 0) / valoresBalde.length;
+                    valoresOut.push(promedio.toFixed(1));
+                }
+            }
+            return { horas: horasOut, valores: valoresOut };
+        }
+
         function renderizarGraficoComparativo() {
             const ctxComp = document.getElementById('chartComparativo').getContext('2d');
             if (graficos.comp) graficos.comp.destroy();
@@ -827,6 +1208,64 @@
             });
         }
 
+        function renderizarGraficoComparativoLluvia() {
+            const textoMasLluvia = document.getElementById('texto-mas-lluvia-semana');
+            if (datosLluviaSemana.valores.length > 0) {
+                const iMax = datosLluviaSemana.valores.indexOf(Math.max(...datosLluviaSemana.valores));
+                textoMasLluvia.textContent = `📍 Esta semana llovió más en ${datosLluviaSemana.labels[iMax]}: ${datosLluviaSemana.valores[iMax].toFixed(1)} mm`;
+                textoMasLluvia.classList.remove('hidden');
+            } else {
+                textoMasLluvia.classList.add('hidden');
+            }
+
+            const ctxCompLluvia = document.getElementById('chartComparativoLluvia').getContext('2d');
+            if (graficos.compLluvia) graficos.compLluvia.destroy();
+            graficos.compLluvia = new Chart(ctxCompLluvia, {
+                type: 'bar',
+                data: {
+                    labels: datosLluviaSemana.labels,
+                    datasets: [{
+                        label: 'Lluvia (mm)',
+                        data: datosLluviaSemana.valores,
+                        backgroundColor: '#22d3ee',
+                        borderRadius: 14,
+                        borderSkipped: false,
+                        barThickness: 'flex',
+                        maxBarThickness: 40
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#ffffff',
+                            titleColor: '#0f172a',
+                            bodyColor: '#0f172a',
+                            padding: 12,
+                            titleFont: { size: 13, family: "'Plus Jakarta Sans', sans-serif" },
+                            bodyFont: { size: 16, weight: '900', family: "'Plus Jakarta Sans', sans-serif" },
+                            displayColors: false,
+                            cornerRadius: 14,
+                            callbacks: { label: (ctx) => `${ctx.parsed.y} mm` }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(255,255,255,0.1)', borderDash: [4, 4], lineWidth: 2 },
+                            ticks: { font: { weight: '800', family: "'Plus Jakarta Sans', sans-serif", size: 12 }, color: '#94a3b8' }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { font: { size: 12, weight: '800', family: "'Plus Jakarta Sans', sans-serif" }, color: '#ffffff' }
+                        }
+                    }
+                }
+            });
+        }
+
         let periodoActual = 'hoy';
         let convencionLluvia = 'calendario'; // 'calendario' (00 a 00) | 'meteorologico' (9 a 9)
         let estacionActual = null;
@@ -846,6 +1285,10 @@
             }
 
             document.getElementById('lluvia-convencion-toggle').classList.toggle('hidden', periodoActual === 'semana');
+
+            document.getElementById('label-live-rain').textContent = periodoActual === 'semana'
+                ? '🌧️ Lluvia últ. semana'
+                : '🌧️ Lluvia hoy';
         }
 
         function actualizarBotonesLluvia() {
@@ -902,6 +1345,13 @@
             if (hist && hist.temps.length > 0) {
                 const getUltimoValido = (arr) => arr.slice().reverse().find(val => val !== null) || '--';
 
+                // La EMA Violeta (EP N°23) tiene un sensor de presión poco confiable: se
+                // oculta del panel público y del gráfico; el dato crudo sigue disponible
+                // para quien tenga acceso al modo administrador (descarga de históricos).
+                const ocultarPresion = !!(estacionActual && estacionActual.p && estacionActual.p.ocultarPresion);
+                document.getElementById('card-pres').classList.toggle('hidden', ocultarPresion);
+                document.getElementById('grafico-pres').classList.toggle('hidden', ocultarPresion);
+
                 let ultTemp = getUltimoValido(hist.temps);
                 document.getElementById('live-val-temp').innerText = ultTemp !== '--' ? `${ultTemp}°C` : '--°C';
 
@@ -942,10 +1392,21 @@
                 document.getElementById('live-val-dew').innerText = ultDew !== '--' ? `${ultDew}°C` : '--';
                 document.getElementById('card-rocio').classList.toggle('hidden', ultDew === '--');
 
-                crearGraficoEvolucion('chartTemp', 'temp', hist.horas, hist.temps, '#f97316', 'Temperatura (°C)');
-                crearGraficoEvolucion('chartHum',  'hum',  hist.horas, hist.hums,  '#3b82f6', 'Humedad (%)');
-                crearGraficoEvolucion('chartPres', 'pres', hist.horas, hist.press, '#10b981', 'Presión (hPa)');
-                crearGraficoEvolucion('chartRain', 'rain', hist.horasLluvia || hist.horas, hist.rains, '#06b6d4', 'Lluvia acumulada (mm)');
+                const gTemp = suavizarParaGrafico(hist.horas, hist.temps);
+                crearGraficoEvolucion('chartTemp', 'temp', gTemp.horas, gTemp.valores, '#f97316', 'Temperatura (°C)');
+
+                const gHum = suavizarParaGrafico(hist.horas, hist.hums);
+                crearGraficoEvolucion('chartHum', 'hum', gHum.horas, gHum.valores, '#3b82f6', 'Humedad (%)');
+
+                if (ocultarPresion) {
+                    if (graficos.pres) { graficos.pres.destroy(); graficos.pres = null; }
+                } else {
+                    const gPres = suavizarParaGrafico(hist.horas, hist.press);
+                    crearGraficoEvolucion('chartPres', 'pres', gPres.horas, gPres.valores, '#10b981', 'Presión (hPa)');
+                }
+
+                const gRain = suavizarParaGrafico(hist.horasLluvia || hist.horas, hist.rains, 'last');
+                crearGraficoEvolucion('chartRain', 'rain', gRain.horas, gRain.valores, '#06b6d4', 'Lluvia acumulada (mm)');
             } else {
                 limpiarCampos();
             }
@@ -1001,8 +1462,23 @@
                 }).addTo(map);
                 marker.bindPopup(`<b class="text-[14px] font-black text-slate-800 m-0">${p.n}</b>`);
 
-                // Hacer fetch para saber cuándo fue la última vez que transmitió
-                const dataHistorial = await fetchHistorialCanal(p);
+                // Hacer fetch para saber cuándo fue la última vez que transmitió, y de
+                // paso (en paralelo) la lluvia de los últimos 7 días para la comparativa semanal.
+                const [dataHistorial, lluviaSemana] = await Promise.all([
+                    fetchHistorialCanal(p),
+                    fetchLluviaSemanaEstacion(p)
+                ]);
+
+                // Guardamos el último valor válido de cada variable para poder
+                // mostrarlo en el mapa expandido sin tener que volver a pedirlo.
+                const ultimoValido = (arr) => (arr || []).slice().reverse().find(v => v !== null) ?? null;
+                p.valorActual = {
+                    temp: ultimoValido(dataHistorial.temps),
+                    hum: ultimoValido(dataHistorial.hums),
+                    pres: ultimoValido(dataHistorial.press),
+                    rain: ultimoValido(dataHistorial.rains),
+                    wind: ultimoValido(dataHistorial.winds)
+                };
 
                 let etiquetaTiempo = "";
                 let indicatorColor = "bg-green-500"; // Verde = transmitiendo
@@ -1029,6 +1505,14 @@
                     datosComparativos.labels.push(p.n);
                     datosComparativos.mins.push(parseFloat(dataHistorial.tempMin));
                     datosComparativos.maxs.push(parseFloat(dataHistorial.tempMax));
+                }
+
+                // Alimentar la comparativa semanal de lluvia con el acumulado de los últimos 7
+                // días. Las estaciones sin dato (null), que no registraron lluvia (0mm) o con
+                // un acumulado fuera de todo rango plausible (falla del sensor) no entran.
+                if (p.live && lluviaSemana != null && lluviaSemana > 0 && lluviaSemana <= LLUVIA_SEMANA_MAX_PLAUSIBLE) {
+                    datosLluviaSemana.labels.push(p.n);
+                    datosLluviaSemana.valores.push(lluviaSemana);
                 }
 
                 // Orden de la lista: primero la estación con dato más reciente. Las que
@@ -1073,7 +1557,428 @@
             });
 
             renderizarGraficoComparativo();
+            renderizarGraficoComparativoLluvia();
         }
+
+        // ─── MAPA EXPANDIDO (selector de variable) ──────────────────────────────
+        const VARIABLES_MAPA = [
+            { id: 'temp', label: '🌡️ Temperatura', unidad: '°C', clr: '#f97316' },
+            { id: 'hum',  label: '💧 Humedad',      unidad: '%',   clr: '#3b82f6' },
+            { id: 'pres', label: '🎈 Presión',      unidad: 'hPa', clr: '#10b981' },
+            { id: 'rain', label: '🌧️ Lluvia hoy',   unidad: 'mm',  clr: '#06b6d4' },
+            { id: 'wind', label: '🌬️ Viento',       unidad: 'km/h', clr: '#6366f1' }
+        ];
+
+        let mapaExpandido = null;
+        let marcadoresExpandido = []; // { p, marker } — estaciones sueltas
+        let marcadorGrupoObservatorio = null; // { grupo, marker } — vista de lejos
+        let marcadoresObservatorioIndividual = []; // { p, marker } — vista de cerca
+        let variableMapaActual = 'temp';
+
+        // A partir de este zoom, el grupo del Observatorio se separa en un marcador
+        // por estación; con menos zoom se ven todas juntas en un solo globito.
+        const ZOOM_SEPARAR_OBSERVATORIO = 15;
+
+        function crearSelectorVariableMapa() {
+            const cont = document.getElementById('selector-variable-mapa');
+            cont.innerHTML = '';
+            VARIABLES_MAPA.forEach(v => {
+                const chip = document.createElement('button');
+                chip.className = 'chip-variable';
+                chip.textContent = v.label;
+                chip.dataset.variable = v.id;
+                chip.addEventListener('click', () => cambiarVariableMapa(v.id));
+                cont.appendChild(chip);
+            });
+            actualizarSelectorVariableMapa();
+        }
+
+        function actualizarSelectorVariableMapa() {
+            document.querySelectorAll('#selector-variable-mapa .chip-variable').forEach(chip => {
+                const v = VARIABLES_MAPA.find(v => v.id === chip.dataset.variable);
+                const activo = chip.dataset.variable === variableMapaActual;
+                chip.classList.toggle('active', activo);
+                chip.style.background = activo ? v.clr : '';
+            });
+        }
+
+        function cambiarVariableMapa(id) {
+            variableMapaActual = id;
+            actualizarSelectorVariableMapa();
+            actualizarMapaExpandido();
+        }
+
+        function actualizarMarcadorSuelto(p, marker, v) {
+            const valor = p.valorActual ? p.valorActual[v.id] : null;
+
+            // Las estaciones sin dato de esta variable (o fuera de servicio) no se
+            // muestran en el mapa expandido.
+            if (!p.live || valor === null) {
+                mapaExpandido.removeLayer(marker);
+                return;
+            }
+            if (!mapaExpandido.hasLayer(marker)) marker.addTo(mapaExpandido);
+
+            marker.setTooltipContent(`<b>${p.n}</b><br>${valor} ${v.unidad}`);
+            const el = marker.getTooltip() && marker.getTooltip().getElement();
+            if (el) el.style.setProperty('--tt-bg', v.clr);
+        }
+
+        // Actualiza todos los marcadores del mapa expandido: las estaciones sueltas
+        // (sin cambios), y el grupo del Observatorio, que se muestra como un solo
+        // globito con todas las estaciones juntas cuando el mapa está alejado, o
+        // como un marcador por estación cuando se hace zoom (ver
+        // ZOOM_SEPARAR_OBSERVATORIO). Se llama tanto al cambiar de variable como al
+        // hacer zoom.
+        function actualizarMapaExpandido() {
+            if (!mapaExpandido) return;
+            const v = VARIABLES_MAPA.find(v => v.id === variableMapaActual);
+
+            marcadoresExpandido.forEach(({ p, marker }) => actualizarMarcadorSuelto(p, marker, v));
+
+            if (!marcadorGrupoObservatorio) return;
+
+            const zoomCerca = mapaExpandido.getZoom() >= ZOOM_SEPARAR_OBSERVATORIO;
+            const { grupo, marker: markerGrupo } = marcadorGrupoObservatorio;
+
+            const filas = grupo
+                .filter(est => est.live)
+                .map(est => ({ est, valor: est.valorActual ? est.valorActual[v.id] : null }))
+                .filter(({ valor }) => valor !== null);
+
+            if (zoomCerca || !filas.length) {
+                mapaExpandido.removeLayer(markerGrupo);
+            } else {
+                if (!mapaExpandido.hasLayer(markerGrupo)) markerGrupo.addTo(mapaExpandido);
+                const contenido = '<div class="tt-grupo-header">Observatorio (FCAG)</div>' +
+                    filas.map(({ est, valor }) => `<div class="tt-grupo-fila"><span>${est.n}</span><b>${valor} ${v.unidad}</b></div>`).join('');
+                markerGrupo.setTooltipContent(contenido);
+                const el = markerGrupo.getTooltip() && markerGrupo.getTooltip().getElement();
+                if (el) el.style.setProperty('--tt-bg', '#475569');
+            }
+
+            marcadoresObservatorioIndividual.forEach(({ p, marker }) => {
+                if (!zoomCerca) {
+                    mapaExpandido.removeLayer(marker);
+                    return;
+                }
+                actualizarMarcadorSuelto(p, marker, v);
+            });
+        }
+
+        function abrirMapaExpandido() {
+            const overlay = document.getElementById('mapa-expandido-overlay');
+            overlay.classList.remove('hidden');
+            overlay.classList.add('flex');
+
+            if (!mapaExpandido) {
+                mapaExpandido = L.map('mapa-expandido', { zoomControl: true }).setView([-35.10, -57.75], 9);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(mapaExpandido);
+
+                const estacionesObservatorio = puntos.filter(p => p.grupoObservatorio);
+                const estacionesSueltas = puntos.filter(p => !p.grupoObservatorio);
+
+                estacionesSueltas.forEach(p => {
+                    const marker = L.circleMarker(p.c, {
+                        radius: 10, fillColor: p.live ? p.clr : '#94a3b8', color: '#ffffff', weight: 3, fillOpacity: 1
+                    }).addTo(mapaExpandido);
+                    marker.bindTooltip('', { permanent: true, direction: 'top', offset: [0, -12], className: 'tooltip-variable' });
+                    marcadoresExpandido.push({ p, marker });
+                });
+
+                if (estacionesObservatorio.length) {
+                    const centro = [
+                        estacionesObservatorio.reduce((s, p) => s + p.c[0], 0) / estacionesObservatorio.length,
+                        estacionesObservatorio.reduce((s, p) => s + p.c[1], 0) / estacionesObservatorio.length
+                    ];
+                    const markerGrupo = L.circleMarker(centro, {
+                        radius: 13, fillColor: '#475569', color: '#ffffff', weight: 3, fillOpacity: 1
+                    }).addTo(mapaExpandido);
+                    markerGrupo.bindTooltip('', { permanent: true, direction: 'top', offset: [0, -15], className: 'tooltip-grupo' });
+                    marcadorGrupoObservatorio = { grupo: estacionesObservatorio, marker: markerGrupo };
+
+                    // Marcadores individuales: arrancan sin agregar al mapa, recién se
+                    // muestran al hacer zoom (los agrega actualizarMapaExpandido()).
+                    estacionesObservatorio.forEach(p => {
+                        const marker = L.circleMarker(p.c, {
+                            radius: 10, fillColor: p.live ? p.clr : '#94a3b8', color: '#ffffff', weight: 3, fillOpacity: 1
+                        });
+                        marker.bindTooltip('', { permanent: true, direction: 'top', offset: [0, -12], className: 'tooltip-variable' });
+                        marcadoresObservatorioIndividual.push({ p, marker });
+                    });
+
+                    mapaExpandido.on('zoomend', actualizarMapaExpandido);
+                }
+
+                crearSelectorVariableMapa();
+                actualizarMapaExpandido();
+            } else {
+                actualizarMapaExpandido();
+            }
+
+            setTimeout(() => mapaExpandido.invalidateSize(), 200);
+        }
+
+        function cerrarMapaExpandido() {
+            const overlay = document.getElementById('mapa-expandido-overlay');
+            overlay.classList.add('hidden');
+            overlay.classList.remove('flex');
+        }
+
+        document.getElementById('btn-expandir-mapa').addEventListener('click', abrirMapaExpandido);
+        document.getElementById('btn-cerrar-mapa-expandido').addEventListener('click', cerrarMapaExpandido);
+        document.getElementById('mapa-expandido-overlay').addEventListener('click', (e) => {
+            if (e.target.id === 'mapa-expandido-overlay') cerrarMapaExpandido();
+        });
+
+        // ─── MODO ADMINISTRADOR (descarga de históricos en CSV) ─────────────────
+        const CLAVE_ADMIN = 'Observatorio';
+        let adminAutenticado = false;
+
+        function abrirAdmin() {
+            document.getElementById('admin-overlay').classList.remove('hidden');
+            document.getElementById('admin-overlay').classList.add('flex');
+
+            if (adminAutenticado) {
+                mostrarPasoDescargaAdmin();
+            } else {
+                document.getElementById('admin-input-clave').value = '';
+                document.getElementById('admin-clave-error').classList.add('hidden');
+                document.getElementById('admin-paso-clave').classList.remove('hidden');
+                document.getElementById('admin-paso-descarga').classList.add('hidden');
+                setTimeout(() => document.getElementById('admin-input-clave').focus(), 100);
+            }
+        }
+
+        function cerrarAdmin() {
+            document.getElementById('admin-overlay').classList.add('hidden');
+            document.getElementById('admin-overlay').classList.remove('flex');
+        }
+
+        function intentarLoginAdmin() {
+            const valor = document.getElementById('admin-input-clave').value;
+            if (valor === CLAVE_ADMIN) {
+                adminAutenticado = true;
+                mostrarPasoDescargaAdmin();
+            } else {
+                document.getElementById('admin-clave-error').classList.remove('hidden');
+            }
+        }
+
+        function mostrarPasoDescargaAdmin() {
+            document.getElementById('admin-paso-clave').classList.add('hidden');
+            document.getElementById('admin-paso-descarga').classList.remove('hidden');
+
+            const select = document.getElementById('admin-select-estacion');
+            if (!select.dataset.poblado) {
+                select.innerHTML = puntos.map((p, i) => `<option value="${i}">${p.n}${p.loc ? ' — ' + p.loc : ''}</option>`).join('');
+                select.dataset.poblado = '1';
+
+                const pad = (n) => n.toString().padStart(2, '0');
+                const hoy = new Date();
+                const haceUnaSemana = new Date(hoy);
+                haceUnaSemana.setDate(haceUnaSemana.getDate() - 7);
+                const aInputDate = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+                document.getElementById('admin-fecha-hasta').value = aInputDate(hoy);
+                document.getElementById('admin-fecha-desde').value = aInputDate(haceUnaSemana);
+            }
+        }
+
+        // Trae el historial de una estación Wunderground entre dos fechas (inclusive),
+        // un pedido por día porque así funciona el endpoint history/all.
+        async function fetchHistoricoRangoWU(estacion, desde, hasta) {
+            const dias = [];
+            const cursor = new Date(desde);
+            while (cursor <= hasta) {
+                dias.push(new Date(cursor));
+                cursor.setDate(cursor.getDate() + 1);
+            }
+
+            const porDia = await Promise.all(dias.map(d => fetchWUHistorialDia(estacion.wuId, estacion.wuKey, d)));
+            const observaciones = porDia.flat().sort((a, b) => {
+                const ta = new Date((a.obsTimeLocal || a.obsTimeUtc).replace(' ', 'T'));
+                const tb = new Date((b.obsTimeLocal || b.obsTimeUtc).replace(' ', 'T'));
+                return ta - tb;
+            });
+
+            return observaciones.map(o => {
+                const rawTs = o.obsTimeLocal || o.obsTimeUtc;
+                const m = o.imperial || {};
+                const t = m.tempAvg != null ? m.tempAvg : m.temp;
+                const h = o.humidityAvg != null ? o.humidityAvg : o.humidity;
+                const p = m.pressureMax != null ? m.pressureMax : m.pressure;
+                const ws = m.windspeedAvg != null ? m.windspeedAvg : m.windSpeed;
+                return {
+                    fecha: rawTs ? rawTs.replace('T', ' ') : '',
+                    temp: t != null ? fAcC(parseFloat(t)).toFixed(1) : '',
+                    hum: h != null ? parseFloat(h).toFixed(0) : '',
+                    pres: p != null ? inHgAHpa(parseFloat(p)).toFixed(1) : '',
+                    viento: ws != null ? mphAKmh(parseFloat(ws)).toFixed(1) : '',
+                    lluvia: m.precipTotal != null ? inAMm(parseFloat(m.precipTotal)).toFixed(1) : ''
+                };
+            });
+        }
+
+        // Trae el historial de una estación ThingSpeak entre dos fechas (inclusive).
+        // La lluvia se exporta como acumulado corrido del período pedido (misma lógica
+        // que datosDelPeriodoTS: pulso fijo para pluviómetros de cazoleta con rainMult,
+        // magnitud cruda para el resto).
+        async function fetchHistoricoRangoTS(estacion, desde, hasta) {
+            const pad = (n) => n.toString().padStart(2, '0');
+            const aParam = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+            const startParam = `${aParam(desde)}%2000:00:00`;
+            const endParam = `${aParam(hasta)}%2023:59:59`;
+
+            const canales = estacion.channels || [{ id: estacion.id, key: estacion.key }];
+            const respuestas = await Promise.all(canales.map(ch => fetchFeedsCanal(ch, `&start=${startParam}&end=${endParam}`)));
+            let feeds = respuestas.flatMap(d => d.feeds || []);
+            feeds.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+            const timestampsVistos = new Set();
+            feeds = feeds.filter(f => {
+                if (timestampsVistos.has(f.created_at)) return false;
+                timestampsVistos.add(f.created_at);
+                return true;
+            });
+
+            const channelId = estacion.id || canales[0].id;
+            const isObservatorio = channelId === '2823820';
+            const isEmaVerde = !!estacion.isEmaVerde;
+            const rainField = isEmaVerde ? 'field4' : 'field5';
+
+            let lluviaAcumulada = 0;
+            return feeds.map(f => {
+                const t = parseFloat(f.field1);
+                const hField = isObservatorio ? 'field4' : 'field2';
+                const h = parseFloat(f[hField]);
+                const p = parseFloat(f.field6);
+                const ws = isObservatorio ? parseFloat(f.field7) : null;
+
+                let v = parseFloat(f[rainField]);
+                if (!isNaN(v) && v >= 0) {
+                    if (estacion.rainMult) v = v > 0 ? estacion.rainMult : 0;
+                    lluviaAcumulada += v;
+                }
+
+                return {
+                    fecha: f.created_at ? f.created_at.replace('T', ' ').replace('Z', '') : '',
+                    temp: isNaN(t) ? '' : t.toFixed(1),
+                    hum: isNaN(h) ? '' : h.toFixed(0),
+                    pres: isNaN(p) ? '' : p.toFixed(1),
+                    viento: (ws === null || isNaN(ws)) ? '' : ws.toFixed(1),
+                    lluvia: lluviaAcumulada.toFixed(2)
+                };
+            });
+        }
+
+        // La fuente Davis (Observatorio) solo tiene el día de HOY disponible en el
+        // archivo: se ignora el rango pedido, se devuelve lo que haya ahí, y
+        // descargarHistoricoAdmin() avisa si el rango elegido no incluía hoy.
+        async function fetchHistoricoRangoDavis(estacion) {
+            const res = await fetch(estacion.davisUrl, { cache: 'no-store' });
+            const texto = await res.text();
+            const filas = parsearFilasDavis(texto);
+
+            const pad = (n) => n.toString().padStart(2, '0');
+            let lluviaAcumulada = 0;
+            return filas.map(cols => {
+                const fecha = parsearFechaHoraDavis(cols[0], cols[1]);
+                const t = parseFloat(cols[2]);
+                const h = parseFloat(cols[5]);
+                const p = parseFloat(cols[15]);
+                const ws = parseFloat(cols[7]);
+
+                const r = parseFloat(cols[16]);
+                if (!isNaN(r) && r >= 0) lluviaAcumulada += r;
+
+                const fechaStr = `${fecha.getFullYear()}-${pad(fecha.getMonth() + 1)}-${pad(fecha.getDate())} ${pad(fecha.getHours())}:${pad(fecha.getMinutes())}:00`;
+                return {
+                    fecha: fechaStr,
+                    temp: isNaN(t) ? '' : t.toFixed(1),
+                    hum: isNaN(h) ? '' : h.toFixed(0),
+                    pres: isNaN(p) ? '' : p.toFixed(1),
+                    viento: isNaN(ws) ? '' : ws.toFixed(1),
+                    lluvia: lluviaAcumulada.toFixed(2)
+                };
+            });
+        }
+
+        function descargarArchivo(nombre, contenido) {
+            const blob = new Blob([contenido], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = nombre;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+
+        // Excel en español (es-AR, es-ES, etc.) usa ";" como separador de columnas al
+        // abrir un CSV directamente (reserva la "," para los decimales), así que con
+        // "," como separador todo aparecía amontonado en una sola columna.
+        function filasACsv(filas) {
+            const encabezado = 'fecha_hora;temperatura_c;humedad_pct;presion_hpa;viento_kmh;lluvia_acumulada_mm';
+            const cuerpo = filas.map(f => [f.fecha, f.temp, f.hum, f.pres, f.viento, f.lluvia].join(';')).join('\n');
+            return '﻿' + encabezado + '\n' + cuerpo;
+        }
+
+        async function descargarHistoricoAdmin() {
+            const estado = document.getElementById('admin-descarga-estado');
+            const btn = document.getElementById('btn-admin-descargar');
+
+            const estacion = puntos[parseInt(document.getElementById('admin-select-estacion').value, 10)];
+            const desde = new Date(document.getElementById('admin-fecha-desde').value + 'T00:00:00');
+            const hasta = new Date(document.getElementById('admin-fecha-hasta').value + 'T00:00:00');
+
+            if (isNaN(desde) || isNaN(hasta) || desde > hasta) {
+                estado.textContent = 'Revisá las fechas elegidas.';
+                return;
+            }
+
+            btn.disabled = true;
+            estado.textContent = 'Generando el archivo...';
+
+            try {
+                if (estacion.source === 'davis') {
+                    const hoyStr = new Date().toDateString();
+                    if (desde.toDateString() !== hoyStr || hasta.toDateString() !== hoyStr) {
+                        estado.textContent = 'Esta estación solo tiene datos de HOY disponibles (elegí desde y hasta = hoy).';
+                        btn.disabled = false;
+                        return;
+                    }
+                }
+
+                const filas = estacion.source === 'davis' ? await fetchHistoricoRangoDavis(estacion)
+                    : estacion.source === 'wunderground' ? await fetchHistoricoRangoWU(estacion, desde, hasta)
+                    : await fetchHistoricoRangoTS(estacion, desde, hasta);
+
+                if (filas.length === 0) {
+                    estado.textContent = 'No hay datos en ese período.';
+                } else {
+                    const nombreArchivo = `${estacion.n.replace(/[^a-z0-9]+/gi, '_')}_${document.getElementById('admin-fecha-desde').value}_${document.getElementById('admin-fecha-hasta').value}.csv`;
+                    descargarArchivo(nombreArchivo, filasACsv(filas));
+                    estado.textContent = `Listo: ${filas.length} lecturas descargadas.`;
+                }
+            } catch (e) {
+                console.error('Error generando el CSV del admin:', e);
+                estado.textContent = 'Ocurrió un error al traer los datos.';
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        document.getElementById('btn-admin-trigger').addEventListener('click', abrirAdmin);
+        document.getElementById('btn-cerrar-admin').addEventListener('click', cerrarAdmin);
+        document.getElementById('admin-overlay').addEventListener('click', (e) => {
+            if (e.target.id === 'admin-overlay') cerrarAdmin();
+        });
+        document.getElementById('btn-admin-entrar').addEventListener('click', intentarLoginAdmin);
+        document.getElementById('admin-input-clave').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') intentarLoginAdmin();
+        });
+        document.getElementById('btn-admin-descargar').addEventListener('click', descargarHistoricoAdmin);
 
         inicializarRed();
     </script>
