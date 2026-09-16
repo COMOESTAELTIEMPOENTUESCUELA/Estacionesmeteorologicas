@@ -14,17 +14,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800;900&display=swap" rel="stylesheet">
 
     <style>
-        body { 
-            margin: 0; 
+        body {
+            margin: 0;
             font-family: 'Plus Jakarta Sans', sans-serif;
             background-color: #e0f2fe;
-            /* SIN overflow:hidden para que mobile pueda hacer scroll */
-        }
-
-        /* Desktop: layout fijo de pantalla completa */
-        @media (min-width: 1024px) {
-            body { overflow: hidden; height: 100vh; }
-            #layout-root { height: 100vh; overflow: hidden; }
         }
 
         .station-btn {
@@ -83,9 +76,9 @@
             background-attachment: fixed;
         }
 
-        /* Scrollbar más chico en la sidebar de escritorio */
-        #sidebar-scroll::-webkit-scrollbar { width: 6px; }
-        #sidebar-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 6px; }
+        /* Scrollbar más chico en la lista de escuelas de la solapa */
+        #button-container::-webkit-scrollbar { width: 6px; }
+        #button-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 6px; }
 
         /* Globitos con el valor de la variable elegida en el mapa expandido. El
            color lo pone el JS con la variable --tt-bg según la variable activa. */
@@ -164,55 +157,51 @@
 
 <body class="text-slate-800 antialiased">
 
-<div id="layout-root" class="flex flex-col lg:flex-row w-full">
+<div id="layout-root">
 
-    <!-- BARRA LATERAL -->
-    <aside class="w-full lg:w-[400px] xl:w-[430px] bg-white border-b-4 lg:border-b-0 lg:border-r-4 border-slate-200 flex flex-col lg:h-screen shrink-0 z-20 shadow-lg">
-        
-        <div class="p-4 lg:p-6 bg-white border-b-2 border-slate-100 flex justify-between items-center shrink-0 lg:sticky lg:top-0 lg:z-10">
-            <div class="flex items-center gap-3">
-                <img src="imagenes/Logo1.jpg" alt="Logo del Proyecto" class="w-16 h-16 lg:w-20 lg:h-20 object-cover rounded-full border-2 border-yellow-400 shadow-sm" onerror="this.src='https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&q=80&w=100'">
-                <div>
-                    <h1 class="text-xl lg:text-2xl font-black text-slate-900 tracking-tight">Red de estaciones meteorológicas</h1>
-                    <p class="text-[10px] text-blue-600 font-bold uppercase tracking-widest mt-0.5">FCAG · UNLP</p>
-                </div>
-            </div>
-            <a href="index.html" class="p-2 lg:p-3 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-2xl transition shadow-sm" title="Volver al inicio">
-                <i data-lucide="home" class="w-5 h-5 lg:w-6 lg:h-6"></i>
-            </a>
-        </div>
-
-        <div id="map" class="w-full h-44 lg:h-56 shrink-0 z-0 bg-slate-200 border-b-4 border-slate-200"></div>
-
-        <div id="sidebar-scroll" class="p-4 lg:p-5 lg:flex-grow lg:overflow-y-auto bg-slate-50/80 relative">
-            <h2 class="text-xs font-black text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-                <i data-lucide="hand-pointing" class="w-4 h-4 text-blue-500 animate-bounce"></i> ¡Elegí una escuela!
-            </h2>
-            <div id="button-container"></div>
-            
-            <div id="secreto-meteo" class="mt-4 p-4 bg-yellow-100 rounded-3xl border-4 border-yellow-300 text-xs text-yellow-800 font-bold leading-relaxed shadow-sm flex gap-3 items-center hidden">
-                <i data-lucide="lightbulb" class="w-7 h-7 text-yellow-500 animate-pulse shrink-0"></i>
-                <span><b>¡Secreto de Meteo!</b> El viento es aire en movimiento que trae temperatura y humedad. ¡Mirá la flecha para descubrir hacia dónde va el viento!</span>
+    <!-- BARRA SUPERIOR -->
+    <div class="bg-white border-b-4 border-slate-200 shadow-sm p-3 lg:p-4 flex justify-between items-center relative z-[700]">
+        <div class="flex items-center gap-3">
+            <img src="imagenes/Logo1.jpg" alt="Logo del Proyecto" class="w-11 h-11 lg:w-14 lg:h-14 object-cover rounded-full border-2 border-yellow-400 shadow-sm" onerror="this.src='https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&q=80&w=100'">
+            <div>
+                <h1 class="text-base lg:text-xl font-black text-slate-900 tracking-tight leading-tight">Red de estaciones meteorológicas</h1>
+                <p class="text-[9px] lg:text-[10px] text-blue-600 font-bold uppercase tracking-widest mt-0.5">FCAG · UNLP</p>
             </div>
         </div>
-    </aside>
+        <a href="index.html" class="p-2 lg:p-3 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-2xl transition shadow-sm" title="Volver al inicio">
+            <i data-lucide="home" class="w-5 h-5 lg:w-6 lg:h-6"></i>
+        </a>
+    </div>
+
+    <!-- MAPA DE LA RED: de lado a lado, con el selector de variable flotando arriba
+         y una solapa deslizable a la izquierda con la lista de escuelas. -->
+    <div class="relative w-full h-[65vh] lg:h-[78vh]">
+        <div id="mapa-expandido" class="absolute inset-0 z-0 bg-slate-200"></div>
+
+        <div id="selector-variable-mapa" class="absolute top-3 left-1/2 -translate-x-1/2 z-[500] flex flex-wrap justify-center gap-2 px-14 max-w-full"></div>
+
+        <!-- Solapa con la lista de escuelas -->
+        <button id="btn-abrir-solapa" class="absolute top-1/2 left-0 -translate-y-1/2 z-[600] bg-blue-600 hover:bg-blue-700 text-white pl-2 pr-3 py-5 rounded-r-2xl shadow-lg transition flex flex-col items-center gap-1" title="Ver escuelas">
+            <i data-lucide="chevron-right" class="w-5 h-5"></i>
+        </button>
+        <div id="fondo-solapa" class="absolute inset-0 bg-slate-900/40 z-[640] hidden"></div>
+        <div id="solapa-escuelas" class="absolute top-0 left-0 h-full w-[86vw] sm:w-[380px] max-w-full bg-white shadow-2xl z-[650] -translate-x-full transition-transform duration-300 ease-out flex flex-col">
+            <div class="p-4 border-b-2 border-slate-100 flex justify-between items-center shrink-0">
+                <h2 class="text-xs font-black text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                    <i data-lucide="hand-pointing" class="w-4 h-4 text-blue-500 animate-bounce"></i> ¡Elegí una escuela!
+                </h2>
+                <button id="btn-cerrar-solapa" class="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition" title="Cerrar">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div id="button-container" class="p-4 overflow-y-auto flex-grow"></div>
+        </div>
+    </div>
 
     <!-- ÁREA PRINCIPAL -->
-    <main id="main-dashboard" class="flex-grow lg:h-screen lg:overflow-y-auto bg-gradient-to-br from-sky-400 via-blue-300 to-sky-200 bg-sky-pattern scroll-smooth">
-        
-        <div class="max-w-5xl mx-auto space-y-5 p-4 lg:p-8 relative z-10">
+    <main id="main-dashboard" class="bg-gradient-to-br from-sky-400 via-blue-300 to-sky-200 bg-sky-pattern scroll-smooth">
 
-            <!-- MAPA DE LA RED (primero que aparece, con selector de variable) -->
-            <div class="bg-white/95 backdrop-blur-md rounded-[1.5rem] lg:rounded-[2rem] border-4 border-white shadow-xl overflow-hidden">
-                <div class="p-4 lg:p-5 border-b-2 border-slate-100">
-                    <h2 class="text-lg lg:text-2xl font-black text-blue-900 tracking-tight leading-tight flex items-center gap-2 mb-1">
-                        <i data-lucide="map" class="w-5 h-5 lg:w-6 lg:h-6 text-blue-600"></i> Mapa de la red
-                    </h2>
-                    <p class="text-xs lg:text-sm text-slate-500 font-bold mb-3">Elegí una variable y tocá una estación para ver sus datos</p>
-                    <div id="selector-variable-mapa" class="flex flex-wrap gap-2"></div>
-                </div>
-                <div id="mapa-expandido" class="w-full h-[320px] lg:h-[420px] z-0 bg-slate-200"></div>
-            </div>
+        <div class="max-w-5xl mx-auto space-y-5 p-4 lg:p-8 relative z-10">
 
             <div id="panel-estacion" class="space-y-5 hidden">
 
@@ -283,6 +272,11 @@
                     </div>
                     <span class="text-2xl lg:text-4xl font-black text-slate-800 tracking-tighter" id="live-val-dew">--°C</span>
                 </div>
+            </div>
+
+            <div id="secreto-meteo" class="p-4 bg-yellow-100 rounded-3xl border-4 border-yellow-300 text-xs text-yellow-800 font-bold leading-relaxed shadow-sm flex gap-3 items-center hidden">
+                <i data-lucide="lightbulb" class="w-7 h-7 text-yellow-500 animate-pulse shrink-0"></i>
+                <span><b>¡Secreto de Meteo!</b> El viento es aire en movimiento que trae temperatura y humedad. ¡Mirá la flecha para descubrir hacia dónde va el viento!</span>
             </div>
 
             <!-- SELECTOR DE PERÍODO -->
@@ -455,10 +449,6 @@
             { source: "wunderground", wuId: "IBERIS14", wuKey: "af815b5b4b804cfd815b5b4b80dcfd07",
               n: "EP N°23 (Los Talas)", loc: "Berisso", c: [-34.92712, -57.76241], clr: "#ec4899", live: true, img: "imagenes/Ep_23_LOSTALAS.jpeg" }
         ];
-
-        const map = L.map('map', { zoomControl: false }).setView([-35.10, -57.75], 9);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(map);
-        setTimeout(() => map.invalidateSize(), 500);
 
         const btnContainer = document.getElementById('button-container');
         const graficos = { temp: null, hum: null, pres: null, rain: null, comp: null, compLluvia: null };
@@ -1268,7 +1258,7 @@
         let periodoActual = 'hoy';
         let convencionLluvia = 'calendario'; // 'calendario' (00 a 00) | 'meteorologico' (9 a 9)
         let estacionActual = null;
-        let elementosEstacion = new Map(); // p -> { btn, marker } del mapa chico, para poder seleccionar desde el mapa grande
+        let elementosEstacion = new Map(); // p -> { btn, marker }, para poder seleccionar una estación clickeando su marcador en el mapa
 
         function actualizarTitulosDeGraficos() {
             const sufijo = periodoActual === 'semana' ? 'de la última semana' : 'de las últimas 24 hs';
@@ -1421,8 +1411,8 @@
             document.querySelectorAll('.station-btn').forEach(b => b.classList.remove('active'));
             btnElement.classList.add('active');
             document.getElementById('nombre-estacion-activa').innerText = p.n;
-            map.flyTo(p.c, 13, { duration: 1.5 });
-            marker.openPopup();
+            cerrarSolapaEscuelas();
+            if (mapaExpandido) mapaExpandido.flyTo(p.c, 13, { duration: 1.5 });
 
             // El panel de datos de la estación arranca oculto (lo primero que se ve es
             // el mapa) y se despliega recién cuando se elige una estación.
@@ -1463,10 +1453,9 @@
             for (const p of puntos) {
                 const markerColor = p.live ? p.clr : '#94a3b8'; // Gris si está offline
 
-                const marker = L.circleMarker(p.c, {
-                    radius: 10, fillColor: markerColor, color: "#ffffff", weight: 3, fillOpacity: 1
-                }).addTo(map);
-                marker.bindPopup(`<b class="text-[14px] font-black text-slate-800 m-0">${p.n}</b>`);
+                // El marcador ya lo creó inicializarMapaGrande() (el único mapa de la
+                // página); acá solo lo reusamos para poder seleccionar la estación.
+                const marker = mapaDeMarcadores.get(p);
 
                 // Hacer fetch para saber cuándo fue la última vez que transmitió, y de
                 // paso (en paralelo) la lluvia de los últimos 7 días para la comparativa semanal.
@@ -1576,6 +1565,7 @@
         let marcadoresExpandido = []; // { p, marker } — estaciones sueltas
         let marcadorGrupoObservatorio = null; // { grupo, marker } — vista de lejos
         let marcadoresObservatorioIndividual = []; // { p, marker } — vista de cerca
+        let mapaDeMarcadores = new Map(); // p -> marker, para que inicializarRed() reuse el mismo marcador
         let variableMapaActual = 'temp';
 
         // A partir de este zoom, el grupo del Observatorio se separa en un marcador
@@ -1669,9 +1659,9 @@
             });
         }
 
-        // Selecciona una estación desde un click en el mapa grande, reutilizando el
-        // mismo flujo que un click en la lista de la barra lateral (mismo botón y
-        // mismo marcador del mapa chico, guardados en elementosEstacion).
+        // Selecciona una estación desde un click en su marcador del mapa, reutilizando
+        // el mismo flujo que un click en la lista de la solapa (mismo botón y
+        // marcador, guardados en elementosEstacion).
         function seleccionarEscuelaDesdeMapaGrande(p) {
             const el = elementosEstacion.get(p);
             if (el) seleccionarEscuela(p, el.btn, el.marker);
@@ -1691,6 +1681,7 @@
                 marker.bindTooltip('', { permanent: true, direction: 'top', offset: [0, -12], className: 'tooltip-variable' });
                 marker.on('click', () => seleccionarEscuelaDesdeMapaGrande(p));
                 marcadoresExpandido.push({ p, marker });
+                mapaDeMarcadores.set(p, marker);
             });
 
             if (estacionesObservatorio.length) {
@@ -1716,6 +1707,7 @@
                     marker.bindTooltip('', { permanent: true, direction: 'top', offset: [0, -12], className: 'tooltip-variable' });
                     marker.on('click', () => seleccionarEscuelaDesdeMapaGrande(p));
                     marcadoresObservatorioIndividual.push({ p, marker });
+                    mapaDeMarcadores.set(p, marker);
                 });
 
                 mapaExpandido.on('zoomend', actualizarMapaExpandido);
@@ -1975,6 +1967,19 @@
             if (e.key === 'Enter') intentarLoginAdmin();
         });
         document.getElementById('btn-admin-descargar').addEventListener('click', descargarHistoricoAdmin);
+
+        // ─── SOLAPA DE ESCUELAS (desliza sobre el mapa) ──────────────────────────
+        function abrirSolapaEscuelas() {
+            document.getElementById('solapa-escuelas').classList.remove('-translate-x-full');
+            document.getElementById('fondo-solapa').classList.remove('hidden');
+        }
+        function cerrarSolapaEscuelas() {
+            document.getElementById('solapa-escuelas').classList.add('-translate-x-full');
+            document.getElementById('fondo-solapa').classList.add('hidden');
+        }
+        document.getElementById('btn-abrir-solapa').addEventListener('click', abrirSolapaEscuelas);
+        document.getElementById('btn-cerrar-solapa').addEventListener('click', cerrarSolapaEscuelas);
+        document.getElementById('fondo-solapa').addEventListener('click', cerrarSolapaEscuelas);
 
         // El mapa grande se arma ya mismo (es lo primero que se ve); los marcadores
         // muestran valores recién cuando inicializarRed() termina de traer los datos
