@@ -174,15 +174,21 @@
     </div>
 
     <!-- MAPA DE LA RED: de lado a lado, con el selector de variable flotando arriba
-         y una solapa deslizable a la izquierda con la lista de escuelas. -->
-    <div class="relative w-full h-[65vh] lg:h-[78vh]">
+         y una solapa deslizable a la izquierda con la lista de escuelas. Se achica
+         con una animación al elegir una estación (ver contraerMapaRed()/expandirMapaRed()). -->
+    <div id="contenedor-mapa-red" class="relative w-full h-[65vh] lg:h-[78vh] transition-all duration-700 ease-in-out">
         <div id="mapa-expandido" class="absolute inset-0 z-0 bg-slate-200"></div>
 
         <div id="selector-variable-mapa" class="absolute top-3 left-1/2 -translate-x-1/2 z-[500] flex flex-wrap justify-center gap-2 px-14 max-w-full"></div>
 
+        <button id="btn-agrandar-mapa" class="absolute top-3 right-3 z-[500] bg-white/90 backdrop-blur hover:bg-white text-blue-700 px-3 py-2 rounded-xl shadow-md border-2 border-white transition hidden items-center gap-2 font-black text-xs" title="Ver mapa completo">
+            <i data-lucide="maximize-2" class="w-4 h-4"></i> Ver mapa completo
+        </button>
+
         <!-- Solapa con la lista de escuelas -->
-        <button id="btn-abrir-solapa" class="absolute top-1/2 left-0 -translate-y-1/2 z-[600] bg-blue-600 hover:bg-blue-700 text-white pl-2 pr-3 py-5 rounded-r-2xl shadow-lg transition flex flex-col items-center gap-1" title="Ver escuelas">
+        <button id="btn-abrir-solapa" class="absolute top-1/2 left-0 -translate-y-1/2 z-[600] bg-blue-600 hover:bg-blue-700 text-white pl-2 pr-2 py-4 rounded-r-2xl shadow-lg transition flex flex-col items-center gap-2" title="Ver escuelas">
             <i data-lucide="chevron-right" class="w-5 h-5"></i>
+            <span class="text-[10px] font-black uppercase tracking-wider [writing-mode:vertical-rl] rotate-180">Elegí una escuela</span>
         </button>
         <div id="fondo-solapa" class="absolute inset-0 bg-slate-900/40 z-[640] hidden"></div>
         <div id="solapa-escuelas" class="absolute top-0 left-0 h-full w-[86vw] sm:w-[380px] max-w-full bg-white shadow-2xl z-[650] -translate-x-full transition-transform duration-300 ease-out flex flex-col">
@@ -1413,19 +1419,19 @@
             document.getElementById('nombre-estacion-activa').innerText = p.n;
             cerrarSolapaEscuelas();
             if (mapaExpandido) mapaExpandido.flyTo(p.c, 13, { duration: 1.5 });
+            const seEstaAchicando = contraerMapaRed();
 
             // El panel de datos de la estación arranca oculto (lo primero que se ve es
-            // el mapa) y se despliega recién cuando se elige una estación.
+            // el mapa) y se despliega recién cuando se elige una estación. Si el mapa
+            // se está achicando recién ahora, esperamos a que la animación esté
+            // encaminada antes de scrollear, para que las dos animaciones se sientan
+            // como una sola en vez de pelearse entre ellas.
             const panel = document.getElementById('panel-estacion');
-            const yaEstabaVisible = !panel.classList.contains('hidden');
             panel.classList.remove('hidden');
+            setTimeout(() => panel.scrollIntoView({ behavior: 'smooth', block: 'start' }), seEstaAchicando ? 350 : 0);
 
             const hist = await fetchHistorialCanal(p, periodoActual);
             renderizarPanel(hist);
-
-            if (!yaEstabaVisible) {
-                panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
         }
 
         async function cambiarPeriodo(nuevoPeriodo) {
@@ -1980,6 +1986,35 @@
         document.getElementById('btn-abrir-solapa').addEventListener('click', abrirSolapaEscuelas);
         document.getElementById('btn-cerrar-solapa').addEventListener('click', cerrarSolapaEscuelas);
         document.getElementById('fondo-solapa').addEventListener('click', cerrarSolapaEscuelas);
+
+        // ─── ACHICAR/AGRANDAR EL MAPA (al elegir una estación) ───────────────────
+        // El mapa sigue siendo el mismo (se puede seguir eligiendo otras estaciones
+        // ahí mismo, más chico); solo cambia su altura con una transición CSS. Leaflet
+        // necesita que se le avise (invalidateSize) una vez terminada la animación,
+        // si no los tiles quedan mal recortados.
+        const CLASES_MAPA_GRANDE = 'relative w-full h-[65vh] lg:h-[78vh] transition-all duration-700 ease-in-out';
+        const CLASES_MAPA_CHICO = 'relative w-full h-[220px] lg:h-[280px] transition-all duration-700 ease-in-out';
+
+        // Devuelve true si achicó el mapa recién ahora (false si ya estaba chico).
+        function contraerMapaRed() {
+            const cont = document.getElementById('contenedor-mapa-red');
+            if (cont.className === CLASES_MAPA_CHICO) return false;
+            cont.className = CLASES_MAPA_CHICO;
+            document.getElementById('btn-agrandar-mapa').classList.remove('hidden');
+            document.getElementById('btn-agrandar-mapa').classList.add('flex');
+            setTimeout(() => { if (mapaExpandido) mapaExpandido.invalidateSize(); }, 720);
+            return true;
+        }
+
+        function expandirMapaRed() {
+            const cont = document.getElementById('contenedor-mapa-red');
+            cont.className = CLASES_MAPA_GRANDE;
+            document.getElementById('btn-agrandar-mapa').classList.add('hidden');
+            document.getElementById('btn-agrandar-mapa').classList.remove('flex');
+            cont.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            setTimeout(() => { if (mapaExpandido) mapaExpandido.invalidateSize(); }, 720);
+        }
+        document.getElementById('btn-agrandar-mapa').addEventListener('click', expandirMapaRed);
 
         // El mapa grande se arma ya mismo (es lo primero que se ve); los marcadores
         // muestran valores recién cuando inicializarRed() termina de traer los datos
