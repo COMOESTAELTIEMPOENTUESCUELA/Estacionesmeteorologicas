@@ -173,7 +173,16 @@
                 <i data-lucide="users" class="w-4 h-4"></i> Comunidad
             </div>
             <h1 class="text-4xl md:text-6xl font-black mb-4 text-blue-900 tracking-tight drop-shadow-sm">¡Conocé nuestras escuelas!</h1>
-            <p class="text-lg md:text-xl text-blue-700 font-bold max-w-3xl mx-auto">Estas son las verdaderas protagonistas del proyecto. Alumnos y docentes que registran la atmósfera todos los días.</p>
+            <p class="text-lg md:text-xl text-blue-700 font-bold max-w-3xl mx-auto mb-8">Estas son las verdaderas protagonistas del proyecto. Alumnos y docentes que registran la atmósfera todos los días.</p>
+
+            <div class="flex flex-wrap items-center justify-center gap-3">
+                <a href="#enviar-reporte" class="inline-flex items-center gap-2 bg-blue-500 hover:bg-blue-400 text-white font-black text-sm md:text-base px-6 py-3 rounded-full border-b-4 border-blue-700 hover:-translate-y-1 active:border-b-0 active:translate-y-1 transition-all shadow-md">
+                    <i data-lucide="camera" class="w-5 h-5"></i> Enviar un reporte
+                </a>
+                <a href="#mapa-comunidad" class="inline-flex items-center gap-2 bg-white hover:bg-sky-50 text-sky-700 font-black text-sm md:text-base px-6 py-3 rounded-full border-4 border-sky-200 hover:-translate-y-1 transition-all shadow-md">
+                    <i data-lucide="map" class="w-5 h-5"></i> Ver el mapa
+                </a>
+            </div>
         </div>
 
         <!-- SECCIÓN ESCUELAS CON FOTOS REALES, AGRUPADAS POR PARTIDO -->
@@ -344,7 +353,7 @@
             <div class="h-2 w-16 bg-blue-200 rounded-full"></div>
         </div>
 
-        <div id="enviar-reporte" class="text-center mb-10">
+        <div id="enviar-reporte" class="text-center mb-10 scroll-mt-28">
             <h2 class="text-3xl md:text-5xl font-black mb-4 text-slate-800 tracking-tight">¡Convertite en Investigador!</h2>
             <p class="text-lg text-slate-600 font-bold max-w-2xl mx-auto">Tus reportes del tiempo nos ayudan a entender la naturaleza. ¡Subí tus datos acá!</p>
         </div>
@@ -491,27 +500,21 @@
             <div class="h-2 w-16 bg-blue-200 rounded-full"></div>
         </div>
 
-        <!-- MAPA DE PRECIPITACIÓN -->
-        <div class="mt-8 mb-16">
-            <div class="text-center mb-10 relative">
+        <!-- MAPA DE LA COMUNIDAD: un solo mapa, con botones para elegir qué ver -->
+        <div id="mapa-comunidad" class="mt-8 mb-20 scroll-mt-28">
+            <div class="text-center mb-6 relative">
                 <div class="inline-flex items-center gap-2 bg-sky-100 text-sky-800 px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest mb-4 shadow-sm border-2 border-sky-200 rotate-2">
-                    <i data-lucide="cloud-rain" class="w-4 h-4"></i> Mapa en vivo
+                    <i data-lucide="map" class="w-4 h-4"></i> Mapa en vivo
                 </div>
-                <h2 class="text-3xl md:text-5xl font-black mb-4 text-slate-800 tracking-tight">¿Dónde está lloviendo?</h2>
-                <p class="text-lg text-slate-600 font-bold max-w-2xl mx-auto">Mirá los reportes de lluvia de la comunidad (🌧️) y el acumulado de hoy de las estaciones meteorológicas (📡).</p>
+                <h2 id="titulo-mapa-comunidad" class="text-3xl md:text-5xl font-black mb-4 text-slate-800 tracking-tight">¿Dónde está lloviendo?</h2>
+                <p id="descripcion-mapa-comunidad" class="text-lg text-slate-600 font-bold max-w-2xl mx-auto mb-6">Mirá los reportes de lluvia de la comunidad (🌧️) y el acumulado de hoy de las estaciones meteorológicas (📡).</p>
+
+                <div class="flex flex-wrap items-center justify-center gap-2">
+                    <button id="btn-mapa-pp" class="px-5 py-2.5 rounded-xl font-black text-sm border-2 transition">🌧️ Precipitación</button>
+                    <button id="btn-mapa-otros" class="px-5 py-2.5 rounded-xl font-black text-sm border-2 transition">🌫️ Otros reportes</button>
+                </div>
             </div>
             <div id="mapa-reportes-lluvia" class="w-full h-[420px] rounded-[2rem] border-4 border-sky-200 shadow-xl overflow-hidden bg-slate-100"></div>
-        </div>
-
-        <!-- MAPA DE OTROS FENÓMENOS -->
-        <div class="mt-8 mb-20">
-            <div class="text-center mb-10 relative">
-                <div class="inline-flex items-center gap-2 bg-slate-200 text-slate-700 px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest mb-4 shadow-sm border-2 border-slate-300 -rotate-2">
-                    <i data-lucide="cloud-fog" class="w-4 h-4"></i> Mapa en vivo
-                </div>
-                <h2 class="text-3xl md:text-5xl font-black mb-4 text-slate-800 tracking-tight">¿Qué más están reportando?</h2>
-                <p class="text-lg text-slate-600 font-bold max-w-2xl mx-auto">Rocío, heladas, granizo, niebla y otras observaciones de la comunidad.</p>
-            </div>
             <div id="mapa-reportes-fenomenos" class="w-full h-[420px] rounded-[2rem] border-4 border-slate-300 shadow-xl overflow-hidden bg-slate-100"></div>
         </div>
 
@@ -907,6 +910,35 @@
         });
 
         let mapasReportesInstancias = [];
+        let mapaLluviaInstancia = null;
+        let mapaFenomenosInstancia = null;
+
+        // El mapa de Comunidad muestra un mapa por vez (precipitación u otros
+        // reportes), con dos botones para elegir. Ambos mapas de Leaflet ya están
+        // creados de entrada (pintarMapa los arma igual), acá solo se cambia cuál
+        // contenedor está visible.
+        function mostrarMapaComunidad(tipo) {
+            const esPP = tipo === 'pp';
+            document.getElementById('mapa-reportes-lluvia').classList.toggle('hidden', !esPP);
+            document.getElementById('mapa-reportes-fenomenos').classList.toggle('hidden', esPP);
+
+            const activo = 'bg-sky-600 text-white border-sky-600';
+            const inactivo = 'bg-white text-slate-500 border-slate-200 hover:border-sky-300';
+            document.getElementById('btn-mapa-pp').className = `px-5 py-2.5 rounded-xl font-black text-sm border-2 transition ${esPP ? activo : inactivo}`;
+            document.getElementById('btn-mapa-otros').className = `px-5 py-2.5 rounded-xl font-black text-sm border-2 transition ${!esPP ? activo : inactivo}`;
+
+            document.getElementById('titulo-mapa-comunidad').textContent = esPP ? '¿Dónde está lloviendo?' : '¿Qué más están reportando?';
+            document.getElementById('descripcion-mapa-comunidad').innerHTML = esPP
+                ? 'Mirá los reportes de lluvia de la comunidad (🌧️) y el acumulado de hoy de las estaciones meteorológicas (📡).'
+                : 'Rocío, heladas, granizo, niebla y otras observaciones de la comunidad.';
+
+            // Un mapa de Leaflet que estuvo oculto (display:none) no calcula bien su
+            // tamaño hasta que se le avisa que ahora sí es visible.
+            const mapaVisible = esPP ? mapaLluviaInstancia : mapaFenomenosInstancia;
+            if (mapaVisible) setTimeout(function() { mapaVisible.invalidateSize(); }, 50);
+        }
+        document.getElementById('btn-mapa-pp').addEventListener('click', function() { mostrarMapaComunidad('pp'); });
+        document.getElementById('btn-mapa-otros').addEventListener('click', function() { mostrarMapaComunidad('otros'); });
 
         function abrirLightbox(src) {
             mapasReportesInstancias.forEach(function(m) { m.closePopup(); });
@@ -1136,9 +1168,14 @@
 
                     const lluviaDeHoy = deHoy.filter(function(r) { return r.type === 'lluvia'; });
                     const fenomenosDeHoy = deHoy.filter(function(r) { return TIPOS_OTROS_FENOMENOS.indexOf(r.type) !== -1; });
-                    const mapaLluvia = pintarMapa(lluviaDeHoy, 'mapa-reportes-lluvia', true);
-                    pintarMapa(fenomenosDeHoy, 'mapa-reportes-fenomenos', false);
-                    agregarEmasAlMapaLluvia(mapaLluvia);
+                    // Los dos mapas se crean mientras todavía están visibles (uno debajo
+                    // del otro), para que Leaflet calcule bien su tamaño y el fitBounds
+                    // inicial; recién después mostrarMapaComunidad('pp') oculta el que no
+                    // corresponde. Si se creara ya oculto, Leaflet lo vería con tamaño 0.
+                    mapaLluviaInstancia = pintarMapa(lluviaDeHoy, 'mapa-reportes-lluvia', true);
+                    mapaFenomenosInstancia = pintarMapa(fenomenosDeHoy, 'mapa-reportes-fenomenos', false);
+                    agregarEmasAlMapaLluvia(mapaLluviaInstancia);
+                    mostrarMapaComunidad('pp');
 
                     const btnAnteriores = document.getElementById('btn-ver-anteriores');
                     document.getElementById('btn-ver-anteriores-texto').textContent = anteriores.length
