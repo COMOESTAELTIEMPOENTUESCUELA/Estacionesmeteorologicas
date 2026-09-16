@@ -182,12 +182,7 @@
             </a>
         </div>
 
-        <div class="relative w-full shrink-0">
-            <div id="map" class="w-full h-44 lg:h-56 z-0 bg-slate-200 border-b-4 border-slate-200"></div>
-            <button id="btn-expandir-mapa" class="absolute top-3 right-3 z-[400] bg-white/90 backdrop-blur hover:bg-white text-blue-700 p-2 rounded-xl shadow-md border-2 border-white transition" title="Ver mapa completo">
-                <i data-lucide="maximize" class="w-4 h-4"></i>
-            </button>
-        </div>
+        <div id="map" class="w-full h-44 lg:h-56 shrink-0 z-0 bg-slate-200 border-b-4 border-slate-200"></div>
 
         <div id="sidebar-scroll" class="p-4 lg:p-5 lg:flex-grow lg:overflow-y-auto bg-slate-50/80 relative">
             <h2 class="text-xs font-black text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
@@ -206,7 +201,21 @@
     <main id="main-dashboard" class="flex-grow lg:h-screen lg:overflow-y-auto bg-gradient-to-br from-sky-400 via-blue-300 to-sky-200 bg-sky-pattern scroll-smooth">
         
         <div class="max-w-5xl mx-auto space-y-5 p-4 lg:p-8 relative z-10">
-            
+
+            <!-- MAPA DE LA RED (primero que aparece, con selector de variable) -->
+            <div class="bg-white/95 backdrop-blur-md rounded-[1.5rem] lg:rounded-[2rem] border-4 border-white shadow-xl overflow-hidden">
+                <div class="p-4 lg:p-5 border-b-2 border-slate-100">
+                    <h2 class="text-lg lg:text-2xl font-black text-blue-900 tracking-tight leading-tight flex items-center gap-2 mb-1">
+                        <i data-lucide="map" class="w-5 h-5 lg:w-6 lg:h-6 text-blue-600"></i> Mapa de la red
+                    </h2>
+                    <p class="text-xs lg:text-sm text-slate-500 font-bold mb-3">Elegí una variable y tocá una estación para ver sus datos</p>
+                    <div id="selector-variable-mapa" class="flex flex-wrap gap-2"></div>
+                </div>
+                <div id="mapa-expandido" class="w-full h-[320px] lg:h-[420px] z-0 bg-slate-200"></div>
+            </div>
+
+            <div id="panel-estacion" class="space-y-5 hidden">
+
             <header class="flex items-center gap-3 lg:gap-4 bg-white/90 backdrop-blur-md p-4 lg:p-5 rounded-[1.5rem] lg:rounded-[2rem] border-4 border-white shadow-xl">
                 <div class="p-3 lg:p-4 bg-gradient-to-tr from-blue-600 to-cyan-400 rounded-2xl text-white shadow-lg shrink-0 transform -rotate-6 hover:rotate-0 transition duration-300">
                     <i data-lucide="telescope" class="w-7 h-7 lg:w-10 lg:h-10 animate-float"></i>
@@ -322,6 +331,8 @@
                 </div>
             </div>
 
+            </div><!-- #panel-estacion -->
+
             <!-- CARRERA DE TEMPERATURAS -->
             <div class="bg-gradient-to-r from-slate-900 to-blue-900 rounded-2xl lg:rounded-[2rem] p-6 lg:p-8 border-4 border-slate-800 shadow-2xl text-white relative overflow-hidden">
                 <div class="absolute right-0 top-0 opacity-10 transform translate-x-1/4 -translate-y-1/4">
@@ -359,20 +370,6 @@
     </main>
 
 </div><!-- #layout-root -->
-
-<!-- MAPA EXPANDIDO (mapa grande con selector de variable) -->
-<div id="mapa-expandido-overlay" class="fixed inset-0 z-[10000] bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-3 lg:p-8">
-    <div class="bg-white rounded-[1.5rem] lg:rounded-[2rem] shadow-2xl w-full h-full lg:max-w-5xl lg:max-h-[85vh] flex flex-col overflow-hidden border-4 border-white">
-        <div class="flex items-center justify-between gap-3 p-4 lg:p-5 border-b-2 border-slate-100 shrink-0">
-            <h3 class="text-base lg:text-xl font-black text-slate-800">Mapa de la red</h3>
-            <button id="btn-cerrar-mapa-expandido" class="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition" title="Cerrar">
-                <i data-lucide="x" class="w-5 h-5"></i>
-            </button>
-        </div>
-        <div id="selector-variable-mapa" class="flex flex-wrap gap-2 px-4 lg:px-5 py-3 border-b-2 border-slate-100 shrink-0"></div>
-        <div id="mapa-expandido" class="flex-grow w-full z-0 bg-slate-200"></div>
-    </div>
-</div>
 
 <!-- Acceso oculto al modo administrador (descarga de históricos) -->
 <button id="btn-admin-trigger" class="fixed bottom-4 right-3 w-6 h-6 rounded-full bg-slate-400 opacity-20 hover:opacity-70 active:opacity-70 transition z-[9000]" title="⚙"></button>
@@ -1271,6 +1268,7 @@
         let periodoActual = 'hoy';
         let convencionLluvia = 'calendario'; // 'calendario' (00 a 00) | 'meteorologico' (9 a 9)
         let estacionActual = null;
+        let elementosEstacion = new Map(); // p -> { btn, marker } del mapa chico, para poder seleccionar desde el mapa grande
 
         function actualizarTitulosDeGraficos() {
             const sufijo = periodoActual === 'semana' ? 'de la última semana' : 'de las últimas 24 hs';
@@ -1426,11 +1424,17 @@
             map.flyTo(p.c, 13, { duration: 1.5 });
             marker.openPopup();
 
+            // El panel de datos de la estación arranca oculto (lo primero que se ve es
+            // el mapa) y se despliega recién cuando se elige una estación.
+            const panel = document.getElementById('panel-estacion');
+            const yaEstabaVisible = !panel.classList.contains('hidden');
+            panel.classList.remove('hidden');
+
             const hist = await fetchHistorialCanal(p, periodoActual);
             renderizarPanel(hist);
 
-            if (window.innerWidth < 1024) {
-                document.getElementById('main-dashboard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            if (!yaEstabaVisible) {
+                panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
         }
 
@@ -1527,7 +1531,7 @@
 
             estacionesInfo.sort((a, b) => a.ordenClave - b.ordenClave);
 
-            estacionesInfo.forEach(({ p, marker, markerColor, etiquetaTiempo, indicatorColor }, index) => {
+            estacionesInfo.forEach(({ p, marker, markerColor, etiquetaTiempo, indicatorColor }) => {
                 const btn = document.createElement('button');
                 btn.className = `station-btn shadow-md ${!p.live ? 'offline' : ''}`;
 
@@ -1552,10 +1556,7 @@
                 btnContainer.appendChild(btn);
                 lucide.createIcons();
 
-                // Autoseleccionar la primera estación de la lista ya ordenada (la de dato más reciente)
-                if (index === 0 && p.live) {
-                    setTimeout(() => seleccionarEscuela(p, btn, marker), 500);
-                }
+                elementosEstacion.set(p, { btn, marker });
             });
 
             renderizarGraficoComparativo();
@@ -1668,70 +1669,63 @@
             });
         }
 
-        function abrirMapaExpandido() {
-            const overlay = document.getElementById('mapa-expandido-overlay');
-            overlay.classList.remove('hidden');
-            overlay.classList.add('flex');
+        // Selecciona una estación desde un click en el mapa grande, reutilizando el
+        // mismo flujo que un click en la lista de la barra lateral (mismo botón y
+        // mismo marcador del mapa chico, guardados en elementosEstacion).
+        function seleccionarEscuelaDesdeMapaGrande(p) {
+            const el = elementosEstacion.get(p);
+            if (el) seleccionarEscuela(p, el.btn, el.marker);
+        }
 
-            if (!mapaExpandido) {
-                mapaExpandido = L.map('mapa-expandido', { zoomControl: true }).setView([-35.10, -57.75], 9);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(mapaExpandido);
+        function inicializarMapaGrande() {
+            mapaExpandido = L.map('mapa-expandido', { zoomControl: true }).setView([-35.10, -57.75], 9);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(mapaExpandido);
 
-                const estacionesObservatorio = puntos.filter(p => p.grupoObservatorio);
-                const estacionesSueltas = puntos.filter(p => !p.grupoObservatorio);
+            const estacionesObservatorio = puntos.filter(p => p.grupoObservatorio);
+            const estacionesSueltas = puntos.filter(p => !p.grupoObservatorio);
 
-                estacionesSueltas.forEach(p => {
+            estacionesSueltas.forEach(p => {
+                const marker = L.circleMarker(p.c, {
+                    radius: 10, fillColor: p.live ? p.clr : '#94a3b8', color: '#ffffff', weight: 3, fillOpacity: 1
+                }).addTo(mapaExpandido);
+                marker.bindTooltip('', { permanent: true, direction: 'top', offset: [0, -12], className: 'tooltip-variable' });
+                marker.on('click', () => seleccionarEscuelaDesdeMapaGrande(p));
+                marcadoresExpandido.push({ p, marker });
+            });
+
+            if (estacionesObservatorio.length) {
+                const centro = [
+                    estacionesObservatorio.reduce((s, p) => s + p.c[0], 0) / estacionesObservatorio.length,
+                    estacionesObservatorio.reduce((s, p) => s + p.c[1], 0) / estacionesObservatorio.length
+                ];
+                const markerGrupo = L.circleMarker(centro, {
+                    radius: 13, fillColor: '#475569', color: '#ffffff', weight: 3, fillOpacity: 1
+                }).addTo(mapaExpandido);
+                markerGrupo.bindTooltip('', { permanent: true, direction: 'top', offset: [0, -15], className: 'tooltip-grupo' });
+                // El grupo representa varias estaciones a la vez: un click no selecciona
+                // ninguna en particular, hace zoom para separarlas.
+                markerGrupo.on('click', () => mapaExpandido.flyTo(centro, ZOOM_SEPARAR_OBSERVATORIO));
+                marcadorGrupoObservatorio = { grupo: estacionesObservatorio, marker: markerGrupo };
+
+                // Marcadores individuales: arrancan sin agregar al mapa, recién se
+                // muestran al hacer zoom (los agrega actualizarMapaExpandido()).
+                estacionesObservatorio.forEach(p => {
                     const marker = L.circleMarker(p.c, {
                         radius: 10, fillColor: p.live ? p.clr : '#94a3b8', color: '#ffffff', weight: 3, fillOpacity: 1
-                    }).addTo(mapaExpandido);
+                    });
                     marker.bindTooltip('', { permanent: true, direction: 'top', offset: [0, -12], className: 'tooltip-variable' });
-                    marcadoresExpandido.push({ p, marker });
+                    marker.on('click', () => seleccionarEscuelaDesdeMapaGrande(p));
+                    marcadoresObservatorioIndividual.push({ p, marker });
                 });
 
-                if (estacionesObservatorio.length) {
-                    const centro = [
-                        estacionesObservatorio.reduce((s, p) => s + p.c[0], 0) / estacionesObservatorio.length,
-                        estacionesObservatorio.reduce((s, p) => s + p.c[1], 0) / estacionesObservatorio.length
-                    ];
-                    const markerGrupo = L.circleMarker(centro, {
-                        radius: 13, fillColor: '#475569', color: '#ffffff', weight: 3, fillOpacity: 1
-                    }).addTo(mapaExpandido);
-                    markerGrupo.bindTooltip('', { permanent: true, direction: 'top', offset: [0, -15], className: 'tooltip-grupo' });
-                    marcadorGrupoObservatorio = { grupo: estacionesObservatorio, marker: markerGrupo };
-
-                    // Marcadores individuales: arrancan sin agregar al mapa, recién se
-                    // muestran al hacer zoom (los agrega actualizarMapaExpandido()).
-                    estacionesObservatorio.forEach(p => {
-                        const marker = L.circleMarker(p.c, {
-                            radius: 10, fillColor: p.live ? p.clr : '#94a3b8', color: '#ffffff', weight: 3, fillOpacity: 1
-                        });
-                        marker.bindTooltip('', { permanent: true, direction: 'top', offset: [0, -12], className: 'tooltip-variable' });
-                        marcadoresObservatorioIndividual.push({ p, marker });
-                    });
-
-                    mapaExpandido.on('zoomend', actualizarMapaExpandido);
-                }
-
-                crearSelectorVariableMapa();
-                actualizarMapaExpandido();
-            } else {
-                actualizarMapaExpandido();
+                mapaExpandido.on('zoomend', actualizarMapaExpandido);
             }
+
+            crearSelectorVariableMapa();
+            actualizarMapaExpandido();
 
             setTimeout(() => mapaExpandido.invalidateSize(), 200);
         }
-
-        function cerrarMapaExpandido() {
-            const overlay = document.getElementById('mapa-expandido-overlay');
-            overlay.classList.add('hidden');
-            overlay.classList.remove('flex');
-        }
-
-        document.getElementById('btn-expandir-mapa').addEventListener('click', abrirMapaExpandido);
-        document.getElementById('btn-cerrar-mapa-expandido').addEventListener('click', cerrarMapaExpandido);
-        document.getElementById('mapa-expandido-overlay').addEventListener('click', (e) => {
-            if (e.target.id === 'mapa-expandido-overlay') cerrarMapaExpandido();
-        });
 
         // ─── MODO ADMINISTRADOR (descarga de históricos en CSV) ─────────────────
         const CLAVE_ADMIN = 'Observatorio';
@@ -1982,7 +1976,11 @@
         });
         document.getElementById('btn-admin-descargar').addEventListener('click', descargarHistoricoAdmin);
 
-        inicializarRed();
+        // El mapa grande se arma ya mismo (es lo primero que se ve); los marcadores
+        // muestran valores recién cuando inicializarRed() termina de traer los datos
+        // de cada estación (ahí también queda lista la selección por click).
+        inicializarMapaGrande();
+        inicializarRed().then(actualizarMapaExpandido);
     </script>
 </body>
 </html>
