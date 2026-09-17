@@ -280,11 +280,6 @@
                 </div>
             </div>
 
-            <div id="secreto-meteo" class="p-4 bg-yellow-100 rounded-3xl border-4 border-yellow-300 text-xs text-yellow-800 font-bold leading-relaxed shadow-sm flex gap-3 items-center hidden">
-                <i data-lucide="lightbulb" class="w-7 h-7 text-yellow-500 animate-pulse shrink-0"></i>
-                <span><b>¡Secreto de Meteo!</b> El viento es aire en movimiento que trae temperatura y humedad. ¡Mirá la flecha para descubrir hacia dónde va el viento!</span>
-            </div>
-
             <!-- SELECTOR DE PERÍODO -->
             <div class="flex items-center gap-1.5 bg-white/90 backdrop-blur-md p-1.5 rounded-2xl border-4 border-white shadow-md w-fit">
                 <button id="btn-periodo-hoy" class="periodo-btn px-4 py-2 rounded-xl font-black text-xs lg:text-sm transition">Últimas 24 hs</button>
@@ -1326,7 +1321,6 @@
             document.getElementById('live-val-wind').innerText = '--';
             document.getElementById('live-val-dew').innerText = '--°C';
             document.getElementById('wind-dir-container').classList.add('hidden');
-            document.getElementById('secreto-meteo').classList.add('hidden');
             document.getElementById('card-viento').classList.add('hidden');
             document.getElementById('card-rocio').classList.add('hidden');
             ['chartTemp', 'chartHum', 'chartPres', 'chartRain'].forEach(id => {
@@ -1372,16 +1366,13 @@
                 const ultDir = getUltimoValido(hist.windDirs);
                 const dirContainer = document.getElementById('wind-dir-container');
                 const dirIcon = document.getElementById('live-val-winddir');
-                const secretoMeteo = document.getElementById('secreto-meteo');
                 if (ultDir !== '--') {
                     dirContainer.classList.remove('hidden');
                     // La variable "windDir" viene en convención meteorológica (de dónde SOPLA
                     // el viento). Sumamos 180° para que la flecha apunte hacia dónde VA el viento.
                     dirIcon.style.transform = `rotate(${Number(ultDir) + 180}deg)`;
-                    secretoMeteo.classList.remove('hidden');
                 } else {
                     dirContainer.classList.add('hidden');
-                    secretoMeteo.classList.add('hidden');
                 }
 
                 const ultDew = getUltimoValido(hist.dews);
