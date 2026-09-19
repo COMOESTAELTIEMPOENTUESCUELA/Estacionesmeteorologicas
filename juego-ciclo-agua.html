@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>La Oca del Agua · ¿Como esta el tiempo en tu escuela?</title>
-    <meta name="description" content="Juego de mesa online tipo 'juego de la oca' para recorrer el ciclo del agua: evaporación, condensación, precipitación, acumulación, escorrentía e infiltración.">
+    <title>El agua y sus poderes · ¿Como esta el tiempo en tu escuela?</title>
+    <meta name="description" content="Juego de mesa online, estilo juego de la oca, para recorrer el ciclo del agua: evaporación, condensación, precipitación, acumulación, escorrentía e infiltración.">
     <link rel="icon" type="image/jpeg" href="imagenes/Logo1.jpg">
 
     <script src="https://cdn.tailwindcss.com"></script>
@@ -125,7 +125,7 @@
                     <a href="red-meteorologica.html" class="hover:text-blue-500 transition">Red de estaciones</a>
                     <a href="ciencia-ciudadana.html" class="hover:text-emerald-500 transition">Comunidad</a>
                     <a href="recursos.html" class="hover:text-purple-500 transition">Aprender</a>
-                    <a href="recursos.html#juego" class="text-sky-600">🎲 La Oca del Agua</a>
+                    <a href="recursos.html#juego" class="text-sky-600">🎲 El agua y sus poderes</a>
                 </div>
                 <button id="menu-toggle" class="lg:hidden p-2 text-slate-500 bg-slate-100 rounded-full" aria-label="Abrir menú" aria-expanded="false">
                     <i id="icon-menu" data-lucide="menu" class="w-6 h-6"></i>
@@ -152,10 +152,10 @@
                 <i data-lucide="dices" class="w-4 h-4"></i> Juego de mesa online
             </div>
             <h1 class="text-4xl md:text-6xl font-black mb-4 leading-tight tracking-tight text-white drop-shadow-lg">
-                La Oca del <span class="text-yellow-300 underline decoration-wavy decoration-yellow-400">Agua</span>
+                El agua y sus <span class="text-yellow-300 underline decoration-wavy decoration-yellow-400">poderes</span>
             </h1>
             <p class="text-base md:text-lg text-sky-100 font-bold max-w-2xl mx-auto leading-relaxed">
-                Tirá el dado, recorré las 26 casillas y atravesá todo el ciclo del agua: evaporación, condensación, precipitación, acumulación, escorrentía e infiltración. ¡Cuidado con la sequía, el viento Zonda y las inundaciones!
+                Tirá el dado, recorré las 26 casillas y atravesá todo el ciclo del agua: evaporación, condensación, precipitación, acumulación, escorrentía e infiltración. Si acertás una pregunta, ¡jugás de nuevo!
             </p>
         </div>
         <div class="wave-divider">
@@ -242,12 +242,12 @@
                 <div class="bg-white border-2 border-slate-200 rounded-2xl p-4 text-center">
                     <span class="text-2xl">❓</span>
                     <p class="font-black mt-1">Pregunta</p>
-                    <p class="text-slate-500 font-medium text-xs mt-1">Respondé sobre el ciclo del agua.</p>
+                    <p class="text-slate-500 font-medium text-xs mt-1">Respondé sobre el ciclo del agua. Si acertás, ¡jugás de nuevo!</p>
                 </div>
                 <div class="bg-white border-2 border-slate-200 rounded-2xl p-4 text-center">
                     <span class="text-2xl">📇</span>
                     <p class="font-black mt-1">Tarjeta de frase</p>
-                    <p class="text-slate-500 font-medium text-xs mt-1">Completá la frase con la palabra correcta.</p>
+                    <p class="text-slate-500 font-medium text-xs mt-1">Completá la frase con la palabra correcta. Si acertás, ¡jugás de nuevo!</p>
                 </div>
                 <div class="bg-white border-2 border-slate-200 rounded-2xl p-4 text-center">
                     <span class="text-2xl">🔥</span>
@@ -261,13 +261,13 @@
                 </div>
                 <div class="bg-white border-2 border-slate-200 rounded-2xl p-4 text-center">
                     <span class="text-2xl">🌊</span>
-                    <p class="font-black mt-1">Inundación</p>
-                    <p class="text-slate-500 font-medium text-xs mt-1">El agua desborda: retrocedés 3 casillas.</p>
+                    <p class="font-black mt-1">El agua se desborda</p>
+                    <p class="text-slate-500 font-medium text-xs mt-1">Cuando el suelo no llega a absorber toda el agua: retrocedés 3 casillas.</p>
                 </div>
                 <div class="bg-white border-2 border-slate-200 rounded-2xl p-4 text-center">
                     <span class="text-2xl">☀️</span>
-                    <p class="font-black mt-1">Sequía</p>
-                    <p class="text-slate-500 font-medium text-xs mt-1">No hay agua disponible: perdés el próximo turno.</p>
+                    <p class="font-black mt-1">Poca agua disponible</p>
+                    <p class="text-slate-500 font-medium text-xs mt-1">Hace falta esperar la próxima lluvia: perdés el próximo turno.</p>
                 </div>
                 <div class="bg-white border-2 border-slate-200 rounded-2xl p-4 text-center">
                     <span class="text-2xl">⚫</span>
@@ -287,6 +287,11 @@
     <div id="modal-overlay" class="modal-overlay hidden">
         <div id="modal-box" class="bg-white rounded-[2rem] border-4 border-blue-200 shadow-2xl max-w-lg w-full p-6 md:p-8 max-h-[85vh] overflow-y-auto"></div>
     </div>
+
+    <!-- BOTÓN FLOTANTE: pantalla completa (para proyectar en el aula) -->
+    <button id="fullscreen-btn" class="fixed bottom-5 right-5 z-40 kid-btn bg-slate-800 border-slate-950 text-white font-black text-sm py-3 px-4 rounded-full shadow-lg flex items-center gap-2 hidden">
+        <i data-lucide="maximize" class="w-5 h-5"></i> <span id="fullscreen-btn-label">Pantalla completa</span>
+    </button>
 
     <!-- FOOTER -->
     <footer class="bg-white pt-16 pb-8 px-6 border-t-4 border-blue-200 mt-10">
@@ -311,6 +316,33 @@
             iconMenu.classList.toggle('hidden', isOpen);
             iconClose.classList.toggle('hidden', !isOpen);
         });
+
+        // ── Pantalla completa (para proyectar el juego en el aula) ──────────
+        const fsBtn = document.getElementById('fullscreen-btn');
+        const fsLabel = document.getElementById('fullscreen-btn-label');
+        const fsRequest = document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen;
+        const fsExit = document.exitFullscreen || document.webkitExitFullscreen;
+
+        if (fsRequest) {
+            fsBtn.classList.remove('hidden');
+            fsBtn.addEventListener('click', () => {
+                const active = document.fullscreenElement || document.webkitFullscreenElement;
+                if (active) {
+                    fsExit.call(document);
+                } else {
+                    const result = fsRequest.call(document.documentElement);
+                    if (result && result.catch) result.catch(() => {});
+                }
+            });
+            const updateFsBtn = () => {
+                const active = !!(document.fullscreenElement || document.webkitFullscreenElement);
+                fsLabel.textContent = active ? 'Salir de pantalla completa' : 'Pantalla completa';
+                fsBtn.querySelector('i').setAttribute('data-lucide', active ? 'minimize' : 'maximize');
+                safeIcons();
+            };
+            document.addEventListener('fullscreenchange', updateFsBtn);
+            document.addEventListener('webkitfullscreenchange', updateFsBtn);
+        }
 
         // =====================================================================
         // 1. EL TABLERO: 26 casillas ubicadas sobre la imagen (coordenadas en %)
@@ -663,9 +695,9 @@
                     <ul class="space-y-3 text-slate-600 font-medium text-sm leading-relaxed list-disc pl-5">
                         <li>Cada jugador empieza en la casilla 1 (Inicio, en el mar) y por turnos tira el dado para avanzar.</li>
                         <li>El tablero recorre el <b>ciclo del agua</b>: evaporación → condensación → precipitación → acumulación → escorrentía superficial → infiltración.</li>
-                        <li>Al caer en una casilla con <b>❓ pregunta</b> o <b>📇 tarjeta de frase</b>, respondé para aprender más (¡no hay penalidad si te equivocás!).</li>
-                        <li>Las casillas <b>🔥 ola de calor</b> te hacen avanzar 3 casillas; el <b>🌬️ viento Zonda</b> y la <b>🌊 inundación</b> te hacen retroceder.</li>
-                        <li>Si caés en <b>☀️ sequía</b> o en el <b>⚫ pozo</b>, perdés tu próximo turno.</li>
+                        <li>Al caer en una casilla con <b>❓ pregunta</b> o <b>📇 tarjeta de frase</b>, respondé para aprender más. Si acertás, <b>¡jugás de nuevo!</b> (y si no, no pasa nada, seguís igual).</li>
+                        <li>Las casillas <b>🔥 ola de calor</b> te hacen avanzar 3 casillas; el <b>🌬️ viento Zonda</b> y la casilla donde <b>🌊 el agua se desborda</b> te hacen retroceder.</li>
+                        <li>Si caés en la casilla de <b>☀️ poca agua disponible</b> o en el <b>⚫ pozo</b>, perdés tu próximo turno.</li>
                         <li>Gana quien llegue primero a la casilla <b>26 (🏁 Llegada)</b>. Si el dado te hace pasarte, ¡rebotás hacia atrás la diferencia!</li>
                     </ul>
                     <button id="modal-close" class="kid-btn w-full bg-blue-500 border-blue-700 text-white font-black py-3 rounded-2xl mt-6">¡Listo, a jugar!</button>
@@ -731,21 +763,23 @@
                 case 'question': {
                     const q = pickRandom(QUESTIONS);
                     addLog(`❓ ${p.name} responde una pregunta.`);
-                    await showChoiceModal({
+                    const ok = await showChoiceModal({
                         emoji: '❓', title: `Pregunta · Casilla ${cell.n}`, statement: q.q,
                         options: q.a, correctIdx: q.c,
-                        correctMsg: '¡Correcto! 🌟', wrongMsg: 'No era esa, ¡pero seguí jugando! 💪',
+                        correctMsg: '¡Correcto! 🌟 Jugás de nuevo 🎲', wrongMsg: 'No era esa, ¡pero seguí jugando! 💪',
                     });
+                    if (ok) { addLog(`🎉 ${p.name} acertó y vuelve a tirar.`); renderPlayersPanel(); return 'again'; }
                     break;
                 }
                 case 'phrase': {
                     const ph = pickRandom(PHRASES);
                     addLog(`📇 ${p.name} completa una tarjeta de frase.`);
-                    await showChoiceModal({
+                    const ok = await showChoiceModal({
                         emoji: '📇', title: `Tarjeta de frase · Casilla ${cell.n}`, statement: ph.p,
                         options: ph.a, correctIdx: ph.c,
-                        correctMsg: '¡Exacto! 🌟', wrongMsg: 'Casi, ¡pero seguí jugando! 💪',
+                        correctMsg: '¡Exacto! 🌟 Jugás de nuevo 🎲', wrongMsg: 'Casi, ¡pero seguí jugando! 💪',
                     });
+                    if (ok) { addLog(`🎉 ${p.name} acertó y vuelve a tirar.`); renderPlayersPanel(); return 'again'; }
                     break;
                 }
                 case 'heatwave': {
@@ -772,10 +806,10 @@
                     return await resolveLanding(playerIdx);
                 }
                 case 'flood': {
-                    addLog(`🌊 Inundación: ${p.name} retrocede 3 casillas.`);
+                    addLog(`🌊 ${p.name}: el agua se desborda, retrocede 3 casillas.`);
                     await showInfoModal({
-                        emoji: '🌊', accent: 'blue', title: '¡Inundación!',
-                        body: 'El agua acumulada se desborda y arrasa el camino recorrido: retrocedés 3 casillas.',
+                        emoji: '🌊', accent: 'blue', title: 'El agua se desborda',
+                        body: 'Cuando llueve mucho y el suelo no llega a absorber toda el agua, los ríos y arroyos pueden desbordarse. Por eso cuidamos los desagües y plantamos árboles que ayudan a que la tierra la absorba mejor. Retrocedés 3 casillas para volver a intentarlo.',
                         btnLabel: 'Entendido',
                     });
                     p.pos = Math.max(0, p.pos - 3);
@@ -784,11 +818,11 @@
                     return await resolveLanding(playerIdx);
                 }
                 case 'drought': {
-                    addLog(`☀️ Sequía: ${p.name} pierde el próximo turno.`);
+                    addLog(`☀️ ${p.name}: poca agua disponible, pierde el próximo turno.`);
                     p.skipNext = true;
                     await showInfoModal({
-                        emoji: '☀️', accent: 'yellow', title: '¡Sequía!',
-                        body: 'No hay agua disponible por un buen tiempo: perdés tu próximo turno esperando que llueva.',
+                        emoji: '☀️', accent: 'yellow', title: 'Poca agua disponible',
+                        body: 'Pasó mucho tiempo sin llover y el agua escasea. Por eso es tan importante no desperdiciarla y cuidarla entre todos. Esperás tu próximo turno hasta que llegue la próxima lluvia.',
                         btnLabel: 'Entendido',
                     });
                     break;
@@ -871,7 +905,10 @@
             const result = await resolveLanding(current);
             renderPlayersPanel();
 
-            if (result !== 'win') {
+            if (result === 'again') {
+                // acertó la pregunta/tarjeta: sigue jugando el mismo jugador
+                document.getElementById('roll-btn').disabled = false;
+            } else if (result !== 'win') {
                 nextTurn();
                 document.getElementById('roll-btn').disabled = false;
             }
