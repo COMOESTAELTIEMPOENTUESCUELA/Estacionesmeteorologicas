@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>La Oca del Agua · ¿Como esta el tiempo en tu escuela?</title>
+    <meta name="description" content="Juego de mesa online tipo 'juego de la oca' para recorrer el ciclo del agua: evaporación, condensación, precipitación, acumulación, escorrentía e infiltración.">
+    <link rel="icon" type="image/jpeg" href="imagenes/Logo1.jpg">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@0.475.0/dist/umd/lucide.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800;900&display=swap" rel="stylesheet">
+
+    <style>
+        /* Red de escuelas rurales: si el CDN de Tailwind tarda o falla, que al
+           menos los modales y el menú se sigan abriendo/cerrando bien. */
+        .hidden { display: none !important; }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #f0f9ff;
+            overflow-x: hidden;
+        }
+
+        .kid-btn {
+            border-bottom-width: 6px;
+            transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .kid-btn:hover { transform: translateY(-4px); filter: brightness(1.05); }
+        .kid-btn:active { border-bottom-width: 0px; transform: translateY(6px); }
+        .kid-btn:disabled { opacity: .5; cursor: not-allowed; transform: none !important; filter: none !important; }
+
+        .kid-card { border-bottom-width: 8px; transition: all 0.3s ease; }
+
+        .wave-divider { position: absolute; bottom: 0; left: 0; width: 100%; overflow: hidden; line-height: 0; transform: rotate(180deg); }
+        .wave-divider svg { position: relative; display: block; width: calc(130% + 1.3px); height: 70px; }
+        .wave-divider .shape-fill { fill: #f0f9ff; }
+
+        #mobile-menu { transition: max-height 0.35s ease, opacity 0.3s ease; max-height: 0; opacity: 0; overflow: hidden; }
+        #mobile-menu.open { max-height: 400px; opacity: 1; }
+
+        /* --- Tablero --- */
+        #board-wrap { position: relative; width: 100%; user-select: none; }
+        #board-img { display: block; width: 100%; height: auto; border-radius: 1.5rem; }
+
+        .token {
+            position: absolute;
+            width: 8.5%;
+            aspect-ratio: 1 / 1;
+            transform: translate(-50%, -50%);
+            transition: left 0.35s ease, top 0.35s ease;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 9999px;
+            border: 3px solid white;
+            box-shadow: 0 3px 8px rgba(0,0,0,.35);
+            font-size: 1.1rem;
+            z-index: 20;
+        }
+        @media (min-width: 768px) { .token { font-size: 1.4rem; } }
+
+        .space-pulse {
+            position: absolute;
+            width: 10%;
+            aspect-ratio: 1/1;
+            transform: translate(-50%,-50%);
+            border-radius: 9999px;
+            z-index: 5;
+            pointer-events: none;
+        }
+        .space-pulse.active { box-shadow: 0 0 0 6px rgba(250, 204, 21, .55); animation: pulseGlow 1s ease-in-out infinite; }
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 0 4px rgba(250, 204, 21, .5); }
+            50% { box-shadow: 0 0 0 10px rgba(250, 204, 21, .15); }
+        }
+
+        /* --- Dado --- */
+        .die-face {
+            width: 64px; height: 64px;
+            display: grid; grid-template-columns: repeat(3,1fr); grid-template-rows: repeat(3,1fr);
+            gap: 2px; padding: 8px;
+        }
+        .die-face span { border-radius: 9999px; }
+        .die-face span.on { background: #1e3a8a; }
+        .die-face span.off { background: transparent; }
+        .die-rolling { animation: dieShake .12s linear infinite; }
+        @keyframes dieShake {
+            0% { transform: rotate(0deg); } 25% { transform: rotate(-8deg); } 75% { transform: rotate(8deg); } 100% { transform: rotate(0deg); }
+        }
+
+        /* --- Modal genérico --- */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(15, 23, 42, .65);
+            display: flex; align-items: center; justify-content: center;
+            padding: 1rem; z-index: 100;
+        }
+
+        /* --- Confeti simple --- */
+        .confetti-emoji {
+            position: fixed; top: -40px; font-size: 1.8rem; z-index: 150;
+            animation: fall linear forwards;
+        }
+        @keyframes fall {
+            to { transform: translateY(110vh) rotate(360deg); opacity: .2; }
+        }
+
+        .log-entry { animation: slideIn .25s ease; }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: translateX(0); } }
+    </style>
+</head>
+<body class="text-slate-800 antialiased selection:bg-blue-300 selection:text-slate-900">
+
+    <!-- NAVEGACIÓN FLOTANTE -->
+    <nav class="fixed w-full z-50 px-4 py-4 top-0 pointer-events-none">
+        <div class="max-w-7xl mx-auto bg-white/90 backdrop-blur-md rounded-[2rem] shadow-lg border-4 border-blue-100 px-6 py-3 pointer-events-auto transition-all duration-300">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <img src="imagenes/Logo1.jpg" alt="Logo del Proyecto" class="w-12 h-12 object-cover rounded-full border-2 border-yellow-400 shadow-sm">
+                    <div class="flex flex-col">
+                        <span class="font-black text-slate-900 tracking-tight text-sm md:text-lg leading-none">¿Como esta el Tiempo en tu Escuela?</span>
+                        <span class="text-[10px] font-bold text-blue-600 uppercase tracking-widest mt-0.5">FCAG · UNLP</span>
+                    </div>
+                </div>
+                <div class="hidden lg:flex items-center gap-6 text-sm font-black text-slate-500">
+                    <a href="index.html" class="hover:text-blue-500 transition">Inicio</a>
+                    <a href="red-meteorologica.html" class="hover:text-blue-500 transition">Red de estaciones</a>
+                    <a href="ciencia-ciudadana.html" class="hover:text-emerald-500 transition">Comunidad</a>
+                    <a href="recursos.html" class="hover:text-purple-500 transition">Aprender</a>
+                    <a href="recursos.html#juego" class="text-sky-600">🎲 La Oca del Agua</a>
+                </div>
+                <button id="menu-toggle" class="lg:hidden p-2 text-slate-500 bg-slate-100 rounded-full" aria-label="Abrir menú" aria-expanded="false">
+                    <i id="icon-menu" data-lucide="menu" class="w-6 h-6"></i>
+                    <i id="icon-close" data-lucide="x" class="w-6 h-6 hidden"></i>
+                </button>
+            </div>
+            <div id="mobile-menu" role="navigation" aria-label="Menú móvil">
+                <div class="flex flex-col gap-2 pt-4 pb-2">
+                    <a href="index.html" class="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-blue-50 text-slate-600 font-black text-base transition"><i data-lucide="home" class="w-5 h-5 text-blue-400"></i> Inicio</a>
+                    <a href="red-meteorologica.html" class="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-blue-50 text-slate-600 font-black text-base transition"><i data-lucide="layout-dashboard" class="w-5 h-5 text-blue-400"></i> Red de estaciones</a>
+                    <a href="ciencia-ciudadana.html" class="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-emerald-50 text-slate-600 font-black text-base transition"><i data-lucide="camera" class="w-5 h-5 text-emerald-500"></i> Comunidad</a>
+                    <a href="recursos.html" class="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-purple-50 text-slate-600 font-black text-base transition"><i data-lucide="book-open" class="w-5 h-5"></i> Aprender</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- HERO -->
+    <header class="pt-40 pb-20 px-6 relative overflow-hidden bg-gradient-to-br from-sky-900 via-blue-900 to-emerald-800 text-center">
+        <i data-lucide="cloud-rain" class="absolute top-28 left-[8%] w-16 h-16 text-white/10"></i>
+        <i data-lucide="sun" class="absolute top-24 right-[10%] w-20 h-20 text-yellow-200/20"></i>
+        <div class="max-w-3xl mx-auto relative z-10">
+            <div class="inline-flex items-center gap-2 bg-yellow-300 text-yellow-900 px-4 py-2 rounded-full text-xs md:text-sm font-black uppercase tracking-widest mb-6 shadow-sm border-2 border-yellow-400 -rotate-2">
+                <i data-lucide="dices" class="w-4 h-4"></i> Juego de mesa online
+            </div>
+            <h1 class="text-4xl md:text-6xl font-black mb-4 leading-tight tracking-tight text-white drop-shadow-lg">
+                La Oca del <span class="text-yellow-300 underline decoration-wavy decoration-yellow-400">Agua</span>
+            </h1>
+            <p class="text-base md:text-lg text-sky-100 font-bold max-w-2xl mx-auto leading-relaxed">
+                Tirá el dado, recorré las 26 casillas y atravesá todo el ciclo del agua: evaporación, condensación, precipitación, acumulación, escorrentía e infiltración. ¡Cuidado con la sequía, el viento Zonda y las inundaciones!
+            </p>
+        </div>
+        <div class="wave-divider">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none">
+                <path d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z" class="shape-fill"></path>
+            </svg>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 md:px-6 py-10 md:py-14">
+
+        <!-- ================= SETUP ================= -->
+        <section id="setup-screen" class="bg-white border-4 border-blue-200 rounded-[2rem] p-6 md:p-10 shadow-lg max-w-2xl mx-auto">
+            <h2 class="text-2xl md:text-3xl font-black text-slate-800 mb-2 text-center">¿Quiénes juegan?</h2>
+            <p class="text-slate-500 font-medium text-center mb-8">Elegí cuántos jugadores van a tirar el dado (podés jugar pasando el mismo dispositivo por turnos).</p>
+
+            <div class="flex justify-center gap-3 mb-8" id="player-count-buttons">
+                <button data-n="2" class="player-count-btn kid-btn bg-blue-500 border-blue-700 text-white font-black px-6 py-3 rounded-2xl">2</button>
+                <button data-n="3" class="player-count-btn kid-btn bg-slate-100 border-slate-300 text-slate-600 font-black px-6 py-3 rounded-2xl">3</button>
+                <button data-n="4" class="player-count-btn kid-btn bg-slate-100 border-slate-300 text-slate-600 font-black px-6 py-3 rounded-2xl">4</button>
+            </div>
+
+            <div id="player-name-inputs" class="space-y-3 mb-8"></div>
+
+            <button id="start-game-btn" class="kid-btn w-full bg-emerald-500 border-emerald-700 text-white font-black text-lg py-4 rounded-2xl flex items-center justify-center gap-3">
+                <i data-lucide="play"></i> ¡A jugar!
+            </button>
+
+            <button id="open-rules-btn" class="w-full text-center text-sm font-black text-blue-500 hover:underline mt-4">
+                ¿Cómo se juega? Ver las reglas
+            </button>
+        </section>
+
+        <!-- ================= JUEGO ================= -->
+        <section id="game-screen" class="hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6">
+
+                <!-- TABLERO -->
+                <div class="bg-white border-4 border-sky-200 rounded-[2rem] p-3 md:p-4 shadow-lg">
+                    <div id="board-wrap">
+                        <img id="board-img" src="imagenes/tablero-ciclo-agua.png" alt="Tablero del ciclo del agua, con casillas numeradas del 1 al 26">
+                        <!-- tokens y resaltado de casilla se insertan por JS -->
+                    </div>
+                </div>
+
+                <!-- PANEL LATERAL -->
+                <div class="flex flex-col gap-4">
+
+                    <!-- Turno actual -->
+                    <div class="bg-white border-4 border-yellow-200 rounded-[2rem] p-5 shadow-lg text-center">
+                        <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Turno de</p>
+                        <p id="current-player-name" class="text-2xl font-black text-slate-800 mb-3">—</p>
+
+                        <div class="flex flex-col items-center gap-3">
+                            <div id="die" class="die-face bg-white border-4 border-blue-300 rounded-2xl shadow-inner"></div>
+                            <button id="roll-btn" class="kid-btn w-full bg-blue-500 border-blue-700 text-white font-black text-lg py-4 rounded-2xl flex items-center justify-center gap-3">
+                                <i data-lucide="dices"></i> Tirar el dado
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Jugadores -->
+                    <div id="players-panel" class="bg-white border-4 border-blue-200 rounded-[2rem] p-5 shadow-lg">
+                        <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Jugadores</p>
+                        <div id="players-list" class="space-y-2"></div>
+                    </div>
+
+                    <!-- Bitácora -->
+                    <div class="bg-white border-4 border-emerald-200 rounded-[2rem] p-5 shadow-lg">
+                        <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Bitácora del juego</p>
+                        <div id="log-list" class="space-y-2 max-h-56 overflow-y-auto text-sm font-bold text-slate-600 pr-1"></div>
+                    </div>
+
+                    <button id="open-rules-btn-2" class="text-sm font-black text-blue-500 hover:underline">¿Cómo se juega? Ver las reglas</button>
+                    <button id="restart-btn" class="text-sm font-black text-rose-400 hover:underline">Reiniciar partida</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- REFERENCIAS DE CASILLAS -->
+        <section class="mt-14">
+            <h3 class="text-xl md:text-2xl font-black text-slate-800 text-center mb-6">¿Qué significa cada casilla especial?</h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div class="bg-white border-2 border-slate-200 rounded-2xl p-4 text-center">
+                    <span class="text-2xl">❓</span>
+                    <p class="font-black mt-1">Pregunta</p>
+                    <p class="text-slate-500 font-medium text-xs mt-1">Respondé sobre el ciclo del agua.</p>
+                </div>
+                <div class="bg-white border-2 border-slate-200 rounded-2xl p-4 text-center">
+                    <span class="text-2xl">📇</span>
+                    <p class="font-black mt-1">Tarjeta de frase</p>
+                    <p class="text-slate-500 font-medium text-xs mt-1">Completá la frase con la palabra correcta.</p>
+                </div>
+                <div class="bg-white border-2 border-slate-200 rounded-2xl p-4 text-center">
+                    <span class="text-2xl">🔥</span>
+                    <p class="font-black mt-1">Ola de calor</p>
+                    <p class="text-slate-500 font-medium text-xs mt-1">La evaporación se acelera: avanzás 3 casillas.</p>
+                </div>
+                <div class="bg-white border-2 border-slate-200 rounded-2xl p-4 text-center">
+                    <span class="text-2xl">🌬️</span>
+                    <p class="font-black mt-1">Viento Zonda</p>
+                    <p class="text-slate-500 font-medium text-xs mt-1">El viento seco te empuja: retrocedés 4 casillas.</p>
+                </div>
+                <div class="bg-white border-2 border-slate-200 rounded-2xl p-4 text-center">
+                    <span class="text-2xl">🌊</span>
+                    <p class="font-black mt-1">Inundación</p>
+                    <p class="text-slate-500 font-medium text-xs mt-1">El agua desborda: retrocedés 3 casillas.</p>
+                </div>
+                <div class="bg-white border-2 border-slate-200 rounded-2xl p-4 text-center">
+                    <span class="text-2xl">☀️</span>
+                    <p class="font-black mt-1">Sequía</p>
+                    <p class="text-slate-500 font-medium text-xs mt-1">No hay agua disponible: perdés el próximo turno.</p>
+                </div>
+                <div class="bg-white border-2 border-slate-200 rounded-2xl p-4 text-center">
+                    <span class="text-2xl">⚫</span>
+                    <p class="font-black mt-1">Pozo</p>
+                    <p class="text-slate-500 font-medium text-xs mt-1">Quedás atrapado bajo tierra: perdés el próximo turno.</p>
+                </div>
+                <div class="bg-white border-2 border-slate-200 rounded-2xl p-4 text-center">
+                    <span class="text-2xl">🏁</span>
+                    <p class="font-black mt-1">Llegada</p>
+                    <p class="text-slate-500 font-medium text-xs mt-1">Casilla 26: ¡el agua volvió al mar! Si te pasás, rebotás.</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- MODAL genérico (reglas / preguntas / frases / eventos) -->
+    <div id="modal-overlay" class="modal-overlay hidden">
+        <div id="modal-box" class="bg-white rounded-[2rem] border-4 border-blue-200 shadow-2xl max-w-lg w-full p-6 md:p-8 max-h-[85vh] overflow-y-auto"></div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="bg-white pt-16 pb-8 px-6 border-t-4 border-blue-200 mt-10">
+        <div class="max-w-7xl mx-auto text-center">
+            <p class="text-sm font-medium text-slate-500 mb-2">Un proyecto de extensión de la Universidad Nacional de La Plata.</p>
+            <a href="recursos.html" class="text-blue-500 font-black hover:underline">← Volver a Aprender</a>
+        </div>
+    </footer>
+
+    <script>
+        function safeIcons() { if (window.lucide) lucide.createIcons(); }
+        safeIcons();
+
+        // ── Menú móvil ──────────────────────────────────────────
+        const toggle = document.getElementById('menu-toggle');
+        const menu = document.getElementById('mobile-menu');
+        const iconMenu = document.getElementById('icon-menu');
+        const iconClose = document.getElementById('icon-close');
+        toggle.addEventListener('click', () => {
+            const isOpen = menu.classList.toggle('open');
+            toggle.setAttribute('aria-expanded', isOpen);
+            iconMenu.classList.toggle('hidden', isOpen);
+            iconClose.classList.toggle('hidden', !isOpen);
+        });
+
+        // =====================================================================
+        // 1. EL TABLERO: 26 casillas ubicadas sobre la imagen (coordenadas en %)
+        // =====================================================================
+        // Los números 1,2,4,6,8,10,12,14,16,17,19,21,22,23,24,26 vienen del dibujo
+        // original; las casillas intermedias (3,5,7,9,11,13,15,18,20,25) se
+        // interpolan entre esos puntos para que el camino se vea continuo.
+        const BOARD = [
+            { n: 1,  x: 9.6,  y: 70.5, type: 'start',   phase: 'EVAPORACION' },
+            { n: 2,  x: 5.6,  y: 63.4, type: 'normal',  phase: 'EVAPORACION' },
+            { n: 3,  x: 5.6,  y: 54.5, type: 'phrase',  phase: 'EVAPORACION' },
+            { n: 4,  x: 5.6,  y: 45.6, type: 'normal',  phase: 'EVAPORACION' },
+            { n: 5,  x: 9.55, y: 30.3, type: 'question',phase: 'EVAPORACION' },
+            { n: 6,  x: 13.5, y: 15.0, type: 'normal',  phase: 'EVAPORACION' },
+            { n: 7,  x: 25.2, y: 12.3, type: 'heatwave',phase: 'EVAPORACION' },
+            { n: 8,  x: 36.8, y: 9.5,  type: 'normal',  phase: 'CONDENSACION' },
+            { n: 9,  x: 45.5, y: 12.5, type: 'phrase',  phase: 'CONDENSACION' },
+            { n: 10, x: 54.1, y: 15.4, type: 'normal',  phase: 'CONDENSACION' },
+            { n: 11, x: 65.2, y: 12.6, type: 'question',phase: 'CONDENSACION' },
+            { n: 12, x: 76.2, y: 9.7,  type: 'normal',  phase: 'PRECIPITACION' },
+            { n: 13, x: 80.0, y: 20.4, type: 'phrase',  phase: 'PRECIPITACION' },
+            { n: 14, x: 83.8, y: 31.1, type: 'normal',  phase: 'PRECIPITACION' },
+            { n: 15, x: 73.0, y: 40.2, type: 'zonda',   phase: 'PRECIPITACION' },
+            { n: 16, x: 62.2, y: 49.2, type: 'normal',  phase: 'ACUMULACION' },
+            { n: 17, x: 55.6, y: 43.7, type: 'normal',  phase: 'ACUMULACION' },
+            { n: 18, x: 61.6, y: 53.9, type: 'flood',   phase: 'ACUMULACION' },
+            { n: 19, x: 67.6, y: 64.1, type: 'drought', phase: 'ACUMULACION' },
+            { n: 20, x: 69.7, y: 70.2, type: 'normal',  phase: 'ESCORRENTIA' },
+            { n: 21, x: 71.8, y: 76.2, type: 'normal',  phase: 'ESCORRENTIA' },
+            { n: 22, x: 62.2, y: 78.4, type: 'normal',  phase: 'ESCORRENTIA' },
+            { n: 23, x: 54.3, y: 76.7, type: 'normal',  phase: 'ESCORRENTIA' },
+            { n: 24, x: 45.7, y: 76.5, type: 'normal',  phase: 'INFILTRACION' },
+            { n: 25, x: 35.6, y: 79.8, type: 'well',    phase: 'INFILTRACION' },
+            { n: 26, x: 25.5, y: 83.1, type: 'finish',  phase: 'INFILTRACION' },
+        ];
+        const LAST = BOARD.length - 1; // índice de la casilla 26 (llegada)
+
+        const PHASE_INFO = {
+            EVAPORACION:  { nombre: 'Evaporación', emoji: '☀️💧', datos: [
+                'El sol calienta el agua del mar, los ríos y los lagos, y la transforma en vapor invisible que sube al cielo.',
+                'Las plantas también liberan agua por sus hojas: a eso se lo llama transpiración.'
+            ]},
+            CONDENSACION: { nombre: 'Condensación', emoji: '☁️', datos: [
+                'En las alturas hace más frío, entonces el vapor de agua se enfría y se convierte en pequeñas gotitas: ¡así nacen las nubes!'
+            ]},
+            PRECIPITACION:{ nombre: 'Precipitación', emoji: '🌧️', datos: [
+                'Cuando las gotitas de las nubes se hacen muy pesadas, caen: puede ser como lluvia, nieve o granizo.'
+            ]},
+            ACUMULACION:  { nombre: 'Acumulación', emoji: '🏞️', datos: [
+                'El agua se junta en océanos, lagos, ríos, glaciares y embalses, esperando volver a evaporarse.'
+            ]},
+            ESCORRENTIA:  { nombre: 'Escorrentía superficial', emoji: '🏔️💦', datos: [
+                'El agua de lluvia que no se filtra corre sobre el suelo, baja las laderas y llega a arroyos y ríos.'
+            ]},
+            INFILTRACION: { nombre: 'Infiltración', emoji: '🌱', datos: [
+                'Parte del agua se filtra entre la tierra y recarga las napas subterráneas que después usamos para tomar agua.'
+            ]},
+        };
+
+        const QUESTIONS = [
+            { q: '¿Por qué el agua del mar se convierte en vapor y sube al cielo?', a: ['Por el calor del sol', 'Por el viento frío', 'Porque los peces la empujan'], c: 0 },
+            { q: '¿Cómo se llaman las gotitas de agua que forman una nube?', a: ['Granizo', 'Vapor de agua condensado', 'Copos de nieve'], c: 1 },
+            { q: '¿Qué nombre recibe la caída del agua desde las nubes (lluvia, nieve o granizo)?', a: ['Infiltración', 'Precipitación', 'Escorrentía'], c: 1 },
+            { q: '¿A dónde va el agua que corre sobre la superficie del suelo hacia ríos y lagos?', a: ['Escorrentía superficial', 'Condensación', 'Acumulación atmosférica'], c: 0 },
+            { q: '¿Cómo se llama cuando el agua de lluvia se filtra en la tierra y llega hasta las napas?', a: ['Evaporación', 'Sublimación', 'Infiltración'], c: 2 },
+            { q: 'El viento Zonda es típico de qué región de Argentina?', a: ['Cuyo, cerca de la cordillera', 'La Patagonia', 'El litoral'], c: 0 },
+        ];
+
+        const PHRASES = [
+            { p: 'Cuando el sol calienta el mar, el agua se transforma en ___ y sube hacia el cielo.', a: ['vapor', 'hielo', 'barro'], c: 0 },
+            { p: 'Las nubes se forman por un proceso llamado ___.', a: ['infiltración', 'erosión', 'condensación'], c: 2 },
+            { p: 'La lluvia, la nieve y el granizo son formas de ___.', a: ['acumulación', 'precipitación', 'evaporación'], c: 1 },
+            { p: 'El agua que se junta en ríos, lagos y embalses forma la ___.', a: ['acumulación', 'escorrentía', 'sequía'], c: 0 },
+            { p: 'Cuando el agua de lluvia se cuela entre la tierra y alimenta las napas, a eso se lo llama ___.', a: ['inundación', 'infiltración', 'condensación'], c: 1 },
+            { p: 'Un viento seco y cálido que baja de la montaña se llama viento ___.', a: ['Pampero', 'Zonda', 'Sur'], c: 1 },
+        ];
+
+        const PLAYER_STYLES = [
+            { emoji: '💧', color: '#3b82f6' },
+            { emoji: '🌦️', color: '#f97316' },
+            { emoji: '🌈', color: '#10b981' },
+            { emoji: '☂️', color: '#a855f7' },
+        ];
+
+        // =====================================================================
+        // 2. ESTADO DEL JUEGO
+        // =====================================================================
+        let players = [];      // { name, pos, skipNext, styleIdx, el }
+        let current = 0;
+        let rolling = false;
+        let usedFacts = {};    // para rotar los datos curiosos de cada fase
+
+        function pickFact(phase) {
+            const list = PHASE_INFO[phase].datos;
+            usedFacts[phase] = ((usedFacts[phase] ?? -1) + 1) % list.length;
+            return list[usedFacts[phase]];
+        }
+
+        function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+        // =====================================================================
+        // 3. SETUP DE JUGADORES
+        // =====================================================================
+        let playerCount = 2;
+        const countBtns = document.querySelectorAll('.player-count-btn');
+        const nameInputsWrap = document.getElementById('player-name-inputs');
+
+        function renderNameInputs() {
+            nameInputsWrap.innerHTML = '';
+            for (let i = 0; i < playerCount; i++) {
+                const style = PLAYER_STYLES[i];
+                const row = document.createElement('div');
+                row.className = 'flex items-center gap-3';
+                row.innerHTML = `
+                    <span class="w-10 h-10 rounded-full flex items-center justify-center text-lg border-2 border-white shadow" style="background:${style.color}">${style.emoji}</span>
+                    <input type="text" maxlength="16" data-idx="${i}" class="player-name-input flex-1 border-2 border-slate-200 rounded-xl px-4 py-2 font-bold text-slate-700 focus:outline-none focus:border-blue-400" placeholder="Jugador ${i + 1}">
+                `;
+                nameInputsWrap.appendChild(row);
+            }
+        }
+        renderNameInputs();
+
+        countBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                playerCount = parseInt(btn.dataset.n, 10);
+                countBtns.forEach(b => {
+                    b.classList.toggle('bg-blue-500', b === btn);
+                    b.classList.toggle('border-blue-700', b === btn);
+                    b.classList.toggle('text-white', b === btn);
+                    b.classList.toggle('bg-slate-100', b !== btn);
+                    b.classList.toggle('border-slate-300', b !== btn);
+                    b.classList.toggle('text-slate-600', b !== btn);
+                });
+                renderNameInputs();
+            });
+        });
+
+        document.getElementById('start-game-btn').addEventListener('click', () => {
+            const inputs = document.querySelectorAll('.player-name-input');
+            players = Array.from(inputs).map((inp, i) => ({
+                name: (inp.value || '').trim() || `Jugador ${i + 1}`,
+                pos: 0,
+                skipNext: false,
+                styleIdx: i,
+            }));
+            current = 0;
+            document.getElementById('setup-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+            buildBoardTokens();
+            renderPlayersPanel();
+            updateCurrentPlayerUI();
+            addLog(`🎉 ¡Empieza el juego! Primero tira ${players[0].name}.`);
+        });
+
+        // =====================================================================
+        // 4. TABLERO: pintar tokens
+        // =====================================================================
+        const boardWrap = document.getElementById('board-wrap');
+
+        function buildBoardTokens() {
+            boardWrap.querySelectorAll('.token, .space-pulse').forEach(el => el.remove());
+
+            // resaltado de casilla activa
+            const pulse = document.createElement('div');
+            pulse.id = 'active-pulse';
+            pulse.className = 'space-pulse';
+            boardWrap.appendChild(pulse);
+
+            players.forEach((p, i) => {
+                const style = PLAYER_STYLES[p.styleIdx];
+                const tok = document.createElement('div');
+                tok.className = 'token';
+                tok.id = `token-${i}`;
+                tok.style.background = style.color;
+                tok.textContent = style.emoji;
+                boardWrap.appendChild(tok);
+            });
+            positionAllTokens();
+        }
+
+        function tokenOffset(playerIdx, totalOnSpace) {
+            // separa un poco los tokens que comparten casilla
+            const angle = (playerIdx / Math.max(totalOnSpace, 1)) * Math.PI * 2;
+            return { dx: Math.cos(angle) * 3.2, dy: Math.sin(angle) * 3.2 };
+        }
+
+        function positionAllTokens() {
+            players.forEach((p, i) => {
+                const sameSpace = players.filter(pl => pl.pos === p.pos).length;
+                const idxAmongSame = players.filter((pl, j) => pl.pos === p.pos && j < i).length;
+                const { dx, dy } = sameSpace > 1 ? tokenOffset(idxAmongSame, sameSpace) : { dx: 0, dy: 0 };
+                const cell = BOARD[p.pos];
+                const tok = document.getElementById(`token-${i}`);
+                tok.style.left = (cell.x + dx) + '%';
+                tok.style.top = (cell.y + dy) + '%';
+            });
+            const pulse = document.getElementById('active-pulse');
+            if (pulse && players[current]) {
+                const cell = BOARD[players[current].pos];
+                pulse.style.left = cell.x + '%';
+                pulse.style.top = cell.y + '%';
+                pulse.classList.add('active');
+            }
+        }
+
+        // =====================================================================
+        // 5. PANEL DE JUGADORES / BITÁCORA
+        // =====================================================================
+        function renderPlayersPanel() {
+            const wrap = document.getElementById('players-list');
+            wrap.innerHTML = '';
+            players.forEach((p, i) => {
+                const style = PLAYER_STYLES[p.styleIdx];
+                const row = document.createElement('div');
+                row.id = `player-row-${i}`;
+                row.className = 'flex items-center gap-3 p-2 rounded-xl transition';
+                row.innerHTML = `
+                    <span class="w-9 h-9 rounded-full flex items-center justify-center text-base border-2 border-white shadow shrink-0" style="background:${style.color}">${style.emoji}</span>
+                    <span class="font-black text-slate-700 flex-1 truncate">${p.name}</span>
+                    <span class="text-xs font-black text-slate-400">Casilla ${BOARD[p.pos].n}${p.skipNext ? ' · 😴' : ''}</span>
+                `;
+                wrap.appendChild(row);
+            });
+        }
+
+        function updateCurrentPlayerUI() {
+            document.getElementById('current-player-name').textContent = players[current].name;
+            players.forEach((p, i) => {
+                const row = document.getElementById(`player-row-${i}`);
+                row.classList.toggle('bg-yellow-50', i === current);
+                row.classList.toggle('ring-2', i === current);
+                row.classList.toggle('ring-yellow-300', i === current);
+            });
+        }
+
+        function addLog(text) {
+            const list = document.getElementById('log-list');
+            const line = document.createElement('div');
+            line.className = 'log-entry';
+            line.textContent = text;
+            list.prepend(line);
+        }
+
+        // =====================================================================
+        // 6. DADO
+        // =====================================================================
+        const PIPS = {
+            1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8]
+        };
+        function renderDie(n) {
+            const die = document.getElementById('die');
+            die.innerHTML = '';
+            for (let i = 0; i < 9; i++) {
+                const dot = document.createElement('span');
+                dot.className = PIPS[n].includes(i) ? 'on' : 'off';
+                die.appendChild(dot);
+            }
+        }
+        renderDie(1);
+
+        function rollDieAnimated() {
+            return new Promise(resolve => {
+                const die = document.getElementById('die');
+                die.classList.add('die-rolling');
+                let ticks = 0;
+                const interval = setInterval(() => {
+                    renderDie(1 + Math.floor(Math.random() * 6));
+                    ticks++;
+                    if (ticks > 8) {
+                        clearInterval(interval);
+                        die.classList.remove('die-rolling');
+                        const final = 1 + Math.floor(Math.random() * 6);
+                        renderDie(final);
+                        resolve(final);
+                    }
+                }, 70);
+            });
+        }
+
+        // =====================================================================
+        // 7. MODALES (genérico, con Promesa)
+        // =====================================================================
+        const overlay = document.getElementById('modal-overlay');
+        const modalBox = document.getElementById('modal-box');
+
+        function openModalHTML(html) {
+            modalBox.innerHTML = html;
+            overlay.classList.remove('hidden');
+            safeIcons();
+        }
+        function closeModal() {
+            overlay.classList.add('hidden');
+            modalBox.innerHTML = '';
+        }
+
+        function showInfoModal({ emoji, title, body, btnLabel = '¡Entendido!', accent = 'blue' }) {
+            return new Promise(resolve => {
+                openModalHTML(`
+                    <div class="text-center">
+                        <div class="text-5xl mb-3">${emoji}</div>
+                        <h3 class="text-xl md:text-2xl font-black text-slate-800 mb-3">${title}</h3>
+                        <p class="text-slate-600 font-medium mb-6 leading-relaxed">${body}</p>
+                        <button id="modal-ok" class="kid-btn w-full bg-${accent}-500 border-${accent}-700 text-white font-black py-3 rounded-2xl">${btnLabel}</button>
+                    </div>
+                `);
+                document.getElementById('modal-ok').addEventListener('click', () => { closeModal(); resolve(); });
+            });
+        }
+
+        function showChoiceModal({ emoji, title, statement, options, correctIdx, correctMsg, wrongMsg }) {
+            return new Promise(resolve => {
+                const opts = options.map((opt, i) => `
+                    <button data-i="${i}" class="choice-btn w-full text-left bg-slate-50 hover:bg-blue-50 border-2 border-slate-200 hover:border-blue-300 rounded-xl px-4 py-3 font-bold text-slate-700 transition">${opt}</button>
+                `).join('');
+                openModalHTML(`
+                    <div>
+                        <div class="text-center text-5xl mb-3">${emoji}</div>
+                        <h3 class="text-xl md:text-2xl font-black text-slate-800 mb-2 text-center">${title}</h3>
+                        <p class="text-slate-600 font-bold mb-5 text-center">${statement}</p>
+                        <div id="choice-list" class="space-y-2">${opts}</div>
+                        <div id="choice-result" class="hidden mt-5 text-center"></div>
+                    </div>
+                `);
+                document.querySelectorAll('.choice-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        document.querySelectorAll('.choice-btn').forEach(b => b.disabled = true);
+                        const i = parseInt(btn.dataset.i, 10);
+                        const ok = i === correctIdx;
+                        btn.classList.add(ok ? 'bg-emerald-100' : 'bg-rose-100', ok ? 'border-emerald-400' : 'border-rose-400');
+                        if (!ok) {
+                            const correctBtn = document.querySelector(`.choice-btn[data-i="${correctIdx}"]`);
+                            correctBtn.classList.add('bg-emerald-100', 'border-emerald-400');
+                        }
+                        const resultBox = document.getElementById('choice-result');
+                        resultBox.classList.remove('hidden');
+                        resultBox.innerHTML = `
+                            <p class="font-black ${ok ? 'text-emerald-600' : 'text-rose-500'} mb-4">${ok ? correctMsg : wrongMsg}</p>
+                            <button id="modal-ok" class="kid-btn w-full bg-blue-500 border-blue-700 text-white font-black py-3 rounded-2xl">Continuar</button>
+                        `;
+                        document.getElementById('modal-ok').addEventListener('click', () => { closeModal(); resolve(ok); });
+                    });
+                });
+            });
+        }
+
+        function showRules() {
+            openModalHTML(`
+                <div>
+                    <h3 class="text-2xl font-black text-slate-800 mb-4 text-center">🎲 ¿Cómo se juega?</h3>
+                    <ul class="space-y-3 text-slate-600 font-medium text-sm leading-relaxed list-disc pl-5">
+                        <li>Cada jugador empieza en la casilla 1 (Inicio, en el mar) y por turnos tira el dado para avanzar.</li>
+                        <li>El tablero recorre el <b>ciclo del agua</b>: evaporación → condensación → precipitación → acumulación → escorrentía superficial → infiltración.</li>
+                        <li>Al caer en una casilla con <b>❓ pregunta</b> o <b>📇 tarjeta de frase</b>, respondé para aprender más (¡no hay penalidad si te equivocás!).</li>
+                        <li>Las casillas <b>🔥 ola de calor</b> te hacen avanzar 3 casillas; el <b>🌬️ viento Zonda</b> y la <b>🌊 inundación</b> te hacen retroceder.</li>
+                        <li>Si caés en <b>☀️ sequía</b> o en el <b>⚫ pozo</b>, perdés tu próximo turno.</li>
+                        <li>Gana quien llegue primero a la casilla <b>26 (🏁 Llegada)</b>. Si el dado te hace pasarte, ¡rebotás hacia atrás la diferencia!</li>
+                    </ul>
+                    <button id="modal-close" class="kid-btn w-full bg-blue-500 border-blue-700 text-white font-black py-3 rounded-2xl mt-6">¡Listo, a jugar!</button>
+                </div>
+            `);
+            document.getElementById('modal-close').addEventListener('click', closeModal);
+        }
+        document.getElementById('open-rules-btn').addEventListener('click', showRules);
+        document.getElementById('open-rules-btn-2').addEventListener('click', showRules);
+
+        // =====================================================================
+        // 8. LÓGICA DE MOVIMIENTO Y EVENTOS
+        // =====================================================================
+        function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+        async function animateStepsTo(playerIdx, sequence) {
+            for (const pos of sequence) {
+                players[playerIdx].pos = pos;
+                positionAllTokens();
+                renderPlayersPanel();
+                updateCurrentPlayerUI();
+                await sleep(260);
+            }
+        }
+
+        function buildSequence(start, dice) {
+            const seq = [];
+            let pos = start;
+            let remaining = dice;
+            // fase 1: avanzar hasta 26 como máximo
+            while (remaining > 0 && pos < LAST) {
+                pos++; remaining--;
+                seq.push(pos);
+            }
+            // fase 2: si sobró tirada, rebota hacia atrás
+            while (remaining > 0) {
+                pos--; remaining--;
+                seq.push(pos);
+            }
+            return seq;
+        }
+
+        async function resolveLanding(playerIdx) {
+            const p = players[playerIdx];
+            const cell = BOARD[p.pos];
+
+            if (cell.type === 'finish') {
+                await celebrateWin(p);
+                return 'win';
+            }
+
+            switch (cell.type) {
+                case 'start':
+                case 'normal': {
+                    const info = PHASE_INFO[cell.phase];
+                    await showInfoModal({
+                        emoji: info.emoji,
+                        title: `${info.nombre} · Casilla ${cell.n}`,
+                        body: pickFact(cell.phase),
+                    });
+                    break;
+                }
+                case 'question': {
+                    const q = pickRandom(QUESTIONS);
+                    addLog(`❓ ${p.name} responde una pregunta.`);
+                    await showChoiceModal({
+                        emoji: '❓', title: `Pregunta · Casilla ${cell.n}`, statement: q.q,
+                        options: q.a, correctIdx: q.c,
+                        correctMsg: '¡Correcto! 🌟', wrongMsg: 'No era esa, ¡pero seguí jugando! 💪',
+                    });
+                    break;
+                }
+                case 'phrase': {
+                    const ph = pickRandom(PHRASES);
+                    addLog(`📇 ${p.name} completa una tarjeta de frase.`);
+                    await showChoiceModal({
+                        emoji: '📇', title: `Tarjeta de frase · Casilla ${cell.n}`, statement: ph.p,
+                        options: ph.a, correctIdx: ph.c,
+                        correctMsg: '¡Exacto! 🌟', wrongMsg: 'Casi, ¡pero seguí jugando! 💪',
+                    });
+                    break;
+                }
+                case 'heatwave': {
+                    addLog(`🔥 ¡Ola de calor! ${p.name} avanza 3 casillas de más.`);
+                    await showInfoModal({
+                        emoji: '🔥', accent: 'orange', title: '¡Ola de calor!',
+                        body: 'El calor extremo acelera la evaporación: ¡avanzás 3 casillas de golpe!',
+                        btnLabel: '¡Vamos!',
+                    });
+                    const seq = buildSequence(p.pos, 3);
+                    await animateStepsTo(playerIdx, seq);
+                    return await resolveLanding(playerIdx);
+                }
+                case 'zonda': {
+                    addLog(`🌬️ Viento Zonda: ${p.name} retrocede 4 casillas.`);
+                    await showInfoModal({
+                        emoji: '🌬️', accent: 'slate', title: '¡Viento Zonda!',
+                        body: 'Un viento seco y cálido baja de la montaña y seca todo a su paso: retrocedés 4 casillas.',
+                        btnLabel: 'Entendido',
+                    });
+                    p.pos = Math.max(0, p.pos - 4);
+                    positionAllTokens(); renderPlayersPanel(); updateCurrentPlayerUI();
+                    await sleep(200);
+                    return await resolveLanding(playerIdx);
+                }
+                case 'flood': {
+                    addLog(`🌊 Inundación: ${p.name} retrocede 3 casillas.`);
+                    await showInfoModal({
+                        emoji: '🌊', accent: 'blue', title: '¡Inundación!',
+                        body: 'El agua acumulada se desborda y arrasa el camino recorrido: retrocedés 3 casillas.',
+                        btnLabel: 'Entendido',
+                    });
+                    p.pos = Math.max(0, p.pos - 3);
+                    positionAllTokens(); renderPlayersPanel(); updateCurrentPlayerUI();
+                    await sleep(200);
+                    return await resolveLanding(playerIdx);
+                }
+                case 'drought': {
+                    addLog(`☀️ Sequía: ${p.name} pierde el próximo turno.`);
+                    p.skipNext = true;
+                    await showInfoModal({
+                        emoji: '☀️', accent: 'yellow', title: '¡Sequía!',
+                        body: 'No hay agua disponible por un buen tiempo: perdés tu próximo turno esperando que llueva.',
+                        btnLabel: 'Entendido',
+                    });
+                    break;
+                }
+                case 'well': {
+                    addLog(`⚫ ${p.name} cae en el pozo y pierde el próximo turno.`);
+                    p.skipNext = true;
+                    await showInfoModal({
+                        emoji: '🕳️', accent: 'slate', title: '¡Caíste en el pozo!',
+                        body: 'Quedaste atrapado bajo tierra por un momento: perdés tu próximo turno.',
+                        btnLabel: 'Entendido',
+                    });
+                    break;
+                }
+            }
+            renderPlayersPanel();
+            return 'continue';
+        }
+
+        async function celebrateWin(p) {
+            addLog(`🏁 ¡${p.name} llegó a la casilla 26 y ganó la partida!`);
+            launchConfetti();
+            await showInfoModal({
+                emoji: '🏆', accent: 'emerald', title: `¡${p.name} ganó!`,
+                body: 'El agua completó su recorrido: volvió a evaporarse desde el mar para empezar el ciclo otra vez. ¡Gracias por jugar y aprender sobre el ciclo del agua!',
+                btnLabel: 'Genial',
+            });
+            document.getElementById('roll-btn').disabled = true;
+        }
+
+        function launchConfetti() {
+            const emojis = ['💧', '🌈', '☁️', '⭐', '🎉'];
+            for (let i = 0; i < 26; i++) {
+                const el = document.createElement('div');
+                el.className = 'confetti-emoji';
+                el.textContent = pickRandom(emojis);
+                el.style.left = Math.random() * 100 + 'vw';
+                el.style.animationDuration = (2 + Math.random() * 1.5) + 's';
+                document.body.appendChild(el);
+                setTimeout(() => el.remove(), 3800);
+            }
+        }
+
+        function nextTurn() {
+            current = (current + 1) % players.length;
+            updateCurrentPlayerUI();
+            positionAllTokens();
+        }
+
+        // =====================================================================
+        // 9. TURNO PRINCIPAL
+        // =====================================================================
+        document.getElementById('roll-btn').addEventListener('click', async () => {
+            if (rolling) return;
+            rolling = true;
+            document.getElementById('roll-btn').disabled = true;
+
+            const p = players[current];
+
+            if (p.skipNext) {
+                p.skipNext = false;
+                addLog(`😴 ${p.name} pierde este turno.`);
+                await showInfoModal({
+                    emoji: '😴', accent: 'slate', title: `${p.name} pierde el turno`,
+                    body: 'Tenés que esperar tu próxima oportunidad para tirar el dado.',
+                    btnLabel: 'OK',
+                });
+                renderPlayersPanel();
+                nextTurn();
+                rolling = false;
+                document.getElementById('roll-btn').disabled = false;
+                return;
+            }
+
+            const dice = await rollDieAnimated();
+            addLog(`🎲 ${p.name} tira ${dice}.`);
+            const seq = buildSequence(p.pos, dice);
+            await animateStepsTo(current, seq);
+
+            const result = await resolveLanding(current);
+            renderPlayersPanel();
+
+            if (result !== 'win') {
+                nextTurn();
+                document.getElementById('roll-btn').disabled = false;
+            }
+            rolling = false;
+        });
+
+        document.getElementById('restart-btn').addEventListener('click', () => {
+            if (!confirm('¿Reiniciar la partida? Se perderá el progreso actual.')) return;
+            document.getElementById('game-screen').classList.add('hidden');
+            document.getElementById('setup-screen').classList.remove('hidden');
+            document.getElementById('log-list').innerHTML = '';
+            document.getElementById('roll-btn').disabled = false;
+        });
+    </script>
+</body>
+</html>
