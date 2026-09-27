@@ -370,8 +370,8 @@
 <button id="btn-admin-trigger" class="fixed bottom-4 right-3 w-6 h-6 rounded-full bg-slate-400 opacity-20 hover:opacity-70 active:opacity-70 transition z-[9000]" title="⚙"></button>
 
 <div id="admin-overlay" class="fixed inset-0 z-[10001] bg-slate-900/70 backdrop-blur-sm hidden items-center justify-center p-4">
-    <div class="bg-white rounded-[1.5rem] shadow-2xl w-full max-w-sm overflow-hidden border-4 border-white">
-        <div class="flex items-center justify-between gap-3 p-4 border-b-2 border-slate-100">
+    <div class="bg-white rounded-[1.5rem] shadow-2xl w-full max-w-3xl max-h-[92vh] overflow-y-auto border-4 border-white">
+        <div class="flex items-center justify-between gap-3 p-4 border-b-2 border-slate-100 sticky top-0 bg-white z-10">
             <h3 class="text-base font-black text-slate-800">Modo administrador</h3>
             <button id="btn-cerrar-admin" class="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition" title="Cerrar">
                 <i data-lucide="x" class="w-5 h-5"></i>
@@ -379,31 +379,83 @@
         </div>
 
         <div id="admin-paso-clave" class="p-5 space-y-3">
-            <p class="text-xs font-bold text-slate-500">Ingresá la clave para acceder a la descarga de históricos.</p>
+            <p class="text-xs font-bold text-slate-500">Ingresá la clave para acceder al centro de control.</p>
             <input id="admin-input-clave" type="password" placeholder="Clave" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:border-blue-400">
             <p id="admin-clave-error" class="text-xs font-bold text-red-500 hidden">Clave incorrecta.</p>
             <button id="btn-admin-entrar" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black text-sm py-2.5 rounded-xl transition">Entrar</button>
         </div>
 
-        <div id="admin-paso-descarga" class="p-5 space-y-3 hidden">
+        <div id="admin-paso-descarga" class="p-5 space-y-6 hidden">
+
+            <!-- CENTRO DE CONTROL: todas las estaciones a la vez -->
             <div>
-                <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Estación</label>
-                <select id="admin-select-estacion" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-bold"></select>
-            </div>
-            <div class="flex gap-2">
-                <div class="flex-1">
-                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Desde</label>
-                    <input id="admin-fecha-desde" type="date" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-bold">
+                <div class="flex items-center justify-between gap-2 mb-3">
+                    <h4 class="text-sm font-black text-slate-800 flex items-center gap-2">
+                        <i data-lucide="layout-grid" class="w-4 h-4"></i> Centro de control
+                    </h4>
+                    <button id="btn-admin-descargar-tabla" class="bg-slate-800 hover:bg-slate-900 text-white font-black text-[11px] px-3 py-2 rounded-xl transition flex items-center gap-1.5 shrink-0">
+                        <i data-lucide="image-down" class="w-4 h-4"></i> PNG
+                    </button>
                 </div>
-                <div class="flex-1">
-                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Hasta</label>
-                    <input id="admin-fecha-hasta" type="date" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-bold">
+                <div class="overflow-x-auto rounded-xl border-2 border-slate-200">
+                    <table class="w-full text-xs whitespace-nowrap">
+                        <thead class="bg-slate-100 text-slate-500 uppercase text-[10px]">
+                            <tr>
+                                <th class="p-2 text-left">Estación</th>
+                                <th class="p-2 text-right">Temp</th>
+                                <th class="p-2 text-right">Hum</th>
+                                <th class="p-2 text-right">Presión</th>
+                                <th class="p-2 text-right">Lluvia hoy</th>
+                                <th class="p-2 text-right">Viento</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-tabla-control-body"></tbody>
+                    </table>
+                </div>
+                <p class="text-[10px] font-bold text-slate-400 mt-1.5">Datos de la última carga de la página (el sitio no se actualiza solo).</p>
+            </div>
+
+            <!-- MAPA CON LOS VALORES, PARA DESCARGAR -->
+            <div>
+                <h4 class="text-sm font-black text-slate-800 flex items-center gap-2 mb-3">
+                    <i data-lucide="map" class="w-4 h-4"></i> Mapa con los valores
+                </h4>
+                <div class="flex gap-2">
+                    <select id="admin-select-variable-mapa" class="flex-1 border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-bold"></select>
+                    <button id="btn-admin-descargar-mapa" class="bg-slate-800 hover:bg-slate-900 text-white font-black text-[11px] px-3 py-2 rounded-xl transition flex items-center gap-1.5 shrink-0">
+                        <i data-lucide="image-down" class="w-4 h-4"></i> PNG
+                    </button>
                 </div>
             </div>
-            <button id="btn-admin-descargar" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm py-2.5 rounded-xl transition flex items-center justify-center gap-2">
-                <i data-lucide="download" class="w-4 h-4"></i> Descargar CSV
-            </button>
-            <p id="admin-descarga-estado" class="text-xs font-bold text-slate-500 text-center"></p>
+
+            <hr class="border-slate-200">
+
+            <!-- DESCARGA DE HISTÓRICO EN CSV -->
+            <div>
+                <h4 class="text-sm font-black text-slate-800 flex items-center gap-2 mb-3">
+                    <i data-lucide="download" class="w-4 h-4"></i> Descargar histórico
+                </h4>
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Estación</label>
+                        <select id="admin-select-estacion" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-bold"></select>
+                    </div>
+                    <div class="flex gap-2">
+                        <div class="flex-1">
+                            <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Desde</label>
+                            <input id="admin-fecha-desde" type="date" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-bold">
+                        </div>
+                        <div class="flex-1">
+                            <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Hasta</label>
+                            <input id="admin-fecha-hasta" type="date" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-bold">
+                        </div>
+                    </div>
+                    <button id="btn-admin-descargar" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm py-2.5 rounded-xl transition flex items-center justify-center gap-2">
+                        <i data-lucide="download" class="w-4 h-4"></i> Descargar CSV
+                    </button>
+                    <p id="admin-descarga-estado" class="text-xs font-bold text-slate-500 text-center"></p>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -1754,10 +1806,15 @@
             document.getElementById('admin-paso-clave').classList.add('hidden');
             document.getElementById('admin-paso-descarga').classList.remove('hidden');
 
+            poblarTablaControlAdmin();
+
             const select = document.getElementById('admin-select-estacion');
             if (!select.dataset.poblado) {
                 select.innerHTML = puntos.map((p, i) => `<option value="${i}">${p.n}${p.loc ? ' — ' + p.loc : ''}</option>`).join('');
                 select.dataset.poblado = '1';
+
+                document.getElementById('admin-select-variable-mapa').innerHTML =
+                    VARIABLES_MAPA.map(v => `<option value="${v.id}">${v.label}</option>`).join('');
 
                 const pad = (n) => n.toString().padStart(2, '0');
                 const hoy = new Date();
@@ -1767,6 +1824,259 @@
                 document.getElementById('admin-fecha-hasta').value = aInputDate(hoy);
                 document.getElementById('admin-fecha-desde').value = aInputDate(haceUnaSemana);
             }
+        }
+
+        // Tabla con el último valor conocido de cada estación (mismo p.valorActual que
+        // usa el mapa expandido). Se repuebla cada vez que se abre el panel, aunque en
+        // la práctica no cambia hasta que se recarga la página (el sitio no se
+        // actualiza solo).
+        function poblarTablaControlAdmin() {
+            const fmt = (v, u) => (v !== null && v !== undefined) ? `${v} ${u}` : '—';
+            document.getElementById('admin-tabla-control-body').innerHTML = puntos.map(p => {
+                const va = p.valorActual || {};
+                return `<tr class="border-t border-slate-100 ${p.live ? '' : 'opacity-40'}">
+                    <td class="p-2 font-black text-slate-800">${p.n}</td>
+                    <td class="p-2 text-right">${fmt(va.temp, '°C')}</td>
+                    <td class="p-2 text-right">${fmt(va.hum, '%')}</td>
+                    <td class="p-2 text-right">${fmt(va.pres, 'hPa')}</td>
+                    <td class="p-2 text-right">${fmt(va.rain, 'mm')}</td>
+                    <td class="p-2 text-right">${fmt(va.wind, 'km/h')}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        // ─── EXPORTACIÓN A PNG (Centro de Control y mapa esquemático) ───────────
+        // Todo se dibuja a mano sobre un <canvas>, en vez de sacarle una foto al
+        // mapa real (con las tiles de OpenStreetMap): las tiles no tienen cabecera
+        // CORS, así que "pintarlas" en un canvas lo deja "tainted" y toBlob()
+        // termina fallando. Dibujando todo nosotros mismos (con el logo propio,
+        // que sí es del mismo origen) el PNG se puede generar siempre.
+
+        function cargarImagen(src) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => resolve(img);
+                img.onerror = reject;
+                img.src = src;
+            });
+        }
+
+        function marcaDeTiempoCanvas() {
+            return `Generado el ${new Date().toLocaleString('es-AR')}`;
+        }
+
+        async function generarCanvasControl() {
+            const alturaFila = 34;
+            const alturaTitulo = 90;
+            const alturaPie = 34;
+            const ancho = 800;
+            const alto = alturaTitulo + (puntos.length + 1) * alturaFila + alturaPie;
+
+            const canvas = document.createElement('canvas');
+            canvas.width = ancho;
+            canvas.height = alto;
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, ancho, alto);
+
+            let logo = null;
+            try { logo = await cargarImagen('imagenes/Logo1.jpg'); } catch (e) { /* sin logo, se sigue igual */ }
+            if (logo) ctx.drawImage(logo, 20, 16, 58, 58);
+
+            ctx.textAlign = 'left';
+            ctx.fillStyle = '#1e293b';
+            ctx.font = '900 20px sans-serif';
+            ctx.fillText('Centro de control — Red de estaciones', logo ? 90 : 20, 40);
+            ctx.fillStyle = '#64748b';
+            ctx.font = '600 13px sans-serif';
+            ctx.fillText('¿Cómo está el tiempo en tu escuela?', logo ? 90 : 20, 60);
+            ctx.fillText(marcaDeTiempoCanvas(), logo ? 90 : 20, 78);
+
+            const columnas = [
+                { titulo: 'Estación', ancho: 230, alinear: 'left' },
+                { titulo: 'Temp', ancho: 100, alinear: 'right' },
+                { titulo: 'Hum', ancho: 100, alinear: 'right' },
+                { titulo: 'Presión', ancho: 110, alinear: 'right' },
+                { titulo: 'Lluvia hoy', ancho: 110, alinear: 'right' },
+                { titulo: 'Viento', ancho: 110, alinear: 'right' }
+            ];
+            const margenIzq = 20;
+            let y = alturaTitulo;
+
+            ctx.fillStyle = '#f1f5f9';
+            ctx.fillRect(margenIzq, y, ancho - margenIzq * 2, alturaFila);
+            ctx.fillStyle = '#64748b';
+            ctx.font = '800 11px sans-serif';
+            let x = margenIzq + 10;
+            columnas.forEach(col => {
+                ctx.textAlign = col.alinear;
+                ctx.fillText(col.titulo.toUpperCase(), col.alinear === 'left' ? x : x + col.ancho - 10, y + 21);
+                x += col.ancho;
+            });
+            y += alturaFila;
+
+            const fmt = (v, u) => (v !== null && v !== undefined) ? `${v} ${u}` : '—';
+            puntos.forEach((p, i) => {
+                const va = p.valorActual || {};
+                if (i % 2 === 1) {
+                    ctx.fillStyle = '#f8fafc';
+                    ctx.fillRect(margenIzq, y, ancho - margenIzq * 2, alturaFila);
+                }
+                ctx.fillStyle = p.live ? '#1e293b' : '#94a3b8';
+                const valores = [p.n, fmt(va.temp, '°C'), fmt(va.hum, '%'), fmt(va.pres, 'hPa'), fmt(va.rain, 'mm'), fmt(va.wind, 'km/h')];
+                x = margenIzq + 10;
+                columnas.forEach((col, j) => {
+                    ctx.font = j === 0 ? '800 13px sans-serif' : '600 13px sans-serif';
+                    ctx.textAlign = col.alinear;
+                    ctx.fillText(valores[j], col.alinear === 'left' ? x : x + col.ancho - 10, y + 22);
+                    x += col.ancho;
+                });
+                y += alturaFila;
+            });
+
+            ctx.textAlign = 'left';
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '600 11px sans-serif';
+            ctx.fillText('Datos de la última carga de la página (el sitio no se actualiza solo).', margenIzq, alto - 14);
+
+            return canvas;
+        }
+
+        // Dibuja una "caja" oscura con una o más líneas de texto, pegada a un punto
+        // del mapa (usada tanto para estaciones sueltas como para el grupo del
+        // Observatorio, que necesita varias líneas).
+        function dibujarEtiquetaMapa(ctx, ancho, alto, margenPie, px, py, lineas) {
+            ctx.font = '800 12px sans-serif';
+            const anchoCaja = Math.max(...lineas.map(l => ctx.measureText(l).width)) + 16;
+            const altoCaja = lineas.length * 16 + 10;
+            let cajaX = px + 14;
+            if (cajaX + anchoCaja > ancho - 10) cajaX = px - anchoCaja - 14;
+            const cajaY = Math.max(10, Math.min(alto - margenPie - altoCaja - 10, py - altoCaja / 2));
+
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+            ctx.beginPath();
+            if (ctx.roundRect) ctx.roundRect(cajaX, cajaY, anchoCaja, altoCaja, 8); else ctx.rect(cajaX, cajaY, anchoCaja, altoCaja);
+            ctx.fill();
+
+            ctx.textAlign = 'left';
+            lineas.forEach((linea, i) => {
+                ctx.fillStyle = i === 0 ? '#ffffff' : '#cbd5e1';
+                ctx.font = i === 0 ? '800 12px sans-serif' : '600 11px sans-serif';
+                ctx.fillText(linea, cajaX + 8, cajaY + 18 + i * 16);
+            });
+        }
+
+        // Mapa esquemático (no a escala geográfica real): proyecta las coordenadas
+        // de cada estación linealmente dentro de un rectángulo, agrupando las del
+        // Observatorio en un solo punto con varias líneas de etiqueta, igual que
+        // hace el mapa interactivo de verdad (ver grupoObservatorio).
+        async function generarCanvasMapa(variableId) {
+            const v = VARIABLES_MAPA.find(v => v.id === variableId);
+            const anchoArea = 760, altoArea = 560;
+            const margenTitulo = 90, margenMapa = 40, margenPie = 40;
+            const ancho = anchoArea + margenMapa * 2;
+            const alto = margenTitulo + altoArea + margenMapa + margenPie;
+
+            const canvas = document.createElement('canvas');
+            canvas.width = ancho;
+            canvas.height = alto;
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, ancho, alto);
+
+            let logo = null;
+            try { logo = await cargarImagen('imagenes/Logo1.jpg'); } catch (e) { /* sin logo, se sigue igual */ }
+            if (logo) ctx.drawImage(logo, 20, 16, 58, 58);
+
+            ctx.textAlign = 'left';
+            ctx.fillStyle = '#1e293b';
+            ctx.font = '900 20px sans-serif';
+            ctx.fillText(`Mapa esquemático — ${v.label.replace(/^\S+\s*/, '')}`, logo ? 90 : 20, 40);
+            ctx.fillStyle = '#64748b';
+            ctx.font = '600 13px sans-serif';
+            ctx.fillText('¿Cómo está el tiempo en tu escuela?', logo ? 90 : 20, 60);
+            ctx.fillText(marcaDeTiempoCanvas(), logo ? 90 : 20, 78);
+
+            const x0 = margenMapa, y0 = margenTitulo;
+            ctx.fillStyle = '#eef2f7';
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            if (ctx.roundRect) ctx.roundRect(x0, y0, anchoArea, altoArea, 16); else ctx.rect(x0, y0, anchoArea, altoArea);
+            ctx.fill();
+            ctx.stroke();
+
+            const lats = puntos.map(p => p.c[0]);
+            const lons = puntos.map(p => p.c[1]);
+            const latMin = Math.min(...lats), latMax = Math.max(...lats);
+            const lonMin = Math.min(...lons), lonMax = Math.max(...lons);
+            const rangoLat = (latMax - latMin) || 1;
+            const rangoLon = (lonMax - lonMin) || 1;
+            const pad = 60;
+
+            function proyectar(c) {
+                const px = x0 + pad + ((c[1] - lonMin) / rangoLon) * (anchoArea - pad * 2);
+                const py = y0 + pad + ((latMax - c[0]) / rangoLat) * (altoArea - pad * 2);
+                return [px, py];
+            }
+
+            function dibujarPunto(px, py, color) {
+                ctx.beginPath();
+                ctx.arc(px, py, 11, 0, Math.PI * 2);
+                ctx.fillStyle = color;
+                ctx.fill();
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = '#ffffff';
+                ctx.stroke();
+            }
+
+            const valorDe = (p) => (p.live && p.valorActual) ? p.valorActual[variableId] : null;
+
+            puntos.filter(p => !p.grupoObservatorio).forEach(p => {
+                const [px, py] = proyectar(p.c);
+                const valor = valorDe(p);
+                dibujarPunto(px, py, p.live ? p.clr : '#94a3b8');
+                const linea2 = (valor !== null && valor !== undefined) ? `${valor} ${v.unidad}` : 'Sin datos';
+                dibujarEtiquetaMapa(ctx, ancho, alto, margenPie, px, py, [p.n, linea2]);
+            });
+
+            const grupo = puntos.filter(p => p.grupoObservatorio);
+            if (grupo.length) {
+                const centro = [
+                    grupo.reduce((s, p) => s + p.c[0], 0) / grupo.length,
+                    grupo.reduce((s, p) => s + p.c[1], 0) / grupo.length
+                ];
+                const [px, py] = proyectar(centro);
+                dibujarPunto(px, py, '#475569');
+                const lineas = ['Observatorio (FCAG)'];
+                grupo.forEach(p => {
+                    const valor = valorDe(p);
+                    lineas.push(`${p.n}: ${(valor !== null && valor !== undefined) ? valor + ' ' + v.unidad : 'sin datos'}`);
+                });
+                dibujarEtiquetaMapa(ctx, ancho, alto, margenPie, px, py, lineas);
+            }
+
+            ctx.textAlign = 'left';
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '600 11px sans-serif';
+            ctx.fillText('Mapa esquemático, no a escala geográfica exacta. Datos de la última carga de la página.', x0, alto - 14);
+
+            return canvas;
+        }
+
+        function descargarCanvas(canvas, nombreArchivo) {
+            canvas.toBlob(blob => {
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = nombreArchivo;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            }, 'image/png');
         }
 
         // Trae el historial de una estación Wunderground entre dos fechas (inclusive),
@@ -1964,6 +2274,33 @@
             if (e.key === 'Enter') intentarLoginAdmin();
         });
         document.getElementById('btn-admin-descargar').addEventListener('click', descargarHistoricoAdmin);
+
+        document.getElementById('btn-admin-descargar-tabla').addEventListener('click', async () => {
+            const btn = document.getElementById('btn-admin-descargar-tabla');
+            btn.disabled = true;
+            try {
+                const canvas = await generarCanvasControl();
+                descargarCanvas(canvas, `centro-de-control_${new Date().toISOString().slice(0, 10)}.png`);
+            } catch (e) {
+                console.error('Error generando el PNG del centro de control:', e);
+            } finally {
+                btn.disabled = false;
+            }
+        });
+
+        document.getElementById('btn-admin-descargar-mapa').addEventListener('click', async () => {
+            const btn = document.getElementById('btn-admin-descargar-mapa');
+            btn.disabled = true;
+            try {
+                const variableId = document.getElementById('admin-select-variable-mapa').value;
+                const canvas = await generarCanvasMapa(variableId);
+                descargarCanvas(canvas, `mapa-${variableId}_${new Date().toISOString().slice(0, 10)}.png`);
+            } catch (e) {
+                console.error('Error generando el PNG del mapa:', e);
+            } finally {
+                btn.disabled = false;
+            }
+        });
 
         // ─── SOLAPA DE ESCUELAS (desliza sobre el mapa) ──────────────────────────
         function abrirSolapaEscuelas() {
