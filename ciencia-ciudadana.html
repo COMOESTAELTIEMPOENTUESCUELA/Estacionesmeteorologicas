@@ -666,7 +666,9 @@
               n: "ES7 / EP20", c: [-34.95767209016535, -57.81756279329484], live: true },
             { source: "wunderground", wuId: "IBERIS14", wuKey: "af815b5b4b804cfd815b5b4b80dcfd07",
               n: "EP N°23 (Los Talas)", c: [-34.92712, -57.76241], live: true },
-            { id: "2218689", key: "ZLNOSLZJPQM3H7SD", n: "EMA Blanca", c: [-34.9089, -57.9327], live: true }
+            // factorLluvia: 2 es PROVISORIO (27/09/2026): ver el mismo comentario en
+            // red-meteorologica.html sobre la posición del sensor de la EMA Blanca.
+            { id: "2218689", key: "ZLNOSLZJPQM3H7SD", factorLluvia: 2, n: "EMA Blanca", c: [-34.9089, -57.9327], live: true }
             // Observatorio (Davis) sacada del mapa: sus lecturas de lluvia no son
             // confiables (reportaba mm sueltos sin que lloviera). fetchLluviaHoyDavis()
             // se deja en el código por si se puede reactivar más adelante.
@@ -702,6 +704,7 @@
                         timestampsVistos.add(f.created_at);
                         v = estacion.rainMult;
                     }
+                    v *= (estacion.factorLluvia || 1);
                     total += v;
                 });
             });

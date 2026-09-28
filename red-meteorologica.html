@@ -479,7 +479,13 @@
         const puntos = [
             { channels: [{ id: "2626952", key: "4XYH56YSV64HE17H" }, { id: "1778165", key: "OJ1JHKAPCCIQB4CB" }], rainMult: 0.68,
               n: "EP N°23", loc: "Bavío (EMA Violeta)", c: [-35.0254, -57.7529], clr: "#10b981", live: true, img: "imagenes/escuela23.jpg", ocultarPresion: true },
-            { id: "2218689", key: "ZLNOSLZJPQM3H7SD",
+            // factorLluvia: 2 es PROVISORIO (27/09/2026): el sensor de la EMA Blanca está
+            // en el medio del pluviómetro (a diferencia de la EMA Verde, que lo tiene al
+            // costado) y todo indica que solo detecta el vaciado de UNO de los dos
+            // cangilones por ciclo, reportando la mitad de la lluvia real. Falta confirmar
+            // revisando el mecanismo en persona; si se confirma o descarta, sacar este
+            // comentario y ajustar/borrar el factor.
+            { id: "2218689", key: "ZLNOSLZJPQM3H7SD", factorLluvia: 2,
               n: "EMA Blanca", loc: "Facultad (FCAG)", c: [-34.9089, -57.9327], clr: "#facc15", live: true, img: "imagenes/observatorio.png", grupoObservatorio: true },
             { source: "wunderground", wuId: "IVERNI9", wuKey: "6b6ee16ebab34fe5aee16ebab38fe57a",
               n: "Monte Veloz", loc: "Ruta 36", c: [-35.3200, -57.4200], clr: "#f59e0b", live: true, img: "https://images.unsplash.com/photo-1592210454359-9043f067919b?auto=format&fit=crop&q=80&w=300" },
@@ -860,7 +866,7 @@
         // mínima/máxima de temperatura de HOY (aunque el período pedido sea más largo).
         // Para dias=1, "convencion" define si el día arranca a las 00 (calendario) o a
         // las 9 (meteorológico); para la semana siempre se usa el día calendario.
-        async function datosDelPeriodoTS(canales, rainField, rainMult, dias, convencion) {
+        async function datosDelPeriodoTS(canales, rainField, rainMult, dias, convencion, factorLluvia = 1) {
             const inicioPeriodo = (dias === 1 && convencion === 'meteorologico')
                 ? formatearInicioDiaMeteorologico()
                 : formatearInicioNDiasAtras(dias);
@@ -887,6 +893,7 @@
                 // (valor > 0) cuenta como un ciclo completo del pluviómetro y suma el
                 // multiplicador fijo, sin escalar por la magnitud cruda del campo.
                 if (rainMult) v = v > 0 ? rainMult : 0;
+                v *= factorLluvia;
                 total += v;
                 horas.push(formatearEtiquetaFecha(new Date(f.created_at), incluirFecha));
                 curva.push(+total.toFixed(2));
@@ -992,7 +999,7 @@
                 }
                 const canales = estacion.channels || [{ id: estacion.id, key: estacion.key }];
                 const rainField = estacion.isEmaVerde ? 'field4' : 'field5';
-                const datosSemana = await datosDelPeriodoTS(canales, rainField, estacion.rainMult, 7, 'calendario');
+                const datosSemana = await datosDelPeriodoTS(canales, rainField, estacion.rainMult, 7, 'calendario', estacion.factorLluvia);
                 return datosSemana.total;
             } catch (e) {
                 console.error('No se pudo obtener la lluvia semanal de', estacion.n, e);
@@ -1048,7 +1055,7 @@
                         const paramResultados = periodo === 'semana' ? 'days=7' : 'days=1';
                         return fetch(`https://api.thingspeak.com/channels/${ch.id}/feeds.json?${paramResultados}${apiKeyParam}`).then(r => r.json());
                     })),
-                    datosDelPeriodoTS(canales, rainField, estacion.rainMult, dias, convencionLluvia)
+                    datosDelPeriodoTS(canales, rainField, estacion.rainMult, dias, convencionLluvia, estacion.factorLluvia)
                 ]);
 
                 let feeds = respuestas.flatMap(d => d.feeds || []);
@@ -2152,6 +2159,7 @@
                 let v = parseFloat(f[rainField]);
                 if (!isNaN(v) && v >= 0) {
                     if (estacion.rainMult) v = v > 0 ? estacion.rainMult : 0;
+                    v *= (estacion.factorLluvia || 1);
                     lluviaAcumulada += v;
                 }
 
