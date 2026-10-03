@@ -471,11 +471,11 @@
         // porque migraron de canal de ThingSpeak en algún momento. rainMult convierte los
         // pulsos crudos del pluviómetro a mm (cada pulso = 0.68mm).
         //
-        // EMA Verde, Observatorio (Campbell), Daza y EMA Blanca están las cuatro en
-        // el mismo lugar, en la Facultad (FCAG) — no en ninguna escuela — por eso
-        // comparten zona en el mapa con las coordenadas apenas separadas para que
-        // se puedan distinguir los marcadores. Observatorio (Davis) también está ahí,
-        // pero por ahora está sacado del mapa (ver más abajo).
+        // EMA Verde, Observatorio (Campbell) y EMA Blanca están las tres en el mismo
+        // lugar, en la Facultad (FCAG) — no en ninguna escuela — por eso comparten
+        // zona en el mapa con las coordenadas apenas separadas para que se puedan
+        // distinguir los marcadores. Observatorio (Davis) también está ahí, pero por
+        // ahora está sacado del mapa (ver más abajo), igual que Daza (ver más abajo).
         const puntos = [
             { channels: [{ id: "2626952", key: "4XYH56YSV64HE17H" }, { id: "1778165", key: "OJ1JHKAPCCIQB4CB" }], rainMult: 0.68,
               n: "EP N°23", loc: "Bavío (EMA Violeta)", c: [-35.0254, -57.7529], clr: "#10b981", live: true, img: "imagenes/escuela23.jpg", ocultarPresion: true },
@@ -494,8 +494,9 @@
               n: "Observatorio", loc: "Facultad (FCAG) · Campbell", c: [-34.908364, -57.933164], clr: "#ef4444", live: true, img: "imagenes/observatorio.png", grupoObservatorio: true },
             { id: "2218686", key: "O85A0DJ31L8MQZ6F", isEmaVerde: true,
               n: "EMA Verde", loc: "Facultad (FCAG) · en prueba", c: [-34.9086, -57.9328], clr: "#22c55e", live: true, img: "imagenes/observatorio.png", grupoObservatorio: true },
-            { source: "wunderground", wuId: "ILAPLA66", wuKey: "470147c769f6493f8147c769f6693fd9",
-              n: "Daza", loc: "Facultad (FCAG) · Wunderground", c: [-34.9091, -57.9325], clr: "#f43f5e", live: true, img: "imagenes/observatorio.png", grupoObservatorio: true },
+            // Daza sacada del mapa: la estación se dio de baja (fuera de operatividad).
+            // { source: "wunderground", wuId: "ILAPLA66", wuKey: "470147c769f6493f8147c769f6693fd9",
+            //   n: "Daza", loc: "Facultad (FCAG) · Wunderground", c: [-34.9091, -57.9325], clr: "#f43f5e", live: true, img: "imagenes/observatorio.png", grupoObservatorio: true },
             // Observatorio (Davis) sacado del mapa por ahora, a pedido del usuario.
             // davisUrl apunta a la copia que un GitHub Action baja cada 15 min y guarda
             // en el propio repo (data/davis-ultimo.txt), no al servidor original
@@ -529,7 +530,7 @@
             return `Hace ${diffDias} ${diffDias === 1 ? 'día' : 'días'}`;
         }
 
-        // ─── WEATHER UNDERGROUND (Monte Veloz, Daza, ES7/EP20, EP N°23 Los Talas) ──
+        // ─── WEATHER UNDERGROUND (Monte Veloz, ES7/EP20, EP N°23 Los Talas) ──
         // Pedimos las lecturas en unidades imperiales (units=e) y las convertimos acá.
         // El campo "metric" que devuelve la API viene con la temperatura ya redondeada
         // a un entero (ej: 11°C en vez de 11.4°C); "imperial" retiene la resolución real
