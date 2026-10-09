@@ -218,8 +218,11 @@
                 <div class="min-w-0">
                     <h2 class="text-lg lg:text-3xl font-black text-blue-900 tracking-tight leading-tight">¡Conociendo la Atmósfera!</h2>
                     <p class="text-xs lg:text-sm text-slate-600 font-bold mt-1">
-                        Estás viendo: 
+                        Estás viendo:
                         <span id="nombre-estacion-activa" class="text-blue-700 bg-blue-100 px-2 py-0.5 rounded-xl border-2 border-blue-300 inline-block mt-1 shadow-sm">Ninguna</span>
+                        <a id="link-wunderground-estacion" href="#" target="_blank" rel="noopener" class="hidden text-[11px] lg:text-xs font-black text-sky-700 bg-sky-100 px-2 py-0.5 rounded-xl border-2 border-sky-300 inline-flex items-center gap-1 mt-1 ml-1 shadow-sm hover:bg-sky-200 transition">
+                            <i data-lucide="external-link" class="w-3 h-3"></i> Ver en Wunderground
+                        </a>
                     </p>
                 </div>
             </header>
@@ -1461,6 +1464,15 @@
             document.querySelectorAll('.station-btn').forEach(b => b.classList.remove('active'));
             btnElement.classList.add('active');
             document.getElementById('nombre-estacion-activa').innerText = p.n;
+
+            const linkWU = document.getElementById('link-wunderground-estacion');
+            if (p.source === 'wunderground' && p.wuId) {
+                linkWU.href = `https://www.wunderground.com/dashboard/pws/${p.wuId}`;
+                linkWU.classList.remove('hidden');
+            } else {
+                linkWU.classList.add('hidden');
+            }
+
             cerrarSolapaEscuelas();
             if (mapaExpandido) mapaExpandido.flyTo(p.c, 13, { duration: 1.5 });
             const seEstaAchicando = contraerMapaRed();
@@ -1542,6 +1554,11 @@
                     etiquetaTiempo = "Sin datos recientes";
                     indicatorColor = "bg-red-500";
                 }
+
+                // Una estación "caída" (desconectada manualmente, o sin datos nuevos hace
+                // más de 2hs) no muestra sus variables en el mapa expandido: mostrarlas
+                // ahí daría la falsa impresión de que están actualizadas en este momento.
+                p.caida = !p.live || minutosSinDato > 120;
 
                 // Alimentar el gráfico comparativo con la mínima/máxima de HOY. Las
                 // estaciones que todavía no tienen ese dato (offline, sin lecturas hoy)
@@ -1654,9 +1671,9 @@
         function actualizarMarcadorSuelto(p, marker, v) {
             const valor = p.valorActual ? p.valorActual[v.id] : null;
 
-            // Las estaciones sin dato de esta variable (o fuera de servicio) no se
-            // muestran en el mapa expandido.
-            if (!p.live || valor === null) {
+            // Las estaciones sin dato de esta variable, caídas o fuera de servicio no
+            // se muestran en el mapa expandido (el dato estaría desactualizado).
+            if (p.caida || valor === null) {
                 mapaExpandido.removeLayer(marker);
                 return;
             }
@@ -1685,7 +1702,7 @@
             const { grupo, marker: markerGrupo } = marcadorGrupoObservatorio;
 
             const filas = grupo
-                .filter(est => est.live)
+                .filter(est => !est.caida)
                 .map(est => ({ est, valor: est.valorActual ? est.valorActual[v.id] : null }))
                 .filter(({ valor }) => valor !== null);
 
@@ -2033,12 +2050,12 @@
                 ctx.stroke();
             }
 
-            const valorDe = (p) => (p.live && p.valorActual) ? p.valorActual[variableId] : null;
+            const valorDe = (p) => (!p.caida && p.valorActual) ? p.valorActual[variableId] : null;
 
             puntos.filter(p => !p.grupoObservatorio).forEach(p => {
                 const [px, py] = proyectar(p.c);
                 const valor = valorDe(p);
-                dibujarPunto(px, py, p.live ? p.clr : '#94a3b8');
+                dibujarPunto(px, py, !p.caida ? p.clr : '#94a3b8');
                 const linea2 = (valor !== null && valor !== undefined) ? `${valor} ${v.unidad}` : 'Sin datos';
                 dibujarEtiquetaMapa(ctx, ancho, alto, margenPie, px, py, [p.n, linea2]);
             });
