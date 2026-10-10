@@ -27,10 +27,10 @@ servidor solo lee y copia.
 | Módulo | Estado |
 |---|---|
 | Base de datos (esquema, vistas, TimescaleDB) | ✅ Probado |
-| EMAs ThingSpeak / Wunderground / Davis | ✅ Probado con datos de ejemplo — falta la primera corrida real en la PC |
-| Sinópticas (Ogimet, decodificador SYNOP propio) | ✅ Probado con datos de ejemplo — falta la primera corrida real |
-| Reportes de la comunidad (+ instrumento y período) | ✅ Probado con datos de ejemplo — falta la primera corrida real |
-| Pronósticos (archivo de emisiones para verificación) | ✅ Probado con un pronóstico real |
+| EMAs ThingSpeak / Wunderground / Davis | ✅ Funcionando con datos reales (Davis vía copia de GitHub) |
+| Sinópticas (Ogimet, decodificador SYNOP propio) | ✅ Funcionando con datos reales |
+| Reportes de la comunidad (+ instrumento y período) | ✅ Listo, esperando que se publique el formulario |
+| Pronósticos (archivo de emisiones para verificación) | ✅ Funcionando con datos reales |
 | Satélite GOES-19 | ✅ Probado con datos reales (se activa aparte: `--profile satelite`) |
 | Estación LPO | ⏸️ Pendiente (a decidir) |
 | Visualizador web / API (puerto 8080) | ✅ Probado |
