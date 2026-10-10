@@ -19,39 +19,56 @@ from ..base import HORA_ARG, KMH_A_MS, Obs, num
 URL = "https://api.weather.com/v2/pws/history/all"
 
 
-def precip_por_intervalo(acumulados):
+def precip_por_intervalo(acumulados, lecturas_para_confirmar=3):
     """[(ts, acumulado_del_día)] ordenados -> [(ts, lluvia_del_intervalo, qc)].
 
-    Si el acumulado baja, la estación se reinició: el valor nuevo es lo que
-    llovió desde el reinicio. El reinicio normal es a medianoche. Si en cambio
-    el acumulado SUBE y en el dato siguiente VUELVE A BAJAR fuera de la
-    medianoche (visto en Los Talas: 0 -> 0,25 -> 0), no se puede saber si fue
-    un vuelco real con la consola mal configurada o un pulso falso: esa lluvia
-    se guarda igual, pero marcada como sospechosa (qc = 3).
+    Técnica del MÁXIMO ACUMULADO: solo cuenta como lluvia nueva lo que supera
+    el máximo acumulado visto hasta ese momento del día.
+
+    Por qué: algunas consolas (visto en Los Talas y ES7, 08/10/2026) mandan un
+    "0" suelto en medio de una tormenta y en la lectura siguiente vuelven al
+    acumulado real (20 -> 0 -> 20,5). Restando lecturas consecutivas, ese 0
+    hacía contar de nuevo los 20 mm: daba 259 mm donde las vecinas midieron 23.
+    Con el máximo acumulado, el total del día nunca supera el mayor acumulado
+    que informó la estación.
+
+    - Una bajada que se mantiene `lecturas_para_confirmar` lecturas seguidas (o
+      que pasa cerca de la medianoche) es un reinicio real: se empieza a contar
+      de nuevo desde ahí.
+    - Una bajada que no se mantiene es una falla del contador: se ignora.
+    - Si en el día hubo alguna bajada fuera de la medianoche, el contador fue
+      inestable: TODA la lluvia de ese día queda marcada como sospechosa
+      (qc = 3). Se guarda igual; el análisis decide si la usa.
     """
+    datos = [(ts, a) for ts, a in acumulados if a is not None]
     salida = []
-    anterior = None
-    for ts, acum in acumulados:
-        if acum is None:
-            continue
+    maximo = None
+    inestable = False
+    for i, (ts, acum) in enumerate(datos):
         local = ts.astimezone(HORA_ARG)
         cerca_medianoche = local.hour == 0 and local.minute < 20
-        if anterior is None:
-            delta = None  # primer dato del día: no sabemos desde cuándo acumula
-            if cerca_medianoche:
-                delta = acum  # justo después de medianoche: es todo del intervalo
-        elif acum >= anterior:
-            delta = acum - anterior
-        else:
-            delta = acum
-            if not cerca_medianoche and salida and salida[-1][1] > 0:
-                # Reinicio fuera de hora justo después de registrar lluvia.
-                t_ant, v_ant, _ = salida[-1]
-                salida[-1] = (t_ant, v_ant, 3)
-        if delta is not None:
-            salida.append((ts, round(delta, 2), 0))
-        anterior = acum
-    return salida
+        if maximo is None:
+            # Primer dato del día: es la línea de base, no se sabe desde cuándo
+            # acumula. (Se puede perder la lluvia de los primeros minutos.) Se
+            # guarda como 0 para que, al reprocesar, pise cualquier valor viejo.
+            maximo = acum
+            salida.append((ts, 0.0))
+            continue
+        if acum < maximo - 1e-9:
+            siguientes = [a for _, a in datos[i + 1:i + 1 + lecturas_para_confirmar]]
+            reinicio = cerca_medianoche or all(a < maximo - 1e-9 for a in siguientes)
+            if not cerca_medianoche:
+                inestable = True
+            if reinicio:
+                maximo = acum
+                salida.append((ts, round(acum, 2)))   # lo que llovió desde el reinicio
+            else:
+                salida.append((ts, 0.0))              # falla pasajera: se ignora
+            continue
+        salida.append((ts, round(acum - maximo, 2)))
+        maximo = acum
+    qc = 3 if inestable else 0
+    return [(ts, v, qc if v > 0 else 0) for ts, v in salida]
 
 
 def parsear_dia(datos, estacion_id):

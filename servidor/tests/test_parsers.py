@@ -92,29 +92,50 @@ def test_thingspeak_campos_y_factor():
 
 
 # --------------------------------------------------------------- Wunderground
-def test_wunderground_lluvia_por_diferencias():
-    t0 = datetime(2026, 10, 10, 3, 0, tzinfo=timezone.utc)  # 00:00 hora Argentina
-    acum = [(t0 + timedelta(minutes=5 * i), v) for i, v in enumerate([0.0, 0.0, 1.2, 1.2, 3.0, 0.4])]
-    res = wunderground.precip_por_intervalo(acum)
-    # el último "baja" (reinicio de la estación): cuenta como lo nuevo
-    assert [v for _, v, _ in res] == [0.0, 0.0, 1.2, 0.0, 1.8, 0.4]
-    # y como el reinicio fue fuera de medianoche, el 1,8 previo queda sospechoso
-    assert [q for _, _, q in res] == [0, 0, 0, 0, 3, 0]
+def _serie(inicio_utc, valores, paso_min=5):
+    return [(inicio_utc + timedelta(minutes=paso_min * i), v) for i, v in enumerate(valores)]
+
+
+def test_wunderground_lluvia_normal():
+    t0 = datetime(2026, 10, 10, 15, 0, tzinfo=timezone.utc)  # 12 hora argentina
+    res = wunderground.precip_por_intervalo(_serie(t0, [1.0, 1.0, 2.2, 2.2, 4.0, 4.5]))
+    assert [v for _, v, _ in res] == [0.0, 0.0, 1.2, 0.0, 1.8, 0.5]
+    assert all(q == 0 for _, _, q in res)
+
+
+def test_wunderground_cero_suelto_en_medio_de_la_tormenta_no_duplica():
+    # Patrón que daba 259 mm en Los Talas el 08/10: un 0 suelto y vuelta al acumulado.
+    t0 = datetime(2026, 10, 8, 15, 0, tzinfo=timezone.utc)
+    res = wunderground.precip_por_intervalo(_serie(t0, [5.0, 10.0, 20.0, 0.0, 20.5, 23.0]))
+    assert round(sum(v for _, v, _ in res), 2) == 18.0      # = 23 - 5 (la base del día)
+    assert all(q == 3 for _, v, q in res if v > 0)        # día con contador inestable
+
+
+def test_wunderground_reinicio_real_fuera_de_hora():
+    # La consola se reinicia a las 12 y sigue acumulando desde 0: se cuenta.
+    t0 = datetime(2026, 10, 10, 14, 0, tzinfo=timezone.utc)
+    res = wunderground.precip_por_intervalo(_serie(t0, [0.0, 3.0, 0.0, 0.0, 0.5, 1.0, 1.0]))
+    assert round(sum(v for _, v, _ in res), 2) == 4.0       # 3 antes + 1 después del reinicio
 
 
 def test_wunderground_pulsos_que_vuelven_a_cero_quedan_sospechosos():
     # Patrón real de Los Talas (10/10/2026): el acumulado sube a 0,25 y vuelve a 0.
     t0 = datetime(2026, 10, 10, 8, 40, tzinfo=timezone.utc)  # 05:40 hora argentina
-    valores = [0.0, 0.25, 0.0, 0.0, 0.25, 0.0]
-    res = wunderground.precip_por_intervalo([(t0 + timedelta(minutes=5 * i), v) for i, v in enumerate(valores)])
-    con_lluvia = [(v, q) for _, v, q in res if v > 0]
-    assert con_lluvia == [(0.25, 3), (0.25, 3)]
+    res = wunderground.precip_por_intervalo(_serie(t0, [0.0, 0.25, 0.0, 0.0, 0.25, 0.0]))
+    assert [(v, q) for _, v, q in res if v > 0] == [(0.25, 3)]
+
+
+def test_wunderground_cada_lectura_genera_una_fila():
+    # Al reprocesar, cada horario tiene que tener fila para pisar valores viejos.
+    t0 = datetime(2026, 10, 10, 15, 0, tzinfo=timezone.utc)
+    lecturas = _serie(t0, [1.0, 0.0, 1.5, 2.0])
+    assert [ts for ts, _, _ in wunderground.precip_por_intervalo(lecturas)] == [ts for ts, _ in lecturas]
 
 
 def test_wunderground_reinicio_de_medianoche_es_normal():
-    ayer = datetime(2026, 10, 10, 2, 55, tzinfo=timezone.utc)   # 23:55 hora argentina
-    res = wunderground.precip_por_intervalo([(ayer, 3.0), (ayer + timedelta(minutes=10), 0.0)])
-    assert all(q == 0 for _, _, q in res)
+    ayer = datetime(2026, 10, 10, 2, 50, tzinfo=timezone.utc)   # 23:50 hora argentina
+    res = wunderground.precip_por_intervalo(_serie(ayer, [3.0, 3.0, 0.0, 0.3], paso_min=10))
+    assert [(v, q) for _, v, q in res] == [(0.0, 0), (0.0, 0), (0.0, 0), (0.3, 0)]
 
 
 def test_wunderground_parsear_dia():
