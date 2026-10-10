@@ -89,7 +89,15 @@ estaciones:
     lon: -57.933164
     config:
       canales: [{id: "2823820", key: "FFI1HK80ZKDNS6V8"}]
-      campos: {field1: temp, field4: hum, field5: precip, field6: pres_est, field7: viento_vel, field8: viento_dir}
+      campos:
+        field1: temp
+        field4: hum
+        field5: precip
+        field6: pres_est
+        # El viento llega en km/h: se pasa a m/s (verificado contra La Plata
+        # Aero el 10/10/2026: 13 "m/s" vs 4,3 m/s; dividido 3,6 coincide).
+        field7: {variable: viento_vel, factor: 0.277778}
+        field8: viento_dir
 
   - id: ema_verde
     nombre: EMA Verde (Facultad, en prueba)
@@ -168,6 +176,8 @@ estaciones:
       # usa la copia que el GitHub Action del repo actualiza cada 15 minutos.
       url_respaldo: https://raw.githubusercontent.com/COMOESTAELTIEMPOENTUESCUELA/Estacionesmeteorologicas/main/data/davis-ultimo.txt
       # VERIFICAR con quien administra la Davis en qué unidad exporta el viento.
+      # OJO: al 10/10/2026 el anemómetro marca 0,0 siempre (dirección "---"):
+      # está trabado o desconectado. Esos ceros NO son calma real.
       unidad_viento: km/h
       presion_es: pnm             # "Bar" de WeatherLink suele estar reducida al nivel del mar
 
