@@ -685,7 +685,8 @@
             const inicioHoy = formatearInicioDeHoyEmas();
             const respuestas = await Promise.all(canales.map(function(ch) {
                 const apiKeyParam = ch.key ? `&api_key=${ch.key}` : '';
-                return fetch(`https://api.thingspeak.com/channels/${ch.id}/feeds.json?results=8000${apiKeyParam}&start=${inicioHoy}`).then(function(r) { return r.json(); });
+                // timezone: si no, ThingSpeak toma "start" en UTC (= desde las 21 hs de ayer).
+                return fetch(`https://api.thingspeak.com/channels/${ch.id}/feeds.json?results=8000${apiKeyParam}&start=${inicioHoy}&timezone=America%2FArgentina%2FBuenos_Aires`).then(function(r) { return r.json(); });
             }));
             let total = 0;
             const timestampsVistos = new Set();

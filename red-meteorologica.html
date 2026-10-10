@@ -854,9 +854,13 @@
             return `${inicio.getFullYear()}-${pad(inicio.getMonth() + 1)}-${pad(inicio.getDate())}%2009:00:00`;
         }
 
+        // timezone: sin este parámetro ThingSpeak interpreta "start"/"end" en UTC, y
+        // "hoy desde las 00" terminaba siendo "desde las 21 hs de ayer" (se contaba
+        // como de hoy la lluvia de la noche anterior). Comparacion.html y EP23.html
+        // ya lo usaban así.
         async function fetchFeedsCanal(ch, extraParams = '') {
             const apiKeyParam = ch.key ? `&api_key=${ch.key}` : '';
-            const res = await fetch(`https://api.thingspeak.com/channels/${ch.id}/feeds.json?results=8000${apiKeyParam}${extraParams}`);
+            const res = await fetch(`https://api.thingspeak.com/channels/${ch.id}/feeds.json?results=8000${apiKeyParam}${extraParams}&timezone=America%2FArgentina%2FBuenos_Aires`);
             return res.json();
         }
 
@@ -2174,7 +2178,8 @@
                 }
 
                 return {
-                    fecha: f.created_at ? f.created_at.replace('T', ' ').replace('Z', '') : '',
+                    // Hora argentina (viene con "-03:00" por el parámetro timezone).
+                    fecha: f.created_at ? f.created_at.replace('T', ' ').replace(/(Z|[+-]\d\d:\d\d)$/, '') : '',
                     temp: isNaN(t) ? '' : t.toFixed(1),
                     hum: isNaN(h) ? '' : h.toFixed(0),
                     pres: isNaN(p) ? '' : p.toFixed(1),
