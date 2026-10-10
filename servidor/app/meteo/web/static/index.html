@@ -105,7 +105,31 @@ th { color: var(--tinta-2); font-weight: 600; font-size: 12px; position: sticky;
 .cifra b { display: block; font-size: 26px; font-weight: 650; }
 .cifra span { color: var(--tinta-2); font-size: 12px; }
 
+/* Mapa: símbolo según la red (● EMA, ■ SMN); color según el estado */
+.mk { width: 16px; height: 16px; border: 2px solid var(--superficie); box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
+.mk-ema { border-radius: 50%; }
+.mk-smn { border-radius: 2px; width: 14px; height: 14px; }
+.mk.ok { background: var(--ok); } .mk.demora { background: var(--demora); } .mk.caida { background: var(--caida); }
+.simbolo { display: inline-block; width: 11px; height: 11px; background: var(--tinta-2); margin-right: 4px; vertical-align: -1px; }
+.simbolo.ema { border-radius: 50%; } .simbolo.smn { border-radius: 1px; }
+.filtro-red { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
+#lista h3 { font-size: 13px; margin: 8px 0 2px; color: var(--tinta-2); text-transform: uppercase; letter-spacing: .04em; }
+
+/* Meteograma: paneles apilados que comparten el eje de tiempo */
+.panel { position: relative; height: 170px; margin-bottom: 6px; }
+.panel-titulo { font-size: 12px; font-weight: 600; color: var(--tinta-2); margin: 10px 0 2px; }
+.panel-titulo .tenue { font-weight: 400; }
+.fila-click { cursor: pointer; }
+.fila-click:hover td { background: var(--plano); }
+.fila-activa td { background: var(--plano); font-weight: 600; }
+.grilla-2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+#tabla-obs td, #tabla-obs th { white-space: nowrap; }
+#tabla-obs td.ww { white-space: normal; min-width: 170px; }
+.num { text-align: right; }
+td.num, th.num { font-variant-numeric: tabular-nums; }
+
 @media (max-width: 860px) {
+  .grilla-2 { grid-template-columns: 1fr; }
   #vista-mapa { grid-template-columns: 1fr; }
   #mapa { height: 50vh; }
   #lista { max-height: none; }
@@ -117,7 +141,9 @@ th { color: var(--tinta-2); font-weight: 600; font-size: 12px; position: sticky;
   <h1>Red Meteorológica · servidor</h1>
   <nav role="tablist">
     <button role="tab" data-tab="mapa" aria-selected="true">Mapa</button>
-    <button role="tab" data-tab="series" aria-selected="false">Series</button>
+    <button role="tab" data-tab="emas" aria-selected="false">EMAs</button>
+    <button role="tab" data-tab="smn" aria-selected="false">Estaciones SMN</button>
+    <button role="tab" data-tab="series" aria-selected="false">Comparar</button>
     <button role="tab" data-tab="lluvia" aria-selected="false">Lluvia diaria</button>
     <button role="tab" data-tab="estado" aria-selected="false">Estado de la red</button>
   </nav>
@@ -128,14 +154,72 @@ th { color: var(--tinta-2); font-weight: 600; font-size: 12px; position: sticky;
   <!-- ============================ MAPA ============================ -->
   <section id="tab-mapa">
     <div class="leyenda-estado">
+      <label class="filtro-red"><input type="checkbox" id="ver-emas" checked><span class="simbolo ema"></span>EMAs (automáticas)</label>
+      <label class="filtro-red"><input type="checkbox" id="ver-smn" checked><span class="simbolo smn"></span>Estaciones SMN (superficie)</label>
+      <span class="tenue">·</span>
       <span class="estado ok"><i>✓</i>Al día</span>
       <span class="estado demora"><i>!</i>Demorada</span>
       <span class="estado caida"><i>✕</i>Sin datos</span>
-      <span class="tenue">· Lluvia "hoy" = desde las 9 hs · Tocá una estación para ver sus series</span>
+      <span class="tenue">· Lluvia "hoy" = desde las 9 hs · Tocá una estación para ver su detalle</span>
     </div>
     <div id="vista-mapa">
       <div id="mapa"></div>
       <div id="lista"></div>
+    </div>
+  </section>
+
+  <!-- ============================ EMAs ============================ -->
+  <section id="tab-emas" hidden>
+    <div class="tarjeta">
+      <h2>Red de estaciones automáticas · hoy</h2>
+      <p class="ayuda">Máxima y mínima desde las 00; lluvia desde las 9 (día pluviométrico). Tocá una fila para ver su meteograma.</p>
+      <div class="tabla-scroll" style="max-height:none"><table id="tabla-emas"></table></div>
+    </div>
+    <div class="tarjeta" style="margin-top:16px">
+      <div class="filtros">
+        <label>Estación <select id="f-ema"></select></label>
+        <label>Período
+          <select id="f-ema-dias">
+            <option value="1">Últimas 24 h</option>
+            <option value="2" selected>Últimos 2 días</option>
+            <option value="3">Últimos 3 días</option>
+            <option value="7">Últimos 7 días</option>
+            <option value="30">Últimos 30 días</option>
+          </select>
+        </label>
+      </div>
+      <p class="ayuda" id="nota-meteograma"></p>
+      <div id="meteograma"></div>
+    </div>
+  </section>
+
+  <!-- ============================ SMN ============================ -->
+  <section id="tab-smn" hidden>
+    <div class="tarjeta">
+      <h2>Red de estaciones de superficie (SMN) · últimos días</h2>
+      <p class="ayuda">Máxima y mínima de las observaciones horarias (día de 00 a 24); lluvia: acumulado de 24 h informado a las 9.
+        Tocá una fila para ver sus observaciones.</p>
+      <div class="tabla-scroll" style="max-height:none"><table id="tabla-smn-resumen"></table></div>
+    </div>
+    <div class="tarjeta" style="margin-top:16px">
+      <div class="filtros">
+        <label>Estación <select id="f-smn"></select></label>
+        <label>Período
+          <select id="f-smn-dias">
+            <option value="1" selected>Últimas 24 h</option>
+            <option value="2">Últimos 2 días</option>
+            <option value="3">Últimos 3 días</option>
+            <option value="7">Últimos 7 días</option>
+          </select>
+        </label>
+        <a class="boton" id="f-smn-csv" href="#">Descargar CSV</a>
+      </div>
+      <div class="grilla-2">
+        <div><div class="panel-titulo">Temperatura y rocío <span class="tenue">(°C)</span></div><div class="panel"><canvas id="smn-temp"></canvas></div></div>
+        <div><div class="panel-titulo">Presión a nivel del mar <span class="tenue">(hPa)</span></div><div class="panel"><canvas id="smn-pres"></canvas></div></div>
+      </div>
+      <div class="panel-titulo" style="margin-top:12px">Observaciones <span class="tenue">(una fila por mensaje SYNOP; pasá el mouse por la hora para ver el mensaje original)</span></div>
+      <div class="tabla-scroll" style="max-height:520px"><table id="tabla-obs"></table></div>
     </div>
   </section>
 
@@ -242,7 +326,7 @@ function abrir(tab) {
   document.querySelectorAll("nav button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
   document.querySelectorAll("main > section").forEach((s) => (s.hidden = s.id !== `tab-${tab}`));
   if (tab === "mapa" && mapa) setTimeout(() => mapa.invalidateSize(), 50);
-  if (!cargadas[tab]) { cargadas[tab] = true; ({ series: iniciarSeries, lluvia: cargarLluvia, estado: cargarEstado }[tab] || (() => {}))(); }
+  if (!cargadas[tab]) { cargadas[tab] = true; ({ emas: iniciarEmas, smn: iniciarSmn, series: iniciarSeries, lluvia: cargarLluvia, estado: cargarEstado }[tab] || (() => {}))(); }
 }
 document.querySelectorAll("nav button").forEach((b) => b.addEventListener("click", () => abrir(b.dataset.tab)));
 
@@ -251,6 +335,7 @@ document.querySelectorAll("nav button").forEach((b) => b.addEventListener("click
 // ======================================================================
 let ESTACIONES = [];
 let mapa = null;
+const capas = {};   // una capa por red, para poder mostrarlas u ocultarlas
 
 async function cargarMapa() {
   ESTACIONES = await api("/api/estaciones");
@@ -262,10 +347,18 @@ async function cargarMapa() {
       maxZoom: 18, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     }).addTo(mapa);
   }
-  mapa.eachLayer((l) => { if (l instanceof L.CircleMarker) mapa.removeLayer(l); });
+  for (const red of ["ema", "smn"]) {
+    if (!capas[red]) capas[red] = L.layerGroup().addTo(mapa);
+    capas[red].clearLayers();
+  }
 
   const lista = $("#lista");
   lista.innerHTML = "";
+  const secciones = {
+    ema: Object.assign(document.createElement("div"), { innerHTML: '<h3><span class="simbolo ema"></span>EMAs · estaciones automáticas</h3>' }),
+    smn: Object.assign(document.createElement("div"), { innerHTML: '<h3><span class="simbolo smn"></span>Estaciones de superficie · SMN</h3>' }),
+  };
+  for (const sec of Object.values(secciones)) { sec.style.cssText = "display:flex;flex-direction:column;gap:8px"; lista.appendChild(sec); }
   const orden = { ema: 0, convencional: 1, pluviometro: 2, sinoptica: 3, otra: 4 };
   const activas = ESTACIONES.filter((e) => e.activa).sort((a, b) => (orden[a.tipo] - orden[b.tipo]) || a.nombre.localeCompare(b.nombre));
 
@@ -291,24 +384,43 @@ async function cargarMapa() {
         <span class="estado ${st.clase}"><i>${st.icono}</i>${esc(st.texto)}</span></div>
       <div><span class="chip">${TIPOS[e.tipo] || e.tipo}</span> <span class="tenue">${esc(e.localidad || "")}</span></div>
       <div class="valores">${partes || '<span class="tenue">Sin datos recientes</span>'}</div>`;
-    div.addEventListener("click", () => verSeriesDe(e.id));
-    lista.appendChild(div);
+    const red = e.tipo === "sinoptica" ? "smn" : "ema";
+    div.dataset.red = red;
+    div.addEventListener("click", () => verDetalleDe(e));
+    secciones[red].appendChild(div);
 
     if (e.lat && e.lon) {
-      const color = css(st.clase === "ok" ? "--ok" : st.clase === "demora" ? "--demora" : "--caida");
-      L.circleMarker([e.lat, e.lon], {
-        radius: e.tipo === "sinoptica" ? 6 : 8, color: css("--superficie"), weight: 2,
-        fillColor: color, fillOpacity: 1,
-      }).addTo(mapa).bindPopup(div.innerHTML).bindTooltip(e.nombre);
+      const icono = L.divIcon({ className: "", html: `<div class="mk mk-${red} ${st.clase}"></div>`, iconSize: [16, 16], iconAnchor: [8, 8] });
+      const m = L.marker([e.lat, e.lon], { icon: icono, title: e.nombre }).bindTooltip(e.nombre);
+      m.on("click", () => verDetalleDe(e));
+      capas[red].addLayer(m);
     }
   }
+  aplicarFiltrosRed();
 }
 
-function verSeriesDe(id) {
-  seleccion.clear();
-  seleccion.add(id);
-  if (!cargadas.series) { cargadas.series = true; iniciarSeries(); } else { dibujarSelector(); cargarSerie(); }
-  abrir("series");
+function aplicarFiltrosRed() {
+  const ver = { ema: $("#ver-emas").checked, smn: $("#ver-smn").checked };
+  for (const red of ["ema", "smn"]) {
+    if (!capas[red]) continue;
+    if (ver[red]) capas[red].addTo(mapa); else mapa.removeLayer(capas[red]);
+  }
+  document.querySelectorAll("#lista > div").forEach((sec, i) => { sec.hidden = !ver[i === 0 ? "ema" : "smn"]; });
+}
+$("#ver-emas").addEventListener("change", aplicarFiltrosRed);
+$("#ver-smn").addEventListener("change", aplicarFiltrosRed);
+
+// Tocar una estación lleva a la vista propia de su red.
+function verDetalleDe(e) {
+  if (e.tipo === "sinoptica") {
+    smnElegida = e.id;
+    if (cargadas.smn) { $("#f-smn").value = e.id; cargarSmn(); }
+    abrir("smn");
+  } else {
+    emaElegida = e.id;
+    if (cargadas.emas) { $("#f-ema").value = e.id; cargarMeteograma(); }
+    abrir("emas");
+  }
 }
 
 // ======================================================================
@@ -485,6 +597,7 @@ function dibujarGrafico(datasets, tituloY, esDireccion) {
     plugins: [lineaCursor],
     options: {
       responsive: true, maintainAspectRatio: false, animation: false, parsing: false, normalized: true,
+      locale: "es-AR",
       interaction: { mode: "porSerie", intersect: false },
       scales: {
         x: { type: "linear", grid: { color: grilla }, border: { color: css("--eje") },
@@ -522,6 +635,270 @@ function dibujarTabla(datasets, unidad) {
   $("#tabla-serie").innerHTML = `<tr><th>Fecha y hora (Argentina)</th><th>Estación</th><th>Valor (${esc(unidad)})</th></tr>` +
     filas.slice(0, 1000).map(([t, n, v]) => `<tr><td>${fmtHora.format(new Date(t))}</td><td>${esc(n)}</td><td>${v}</td></tr>`).join("") +
     (filas.length > 1000 ? `<tr><td colspan="3" class="tenue">… ${filas.length - 1000} filas más: descargá el CSV.</td></tr>` : "");
+}
+
+// ======================================================================
+// Paneles de meteograma (compartido por EMAs y SMN)
+// ======================================================================
+// Un panel = un gráfico chico con UNA magnitud (nunca dos ejes). Todos los
+// paneles de una estación usan el mismo rango de tiempo, para leerlos en columna.
+const graficosPanel = new Map();
+// Ancho fijo del eje vertical: así los paneles apilados quedan alineados y el
+// mismo instante cae en la misma columna en todos.
+const ANCHO_EJE_Y = 54;
+
+// Para la presión: rango ajustado a los datos (con margen mínimo de ±1 hPa).
+// Si no, Chart.js puede elegir 950-1100 y una caída de 5 hPa se ve plana.
+function rangoAjustado(datasets, margen = 1) {
+  const ys = datasets.flatMap((d) => d.data.map((p) => p.y)).filter((y) => y !== null);
+  if (!ys.length) return {};
+  return { suggestedMin: Math.min(...ys) - margen, suggestedMax: Math.max(...ys) + margen };
+}
+
+function panel(canvas, datasets, { unidad, tipo = "line", xmin, xmax, min, max, ticksY, rango } = {}) {
+  if (graficosPanel.has(canvas)) graficosPanel.get(canvas).destroy();
+  const tinta2 = css("--tinta-2"), tenue = css("--tenue"), grilla = css("--grilla");
+  const g = new Chart(canvas, {
+    type: tipo,
+    data: { datasets },
+    plugins: [lineaCursor],
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false, parsing: false, normalized: true,
+      locale: "es-AR",
+      interaction: { mode: "porSerie", intersect: false },
+      scales: {
+        x: { type: "linear", min: xmin, max: xmax, grid: { color: grilla }, border: { color: css("--eje") },
+             afterBuildTicks: marcasTiempo,
+             ticks: { color: tenue, maxRotation: 0, autoSkip: false,
+                      callback: function (v) {
+                        const f = new Date(v);
+                        return this._pasoMarcas >= 24 * HORA ? fmtDia.format(f) : fmtHora.format(f).replace(",", "");
+                      } } },
+        y: { min, max, ...(rango || {}), grid: { color: grilla }, border: { display: false },
+             afterFit: (escala) => { escala.width = ANCHO_EJE_Y; },
+             ticks: { color: tenue, maxTicksLimit: 5, ...(ticksY || {}) } },
+      },
+      plugins: {
+        legend: { display: datasets.length > 1, position: "top", align: "end",
+                  labels: { color: tinta2, usePointStyle: true, pointStyle: "line", boxWidth: 20, font: { size: 11 } } },
+        tooltip: {
+          backgroundColor: css("--superficie"), titleColor: css("--tinta"), bodyColor: css("--tinta"),
+          borderColor: css("--eje"), borderWidth: 1, padding: 8, usePointStyle: true,
+          callbacks: {
+            title: (items) => items.length ? fmtHora.format(new Date(items[0].parsed.x)) : "",
+            label: (it) => ` ${it.dataset.label}: ${it.parsed.y} ${unidad || ""}`,
+          },
+        },
+      },
+    },
+  });
+  graficosPanel.set(canvas, g);
+  return g;
+}
+
+function serieLinea(etiqueta, puntos, slot, { soloPuntos = false } = {}) {
+  const color = css(`--s${slot}`);
+  const pts = puntos.map(([t, v]) => ({ x: Date.parse(t), y: v }));
+  return {
+    label: etiqueta, data: soloPuntos ? pts : conHuecos(pts), borderColor: color, backgroundColor: color,
+    borderWidth: 2, pointRadius: soloPuntos ? 2.5 : 0, pointHoverRadius: 5, showLine: !soloPuntos,
+    pointHoverBorderColor: css("--superficie"), pointHoverBorderWidth: 2, spanGaps: false, tension: 0,
+  };
+}
+
+const RUMBOS16 = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSO", "SO", "OSO", "O", "ONO", "NO", "NNO"];
+function rumbo(grados) { return grados === null || grados === undefined ? "–" : RUMBOS16[Math.round(grados / 22.5) % 16]; }
+
+// ======================================================================
+// EMAs: resumen de la red + meteograma de una estación
+// ======================================================================
+let emaElegida = null;
+
+async function iniciarEmas() {
+  if (!ESTACIONES.length) ESTACIONES = await api("/api/estaciones");
+  const emas = ESTACIONES.filter((e) => e.activa && e.tipo !== "sinoptica");
+  const sel = $("#f-ema");
+  sel.innerHTML = "";
+  for (const e of emas) sel.add(new Option(e.nombre, e.id));
+  emaElegida = emaElegida || (emas.find((e) => e.id === "observatorio_campbell") || emas[0] || {}).id;
+  sel.value = emaElegida;
+  sel.addEventListener("change", () => { emaElegida = sel.value; cargarMeteograma(); cargarResumenEmas(); });
+  $("#f-ema-dias").addEventListener("change", cargarMeteograma);
+  cargarResumenEmas();
+  cargarMeteograma();
+}
+
+async function cargarResumenEmas() {
+  const filas = await api("/api/emas/resumen");
+  $("#tabla-emas").innerHTML = `<tr><th>Estación</th><th>Estado</th><th class="num">Temp. (°C)</th><th class="num">Máx. hoy</th>
+    <th class="num">Mín. hoy</th><th class="num">Humedad (%)</th><th class="num">Lluvia desde las 9 (mm)</th></tr>` +
+    filas.map((f) => {
+      const st = estadoDe({ ultimo: f.ultimo, tipo: "ema" });
+      return `<tr class="fila-click ${f.id === emaElegida ? "fila-activa" : ""}" data-id="${esc(f.id)}">
+        <td>${esc(f.nombre)}</td><td><span class="estado ${st.clase}"><i>${st.icono}</i>${esc(st.texto)}</span></td>
+        <td class="num"><b>${num(f.temp)}</b></td><td class="num">${num(f.tmax_hoy)}</td><td class="num">${num(f.tmin_hoy)}</td>
+        <td class="num">${num(f.hum, 0)}</td><td class="num">${num(f.lluvia_desde_9)}</td></tr>`;
+    }).join("");
+  document.querySelectorAll("#tabla-emas tr[data-id]").forEach((tr) => tr.addEventListener("click", () => {
+    emaElegida = tr.dataset.id; $("#f-ema").value = emaElegida; cargarMeteograma(); cargarResumenEmas();
+  }));
+}
+
+async function cargarMeteograma() {
+  const id = $("#f-ema").value;
+  const dias = $("#f-ema-dias").value;
+  const cont = $("#meteograma");
+  $("#nota-meteograma").textContent = "Cargando…";
+  let d;
+  try { d = await api(`/api/estacion/${encodeURIComponent(id)}/meteograma?dias=${dias}`); }
+  catch (err) { $("#nota-meteograma").textContent = "Error: " + err.message; return; }
+  const S = d.series, x = { xmin: Date.parse(d.desde), xmax: Date.parse(d.hasta) };
+  const est = ESTACIONES.find((e) => e.id === id) || {};
+  const totalLluvia = (S.precip || []).reduce((a, [, v]) => a + v, 0);
+  $("#nota-meteograma").textContent =
+    `${est.nombre || id} · ${d.paso === "crudo" ? "cada dato tal cual llegó" : "promedios horarios"}` +
+    (S.precip ? ` · lluvia total del período: ${totalLluvia.toFixed(1)} mm` : "") +
+    (Object.keys(S).length ? "" : " · sin datos en el período");
+
+  // Qué paneles mostrar: solo los de variables que la estación mide.
+  const paneles = [];
+  if (S.temp || S.td) paneles.push(["Temperatura" + (S.td ? " y rocío" : ""), "°C",
+    (c) => panel(c, [S.temp && serieLinea("Temperatura", S.temp, 2), S.td && serieLinea("Rocío", S.td, 1)].filter(Boolean), { unidad: "°C", ...x })]);
+  if (S.hum) paneles.push(["Humedad relativa", "%",
+    (c) => panel(c, [serieLinea("Humedad", S.hum, 3)], { unidad: "%", min: 0, max: 100, ...x })]);
+  const varPres = S.pnm ? "pnm" : S.pres_est ? "pres_est" : null;
+  if (varPres) paneles.push([varPres === "pnm" ? "Presión a nivel del mar" : "Presión a nivel de estación", "hPa",
+    (c) => { const ds = [serieLinea("Presión", S[varPres], 7)]; return panel(c, ds, { unidad: "hPa", rango: rangoAjustado(ds), ...x }); }]);
+  if (S.precip) paneles.push(["Lluvia por hora", "mm",
+    (c) => panel(c, [{ label: "Lluvia", data: S.precip.map(([t, v]) => ({ x: Date.parse(t) - 1800e3, y: v })),
+                       backgroundColor: css("--s1"), borderRadius: 2, barPercentage: 0.9, categoryPercentage: 1 }],
+                 { unidad: "mm", tipo: "bar", min: 0, ...x })]);
+  if (S.viento_vel || S.racha) paneles.push(["Viento", "km/h",
+    (c) => panel(c, [S.viento_vel && serieLinea("Velocidad", S.viento_vel.map(([t, v]) => [t, +(v * 3.6).toFixed(1)]), 1),
+                     S.racha && serieLinea("Ráfaga", S.racha.map(([t, v]) => [t, +(v * 3.6).toFixed(1)]), 2)].filter(Boolean),
+                 { unidad: "km/h", min: 0, ...x })]);
+  if (S.viento_dir) paneles.push(["Dirección del viento", "de dónde viene",
+    (c) => panel(c, [serieLinea("Dirección", S.viento_dir, 1, { soloPuntos: true })],
+                 { unidad: "°", min: 0, max: 360, ticksY: { stepSize: 90, callback: (v) => ({ 0: "N", 90: "E", 180: "S", 270: "O", 360: "N" }[v] ?? v) }, ...x })]);
+  if (S.rad_solar) paneles.push(["Radiación solar", "W/m²",
+    (c) => panel(c, [serieLinea("Radiación", S.rad_solar, 4)], { unidad: "W/m²", min: 0, ...x })]);
+
+  for (const g of graficosPanel.values()) if (cont.contains(g.canvas)) g.destroy();
+  cont.innerHTML = paneles.map(([t, u], i) =>
+    `<div class="panel-titulo">${esc(t)} <span class="tenue">(${esc(u)})</span></div><div class="panel"><canvas id="mg-${i}"></canvas></div>`).join("");
+  paneles.forEach(([, , dibujar], i) => dibujar($(`#mg-${i}`)));
+}
+
+// ======================================================================
+// SMN: resumen diario de la red + tabla de observaciones de una estación
+// ======================================================================
+// Tiempo presente, código ww (OMM, tabla 4677), en palabras.
+const WW = {
+  0: "Sin cambios de nubosidad", 1: "Nubes disolviéndose", 2: "Cielo sin cambios", 3: "Nubes formándose",
+  4: "Humo", 5: "Bruma seca (calima)", 6: "Polvo en suspensión", 7: "Polvo o arena levantados por el viento",
+  8: "Remolinos de polvo", 9: "Tempestad de polvo a la vista", 10: "Neblina", 11: "Niebla baja en bancos",
+  12: "Niebla baja continua", 13: "Relámpagos sin trueno", 14: "Precipitación a la vista (no llega al suelo)",
+  15: "Precipitación lejana", 16: "Precipitación cercana (no en la estación)", 17: "Tormenta sin precipitación",
+  18: "Turbonada", 19: "Tromba / tornado",
+  20: "Llovizna en la última hora", 21: "Lluvia en la última hora", 22: "Nieve en la última hora",
+  23: "Agua-nieve en la última hora", 24: "Llovizna o lluvia engelante en la última hora",
+  25: "Chaparrón de lluvia en la última hora", 26: "Chaparrón de nieve en la última hora",
+  27: "Granizo en la última hora", 28: "Niebla en la última hora", 29: "Tormenta en la última hora",
+  30: "Tempestad de polvo débil, disminuyendo", 31: "Tempestad de polvo débil", 32: "Tempestad de polvo débil, aumentando",
+  33: "Tempestad de polvo fuerte, disminuyendo", 34: "Tempestad de polvo fuerte", 35: "Tempestad de polvo fuerte, aumentando",
+  36: "Ventisca baja débil", 37: "Ventisca baja fuerte", 38: "Ventisca alta débil", 39: "Ventisca alta fuerte",
+  40: "Niebla a distancia", 41: "Niebla en bancos", 42: "Niebla, cielo visible, disminuyendo", 43: "Niebla, cielo invisible, disminuyendo",
+  44: "Niebla, cielo visible", 45: "Niebla, cielo invisible", 46: "Niebla, cielo visible, aumentando", 47: "Niebla, cielo invisible, aumentando",
+  48: "Niebla con escarcha, cielo visible", 49: "Niebla con escarcha, cielo invisible",
+  50: "Llovizna débil intermitente", 51: "Llovizna débil continua", 52: "Llovizna moderada intermitente", 53: "Llovizna moderada continua",
+  54: "Llovizna fuerte intermitente", 55: "Llovizna fuerte continua", 56: "Llovizna engelante débil", 57: "Llovizna engelante moderada o fuerte",
+  58: "Llovizna y lluvia débiles", 59: "Llovizna y lluvia moderadas o fuertes",
+  60: "Lluvia débil intermitente", 61: "Lluvia débil continua", 62: "Lluvia moderada intermitente", 63: "Lluvia moderada continua",
+  64: "Lluvia fuerte intermitente", 65: "Lluvia fuerte continua", 66: "Lluvia engelante débil", 67: "Lluvia engelante moderada o fuerte",
+  68: "Lluvia y nieve débiles", 69: "Lluvia y nieve moderadas o fuertes",
+  70: "Nieve débil intermitente", 71: "Nieve débil continua", 72: "Nieve moderada intermitente", 73: "Nieve moderada continua",
+  74: "Nieve fuerte intermitente", 75: "Nieve fuerte continua", 76: "Prismas de hielo", 77: "Cinarra", 78: "Cristales de nieve aislados", 79: "Hielo granulado",
+  80: "Chaparrón de lluvia débil", 81: "Chaparrón de lluvia moderado o fuerte", 82: "Chaparrón de lluvia violento",
+  83: "Chaparrón de lluvia y nieve débil", 84: "Chaparrón de lluvia y nieve moderado o fuerte",
+  85: "Chaparrón de nieve débil", 86: "Chaparrón de nieve moderado o fuerte",
+  87: "Chaparrón de granizo menudo débil", 88: "Chaparrón de granizo menudo moderado o fuerte",
+  89: "Chaparrón de granizo débil", 90: "Chaparrón de granizo moderado o fuerte",
+  91: "Lluvia débil, tormenta en la última hora", 92: "Lluvia moderada o fuerte, tormenta en la última hora",
+  93: "Nieve o granizo débil, tormenta en la última hora", 94: "Nieve o granizo moderado o fuerte, tormenta en la última hora",
+  95: "Tormenta débil o moderada con lluvia", 96: "Tormenta débil o moderada con granizo", 97: "Tormenta fuerte con lluvia",
+  98: "Tormenta con tempestad de polvo", 99: "Tormenta fuerte con granizo",
+};
+
+let smnElegida = null;
+
+async function iniciarSmn() {
+  if (!ESTACIONES.length) ESTACIONES = await api("/api/estaciones");
+  const smn = ESTACIONES.filter((e) => e.activa && e.tipo === "sinoptica");
+  const sel = $("#f-smn");
+  sel.innerHTML = "";
+  for (const e of smn) sel.add(new Option(e.nombre, e.id));
+  smnElegida = smnElegida || (smn.find((e) => e.id === "omm_87593") || smn[0] || {}).id;
+  sel.value = smnElegida;
+  sel.addEventListener("change", () => { smnElegida = sel.value; cargarSmn(); cargarResumenSmn(); });
+  $("#f-smn-dias").addEventListener("change", cargarSmn);
+  cargarResumenSmn();
+  cargarSmn();
+}
+
+async function cargarResumenSmn() {
+  const filas = await api("/api/sinopticas/resumen?dias=3");
+  const dias = [...new Set(filas.map((f) => f.dia))].sort();
+  const porEst = new Map();
+  for (const f of filas) {
+    if (!porEst.has(f.id)) porEst.set(f.id, { nombre: f.nombre, dias: {} });
+    porEst.get(f.id).dias[f.dia] = f;
+  }
+  const cab = `<tr><th rowspan="2">Estación</th>${dias.map((d) => `<th colspan="3" class="num">${d.slice(8)}/${d.slice(5, 7)}</th>`).join("")}</tr>
+    <tr>${dias.map(() => `<th class="num">Máx</th><th class="num">Mín</th><th class="num">Lluvia</th>`).join("")}</tr>`;
+  $("#tabla-smn-resumen").innerHTML = cab + [...porEst.entries()].map(([id, e]) =>
+    `<tr class="fila-click ${id === smnElegida ? "fila-activa" : ""}" data-id="${esc(id)}"><td>${esc(e.nombre)}</td>` +
+    dias.map((d) => {
+      const f = e.dias[d] || {};
+      return `<td class="num">${num(f.tmax)}</td><td class="num">${num(f.tmin)}</td><td class="num">${f.lluvia_24h_9hs === undefined || f.lluvia_24h_9hs === null ? "–" : num(f.lluvia_24h_9hs)}</td>`;
+    }).join("") + "</tr>").join("");
+  document.querySelectorAll("#tabla-smn-resumen tr[data-id]").forEach((tr) => tr.addEventListener("click", () => {
+    smnElegida = tr.dataset.id; $("#f-smn").value = smnElegida; cargarSmn(); cargarResumenSmn();
+  }));
+}
+
+async function cargarSmn() {
+  const id = $("#f-smn").value;
+  const dias = $("#f-smn-dias").value;
+  $("#f-smn-csv").href = `/api/sinoptica/${encodeURIComponent(id)}/observaciones?dias=${dias}&formato=csv`;
+  const obs = await api(`/api/sinoptica/${encodeURIComponent(id)}/observaciones?dias=${dias}`);
+  const asc = obs.slice().reverse();
+  const serie = (k) => asc.filter((o) => o[k] !== null).map((o) => [o.ts, o[k]]);
+  const x = { xmin: Date.now() - dias * 86400e3, xmax: Date.now() };
+  panel($("#smn-temp"), [serieLinea("Temperatura", serie("temp"), 2), serieLinea("Rocío", serie("td"), 1)], { unidad: "°C", ...x });
+  const dsPres = [serieLinea("Presión", serie("pnm"), 7)];
+  panel($("#smn-pres"), dsPres, { unidad: "hPa", rango: rangoAjustado(dsPres), ...x });
+
+  const lluvia = (o) => {
+    const partes = [["1h", o.precip_1h], ["3h", o.precip_3h], ["6h", o.precip_6h], ["12h", o.precip_12h], ["24h", o.precip_24h]]
+      .filter(([, v]) => v !== null).map(([p, v]) => `${num(v)} <span class="tenue">(${p})</span>`);
+    return partes.join("<br>") || "";
+  };
+  const extremos = (o) => [o.tmax !== null ? `máx ${num(o.tmax)}` : "", o.tmin !== null ? `mín ${num(o.tmin)}` : ""].filter(Boolean).join(" · ");
+  $("#tabla-obs").innerHTML = `<tr><th>Hora</th><th>Tiempo presente</th><th class="num">Nubes</th><th class="num">Temp. °C</th>
+    <th class="num">Rocío °C</th><th class="num">HR %</th><th>Viento</th><th class="num">Presión hPa</th><th class="num">Visib. km</th>
+    <th class="num">Lluvia mm</th><th>Extremos °C</th></tr>` +
+    (obs.length ? obs.map((o) => {
+      const calma = o.viento_vel === 0;
+      const viento = o.viento_vel === null ? "–" : calma ? "Calma" : `${rumbo(o.viento_dir)} ${num(o.viento_vel * 3.6, 0)} km/h`;
+      return `<tr>
+        <td title="${esc(o.mensaje || "sin mensaje crudo")}">${fmtHora.format(new Date(o.ts))}</td>
+        <td class="ww">${o.ww === null ? '<span class="tenue">–</span>' : esc(WW[o.ww] ?? `código ${o.ww}`)}</td>
+        <td class="num">${o.nubosidad === null ? "–" : o.nubosidad === 9 ? "cielo invisible" : `${o.nubosidad}/8`}</td>
+        <td class="num"><b>${num(o.temp)}</b></td><td class="num">${num(o.td)}</td><td class="num">${num(o.hum, 0)}</td>
+        <td>${viento}</td><td class="num">${num(o.pnm)}</td>
+        <td class="num">${o.visibilidad === null ? "–" : num(o.visibilidad / 1000, o.visibilidad < 5000 ? 1 : 0)}</td>
+        <td class="num">${lluvia(o)}</td><td class="tenue">${extremos(o)}</td></tr>`;
+    }).join("") : '<tr><td colspan="11" class="tenue">Sin observaciones en el período.</td></tr>');
 }
 
 // ======================================================================

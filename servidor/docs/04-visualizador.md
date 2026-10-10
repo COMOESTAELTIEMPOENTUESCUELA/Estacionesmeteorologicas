@@ -11,11 +11,23 @@ y los de tu cuenta de Tailscale.
 
 ## Pestañas
 
+Las EMAs y las estaciones de superficie del SMN son datos de naturaleza
+distinta, por eso cada red tiene su vista:
+
+| | EMAs (automáticas) | Estaciones SMN (sinópticas) |
+|---|---|---|
+| Frecuencia | cada 5–15 min | cada 1–3 h |
+| Qué miden | pocas variables, continuas | muchas: también nubes, visibilidad, tiempo presente |
+| Vista | **meteograma** (paneles apilados) | **tabla de observaciones** (como el parte del SMN) |
+| Lluvia | por hora (barras) | por períodos fijos (6 h, 24 h) |
+
 | Pestaña | Qué muestra |
 |---|---|
-| **Mapa** | Cada estación con su último dato y su estado: ✓ al día, ! demorada, ✕ sin datos. Las sinópticas tienen más margen porque reportan cada 1–3 h. Tocá una estación para ver sus series. |
-| **Series** | Una variable, hasta 8 estaciones, desde 24 h hasta 1 año. Los cortes de datos se ven como cortes (la línea no inventa valores). La lluvia se muestra acumulada en el período. Botón para descargar CSV y tabla con los números. |
-| **Lluvia diaria** | Tabla de 9 a 9 de todas las fuentes, incluidos los reportes de la comunidad con su instrumento. "–" = sin datos (no es lo mismo que 0). |
+| **Mapa** | ● EMAs y ■ estaciones SMN, con filtros para ver cada red. Color = estado: ✓ al día, ! demorada, ✕ sin datos. Tocá una estación para ir a su vista. |
+| **EMAs** | Resumen de hoy de toda la red (temperatura, máx/mín desde las 00, humedad, lluvia desde las 9) y el **meteograma** de la estación elegida: temperatura y rocío, humedad, presión, lluvia por hora, viento, dirección y radiación (solo los paneles de lo que la estación mide). Todos los paneles comparten el eje de tiempo y quedan alineados. |
+| **Estaciones SMN** | Resumen de los últimos días (máx/mín de las observaciones horarias y lluvia de 24 h de las 9) y la **tabla de observaciones** de la estación elegida: tiempo presente en palabras (código ww de la OMM), nubosidad en octavos, temperatura, rocío, humedad (calculada de T y Td), viento, presión, visibilidad, lluvia por período y extremos. Pasando el mouse por la hora se ve el mensaje SYNOP original. Descarga en CSV. |
+| **Comparar** | Una variable, hasta 8 estaciones de cualquier red, de 24 h a 1 año. Cortes de datos visibles, lluvia acumulada, tabla y CSV. |
+| **Lluvia diaria** | Tabla de 9 a 9 de todas las fuentes, incluidos los reportes de la comunidad con su instrumento. "–" = sin datos (no es lo mismo que 0); ⚠ = incluye lluvia sospechosa. |
 | **Estado de la red** | Última corrida de cada tarea de ingesta y sus errores. |
 
 ## Cómo está hecho
@@ -38,6 +50,10 @@ navegador ──► web (FastAPI, puerto 8080)
   url = "http://100.84.41.62:8080/api/series?variable=temp&estacion=bavio&estacion=omm_87593&dias=30&formato=csv"
   df = pd.read_csv(url, parse_dates=["ts"])
   ```
+
+  Otras direcciones útiles: `/api/estacion/{id}/meteograma?dias=2`,
+  `/api/emas/resumen`, `/api/sinoptica/{id}/observaciones?dias=1&formato=csv`,
+  `/api/sinopticas/resumen?dias=3`. Todas están documentadas en `/api/docs`.
 
   Parámetros de `/api/series`: `variable`, `estacion` (repetible, máx. 8),
   `dias` o `desde`/`hasta` (ISO, UTC), `paso` (`crudo`, `hora`, `dia` o `auto`),

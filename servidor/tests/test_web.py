@@ -47,3 +47,38 @@ def test_api_es_solo_lectura(cliente):
 
 def test_pagina(cliente):
     assert "Red Meteorológica" in cliente.get("/").text
+
+
+def test_meteograma_ema(cliente):
+    r = cliente.get("/api/estacion/bavio/meteograma", params={"dias": 2})
+    assert r.status_code == 200
+    d = r.json()
+    assert d["paso"] == "crudo" and isinstance(d["series"], dict)
+
+
+def test_resumen_emas_solo_emas(cliente):
+    filas = cliente.get("/api/emas/resumen").json()
+    ids = {f["id"] for f in filas}
+    assert "bavio" in ids and not any(i.startswith("omm_") for i in ids)
+
+
+def test_observaciones_sinoptica_calcula_humedad(cliente):
+    from datetime import datetime, timedelta, timezone
+
+    from meteo.ingesta import db
+    from meteo.ingesta.base import Obs
+    t = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0) - timedelta(hours=1)
+    conn = db.conectar(DSN)
+    db.guardar_observaciones(conn, [Obs(t, "omm_87593", "temp", 20.0), Obs(t, "omm_87593", "td", 15.7),
+                                    Obs(t, "omm_87593", "ww", 61)], "test")
+    conn.close()
+    filas = cliente.get("/api/sinoptica/omm_87593/observaciones", params={"dias": 0.5}).json()
+    [fila] = [f for f in filas if f["ts"] == t.strftime("%Y-%m-%dT%H:%M:%SZ")]
+    assert fila["hum"] == 76 and fila["ww"] == 61     # HR de Magnus con T=20, Td=15,7
+    csv = cliente.get("/api/sinoptica/omm_87593/observaciones", params={"dias": 0.5, "formato": "csv"}).text
+    assert csv.startswith("ts,temp,td,hum")
+
+
+def test_resumen_sinopticas(cliente):
+    filas = cliente.get("/api/sinopticas/resumen").json()
+    assert all(f["id"].startswith("omm_") for f in filas)

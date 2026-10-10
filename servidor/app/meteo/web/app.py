@@ -23,6 +23,7 @@ Arranque (lo hace docker compose):
 """
 import csv
 import io
+import math
 import os
 from contextlib import asynccontextmanager
 from datetime import date, datetime, timedelta, timezone
@@ -242,6 +243,133 @@ def reportes(dias: int = 30):
                resumen, imagen_url, lat, lon
         FROM reporte_comunidad WHERE ts > now() - make_interval(days => %s)
         ORDER BY ts DESC""", (max(1, min(dias, 3660)),)))
+
+
+# ---------------------------------------------------------------------------
+# EMAs: meteograma y resumen de la red
+# ---------------------------------------------------------------------------
+TZ_AR = "America/Argentina/Buenos_Aires"
+VARIABLES_METEOGRAMA = ["temp", "td", "hum", "pnm", "pres_est", "precip", "viento_vel",
+                        "racha", "viento_dir", "rad_solar"]
+
+
+@app.get("/api/estacion/{estacion_id}/meteograma")
+def meteograma(estacion_id: str, dias: float = 2):
+    """Todas las variables de UNA estación, listas para paneles apilados.
+
+    Hasta 3 días: cada dato tal cual llegó; más: promedios horarios. La lluvia
+    va siempre en sumas horarias (barras), que es como se lee una EMA."""
+    dias = max(0.25, min(dias, 60))
+    hasta = datetime.now(timezone.utc)
+    desde = hasta - timedelta(days=dias)
+    crudo = dias <= 3
+    otras = [v for v in VARIABLES_METEOGRAMA if v != "precip"]
+    if crudo:
+        filas = consultar("""
+            SELECT variable, ts, valor FROM observacion
+            WHERE estacion_id = %s AND variable = ANY(%s) AND ts BETWEEN %s AND %s AND qc <> 4
+            ORDER BY ts""", (estacion_id, otras, desde, hasta))
+    else:
+        filas = consultar("""
+            SELECT variable, date_trunc('hour', ts) AS ts, avg(valor) AS valor FROM observacion
+            WHERE estacion_id = %s AND variable = ANY(%s) AND ts BETWEEN %s AND %s AND qc <> 4
+            GROUP BY 1, 2 ORDER BY 2""", (estacion_id, otras, desde, hasta))
+    filas += consultar("""
+        SELECT 'precip' AS variable, date_trunc('hour', ts) + interval '1 hour' AS ts, sum(valor) AS valor
+        FROM observacion
+        WHERE estacion_id = %s AND variable = 'precip' AND ts > %s AND ts <= %s AND qc <> 4
+        GROUP BY 2 ORDER BY 2""", (estacion_id, desde, hasta))
+    series = {}
+    for f in filas:
+        series.setdefault(f["variable"], []).append([_iso(f["ts"]), round(f["valor"], 2)])
+    return {"estacion": estacion_id, "paso": "crudo" if crudo else "hora",
+            "desde": _iso(desde), "hasta": _iso(hasta), "series": series}
+
+
+@app.get("/api/emas/resumen")
+def resumen_emas():
+    """Hoy en cada EMA: último dato, máxima y mínima del día civil y lluvia
+    desde las 9 (día pluviométrico en curso)."""
+    return _json(consultar(f"""
+        WITH hoy AS (
+            SELECT (date_trunc('day', now() AT TIME ZONE '{TZ_AR}') AT TIME ZONE '{TZ_AR}') AS inicio
+        )
+        SELECT e.id, e.nombre, e.localidad,
+               max(o.ts) AS ultimo,
+               (array_agg(o.valor ORDER BY o.ts DESC) FILTER (WHERE o.variable = 'temp'))[1] AS temp,
+               (array_agg(o.valor ORDER BY o.ts DESC) FILTER (WHERE o.variable = 'hum'))[1] AS hum,
+               max(o.valor) FILTER (WHERE o.variable = 'temp' AND o.ts >= hoy.inicio) AS tmax_hoy,
+               min(o.valor) FILTER (WHERE o.variable = 'temp' AND o.ts >= hoy.inicio) AS tmin_hoy,
+               round(sum(o.valor) FILTER (WHERE o.variable = 'precip'
+                       AND dia_pluviometrico(o.ts) = dia_pluviometrico(now()))::numeric, 1)::float AS lluvia_desde_9
+        FROM estacion e
+        CROSS JOIN hoy
+        LEFT JOIN observacion o ON o.estacion_id = e.id AND o.qc <> 4 AND o.ts > now() - interval '30 hours'
+        WHERE e.tipo = 'ema' AND e.activa
+        GROUP BY e.id, e.nombre, e.localidad
+        ORDER BY e.nombre"""))
+
+
+# ---------------------------------------------------------------------------
+# Estaciones de superficie (SMN): tabla de observaciones y resumen diario
+# ---------------------------------------------------------------------------
+def humedad_relativa(t, td):
+    """HR (%) a partir de temperatura y rocío (fórmula de Magnus)."""
+    if t is None or td is None:
+        return None
+    return round(100 * math.exp(17.625 * td / (243.04 + td)) / math.exp(17.625 * t / (243.04 + t)))
+
+
+COLUMNAS_SYNOP = ["temp", "td", "hum", "pnm", "pres_est", "viento_dir", "viento_vel", "nubosidad",
+                  "visibilidad", "ww", "precip_1h", "precip_3h", "precip_6h", "precip_12h",
+                  "precip_24h", "tmax", "tmin"]
+
+
+@app.get("/api/sinoptica/{estacion_id}/observaciones")
+def observaciones_sinoptica(estacion_id: str, dias: float = 2, formato: str = "json"):
+    """Una fila por mensaje SYNOP (hora), con todas sus variables, como el
+    parte de observaciones del SMN. La humedad se calcula de T y Td si el
+    mensaje no la trae."""
+    dias = max(0.25, min(dias, 31))
+    columnas = ",\n".join(f"max(valor) FILTER (WHERE variable = '{c}') AS {c}" for c in COLUMNAS_SYNOP)
+    filas = consultar(f"""
+        SELECT ts, {columnas}
+        FROM observacion
+        WHERE estacion_id = %s AND ts > now() - make_interval(secs => %s) AND qc <> 4
+        GROUP BY ts ORDER BY ts DESC""", (estacion_id, dias * 86400))
+    for f in filas:
+        if f["hum"] is None:
+            f["hum"] = humedad_relativa(f["temp"], f["td"])
+    crudos = {r["ts"]: r["mensaje"] for r in consultar(
+        "SELECT ts, mensaje FROM synop_crudo WHERE estacion_id = %s AND ts > now() - make_interval(secs => %s)",
+        (estacion_id, dias * 86400))}
+    for f in filas:
+        f["mensaje"] = crudos.get(f["ts"])
+    if formato == "csv":
+        return _csv(filas, f"{estacion_id}_observaciones", ["ts"] + COLUMNAS_SYNOP + ["mensaje"])
+    return _json(filas)
+
+
+@app.get("/api/sinopticas/resumen")
+def resumen_sinopticas(dias: int = 3):
+    """Por estación y día (hora argentina): máxima y mínima de las
+    observaciones horarias, y lluvia de 24 h informada a las 9."""
+    dias = max(1, min(dias, 31))
+    return _json(consultar(f"""
+        WITH temps AS (
+            SELECT o.estacion_id, (o.ts AT TIME ZONE '{TZ_AR}')::date AS dia,
+                   max(o.valor) AS tmax, min(o.valor) AS tmin, count(*) AS n
+            FROM observacion o JOIN estacion e ON e.id = o.estacion_id
+            WHERE e.tipo = 'sinoptica' AND o.variable = 'temp' AND o.qc <> 4
+              AND o.ts > now() - make_interval(days => %s + 1)
+            GROUP BY 1, 2
+        )
+        SELECT e.id, e.nombre, t.dia, t.tmax, t.tmin, t.n AS observaciones, l.lluvia_mm::float AS lluvia_24h_9hs
+        FROM temps t
+        JOIN estacion e ON e.id = t.estacion_id
+        LEFT JOIN lluvia_diaria l ON l.estacion_id = t.estacion_id AND l.dia = t.dia
+        WHERE t.dia > (now() AT TIME ZONE '{TZ_AR}')::date - %s
+        ORDER BY e.nombre, t.dia""", (dias, dias)))
 
 
 @app.exception_handler(Exception)
