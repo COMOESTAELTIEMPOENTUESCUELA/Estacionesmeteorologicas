@@ -14,10 +14,13 @@ saber con qué se midió la lluvia; si todavía no existen, quedan "sin_dato".
 import csv
 import hashlib
 import io
+import logging
 import re
 from datetime import datetime
 
 from ..base import HORA_ARG, num
+
+log = logging.getLogger(__name__)
 
 URL = "https://docs.google.com/spreadsheets/d/{sheet}/gviz/tq"
 
@@ -46,7 +49,10 @@ def parsear_fecha(texto):
     """Las fechas de la planilla pueden venir como '10/10/2026 14:23:11',
     '10/10/2026', '2026-10-10 14:23:11'... Se interpretan en hora argentina."""
     t = (texto or "").strip()
+    # Primero día/mes (Argentina); si no encaja, mes/día (planilla con
+    # configuración regional de EE.UU.: "6/18/2026" no puede ser día/mes).
     for fmt in ("%d/%m/%Y %H:%M:%S", "%d/%m/%Y %H:%M", "%d/%m/%Y",
+                "%m/%d/%Y %H:%M:%S", "%m/%d/%Y %H:%M", "%m/%d/%Y",
                 "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d"):
         try:
             return datetime.strptime(t, fmt).replace(tzinfo=HORA_ARG)
@@ -95,11 +101,20 @@ def parsear_csv(texto, escuela_a_estacion=None):
 
 
 def traer(cfg, sesion):
+    # headers=1: la primera fila son los títulos (si no, Google a veces lo adivina mal).
     r = sesion.get(URL.format(sheet=cfg["sheet_id"]),
-                   params={"tqx": "out:csv", "gid": cfg.get("gid", "0")}, timeout=60)
+                   params={"tqx": "out:csv", "gid": cfg.get("gid", "0"), "headers": "1"}, timeout=60)
     r.raise_for_status()
     r.encoding = "utf-8"
-    return parsear_csv(r.text, cfg.get("escuela_a_estacion"))
+    if r.text.lstrip().startswith("<"):
+        raise RuntimeError("La planilla devolvió una página web, no un CSV: ¿sigue siendo pública?")
+    reportes = parsear_csv(r.text, cfg.get("escuela_a_estacion"))
+    filas = max(len(r.text.strip().splitlines()) - 1, 0)
+    if filas and not reportes:
+        primera = r.text.splitlines()[0][:200]
+        log.warning("comunidad: %d filas en la planilla pero ninguna se pudo leer. Encabezados: %s",
+                    filas, primera)
+    return reportes
 
 
 SQL = """

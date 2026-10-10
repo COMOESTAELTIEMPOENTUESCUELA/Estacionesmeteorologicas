@@ -60,13 +60,28 @@ def parsear(texto, estacion_id, unidad_viento="km/h", presion_es="pnm"):
     return obs
 
 
-def traer(estacion, desde, hasta, sesion):
-    """El archivo trae los últimos días completos; se filtra por rango."""
-    cfg = estacion["config"]
+def bajar(cfg, sesion):
+    """Intenta la URL de la Facultad y, si no responde, la copia de respaldo
+    (la que el GitHub Action del repo actualiza cada 15 min)."""
+    errores = []
     verificar = cfg.get("verificar_ssl", True)
     if not verificar:
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-    r = sesion.get(cfg["url"], timeout=60, verify=verificar)
-    r.raise_for_status()
-    obs = parsear(r.text, estacion["id"], cfg.get("unidad_viento", "km/h"), cfg.get("presion_es", "pnm"))
+    for url, verif in ((cfg["url"], verificar), (cfg.get("url_respaldo"), True)):
+        if not url:
+            continue
+        try:
+            r = sesion.get(url, timeout=(10, 60), verify=verif)
+            r.raise_for_status()
+            return r.text
+        except Exception as e:
+            errores.append(f"{url}: {type(e).__name__}")
+    raise ConnectionError("Ninguna URL de la Davis respondió: " + " | ".join(errores))
+
+
+def traer(estacion, desde, hasta, sesion):
+    """El archivo trae los últimos días completos; se filtra por rango."""
+    cfg = estacion["config"]
+    obs = parsear(bajar(cfg, sesion), estacion["id"],
+                  cfg.get("unidad_viento", "km/h"), cfg.get("presion_es", "pnm"))
     return [o for o in obs if desde <= o.ts <= hasta]

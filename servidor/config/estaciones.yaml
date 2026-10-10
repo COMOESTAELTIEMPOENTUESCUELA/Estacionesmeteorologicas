@@ -164,6 +164,9 @@ estaciones:
     config:
       url: https://meteo.fcaglp.unlp.edu.ar/davis/campo/downld08.txt
       verificar_ssl: false        # el certificado del servidor de la Facultad no valida
+      # Si la Facultad no responde (pasa desde algunas conexiones hogareñas), se
+      # usa la copia que el GitHub Action del repo actualiza cada 15 minutos.
+      url_respaldo: https://raw.githubusercontent.com/COMOESTAELTIEMPOENTUESCUELA/Estacionesmeteorologicas/main/data/davis-ultimo.txt
       # VERIFICAR con quien administra la Davis en qué unidad exporta el viento.
       unidad_viento: km/h
       presion_es: pnm             # "Bar" de WeatherLink suele estar reducida al nivel del mar

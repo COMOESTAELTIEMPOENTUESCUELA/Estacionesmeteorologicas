@@ -137,3 +137,27 @@ def test_pronostico_real_desarmado():
     assert [f["plazo_dias"] for f in filas] == list(range(len(filas)))
     assert filas[0]["temp_max"] is not None
     assert pronosticos.huella(p) == pronosticos.huella(dict(p))
+
+
+def test_davis_usa_respaldo_si_la_facultad_no_responde():
+    class Resp:
+        def __init__(self, texto):
+            self.text = texto
+
+        def raise_for_status(self):
+            pass
+
+    class Sesion:
+        def get(self, url, **kw):
+            if "fcaglp" in url:
+                raise ConnectionError("timeout")
+            return Resp("respaldo")
+
+    cfg = {"url": "https://meteo.fcaglp.unlp.edu.ar/x.txt", "url_respaldo": "https://raw.githubusercontent.com/x.txt",
+           "verificar_ssl": False}
+    assert davis.bajar(cfg, Sesion()) == "respaldo"
+
+
+def test_comunidad_fecha_formato_eeuu():
+    assert comunidad.parsear_fecha("6/18/2026 14:05:00") == datetime(2026, 6, 18, 14, 5, tzinfo=HORA_ARG)
+    assert comunidad.parsear_fecha("18/6/2026 14:05:00") == datetime(2026, 6, 18, 14, 5, tzinfo=HORA_ARG)
