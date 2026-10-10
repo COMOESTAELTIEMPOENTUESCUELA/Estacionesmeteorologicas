@@ -15,6 +15,10 @@
 
 var PENDIENTES_SHEET_NAME = 'Pendientes';
 var FOTOS_FOLDER_NAME = 'Reportes Comunidad - Fotos';
+// Instrumento y Periodo van AL FINAL para no correr las columnas que ya lee
+// ciencia-ciudadana.html por posición. Copiá también esos dos encabezados a la
+// pestaña "Reportes" (los lee el servidor meteorológico, por nombre).
+var ENCABEZADOS = ['Fecha', 'Tipo', 'Escuela', 'Reportero', 'Lluvia_mm', 'Estado_Camino', 'Resumen', 'Imagen_URL', 'Lat', 'Lon', 'Instrumento', 'Periodo'];
 
 function doPost(e) {
   try {
@@ -23,7 +27,12 @@ function doPost(e) {
     var sheet = ss.getSheetByName(PENDIENTES_SHEET_NAME);
     if (!sheet) {
       sheet = ss.insertSheet(PENDIENTES_SHEET_NAME);
-      sheet.appendRow(['Fecha', 'Tipo', 'Escuela', 'Reportero', 'Lluvia_mm', 'Estado_Camino', 'Resumen', 'Imagen_URL', 'Lat', 'Lon']);
+      sheet.appendRow(ENCABEZADOS);
+    } else if (sheet.getLastColumn() < ENCABEZADOS.length) {
+      // Planilla creada antes de que existieran Instrumento/Periodo: se agregan
+      // los encabezados que faltan al final, sin tocar las columnas de antes.
+      var faltan = ENCABEZADOS.slice(sheet.getLastColumn());
+      sheet.getRange(1, sheet.getLastColumn() + 1, 1, faltan.length).setValues([faltan]);
     }
 
     var imageUrl = '';
@@ -42,6 +51,8 @@ function doPost(e) {
       imageUrl,
       data.lat || '',
       data.lon || '',
+      data.instrument || '',
+      data.period || '',
     ]);
 
     return ContentService.createTextOutput(JSON.stringify({ ok: true }))
