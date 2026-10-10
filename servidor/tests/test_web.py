@@ -82,3 +82,20 @@ def test_observaciones_sinoptica_calcula_humedad(cliente):
 def test_resumen_sinopticas(cliente):
     filas = cliente.get("/api/sinopticas/resumen").json()
     assert all(f["id"].startswith("omm_") for f in filas)
+
+
+def test_direccion_del_viento_promedio_circular(cliente):
+    """350° y 10° son vientos casi del norte: el promedio tiene que dar ~0°, no 180°."""
+    from datetime import datetime, timedelta, timezone
+
+    from meteo.ingesta import db
+    from meteo.ingesta.base import Obs
+    h = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0) - timedelta(days=5)
+    conn = db.conectar(DSN)
+    db.guardar_observaciones(conn, [Obs(h + timedelta(minutes=10), "observatorio_campbell", "viento_dir", 350.0),
+                                    Obs(h + timedelta(minutes=20), "observatorio_campbell", "viento_dir", 10.0)], "test")
+    conn.close()
+    d = cliente.get("/api/series", params={"variable": "viento_dir", "estacion": "observatorio_campbell",
+                                           "dias": 10, "paso": "hora"}).json()
+    [valor] = [v for t, v in d["series"][0]["puntos"] if t == h.strftime("%Y-%m-%dT%H:%M:%SZ")]
+    assert min(valor, 360 - valor) < 0.01

@@ -89,6 +89,11 @@ def _csv(filas, nombre, campos=None):
 # ---------------------------------------------------------------------------
 # Estaciones con su último dato
 # ---------------------------------------------------------------------------
+# La dirección del viento es un ÁNGULO: el promedio común de 350° y 10° da
+# 180° (¡sur!) cuando los dos son vientos casi del norte. Promedio circular:
+# se promedian seno y coseno y se vuelve a calcular el ángulo.
+PROMEDIO_DIRECCION = "mod((degrees(atan2(avg(sin(radians(valor))), avg(cos(radians(valor))))) + 360)::numeric, 360)"
+
 VARIABLES_RESUMEN = ("temp", "hum", "td", "pres_est", "pnm", "viento_vel", "viento_dir")
 
 
@@ -171,7 +176,12 @@ def series(
     if not info:
         raise HTTPException(404, f"Variable desconocida: {variable}")
 
-    agregado = "sum(valor)" if variable.startswith("precip") else "avg(valor)"
+    if variable.startswith("precip"):
+        agregado = "sum(valor)"
+    elif variable == "viento_dir":
+        agregado = PROMEDIO_DIRECCION
+    else:
+        agregado = "avg(valor)"
     if paso == "crudo":
         sql = """SELECT estacion_id, ts, valor FROM observacion
                  WHERE variable = %s AND estacion_id = ANY(%s) AND ts BETWEEN %s AND %s AND qc <> 4
@@ -270,8 +280,10 @@ def meteograma(estacion_id: str, dias: float = 2):
             WHERE estacion_id = %s AND variable = ANY(%s) AND ts BETWEEN %s AND %s AND qc <> 4
             ORDER BY ts""", (estacion_id, otras, desde, hasta))
     else:
-        filas = consultar("""
-            SELECT variable, date_trunc('hour', ts) AS ts, avg(valor) AS valor FROM observacion
+        filas = consultar(f"""
+            SELECT variable, date_trunc('hour', ts) AS ts,
+                   CASE WHEN variable = 'viento_dir' THEN {PROMEDIO_DIRECCION} ELSE avg(valor) END AS valor
+            FROM observacion
             WHERE estacion_id = %s AND variable = ANY(%s) AND ts BETWEEN %s AND %s AND qc <> 4
             GROUP BY 1, 2 ORDER BY 2""", (estacion_id, otras, desde, hasta))
     filas += consultar("""

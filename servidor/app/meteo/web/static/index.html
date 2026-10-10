@@ -15,6 +15,8 @@
   --acento: #2a78d6;
   --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300; --s7:#6250d6; --s8:#e34948;
   --ok:#0ca30c; --demora:#fab219; --caida:#d03b3b;
+  /* Rosa de los vientos: un solo tono, de claro (suave) a oscuro (fuerte) */
+  --r1:#86b6ef; --r2:#3987e5; --r3:#1c5cab; --r4:#0d366b;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -23,6 +25,7 @@
     --tenue: #898781; --grilla: #2c2c2a; --eje: #383835; --borde: rgba(255,255,255,0.10);
     --acento: #3987e5;
     --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
+    --r1:#256abf; --r2:#3987e5; --r3:#6da7ec; --r4:#b7d3f6;
   }
 }
 :root[data-theme="dark"] {
@@ -31,6 +34,7 @@
   --tenue: #898781; --grilla: #2c2c2a; --eje: #383835; --borde: rgba(255,255,255,0.10);
   --acento: #3987e5;
   --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
+  --r1:#256abf; --r2:#3987e5; --r3:#6da7ec; --r4:#b7d3f6;
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--plano); color: var(--tinta);
@@ -126,6 +130,17 @@ th { color: var(--tinta-2); font-weight: 600; font-size: 12px; position: sticky;
 #tabla-obs td, #tabla-obs th { white-space: nowrap; }
 #tabla-obs td.ww { white-space: normal; min-width: 170px; }
 .num { text-align: right; }
+.barba { vertical-align: middle; margin-right: 6px; }
+.barba line, .barba circle { stroke: var(--tinta); stroke-width: 1.6; fill: none; stroke-linecap: round; }
+.barba polygon { fill: var(--tinta); stroke: none; }
+.rosa-caja { display: flex; flex-wrap: wrap; gap: 16px 32px; align-items: center; }
+.rosa-caja svg text { fill: var(--tinta-2); font-size: 11px; }
+.rosa-caja svg .anillo { stroke: var(--grilla); fill: none; }
+.rosa-caja svg .eje { stroke: var(--eje); }
+.rosa-caja svg path { stroke: var(--superficie); stroke-width: 1; }
+.rosa-leyenda { font-size: 13px; color: var(--tinta-2); display: flex; flex-direction: column; gap: 4px; }
+.rosa-leyenda i { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: -2px; margin-right: 6px; }
+.rosa-leyenda b { color: var(--tinta); }
 td.num, th.num { font-variant-numeric: tabular-nums; }
 
 @media (max-width: 860px) {
@@ -190,6 +205,10 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
       </div>
       <p class="ayuda" id="nota-meteograma"></p>
       <div id="meteograma"></div>
+      <div id="ema-rosa-cont" hidden>
+        <div class="panel-titulo" style="margin-top:14px">Rosa de los vientos del período <span class="tenue">(% del tiempo que el viento vino de cada dirección)</span></div>
+        <div class="rosa-caja" id="ema-rosa"></div>
+      </div>
     </div>
   </section>
 
@@ -217,6 +236,10 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
       <div class="grilla-2">
         <div><div class="panel-titulo">Temperatura y rocío <span class="tenue">(°C)</span></div><div class="panel"><canvas id="smn-temp"></canvas></div></div>
         <div><div class="panel-titulo">Presión a nivel del mar <span class="tenue">(hPa)</span></div><div class="panel"><canvas id="smn-pres"></canvas></div></div>
+      </div>
+      <div id="smn-rosa-cont" hidden>
+        <div class="panel-titulo" style="margin-top:12px">Rosa de los vientos del período <span class="tenue">(% de las observaciones)</span></div>
+        <div class="rosa-caja" id="smn-rosa"></div>
       </div>
       <div class="panel-titulo" style="margin-top:12px">Observaciones <span class="tenue">(una fila por mensaje SYNOP; pasá el mouse por la hora para ver el mensaje original)</span></div>
       <div class="tabla-scroll" style="max-height:520px"><table id="tabla-obs"></table></div>
@@ -710,6 +733,122 @@ const RUMBOS16 = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSO", 
 function rumbo(grados) { return grados === null || grados === undefined ? "–" : RUMBOS16[Math.round(grados / 22.5) % 16]; }
 
 // ======================================================================
+// Barbas de viento (convención del hemisferio sur)
+// ======================================================================
+// El palo apunta hacia DE DÓNDE viene el viento. Plumas en nudos:
+// media = 5, entera = 10, triángulo = 50. Calma (< 3 nudos) = círculo.
+// En el hemisferio sur las plumas van del lado opuesto al de las cartas del
+// hemisferio norte (como en las cartas del SMN).
+function barba(dirGrados, velMs, tam = 44) {
+  const c = tam / 2;
+  if (velMs === null || velMs === undefined) return "";
+  const nudos = Math.round((velMs * 1.943844) / 5) * 5;
+  if (nudos < 5) {
+    return `<svg class="barba" width="${tam}" height="${tam}" viewBox="0 0 ${tam} ${tam}" role="img" aria-label="calma">
+      <circle cx="${c}" cy="${c}" r="4"/><circle cx="${c}" cy="${c}" r="1.2"/></svg>`;
+  }
+  const L = c - 3, paso = 4, largo = 10;
+  // Se dibuja con el palo hacia arriba (viento del norte) y se rota.
+  const lado = -1;  // hemisferio sur: plumas a la izquierda mirando hacia afuera
+  let partes = [`<line x1="0" y1="0" x2="0" y2="${-L}"/>`];
+  let resto = nudos, y = -L;
+  while (resto >= 50) {
+    partes.push(`<polygon points="0,${y} ${lado * largo},${y + 2} 0,${y + 5}"/>`);
+    y += 6; resto -= 50;
+  }
+  while (resto >= 10) {
+    partes.push(`<line x1="0" y1="${y}" x2="${lado * largo}" y2="${y - 4}"/>`);
+    y += paso; resto -= 10;
+  }
+  if (resto >= 5) {
+    if (y === -L) y += paso;  // una media pluma sola no va en la punta
+    partes.push(`<line x1="0" y1="${y}" x2="${lado * largo / 2}" y2="${y - 2}"/>`);
+  }
+  return `<svg class="barba" width="${tam}" height="${tam}" viewBox="${-c} ${-c} ${tam} ${tam}" role="img"
+    aria-label="${nudos} nudos desde ${rumbo(dirGrados)}"><circle cx="0" cy="0" r="1.6"/>
+    <g transform="rotate(${dirGrados || 0})">${partes.join("")}</g></svg>`;
+}
+
+// ======================================================================
+// Rosa de los vientos (SVG propio)
+// ======================================================================
+const CLASES_VIENTO = [  // km/h
+  { desde: 2, hasta: 10, nombre: "2–10 km/h", color: "--r1" },
+  { desde: 10, hasta: 20, nombre: "10–20 km/h", color: "--r2" },
+  { desde: 20, hasta: 30, nombre: "20–30 km/h", color: "--r3" },
+  { desde: 30, hasta: Infinity, nombre: "30 km/h o más", color: "--r4" },
+];
+
+// pares: [{dir: grados, kmh}]. Dibuja la rosa en `cont`.
+function rosaVientos(cont, pares) {
+  const validos = pares.filter((p) => p.kmh !== null && p.kmh !== undefined);
+  if (validos.length < 6) { cont.innerHTML = '<p class="tenue">Pocos datos de viento en el período para armar la rosa.</p>'; return; }
+  const total = validos.length;
+  const calmas = validos.filter((p) => p.kmh < 2).length;
+  const frec = Array.from({ length: 16 }, () => CLASES_VIENTO.map(() => 0));
+  for (const p of validos) {
+    if (p.kmh < 2 || p.dir === null || p.dir === undefined) continue;
+    const sector = Math.round(p.dir / 22.5) % 16;
+    const clase = CLASES_VIENTO.findIndex((k) => p.kmh >= k.desde && p.kmh < k.hasta);
+    frec[sector][clase] += 100 / total;
+  }
+  const totales = frec.map((f) => f.reduce((a, b) => a + b, 0));
+  const maxPct = Math.max(...totales, 1);
+  const paso = maxPct > 30 ? 10 : maxPct > 12 ? 5 : maxPct > 6 ? 2 : 1;
+  const tope = Math.ceil(maxPct / paso) * paso;
+  const T = 300, c = T / 2, R0 = 14, R = 118;
+  const radio = (pct) => R0 + (R - R0) * (pct / tope);
+  const punto = (ang, r) => [c + r * Math.sin(ang), c - r * Math.cos(ang)];
+  const cuña = (i, r0, r1) => {
+    const a0 = (i * 22.5 - 10) * Math.PI / 180, a1 = (i * 22.5 + 10) * Math.PI / 180;
+    const [x0, y0] = punto(a0, r0), [x1, y1] = punto(a0, r1), [x2, y2] = punto(a1, r1), [x3, y3] = punto(a1, r0);
+    return `M${x0},${y0} L${x1},${y1} A${r1},${r1} 0 0 1 ${x2},${y2} L${x3},${y3} A${r0},${r0} 0 0 0 ${x0},${y0} Z`;
+  };
+  let svg = "";
+  // Etiquetas de los anillos sobre el radio de 78,75° (el hueco entre los
+  // pétalos ENE y E), para que no se pisen con la "N" ni con los pétalos.
+  const angEtiq = 78.75 * Math.PI / 180;
+  for (let v = paso; v <= tope; v += paso) {
+    svg += `<circle class="anillo" cx="${c}" cy="${c}" r="${radio(v)}"/>`;
+    const [xt, yt] = punto(angEtiq, radio(v));
+    svg += `<text x="${xt + 2}" y="${yt - 3}">${v}%</text>`;
+  }
+  for (const [txt, ang] of [["N", 0], ["E", 90], ["S", 180], ["O", 270]]) {
+    const [x, y] = punto(ang * Math.PI / 180, R + 14);
+    const [xe, ye] = punto(ang * Math.PI / 180, R);
+    svg += `<line class="eje" x1="${c}" y1="${c}" x2="${xe}" y2="${ye}"/>`;
+    svg += `<text x="${x}" y="${y + 4}" text-anchor="middle" style="font-weight:600">${txt}</text>`;
+  }
+  frec.forEach((clases, i) => {
+    let acum = 0;
+    clases.forEach((pct, k) => {
+      if (pct <= 0) return;
+      const r0 = radio(acum), r1 = radio(acum + pct);
+      svg += `<path d="${cuña(i, r0, r1)}" fill="var(${CLASES_VIENTO[k].color})"><title>${RUMBOS16[i]} · ${CLASES_VIENTO[k].nombre}: ${pct.toFixed(1)} %</title></path>`;
+      acum += pct;
+    });
+  });
+  svg += `<circle cx="${c}" cy="${c}" r="${R0 - 2}" fill="var(--superficie)" stroke="var(--eje)"/>`;
+  const iMax = totales.indexOf(Math.max(...totales));
+  const medio = validos.reduce((a, p) => a + p.kmh, 0) / total;
+  cont.innerHTML = `<svg width="${T}" height="${T}" viewBox="-14 -6 ${T + 28} ${T + 12}" role="img"
+      aria-label="Rosa de los vientos: predomina ${RUMBOS16[iMax]}">${svg}</svg>
+    <div class="rosa-leyenda">
+      <span>Predomina del <b>${RUMBOS16[iMax]}</b> (${totales[iMax].toFixed(0)} % del tiempo)</span>
+      <span>Viento medio: <b>${medio.toFixed(0)} km/h</b></span>
+      <span>Calmas (< 2 km/h): <b>${(100 * calmas / total).toFixed(0)} %</b></span>
+      <span class="tenue">${total} datos</span>
+      <span style="margin-top:6px">${CLASES_VIENTO.map((k) => `<span style="display:block"><i style="background:var(${k.color})"></i>${k.nombre}</span>`).join("")}</span>
+    </div>`;
+}
+
+// Junta dirección y velocidad del mismo instante.
+function paresViento(dirs, vels) {
+  const v = new Map((vels || []).map(([t, x]) => [t, x]));
+  return (dirs || []).filter(([t]) => v.has(t)).map(([t, d]) => ({ dir: d, kmh: v.get(t) * 3.6 }));
+}
+
+// ======================================================================
 // EMAs: resumen de la red + meteograma de una estación
 // ======================================================================
 let emaElegida = null;
@@ -787,6 +926,10 @@ async function cargarMeteograma() {
   cont.innerHTML = paneles.map(([t, u], i) =>
     `<div class="panel-titulo">${esc(t)} <span class="tenue">(${esc(u)})</span></div><div class="panel"><canvas id="mg-${i}"></canvas></div>`).join("");
   paneles.forEach(([, , dibujar], i) => dibujar($(`#mg-${i}`)));
+
+  const hayViento = S.viento_dir && S.viento_vel;
+  $("#ema-rosa-cont").hidden = !hayViento;
+  if (hayViento) rosaVientos($("#ema-rosa"), paresViento(S.viento_dir, S.viento_vel));
 }
 
 // ======================================================================
@@ -884,12 +1027,17 @@ async function cargarSmn() {
     return partes.join("<br>") || "";
   };
   const extremos = (o) => [o.tmax !== null ? `máx ${num(o.tmax)}` : "", o.tmin !== null ? `mín ${num(o.tmin)}` : ""].filter(Boolean).join(" · ");
+  const pares = obs.filter((o) => o.viento_vel !== null).map((o) => ({ dir: o.viento_dir, kmh: o.viento_vel * 3.6 }));
+  $("#smn-rosa-cont").hidden = pares.length < 6;
+  if (pares.length >= 6) rosaVientos($("#smn-rosa"), pares);
+
   $("#tabla-obs").innerHTML = `<tr><th>Hora</th><th>Tiempo presente</th><th class="num">Nubes</th><th class="num">Temp. °C</th>
-    <th class="num">Rocío °C</th><th class="num">HR %</th><th>Viento</th><th class="num">Presión hPa</th><th class="num">Visib. km</th>
+    <th class="num">Rocío °C</th><th class="num">HR %</th><th title="Barba: el palo apunta de dónde viene el viento; media pluma = 5 nudos, pluma = 10, triángulo = 50">Viento</th><th class="num">Presión hPa</th><th class="num">Visib. km</th>
     <th class="num">Lluvia mm</th><th>Extremos °C</th></tr>` +
     (obs.length ? obs.map((o) => {
       const calma = o.viento_vel === 0;
-      const viento = o.viento_vel === null ? "–" : calma ? "Calma" : `${rumbo(o.viento_dir)} ${num(o.viento_vel * 3.6, 0)} km/h`;
+      const texto = o.viento_vel === null ? "–" : calma ? "Calma" : `${rumbo(o.viento_dir)} ${num(o.viento_vel * 3.6, 0)} km/h`;
+      const viento = barba(o.viento_dir, o.viento_vel) + texto;
       return `<tr>
         <td title="${esc(o.mensaje || "sin mensaje crudo")}">${fmtHora.format(new Date(o.ts))}</td>
         <td class="ww">${o.ww === null ? '<span class="tenue">–</span>' : esc(WW[o.ww] ?? `código ${o.ww}`)}</td>

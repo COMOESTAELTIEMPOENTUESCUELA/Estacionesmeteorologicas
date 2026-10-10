@@ -24,8 +24,8 @@ distinta, por eso cada red tiene su vista:
 | Pestaña | Qué muestra |
 |---|---|
 | **Mapa** | ● EMAs y ■ estaciones SMN, con filtros para ver cada red. Color = estado: ✓ al día, ! demorada, ✕ sin datos. Tocá una estación para ir a su vista. |
-| **EMAs** | Resumen de hoy de toda la red (temperatura, máx/mín desde las 00, humedad, lluvia desde las 9) y el **meteograma** de la estación elegida: temperatura y rocío, humedad, presión, lluvia por hora, viento, dirección y radiación (solo los paneles de lo que la estación mide). Todos los paneles comparten el eje de tiempo y quedan alineados. |
-| **Estaciones SMN** | Resumen de los últimos días (máx/mín de las observaciones horarias y lluvia de 24 h de las 9) y la **tabla de observaciones** de la estación elegida: tiempo presente en palabras (código ww de la OMM), nubosidad en octavos, temperatura, rocío, humedad (calculada de T y Td), viento, presión, visibilidad, lluvia por período y extremos. Pasando el mouse por la hora se ve el mensaje SYNOP original. Descarga en CSV. |
+| **EMAs** | Resumen de hoy de toda la red (temperatura, máx/mín desde las 00, humedad, lluvia desde las 9) y el **meteograma** de la estación elegida: temperatura y rocío, humedad, presión, lluvia por hora, viento, dirección y radiación (solo los paneles de lo que la estación mide). Todos los paneles comparten el eje de tiempo y quedan alineados. Si la estación mide viento, abajo aparece la **rosa de los vientos** del período. |
+| **Estaciones SMN** | Resumen de los últimos días (máx/mín de las observaciones horarias y lluvia de 24 h de las 9) y la **tabla de observaciones** de la estación elegida: tiempo presente en palabras (código ww de la OMM), nubosidad en octavos, temperatura, rocío, humedad (calculada de T y Td), viento con **barbas** (convención del hemisferio sur: el palo apunta de dónde viene el viento; media pluma = 5 nudos, pluma = 10, triángulo = 50; círculo = calma), presión, visibilidad, lluvia por período y extremos. Pasando el mouse por la hora se ve el mensaje SYNOP original. Rosa de los vientos de las observaciones del período. Descarga en CSV. |
 | **Comparar** | Una variable, hasta 8 estaciones de cualquier red, de 24 h a 1 año. Cortes de datos visibles, lluvia acumulada, tabla y CSV. |
 | **Lluvia diaria** | Tabla de 9 a 9 de todas las fuentes, incluidos los reportes de la comunidad con su instrumento. "–" = sin datos (no es lo mismo que 0); ⚠ = incluye lluvia sospechosa. |
 | **Estado de la red** | Última corrida de cada tarea de ingesta y sus errores. |
@@ -67,3 +67,16 @@ navegador ──► web (FastAPI, puerto 8080)
 - **Colores**: paleta probada para daltonismo; cada estación conserva su color
   mientras esté seleccionada; los estados llevan ícono y texto, no solo color.
   Tiene modo oscuro automático (según la configuración del dispositivo).
+
+## Rosa de los vientos
+
+16 direcciones; el largo de cada pétalo es el % del tiempo (o de las
+observaciones) en que el viento vino de esa dirección, apilado por velocidad
+(2–10, 10–20, 20–30 y 30+ km/h, de claro a oscuro). Las calmas (< 2 km/h) se
+informan aparte.
+
+## Promedios de la dirección del viento
+
+Cuando se agrega por hora o por día, la dirección del viento se promedia en
+forma **circular** (promedio de seno y coseno): el promedio común de 350° y 10°
+daría 180° (sur) cuando los dos son vientos casi del norte.
