@@ -81,9 +81,14 @@ def test_davis_archivo_real():
 def test_thingspeak_campos_y_factor():
     feeds = [{"created_at": "2026-10-10T12:00:00Z", "field1": "15.5", "field2": "80",
               "field5": "2", "field6": None}]
-    campos = {"field1": "temp", "field2": "hum", "field5": {"variable": "precip", "factor": 0.68}}
+    campos = {"field1": "temp", "field2": "hum", "field5": {"variable": "precip", "mm_por_pulso": 0.68},
+              "field7": {"variable": "viento_vel", "factor": 0.277778}}
+    feeds[0]["field7"] = "36"
     d = como_dict(thingspeak.parsear_feeds(feeds, "bavio", campos))
-    assert d == {"temp": 15.5, "hum": 80.0, "precip": 1.36}
+    # field5 = "2" es UN vuelco de 0,68 mm (no 2 x 0,68), como en red-meteorologica.html
+    assert d == {"temp": 15.5, "hum": 80.0, "precip": 0.68, "viento_vel": 10.0}
+    feeds[0]["field5"] = "0"
+    assert como_dict(thingspeak.parsear_feeds(feeds, "bavio", campos))["precip"] == 0.0
 
 
 # --------------------------------------------------------------- Wunderground

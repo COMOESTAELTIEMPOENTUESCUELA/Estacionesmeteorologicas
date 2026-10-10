@@ -3,7 +3,8 @@ ThingSpeak: https://api.thingspeak.com/channels/<id>/feeds.json
 
 Cada canal tiene hasta 8 "fields" (campos) numerados; qué variable es cada
 uno lo define quien programó la estación, por eso el mapeo está en
-estaciones.yaml. La API devuelve como máximo 8000 registros por pedido, así
+estaciones.yaml. Cada campo puede llevar `factor` (multiplica el valor) o
+`mm_por_pulso` (pluviómetro de cazoleta: valor > 0 = un vuelco). La API devuelve como máximo 8000 registros por pedido, así
 que los rangos largos se piden por partes.
 """
 from datetime import datetime, timedelta, timezone
@@ -24,13 +25,20 @@ def parsear_feeds(feeds, estacion_id, campos):
         ts = datetime.fromisoformat(creado.replace("Z", "+00:00"))
         for campo, destino in campos.items():
             if isinstance(destino, str):
-                variable, factor = destino, 1.0
-            else:
-                variable, factor = destino["variable"], float(destino.get("factor", 1.0))
+                destino = {"variable": destino}
             v = num(f.get(campo))
             if v is None:
                 continue
-            obs.append(Obs(ts, estacion_id, variable, round(v * factor, 4)))
+            if "mm_por_pulso" in destino:
+                # Pluviómetro de cazoleta: cada lectura con valor > 0 es UN vuelco
+                # (un pulso), sin importar el número crudo del campo. Es la misma
+                # regla que usan red-meteorologica.html y la Comparación de Pluviómetros.
+                if v < 0:
+                    continue
+                v = float(destino["mm_por_pulso"]) if v > 0 else 0.0
+            else:
+                v = v * float(destino.get("factor", 1.0))
+            obs.append(Obs(ts, estacion_id, destino["variable"], round(v, 4)))
     return obs
 
 

@@ -27,7 +27,8 @@ estaciones:
 
   # ----------------------- EMAs en ThingSpeak -----------------------
   # campos: qué variable es cada "field" del canal. `factor` multiplica el
-  # valor crudo (ej. pulsos del pluviómetro -> mm).
+  # valor crudo (ej. km/h -> m/s); `mm_por_pulso` es para pluviómetros de
+  # cazoleta que mandan un pulso por vuelco.
   # La lluvia en estos canales es el incremento de cada intervalo (no un
   # acumulado), así que va directo a la variable `precip`.
 
@@ -48,7 +49,9 @@ estaciones:
       campos:
         field1: temp
         field2: hum
-        field5: {variable: precip, factor: 0.68}   # 1 pulso = 0,68 mm
+        # Cazoleta de 0,68 mm: cada lectura con valor > 0 es UN vuelco (el número
+        # crudo no es la cantidad de pulsos). Misma regla que red-meteorologica.html.
+        field5: {variable: precip, mm_por_pulso: 0.68}
     instrumentos:
       - {variable: precip, tipo: pluviometro_balancin, resolucion: "0,68 mm por pulso"}
 
