@@ -165,6 +165,7 @@ estaciones:
     tipo: ema
     red: fcag
     fuente: davis
+    notas: En el Bosque platense, entre árboles. Sin anemómetro (el viento se mide en la torre de 40 m).
     institucion: FCAG-UNLP
     localidad: La Plata
     lat: -34.9088
@@ -175,9 +176,10 @@ estaciones:
       # Si la Facultad no responde (pasa desde algunas conexiones hogareñas), se
       # usa la copia que el GitHub Action del repo actualiza cada 15 minutos.
       url_respaldo: https://raw.githubusercontent.com/COMOESTAELTIEMPOENTUESCUELA/Estacionesmeteorologicas/main/data/davis-ultimo.txt
-      # VERIFICAR con quien administra la Davis en qué unidad exporta el viento.
-      # OJO: al 10/10/2026 el anemómetro marca 0,0 siempre (dirección "---"):
-      # está trabado o desconectado. Esos ceros NO son calma real.
+      # Esta Davis NO tiene anemómetro: está en el Bosque, entre árboles, y el
+      # viento se mide en otra estación sobre una torre de 40 m. El archivo trae
+      # 0,0 en las columnas de viento: no son calma, son "sin sensor".
+      ignorar_variables: [viento_vel, racha, viento_dir]
       unidad_viento: km/h
       presion_es: pnm             # "Bar" de WeatherLink suele estar reducida al nivel del mar
 

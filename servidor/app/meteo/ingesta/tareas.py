@@ -68,6 +68,11 @@ class Ingesta:
                         db.guardar_synop_crudo(self.conn, crudos)
                     else:
                         obs = resultado
+                    # Variables que la estación no mide de verdad (ej. un
+                    # anemómetro que no existe y el archivo rellena con 0).
+                    ignorar = set((e.get("config") or {}).get("ignorar_variables", []))
+                    if ignorar:
+                        obs = [o for o in obs if o.variable not in ignorar]
                     reg["filas"] = db.guardar_observaciones(self.conn, obs, fuente)
                     total += reg["filas"]
                     log.info("%s %s: %d observaciones leídas, %d nuevas o cambiadas",
