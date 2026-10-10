@@ -1,0 +1,97 @@
+# Configuración del módulo de satélite.
+# Se puede editar sin tocar código: después de cambiar algo, reiniciá el
+# servicio con `docker compose restart satelite`.
+
+satelite:
+  nombre: GOES-19
+  bucket: noaa-goes19          # bucket público de NOAA en Amazon (gratis)
+  producto: ABI-L2-CMIPF        # imágenes de nubes y humedad, disco completo
+
+# Cada cuántos minutos se fija si hay imágenes nuevas.
+revisar_cada_min: 5
+# Cuántas horas hacia atrás busca imágenes que falten. Si la PC estuvo apagada
+# un rato, al volver completa lo que se perdió dentro de esta ventana. Para
+# huecos más largos: `python -m meteo.satelite historico ...`.
+ventana_horas: 3
+
+# Regiones: [lon_min, lon_max, lat_min, lat_max] en grados (oeste y sur negativos).
+regiones:
+  centro_este:
+    nombre: Centro-este de Argentina y Uruguay
+    bbox: [-66, -52, -42, -28]
+  la_plata:
+    nombre: Gran La Plata y Río de la Plata
+    bbox: [-61, -56, -37.5, -33]
+
+# Puntos que se marcan sobre las imágenes. dx/dy (grados, opcional) corren
+# la etiqueta para que no se pisen nombres de lugares cercanos.
+puntos:
+  - {etiqueta: La Plata, lat: -34.909, lon: -57.933, dx: -0.75, dy: 0.06}
+  - {etiqueta: Bavío, lat: -35.025, lon: -57.753, dy: -0.15}
+  - {etiqueta: Los Talas, lat: -34.927, lon: -57.762}
+  - {etiqueta: Buenos Aires, lat: -34.60, lon: -58.38}
+
+# Productos a generar. Cada uno = una banda + una región.
+#   cada_min:       frecuencia (múltiplo de 10: el disco completo es cada 10 min)
+#   paleta:         ir_realzada | vapor | visible
+#   solo_de_dia:    no procesar de noche (para las bandas visibles)
+#   retener_png_dias / retener_nc_dias: cuánto guardar; null = para siempre
+#   ~MB/imagen:     lo que se baja de internet por imagen (lectura parcial)
+productos:
+  - id: ir13_centro
+    titulo: Infrarrojo realzado (banda 13) — Centro-este
+    banda: 13
+    region: centro_este
+    cada_min: 10
+    paleta: ir_realzada
+    retener_png_dias: 365
+    retener_nc_dias: null          # ~3,5 MB bajados, ~0,5 MB guardados por imagen
+
+  - id: wv09_centro
+    titulo: Vapor de agua niveles medios (banda 9) — Centro-este
+    banda: 9
+    region: centro_este
+    cada_min: 30
+    paleta: vapor
+    retener_png_dias: 180
+    retener_nc_dias: null
+
+  - id: vis02_laplata
+    titulo: Visible alta resolución (banda 2, 500 m) — La Plata
+    banda: 2
+    region: la_plata
+    cada_min: 20
+    paleta: visible
+    solo_de_dia: true
+    retener_png_dias: 180
+    retener_nc_dias: 730           # ~16 MB bajados por imagen: el más pesado
+
+  - id: ir13_laplata
+    titulo: Infrarrojo realzado (banda 13) — La Plata
+    banda: 13
+    region: la_plata
+    cada_min: 10
+    paleta: ir_realzada
+    retener_png_dias: 365
+    retener_nc_dias: null
+
+# Imágenes "listas" que publica NOAA ya coloreadas (GeoColor, etc.). Son
+# livianas y lindas, pero no traen el dato numérico. ATENCIÓN: estas URLs no
+# se pudieron probar desde el entorno donde se escribió el código; si alguna
+# falla, en el log aparece el error y las demás siguen funcionando.
+imagenes_listas:
+  - id: star_ssa_geocolor
+    titulo: GeoColor — Sur de Sudamérica (NOAA STAR)
+    url: https://cdn.star.nesdis.noaa.gov/GOES19/ABI/SECTOR/ssa/GEOCOLOR/1800x1080.jpg
+    cada_min: 10
+    retener_dias: 90
+  - id: star_ssa_airmass
+    titulo: Masas de aire (RGB) — Sur de Sudamérica (NOAA STAR)
+    url: https://cdn.star.nesdis.noaa.gov/GOES19/ABI/SECTOR/ssa/AirMass/1800x1080.jpg
+    cada_min: 10
+    retener_dias: 90
+  - id: star_ssa_sandwich
+    titulo: Sandwich (convección) — Sur de Sudamérica (NOAA STAR)
+    url: https://cdn.star.nesdis.noaa.gov/GOES19/ABI/SECTOR/ssa/Sandwich/1800x1080.jpg
+    cada_min: 10
+    retener_dias: 90
