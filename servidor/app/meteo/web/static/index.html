@@ -1,0 +1,593 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Red Meteorológica</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%232a78d6'/%3E%3Cpath d='M9 19a5 5 0 0 1 5-5 6 6 0 0 1 11 2 3.5 3.5 0 0 1-1 6.9H11a3 3 0 0 1-2-3.9z' fill='white'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+<style>
+/* ---- Colores por ROL (no por valor): claro y oscuro se cambian acá ---- */
+:root {
+  color-scheme: light;
+  --plano: #f9f9f7; --superficie: #fcfcfb; --tinta: #0b0b0b; --tinta-2: #52514e;
+  --tenue: #898781; --grilla: #e1e0d9; --eje: #c3c2b7; --borde: rgba(11,11,11,0.10);
+  --acento: #2a78d6;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300; --s7:#6250d6; --s8:#e34948;
+  --ok:#0ca30c; --demora:#fab219; --caida:#d03b3b;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --plano: #0d0d0d; --superficie: #1a1a19; --tinta: #f0efec; --tinta-2: #c3c2b7;
+    --tenue: #898781; --grilla: #2c2c2a; --eje: #383835; --borde: rgba(255,255,255,0.10);
+    --acento: #3987e5;
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --plano: #0d0d0d; --superficie: #1a1a19; --tinta: #f0efec; --tinta-2: #c3c2b7;
+  --tenue: #898781; --grilla: #2c2c2a; --eje: #383835; --borde: rgba(255,255,255,0.10);
+  --acento: #3987e5;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--plano); color: var(--tinta);
+       font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px;
+         padding: 12px 16px; border-bottom: 1px solid var(--borde); background: var(--superficie); }
+header h1 { font-size: 17px; margin: 0; font-weight: 650; }
+nav { display: flex; gap: 4px; flex-wrap: wrap; }
+nav button { border: 1px solid transparent; background: none; color: var(--tinta-2); padding: 6px 12px;
+             border-radius: 8px; font: inherit; cursor: pointer; }
+nav button:hover { background: var(--borde); }
+nav button[aria-selected="true"] { color: var(--tinta); border-color: var(--borde); background: var(--plano); font-weight: 600; }
+main { padding: 16px; max-width: 1400px; margin: 0 auto; }
+section[hidden] { display: none; }
+.tarjeta { background: var(--superficie); border: 1px solid var(--borde); border-radius: 12px; padding: 16px; }
+.filtros { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: end; margin-bottom: 12px; }
+.filtros label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--tinta-2); }
+select, .boton { font: inherit; color: var(--tinta); background: var(--superficie); border: 1px solid var(--eje);
+                 border-radius: 8px; padding: 6px 10px; }
+.boton { cursor: pointer; text-decoration: none; display: inline-block; }
+.boton:hover { background: var(--plano); }
+.ayuda { color: var(--tinta-2); font-size: 13px; margin: 4px 0 12px; }
+.tenue { color: var(--tenue); }
+h2 { font-size: 15px; margin: 0 0 8px; }
+
+/* Mapa + lista */
+#vista-mapa { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; }
+#mapa { height: 70vh; min-height: 380px; border-radius: 12px; border: 1px solid var(--borde); }
+#lista { max-height: 70vh; overflow: auto; display: flex; flex-direction: column; gap: 8px; }
+.est { padding: 10px 12px; border: 1px solid var(--borde); border-radius: 10px; background: var(--superficie); cursor: pointer; }
+.est:hover { border-color: var(--eje); }
+.est .fila1 { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.est .nombre { font-weight: 600; }
+.est .valores { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.est .valores span b { font-weight: 600; }
+.chip { font-size: 11px; padding: 1px 7px; border-radius: 99px; border: 1px solid var(--borde); color: var(--tinta-2); white-space: nowrap; }
+.estado { font-size: 12px; white-space: nowrap; color: var(--tinta-2); }
+.estado i { font-style: normal; display: inline-block; width: 16px; height: 16px; border-radius: 50%;
+            text-align: center; line-height: 16px; font-size: 11px; color: #fff; margin-right: 4px; font-weight: 700; }
+.ok i { background: var(--ok); } .demora i { background: var(--demora); color: #0b0b0b; } .caida i { background: var(--caida); }
+.leyenda-estado { display: flex; gap: 14px; flex-wrap: wrap; margin: 0 0 8px; }
+
+/* Series */
+#selector-estaciones { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+#selector-estaciones label { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px;
+  border: 1px solid var(--borde); border-radius: 99px; cursor: pointer; font-size: 13px; background: var(--superficie); user-select: none; }
+#selector-estaciones input { display: none; }
+#selector-estaciones .punto { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid var(--eje); }
+#selector-estaciones label.activa { border-color: var(--eje); font-weight: 600; }
+.lienzo { position: relative; height: 420px; }
+details { margin-top: 12px; }
+summary { cursor: pointer; color: var(--tinta-2); }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+th, td { padding: 6px 8px; border-bottom: 1px solid var(--grilla); text-align: left; }
+th { color: var(--tinta-2); font-weight: 600; font-size: 12px; position: sticky; top: 0; background: var(--superficie); }
+.tabla-scroll { max-height: 360px; overflow: auto; }
+
+/* Lluvia: tabla-mapa de calor (un solo tono, de claro a oscuro) */
+#calor { overflow: auto; }
+#calor td.v { text-align: center; min-width: 46px; font-size: 13px; border: 2px solid var(--superficie); border-radius: 6px; }
+#calor td.n0 { color: var(--tenue); }
+.l1 { background: #cde2fb; color: #0b0b0b; } .l2 { background: #9ec5f4; color: #0b0b0b; }
+.l3 { background: #6da7ec; color: #0b0b0b; } .l4 { background: #3987e5; color: #fff; }
+.l5 { background: #256abf; color: #fff; } .l6 { background: #184f95; color: #fff; }
+.l7 { background: #0d366b; color: #fff; }
+#calor th.en-curso { color: var(--tenue); font-style: italic; }
+.escala { display: flex; gap: 2px; align-items: center; font-size: 12px; color: var(--tinta-2); margin: 8px 0; flex-wrap: wrap; }
+.escala span.c { width: 34px; height: 14px; border-radius: 3px; display: inline-block; }
+
+/* Estado */
+.cifras { display: flex; gap: 32px; flex-wrap: wrap; margin-bottom: 16px; }
+.cifra b { display: block; font-size: 26px; font-weight: 650; }
+.cifra span { color: var(--tinta-2); font-size: 12px; }
+
+@media (max-width: 860px) {
+  #vista-mapa { grid-template-columns: 1fr; }
+  #mapa { height: 50vh; }
+  #lista { max-height: none; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>Red Meteorológica · servidor</h1>
+  <nav role="tablist">
+    <button role="tab" data-tab="mapa" aria-selected="true">Mapa</button>
+    <button role="tab" data-tab="series" aria-selected="false">Series</button>
+    <button role="tab" data-tab="lluvia" aria-selected="false">Lluvia diaria</button>
+    <button role="tab" data-tab="estado" aria-selected="false">Estado de la red</button>
+  </nav>
+  <span class="tenue" id="actualizado"></span>
+</header>
+
+<main>
+  <!-- ============================ MAPA ============================ -->
+  <section id="tab-mapa">
+    <div class="leyenda-estado">
+      <span class="estado ok"><i>✓</i>Al día</span>
+      <span class="estado demora"><i>!</i>Demorada</span>
+      <span class="estado caida"><i>✕</i>Sin datos</span>
+      <span class="tenue">· Lluvia "hoy" = desde las 9 hs · Tocá una estación para ver sus series</span>
+    </div>
+    <div id="vista-mapa">
+      <div id="mapa"></div>
+      <div id="lista"></div>
+    </div>
+  </section>
+
+  <!-- ============================ SERIES ============================ -->
+  <section id="tab-series" hidden>
+    <div class="tarjeta">
+      <div class="filtros">
+        <label>Variable <select id="f-variable"></select></label>
+        <label>Período
+          <select id="f-periodo">
+            <option value="1">Últimas 24 h</option>
+            <option value="3" selected>Últimos 3 días</option>
+            <option value="7">Últimos 7 días</option>
+            <option value="30">Últimos 30 días</option>
+            <option value="90">Últimos 90 días</option>
+            <option value="365">Último año</option>
+          </select>
+        </label>
+        <a class="boton" id="f-csv" href="#">Descargar CSV</a>
+      </div>
+      <div id="selector-estaciones"></div>
+      <p class="ayuda" id="nota-serie"></p>
+      <div class="lienzo"><canvas id="grafico"></canvas></div>
+      <details id="detalle-tabla">
+        <summary>Ver los datos en tabla</summary>
+        <div class="tabla-scroll"><table id="tabla-serie"></table></div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ============================ LLUVIA ============================ -->
+  <section id="tab-lluvia" hidden>
+    <div class="tarjeta">
+      <div class="filtros">
+        <label>Período
+          <select id="f-lluvia-dias">
+            <option value="7">7 días</option>
+            <option value="14" selected>14 días</option>
+            <option value="31">31 días</option>
+          </select>
+        </label>
+        <a class="boton" id="f-lluvia-csv" href="#">Descargar CSV</a>
+      </div>
+      <p class="ayuda">Día pluviométrico: lo que llovió entre las 9 hs del día anterior y las 9 hs de ese día.
+        "–" = sin datos ese día (no es lo mismo que 0). * = día en curso (sigue sumando hasta mañana a las 9).</p>
+      <div class="escala" id="escala"></div>
+      <div id="calor"></div>
+    </div>
+  </section>
+
+  <!-- ============================ ESTADO ============================ -->
+  <section id="tab-estado" hidden>
+    <div class="tarjeta">
+      <div class="cifras" id="cifras"></div>
+      <h2>Última corrida de cada tarea de ingesta</h2>
+      <div class="tabla-scroll" style="max-height:none"><table id="tabla-estado"></table></div>
+    </div>
+  </section>
+</main>
+
+<script src="vendor/leaflet/leaflet.js"></script>
+<script src="vendor/chart-4.4.1.umd.js"></script>
+<script>
+"use strict";
+// ======================================================================
+// Utilidades
+// ======================================================================
+const TZ = "America/Argentina/Buenos_Aires";
+const fmtHora = new Intl.DateTimeFormat("es-AR", { timeZone: TZ, day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+const fmtDia = new Intl.DateTimeFormat("es-AR", { timeZone: TZ, day: "2-digit", month: "2-digit" });
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+async function api(url) {
+  const r = await fetch(url);
+  const d = await r.json();
+  if (!r.ok) throw new Error(d.error || d.detail || r.statusText);
+  return d;
+}
+
+const TIPOS = { ema: "EMA", sinoptica: "Sinóptica SMN", convencional: "Convencional", pluviometro: "Pluviómetro", otra: "Otra" };
+
+// Estado según el tiempo desde el último dato. Las sinópticas reportan cada
+// 1-3 h, las EMAs cada 5-15 min: por eso umbrales distintos.
+function estadoDe(est) {
+  if (!est.ultimo) return { clase: "caida", icono: "✕", texto: "Sin datos" };
+  const min = (Date.now() - Date.parse(est.ultimo)) / 60000;
+  const [okMin, demMin] = est.tipo === "sinoptica" ? [200, 720] : [45, 360];
+  const hace = min < 60 ? `${Math.round(min)} min` : min < 2880 ? `${Math.round(min / 60)} h` : `${Math.round(min / 1440)} días`;
+  if (min <= okMin) return { clase: "ok", icono: "✓", texto: `hace ${hace}` };
+  if (min <= demMin) return { clase: "demora", icono: "!", texto: `hace ${hace}` };
+  return { clase: "caida", icono: "✕", texto: `hace ${hace}` };
+}
+
+function num(v, dec = 1) { return v === null || v === undefined ? "–" : Number(v).toFixed(dec); }
+
+// ======================================================================
+// Pestañas
+// ======================================================================
+const cargadas = {};
+function abrir(tab) {
+  document.querySelectorAll("nav button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
+  document.querySelectorAll("main > section").forEach((s) => (s.hidden = s.id !== `tab-${tab}`));
+  if (tab === "mapa" && mapa) setTimeout(() => mapa.invalidateSize(), 50);
+  if (!cargadas[tab]) { cargadas[tab] = true; ({ series: iniciarSeries, lluvia: cargarLluvia, estado: cargarEstado }[tab] || (() => {}))(); }
+}
+document.querySelectorAll("nav button").forEach((b) => b.addEventListener("click", () => abrir(b.dataset.tab)));
+
+// ======================================================================
+// MAPA
+// ======================================================================
+let ESTACIONES = [];
+let mapa = null;
+
+async function cargarMapa() {
+  ESTACIONES = await api("/api/estaciones");
+  $("#actualizado").textContent = "Actualizado " + fmtHora.format(new Date());
+
+  if (!mapa) {
+    mapa = L.map("mapa", { scrollWheelZoom: true }).setView([-35.0, -58.3], 8);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 18, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    }).addTo(mapa);
+  }
+  mapa.eachLayer((l) => { if (l instanceof L.CircleMarker) mapa.removeLayer(l); });
+
+  const lista = $("#lista");
+  lista.innerHTML = "";
+  const orden = { ema: 0, convencional: 1, pluviometro: 2, sinoptica: 3, otra: 4 };
+  const activas = ESTACIONES.filter((e) => e.activa).sort((a, b) => (orden[a.tipo] - orden[b.tipo]) || a.nombre.localeCompare(b.nombre));
+
+  const puntosLocales = activas.filter((e) => e.lat && e.lon && e.tipo !== "sinoptica").map((e) => [e.lat, e.lon]);
+  if (puntosLocales.length && !mapa._centrado) { mapa.fitBounds(puntosLocales, { padding: [40, 40], maxZoom: 11 }); mapa._centrado = true; }
+
+  for (const e of activas) {
+    const st = estadoDe(e);
+    const v = e.valores;
+    const pres = v.pnm ? `${num(v.pnm.valor)} hPa (nivel del mar)` : v.pres_est ? `${num(v.pres_est.valor)} hPa (estación)` : null;
+    const partes = [
+      v.temp ? `<span>🌡 <b>${num(v.temp.valor)} °C</b></span>` : "",
+      v.hum ? `<span>💧 ${num(v.hum.valor, 0)} %</span>` : (v.td ? `<span>Rocío ${num(v.td.valor)} °C</span>` : ""),
+      pres ? `<span>${pres}</span>` : "",
+      v.viento_vel ? `<span>💨 ${num(v.viento_vel.valor * 3.6, 0)} km/h</span>` : "",
+      e.lluvia_hoy !== null ? `<span>🌧 ${num(e.lluvia_hoy)} mm hoy</span>` : "",
+    ].join("");
+
+    const div = document.createElement("div");
+    div.className = "est";
+    div.innerHTML = `
+      <div class="fila1"><span class="nombre">${esc(e.nombre)}</span>
+        <span class="estado ${st.clase}"><i>${st.icono}</i>${esc(st.texto)}</span></div>
+      <div><span class="chip">${TIPOS[e.tipo] || e.tipo}</span> <span class="tenue">${esc(e.localidad || "")}</span></div>
+      <div class="valores">${partes || '<span class="tenue">Sin datos recientes</span>'}</div>`;
+    div.addEventListener("click", () => verSeriesDe(e.id));
+    lista.appendChild(div);
+
+    if (e.lat && e.lon) {
+      const color = css(st.clase === "ok" ? "--ok" : st.clase === "demora" ? "--demora" : "--caida");
+      L.circleMarker([e.lat, e.lon], {
+        radius: e.tipo === "sinoptica" ? 6 : 8, color: css("--superficie"), weight: 2,
+        fillColor: color, fillOpacity: 1,
+      }).addTo(mapa).bindPopup(div.innerHTML).bindTooltip(e.nombre);
+    }
+  }
+}
+
+function verSeriesDe(id) {
+  seleccion.clear();
+  seleccion.add(id);
+  if (!cargadas.series) { cargadas.series = true; iniciarSeries(); } else { dibujarSelector(); cargarSerie(); }
+  abrir("series");
+}
+
+// ======================================================================
+// SERIES
+// ======================================================================
+const VARIABLES_SERIE = ["temp", "hum", "td", "pnm", "pres_est", "precip", "viento_vel", "racha", "viento_dir", "rad_solar"];
+const seleccion = new Set();
+// Cada estación conserva su color mientras esté seleccionada: agregar o
+// quitar otras no "repinta" a las que ya estaban.
+const colorDe = new Map();
+let grafico = null;
+
+function asignarColor(id) {
+  if (colorDe.has(id)) return;
+  const usados = new Set([...colorDe.entries()].filter(([k]) => seleccion.has(k)).map(([, c]) => c));
+  for (let i = 1; i <= 8; i++) if (!usados.has(i)) { colorDe.set(id, i); return; }
+}
+
+async function iniciarSeries() {
+  if (!ESTACIONES.length) ESTACIONES = await api("/api/estaciones");
+  const vars = await api("/api/variables");
+  const sel = $("#f-variable");
+  for (const id of VARIABLES_SERIE) {
+    const v = vars.find((x) => x.id === id);
+    if (v) sel.add(new Option(`${v.nombre} (${v.unidad})`, v.id));
+  }
+  if (!seleccion.size) ["ema_blanca", "omm_87593", "es7_ep20"].forEach((id) => seleccion.add(id));
+  sel.addEventListener("change", cargarSerie);
+  $("#f-periodo").addEventListener("change", cargarSerie);
+  dibujarSelector();
+  cargarSerie();
+}
+
+function dibujarSelector() {
+  const cont = $("#selector-estaciones");
+  cont.innerHTML = "";
+  for (const id of seleccion) asignarColor(id);
+  for (const e of ESTACIONES.filter((x) => x.activa)) {
+    const activa = seleccion.has(e.id);
+    const lab = document.createElement("label");
+    lab.className = activa ? "activa" : "";
+    const color = activa ? `var(--s${colorDe.get(e.id)})` : "transparent";
+    lab.innerHTML = `<input type="checkbox" ${activa ? "checked" : ""}><span class="punto" style="background:${color}"></span>${esc(e.nombre)}`;
+    lab.querySelector("input").addEventListener("change", (ev) => {
+      if (ev.target.checked) {
+        if (seleccion.size >= 8) { ev.target.checked = false; alert("Máximo 8 estaciones a la vez (para que los colores se puedan distinguir)."); return; }
+        seleccion.add(e.id);
+      } else {
+        seleccion.delete(e.id);
+        colorDe.delete(e.id);
+      }
+      dibujarSelector();
+      cargarSerie();
+    });
+    cont.appendChild(lab);
+  }
+}
+
+// Si entre dos datos pasó mucho más tiempo que lo normal, se corta la línea
+// (null): una estación caída no debe verse como una recta "interpolada".
+function conHuecos(puntos) {
+  if (puntos.length < 3) return puntos;
+  const dts = [];
+  for (let i = 1; i < puntos.length; i++) dts.push(puntos[i].x - puntos[i - 1].x);
+  const mediana = dts.slice().sort((a, b) => a - b)[Math.floor(dts.length / 2)];
+  const limite = Math.max(mediana * 3, 2 * 3600e3);
+  const out = [puntos[0]];
+  for (let i = 1; i < puntos.length; i++) {
+    if (puntos[i].x - puntos[i - 1].x > limite) out.push({ x: puntos[i - 1].x + 1, y: null });
+    out.push(puntos[i]);
+  }
+  return out;
+}
+
+async function cargarSerie() {
+  const variable = $("#f-variable").value;
+  const dias = $("#f-periodo").value;
+  const ids = [...seleccion];
+  const qs = new URLSearchParams({ variable, dias });
+  ids.forEach((id) => qs.append("estacion", id));
+  $("#f-csv").href = `/api/series?${qs}&formato=csv`;
+  if (!ids.length) { if (grafico) grafico.destroy(); grafico = null; $("#nota-serie").textContent = "Elegí al menos una estación."; return; }
+
+  $("#nota-serie").textContent = "Cargando…";
+  let d;
+  try { d = await api(`/api/series?${qs}`); }
+  catch (err) { $("#nota-serie").textContent = "Error: " + err.message; return; }
+
+  const esLluvia = variable === "precip";
+  const esDireccion = variable === "viento_dir";
+  const nombreDe = (id) => (ESTACIONES.find((e) => e.id === id) || {}).nombre || id;
+  const pasoTxt = { crudo: "cada dato tal cual llegó", hora: "promedios horarios", dia: "promedios diarios" }[d.paso];
+  const sinDatos = d.series.filter((s) => !s.puntos.length).map((s) => nombreDe(s.estacion));
+  $("#nota-serie").textContent =
+    (esLluvia ? "Lluvia ACUMULADA desde el comienzo del período. " : "") +
+    `Resolución: ${esLluvia && d.paso !== "crudo" ? "sumas " + (d.paso === "hora" ? "horarias" : "diarias") : pasoTxt}. ` +
+    (sinDatos.length ? `Sin datos en el período: ${sinDatos.join(", ")}.` : "");
+
+  const datasets = d.series.filter((s) => s.puntos.length).map((s) => {
+    let pts = s.puntos.map(([t, v]) => ({ x: Date.parse(t), y: v }));
+    if (esLluvia) { let acum = 0; pts = pts.map((p) => ({ x: p.x, y: +(acum += p.y).toFixed(2) })); }
+    const color = css(`--s${colorDe.get(s.estacion)}`);
+    return {
+      label: nombreDe(s.estacion), data: esDireccion ? pts : conHuecos(pts),
+      borderColor: color, backgroundColor: color, borderWidth: 2,
+      pointRadius: esDireccion ? 2.5 : 0, pointHoverRadius: 5,
+      pointHoverBorderColor: css("--superficie"), pointHoverBorderWidth: 2,
+      showLine: !esDireccion, spanGaps: false, tension: 0,
+    };
+  });
+
+  dibujarGrafico(datasets, `${d.variable.nombre} (${d.variable.unidad})`, esDireccion);
+  dibujarTabla(datasets, d.variable.unidad);
+}
+
+// Modo de "hover" propio: el punto más cercano en el tiempo de CADA serie
+// (las estaciones no miden todas en el mismo minuto).
+Chart.Interaction.modes.porSerie = function (chart, e) {
+  const items = [];
+  chart.data.datasets.forEach((ds, i) => {
+    const meta = chart.getDatasetMeta(i);
+    if (meta.hidden) return;
+    let mejor = null, dist = Infinity;
+    meta.data.forEach((el, j) => {
+      if (ds.data[j].y === null) return;
+      const dx = Math.abs(el.x - e.x);
+      if (dx < dist) { dist = dx; mejor = { element: el, datasetIndex: i, index: j }; }
+    });
+    if (mejor && dist < 40) items.push(mejor);
+  });
+  return items;
+};
+// Línea vertical que sigue al cursor.
+const lineaCursor = {
+  id: "lineaCursor",
+  afterDatasetsDraw(chart) {
+    const act = chart.tooltip && chart.tooltip.getActiveElements();
+    if (!act || !act.length) return;
+    const x = act[0].element.x, { top, bottom } = chart.chartArea, ctx = chart.ctx;
+    ctx.save(); ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, bottom);
+    ctx.lineWidth = 1; ctx.strokeStyle = css("--eje"); ctx.stroke(); ctx.restore();
+  },
+};
+
+// Marcas del eje de tiempo en horarios "redondos" de la hora argentina
+// (cada 3, 6, 12 h, 1 día...), en vez de donde caiga el primer dato.
+const HORA = 3600e3, OFFSET_AR = -3 * HORA;
+function marcasTiempo(scale) {
+  const rango = scale.max - scale.min;
+  const pasos = [1, 3, 6, 12, 24, 48, 24 * 7, 24 * 14, 24 * 30].map((h) => h * HORA);
+  const ancho = scale.width || 600;
+  const maxMarcas = Math.max(3, Math.floor(ancho / 110));
+  const paso = pasos.find((p) => rango / p <= maxMarcas) || pasos[pasos.length - 1];
+  const ticks = [];
+  for (let t = Math.ceil((scale.min + OFFSET_AR) / paso) * paso - OFFSET_AR; t <= scale.max; t += paso) ticks.push({ value: t });
+  scale.ticks = ticks;
+  scale._pasoMarcas = paso;
+}
+
+function dibujarGrafico(datasets, tituloY, esDireccion) {
+  if (grafico) grafico.destroy();
+  const tinta2 = css("--tinta-2"), tenue = css("--tenue"), grilla = css("--grilla");
+  grafico = new Chart($("#grafico"), {
+    type: "line",
+    data: { datasets },
+    plugins: [lineaCursor],
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false, parsing: false, normalized: true,
+      interaction: { mode: "porSerie", intersect: false },
+      scales: {
+        x: { type: "linear", grid: { color: grilla }, border: { color: css("--eje") },
+             afterBuildTicks: marcasTiempo,
+             ticks: { color: tenue, maxRotation: 0, autoSkip: false,
+                      callback: function (v) {
+                        const f = new Date(v);
+                        return this._pasoMarcas >= 24 * HORA ? fmtDia.format(f) : fmtHora.format(f).replace(",", "");
+                      } } },
+        y: { title: { display: true, text: tituloY, color: tinta2 }, grid: { color: grilla },
+             border: { display: false }, ticks: { color: tenue },
+             ...(esDireccion ? { min: 0, max: 360, ticks: { color: tenue, stepSize: 90,
+                 callback: (v) => ({ 0: "N", 90: "E", 180: "S", 270: "O", 360: "N" }[v] ?? v) } } : {}) },
+      },
+      plugins: {
+        legend: { display: datasets.length > 1, position: "top", align: "start",
+                  labels: { color: tinta2, usePointStyle: true, pointStyle: "line", boxWidth: 24 } },
+        tooltip: {
+          backgroundColor: css("--superficie"), titleColor: css("--tinta"), bodyColor: css("--tinta"),
+          borderColor: css("--eje"), borderWidth: 1, padding: 10, usePointStyle: true,
+          callbacks: {
+            title: (items) => items.length ? fmtHora.format(new Date(items[0].parsed.x)) : "",
+            label: (it) => ` ${it.dataset.label}: ${it.parsed.y}`,
+          },
+        },
+      },
+    },
+  });
+}
+
+function dibujarTabla(datasets, unidad) {
+  const filas = [];
+  datasets.forEach((ds) => ds.data.forEach((p) => { if (p.y !== null) filas.push([p.x, ds.label, p.y]); }));
+  filas.sort((a, b) => b[0] - a[0]);
+  $("#tabla-serie").innerHTML = `<tr><th>Fecha y hora (Argentina)</th><th>Estación</th><th>Valor (${esc(unidad)})</th></tr>` +
+    filas.slice(0, 1000).map(([t, n, v]) => `<tr><td>${fmtHora.format(new Date(t))}</td><td>${esc(n)}</td><td>${v}</td></tr>`).join("") +
+    (filas.length > 1000 ? `<tr><td colspan="3" class="tenue">… ${filas.length - 1000} filas más: descargá el CSV.</td></tr>` : "");
+}
+
+// ======================================================================
+// LLUVIA DIARIA (tabla-mapa de calor)
+// ======================================================================
+const NIVELES = [[0.1, 1], [1, 2], [5, 3], [10, 4], [20, 5], [40, 6], [80, 7]];
+function nivel(mm) { let n = 0; for (const [lim, l] of NIVELES) if (mm >= lim) n = l; return n; }
+
+async function cargarLluvia() {
+  const dias = $("#f-lluvia-dias").value;
+  $("#f-lluvia-csv").href = `/api/lluvia?dias=${dias}&formato=csv`;
+  const filas = await api(`/api/lluvia?dias=${dias}`);
+
+  $("#escala").innerHTML = "mm: " + [["0", 0], ["0,1", 1], ["1", 2], ["5", 3], ["10", 4], ["20", 5], ["40", 6], ["80+", 7]]
+    .map(([t, l]) => `<span class="c l${l}" style="${l ? "" : "border:1px solid var(--eje)"}"></span><span style="margin:0 8px 0 3px">${t}</span>`).join("");
+
+  const hoy = new Date();
+  const lista = [];
+  for (let i = dias - 1; i >= 0; i--) {
+    const d = new Date(hoy.getTime() - i * 86400e3 + 15 * 3600e3);  // corrido para caer en el día pluviométrico
+    lista.push(new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(d));
+  }
+  const origenes = new Map();
+  for (const f of filas) {
+    // Los reportes de la comunidad: una fila por escuela + quien reporta.
+    const esCom = f.tipo_origen === "comunidad";
+    const clave = esCom ? `${f.origen}|${f.nombre}` : f.origen;
+    const nombre = esCom ? `Comunidad · ${f.origen.replace("comunidad:", "")}${f.nombre ? " (" + f.nombre + ")" : ""}` : f.nombre;
+    if (!origenes.has(clave)) origenes.set(clave, { nombre, tipo: f.tipo_origen, instrumento: f.instrumento, dias: {} });
+    const o = origenes.get(clave);
+    o.dias[f.dia] = (o.dias[f.dia] || 0) + f.lluvia_mm;
+  }
+  if (!origenes.size) { $("#calor").innerHTML = '<p class="tenue">Todavía no hay datos de lluvia en este período.</p>'; return; }
+
+  const INSTR = { estacion_automatica: "EMA", pluviometro_convencional: "Pluviómetro conv.", pluviometro_casero: "Pluviómetro casero",
+                  estimacion: "Estimación", sinoptica: "Sinóptica", sin_dato: "?" };
+  const ultimo = lista[lista.length - 1];
+  const cab = `<tr><th>Origen</th><th>Instrumento</th>${lista.map((d) =>
+    d === ultimo ? `<th class="en-curso" title="Día en curso: sigue sumando hasta las 9 hs">${d.slice(8)}/${d.slice(5, 7)}*</th>`
+                 : `<th>${d.slice(8)}/${d.slice(5, 7)}</th>`).join("")}<th>Total</th></tr>`;
+  const cuerpo = [...origenes.entries()].sort((a, b) => a[1].nombre.localeCompare(b[1].nombre)).map(([, o]) => {
+    let total = 0;
+    const celdas = lista.map((d) => {
+      const v = o.dias[d];
+      if (v === undefined) return `<td class="v n0" title="sin datos">–</td>`;
+      total += v;
+      return `<td class="v l${nivel(v)} ${v === 0 ? "n0" : ""}" title="${esc(o.nombre)} · ${d}: ${v} mm">${v === 0 ? "0" : v.toFixed(1)}</td>`;
+    }).join("");
+    return `<tr><td>${esc(o.nombre)}</td><td class="tenue">${INSTR[o.instrumento] || esc(o.instrumento)}</td>${celdas}<td><b>${total.toFixed(1)}</b></td></tr>`;
+  }).join("");
+  $("#calor").innerHTML = `<table>${cab}${cuerpo}</table>`;
+}
+$("#f-lluvia-dias").addEventListener("change", cargarLluvia);
+
+// ======================================================================
+// ESTADO
+// ======================================================================
+async function cargarEstado() {
+  const d = await api("/api/estado");
+  const fallando = d.tareas.filter((t) => !t.ok).length;
+  $("#cifras").innerHTML = `
+    <div class="cifra"><b>${Number(d.observaciones).toLocaleString("es-AR")}</b><span>valores guardados</span></div>
+    <div class="cifra"><b>${d.desde ? fmtDia.format(new Date(d.desde)) : "–"}</b><span>dato más antiguo</span></div>
+    <div class="cifra"><b>${d.tareas.length - fallando} / ${d.tareas.length}</b><span>tareas funcionando</span></div>`;
+  $("#tabla-estado").innerHTML = `<tr><th>Tarea</th><th>Estado</th><th>Última corrida</th><th>Valores</th><th>Fallas 24 h</th><th>Mensaje</th></tr>` +
+    d.tareas.map((t) => `<tr>
+      <td>${esc(t.tarea)}</td>
+      <td>${t.ok ? '<span class="estado ok"><i>✓</i>OK</span>' : '<span class="estado caida"><i>✕</i>Falló</span>'}</td>
+      <td>${fmtHora.format(new Date(t.inicio))}</td><td>${t.filas ?? "–"}</td><td>${t.fallas_24h}</td>
+      <td class="tenue">${esc(t.mensaje || "")}</td></tr>`).join("");
+}
+
+// ======================================================================
+cargarMapa().catch((e) => { $("#lista").innerHTML = `<p>Error cargando estaciones: ${esc(e.message)}</p>`; });
+setInterval(() => { cargarMapa(); if (cargadas.estado) cargarEstado(); }, 5 * 60e3);  // refresca cada 5 min
+</script>
+</body>
+</html>

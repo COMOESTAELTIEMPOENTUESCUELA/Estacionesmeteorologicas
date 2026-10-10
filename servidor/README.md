@@ -33,7 +33,7 @@ servidor solo lee y copia.
 | Pronósticos (archivo de emisiones para verificación) | ✅ Probado con un pronóstico real |
 | Satélite GOES-19 | ✅ Probado con datos reales (se activa aparte: `--profile satelite`) |
 | Estación LPO | ⏸️ Pendiente (a decidir) |
-| Visualizador web / API | ⏳ Próxima etapa |
+| Visualizador web / API (puerto 8080) | ✅ Probado |
 | Modelos (GFS), cartas de superficie, radar | ⏳ Próxima etapa |
 
 ## Documentación
@@ -41,12 +41,13 @@ servidor solo lee y copia.
 1. [Preparar la PC](docs/01-preparar-la-pc.md): Ubuntu, discos, Docker, backups.
 2. [Los datos](docs/02-datos.md): fuentes, modelo de datos, consultas SQL y desde Python.
 3. [Satélite](docs/03-satelite.md): cómo funciona el módulo GOES-19.
+4. [Visualizador web](docs/04-visualizador.md): pestañas, API y cómo usarla desde Python.
 
 ## Arranque rápido
 
 ```bash
 cp .env.example .env && nano .env        # poner contraseña y rutas
-docker compose up -d --build             # base de datos + ingesta
+docker compose up -d --build             # base de datos + ingesta + visualizador (puerto 8080)
 docker compose logs -f ingesta           # mirar que traiga datos
 ```
 
@@ -63,6 +64,7 @@ servidor/
 ├── app/                    código Python (una sola imagen Docker)
 │   └── meteo/
 │       ├── ingesta/        recolectores, decodificador SYNOP, guardado
+│       ├── web/            API (FastAPI) y página del visualizador
 │       └── satelite/       GOES-19: proyección, lectura parcial, mapas
 ├── scripts/backup.sh       backup diario de la base
 ├── tests/                  pruebas automáticas

@@ -1,6 +1,6 @@
 # Servicios del servidor meteorológico.
 #
-#   docker compose up -d                      -> base de datos + ingesta
+#   docker compose up -d                      -> base de datos + ingesta + visualizador web
 #   docker compose --profile satelite up -d   -> además, el satélite
 #   docker compose logs -f ingesta            -> ver qué está haciendo
 #
@@ -52,6 +52,22 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
     volumes:
       - ./config:/config:ro
+
+  # Visualizador web + API (solo lectura). Se abre en http://IP-DEL-SERVIDOR:8080
+  # Escucha en la red de casa y en Tailscale; el router no lo publica a internet.
+  web:
+    image: meteo-app
+    build: ./app
+    restart: unless-stopped
+    logging: *logging
+    command: uvicorn meteo.web.app:app --host 0.0.0.0 --port 8080 --proxy-headers
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://meteo:${DB_PASSWORD}@db:5432/meteo
+    ports:
+      - "${WEB_PUERTO:-8080}:8080"
 
   # Imágenes del GOES-19 (se activa con --profile satelite).
   satelite:
