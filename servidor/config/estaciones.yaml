@@ -1,0 +1,206 @@
+# =====================================================================
+# Estaciones y fuentes de datos.
+#
+# Este archivo es la "fuente de verdad" de los METADATOS. Al arrancar, la
+# ingesta lo copia a la tabla `estacion` de la base. Para agregar una
+# estación: copiá un bloque, cambiá los datos y reiniciá
+# (`docker compose restart ingesta`).
+#
+# tipo:   ema | convencional | sinoptica | pluviometro | otra
+# fuente: thingspeak | wunderground | davis | ogimet | manual
+#
+# Las claves de lectura de ThingSpeak/Wunderground son las mismas que ya están
+# públicas en red-meteorologica.html (solo permiten LEER). Cualquier dato
+# secreto (contraseñas, tokens) va en el archivo .env, nunca acá.
+# =====================================================================
+
+# Cada cuántos minutos se consulta cada fuente.
+frecuencias_min:
+  thingspeak: 15
+  wunderground: 15
+  davis: 15
+  ogimet: 60
+  comunidad: 30
+  pronosticos: 60
+
+estaciones:
+
+  # ----------------------- EMAs en ThingSpeak -----------------------
+  # campos: qué variable es cada "field" del canal. `factor` multiplica el
+  # valor crudo (ej. pulsos del pluviómetro -> mm).
+  # La lluvia en estos canales es el incremento de cada intervalo (no un
+  # acumulado), así que va directo a la variable `precip`.
+
+  - id: bavio
+    nombre: EP N°23 Bavío (EMA Violeta)
+    tipo: ema
+    red: escuelas
+    fuente: thingspeak
+    institucion: Escuela Primaria N°23
+    localidad: Bavío
+    lat: -35.0254
+    lon: -57.7529
+    notas: ESP32. Pluviómetro y sensor de T/HR fallan por separado. Migró de canal (1778165 -> 2626952).
+    config:
+      canales:
+        - {id: "2626952", key: "4XYH56YSV64HE17H"}
+        - {id: "1778165", key: "OJ1JHKAPCCIQB4CB"}
+      campos:
+        field1: temp
+        field2: hum
+        field5: {variable: precip, factor: 0.68}   # 1 pulso = 0,68 mm
+    instrumentos:
+      - {variable: precip, tipo: pluviometro_balancin, resolucion: "0,68 mm por pulso"}
+
+  - id: san_vicente
+    nombre: San Vicente de Paul (La Plata)
+    tipo: ema
+    red: escuelas
+    fuente: thingspeak
+    localidad: La Plata
+    lat: -34.9031
+    lon: -57.9485
+    config:
+      canales: [{id: "2218687", key: "TH3V4TJLRFZD3JSG"}]
+      campos: {field1: temp, field2: hum, field5: precip, field6: pres_est}
+
+  - id: ema_blanca
+    nombre: EMA Blanca (Facultad, FCAG)
+    tipo: ema
+    red: fcag
+    fuente: thingspeak
+    institucion: FCAG-UNLP
+    localidad: La Plata
+    lat: -34.9089
+    lon: -57.9327
+    notas: El canal 2218689 era de EP N°34 (Malagamba); el equipo se reinstaló en el Observatorio.
+    config:
+      canales: [{id: "2218689", key: "ZLNOSLZJPQM3H7SD"}]
+      campos: {field1: temp, field2: hum, field5: precip, field6: pres_est}
+
+  - id: observatorio_campbell
+    nombre: Observatorio FCAG (Campbell)
+    tipo: ema
+    red: fcag
+    fuente: thingspeak
+    institucion: FCAG-UNLP
+    localidad: La Plata
+    lat: -34.908364
+    lon: -57.933164
+    config:
+      canales: [{id: "2823820", key: "FFI1HK80ZKDNS6V8"}]
+      campos: {field1: temp, field4: hum, field5: precip, field6: pres_est, field7: viento_vel, field8: viento_dir}
+
+  - id: ema_verde
+    nombre: EMA Verde (Facultad, en prueba)
+    tipo: ema
+    red: fcag
+    fuente: thingspeak
+    institucion: FCAG-UNLP
+    localidad: La Plata
+    lat: -34.9086
+    lon: -57.9328
+    config:
+      canales: [{id: "2218686", key: "O85A0DJ31L8MQZ6F"}]
+      campos: {field1: temp, field2: hum, field4: precip, field6: pres_est}
+
+  # VERIFICAR: en los canales de arriba asumí que field6 es presión a nivel de
+  # ESTACIÓN (pres_est). Si alguna EMA ya la reduce a nivel del mar, cambiar
+  # a `pnm` en esa estación.
+
+  # ----------------------- EMAs en Wunderground ---------------------
+  - id: es7_ep20
+    nombre: ES N°7 / EP N°20 (La Hermosura, Berisso)
+    tipo: ema
+    red: escuelas
+    fuente: wunderground
+    localidad: Berisso
+    lat: -34.95767
+    lon: -57.81756
+    config: {wu_id: ILOSTA2, wu_key: f1d7143d25a24b7197143d25a23b711d}
+
+  - id: ep23_los_talas
+    nombre: EP N°23 Los Talas (Berisso)
+    tipo: ema
+    red: escuelas
+    fuente: wunderground
+    localidad: Berisso
+    lat: -34.92712
+    lon: -57.76241
+    config: {wu_id: IBERIS14, wu_key: af815b5b4b804cfd815b5b4b80dcfd07}
+
+  - id: monte_veloz
+    nombre: Monte Veloz (Ruta 36)
+    tipo: ema
+    red: escuelas
+    fuente: wunderground
+    localidad: Monte Veloz
+    lat: -35.47
+    lon: -57.28
+    config: {wu_id: IVERNI9, wu_key: 6b6ee16ebab34fe5aee16ebab38fe57a}
+
+  - id: daza
+    nombre: Daza (Facultad)
+    tipo: ema
+    red: fcag
+    fuente: wunderground
+    localidad: La Plata
+    lat: -34.9091
+    lon: -57.9325
+    activa: false
+    notas: Dada de baja (fuera de operatividad). Se deja para poder bajar su histórico.
+    config: {wu_id: ILAPLA66, wu_key: 470147c769f6493f8147c769f6693fd9}
+
+  # ----------------------- Davis del Observatorio -------------------
+  - id: observatorio_davis
+    nombre: Observatorio FCAG (Davis)
+    tipo: ema
+    red: fcag
+    fuente: davis
+    institucion: FCAG-UNLP
+    localidad: La Plata
+    lat: -34.9088
+    lon: -57.933
+    config:
+      url: https://meteo.fcaglp.unlp.edu.ar/davis/campo/downld08.txt
+      verificar_ssl: false        # el certificado del servidor de la Facultad no valida
+      # VERIFICAR con quien administra la Davis en qué unidad exporta el viento.
+      unidad_viento: km/h
+      presion_es: pnm             # "Bar" de WeatherLink suele estar reducida al nivel del mar
+
+  # ----------------------- Sinópticas (SMN, vía Ogimet) -------------
+  # Coordenadas aproximadas: VERIFICAR contra el listado oficial del SMN/OMM.
+  - {id: omm_87593, nombre: La Plata Aero, tipo: sinoptica, red: smn, fuente: ogimet, omm: "87593", lat: -34.97, lon: -57.90, elevacion_m: 23}
+  - {id: omm_87576, nombre: Ezeiza Aero, tipo: sinoptica, red: smn, fuente: ogimet, omm: "87576", lat: -34.82, lon: -58.53, elevacion_m: 20}
+  - {id: omm_87582, nombre: Aeroparque, tipo: sinoptica, red: smn, fuente: ogimet, omm: "87582", lat: -34.56, lon: -58.42, elevacion_m: 6}
+  - {id: omm_87585, nombre: Buenos Aires Observatorio Central, tipo: sinoptica, red: smn, fuente: ogimet, omm: "87585", lat: -34.58, lon: -58.48, elevacion_m: 25}
+  - {id: omm_87548, nombre: Junín Aero, tipo: sinoptica, red: smn, fuente: ogimet, omm: "87548", lat: -34.55, lon: -60.92, elevacion_m: 81}
+  - {id: omm_87640, nombre: Bolívar Aero, tipo: sinoptica, red: smn, fuente: ogimet, omm: "87640", lat: -36.18, lon: -61.07, elevacion_m: 94}
+  - {id: omm_87645, nombre: Tandil Aero, tipo: sinoptica, red: smn, fuente: ogimet, omm: "87645", lat: -37.23, lon: -59.25, elevacion_m: 175}
+  - {id: omm_87692, nombre: Mar del Plata Aero, tipo: sinoptica, red: smn, fuente: ogimet, omm: "87692", lat: -37.93, lon: -57.58, elevacion_m: 21}
+  - {id: omm_87750, nombre: Bahía Blanca Aero, tipo: sinoptica, red: smn, fuente: ogimet, omm: "87750", lat: -38.73, lon: -62.17, elevacion_m: 75}
+  - {id: omm_87663, nombre: Dolores Aero, tipo: sinoptica, red: smn, fuente: ogimet, omm: "87663", lat: -36.35, lon: -57.73, elevacion_m: 9}
+
+# =====================================================================
+# Reportes de la comunidad (ciencia-ciudadana.html)
+# =====================================================================
+comunidad:
+  # Pestaña "Reportes" (la que ya está publicada y lee el sitio).
+  sheet_id: 1Zn_qMX4EIwkQ2qw33OYJfG4zOiPYOE6aqNErOG0-ERo
+  gid: "0"
+  # Qué estación corresponde a cada escuela/zona del formulario (para
+  # comparar el pluviómetro de la escuela con la EMA más cercana).
+  escuela_a_estacion:
+    "EP 23 Bavio": bavio
+    "San Vicente": san_vicente
+    "EP 23 Los Talas": ep23_los_talas
+    "EP 20 / ES 7": es7_ep20
+    "Monte Veloz": monte_veloz
+    "EP 2": monte_veloz
+
+# =====================================================================
+# Pronósticos (Pronóstico UNLP)
+# =====================================================================
+pronosticos:
+  url: https://script.google.com/macros/s/AKfycbyKbRPl7kgOPJWsDtq_2eb7Da6P8iDGvF75_-D55Rwo0xn3WSv_eJnQe2Azgwj4i3XS/exec
+  ciudades: [La Plata, Junín, Mar del Plata, Bolívar, Tandil, Bahía Blanca]

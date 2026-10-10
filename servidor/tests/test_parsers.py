@@ -1,0 +1,139 @@
+"""Tests de los recolectores con datos de ejemplo (no usan internet)."""
+import json
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+import pytest
+
+from meteo.ingesta import synop
+from meteo.ingesta.base import HORA_ARG
+from meteo.ingesta.fuentes import comunidad, davis, pronosticos, thingspeak, wunderground
+
+DATOS = Path(__file__).parent / "datos"
+T = datetime(2026, 10, 10, 12, tzinfo=timezone.utc)
+
+
+def como_dict(obs):
+    return {o.variable: o.valor for o in obs}
+
+
+# --------------------------------------------------------------- SYNOP
+def test_synop_completo():
+    msg = ("AAXX 10121 87593 32970 72106 10142 20118 30138 40220 52010 60001 78082 83530 "
+           "333 10187 20089 56999 70125 82630=")
+    d = como_dict(synop.decodificar(msg, T, "omm_87593"))
+    assert d["visibilidad"] == 20000      # VV=70 -> 20 km
+    assert d["nubosidad"] == 7
+    assert d["viento_dir"] == 210
+    assert d["viento_vel"] == 6           # i_w=1: m/s
+    assert d["temp"] == 14.2
+    assert d["td"] == 11.8
+    assert d["pres_est"] == 1013.8
+    assert d["pnm"] == 1022.0
+    assert d["precip_6h"] == 0.0          # 6 000 1
+    assert d["ww"] == 80
+    assert d["tmax"] == 18.7              # sección 333
+    assert d["tmin"] == 8.9
+    assert d["precip_24h"] == 12.5        # 7 0125 -> 12,5 mm
+
+
+def test_synop_negativos_nudos_y_traza():
+    msg = "AAXX 10064 87593 11458 80510 11025 21031 39985 49990 69902 333 79999="
+    d = como_dict(synop.decodificar(msg, T, "x"))
+    assert d["temp"] == -2.5
+    assert d["td"] == -3.1
+    assert d["pres_est"] == 998.5
+    assert d["pnm"] == 999.0
+    assert d["viento_vel"] == pytest.approx(10 * 0.514444, abs=1e-3)  # i_w=4: nudos
+    assert d["precip_12h"] == 0.0         # 990 = traza
+    assert d["precip_24h"] == 0.0         # 9999 = traza
+
+
+def test_synop_seccion_nacional_no_se_confunde():
+    msg = "AAXX 10121 87593 32970 72106 10142 555 10350="
+    d = como_dict(synop.decodificar(msg, T, "x"))
+    assert "tmax" not in d and d["temp"] == 14.2
+
+
+def test_synop_nil():
+    assert synop.decodificar("AAXX 10121 87593 NIL=", T, "x") == []
+
+
+def test_parsear_getsynop():
+    texto = "87593,2026,10,10,12,00,AAXX 10121 87593 32970=\nbasura\n"
+    [(ind, ts, msg)] = synop.parsear_getsynop(texto)
+    assert ind == "87593" and ts == T and msg.startswith("AAXX")
+
+
+# --------------------------------------------------------------- Davis
+def test_davis_archivo_real():
+    obs = davis.parsear((DATOS / "davis_muestra.txt").read_text(), "observatorio_davis")
+    primera = [o for o in obs if o.ts == datetime(2026, 10, 3, 0, 5, tzinfo=HORA_ARG)]
+    d = como_dict(primera)
+    assert d["temp"] == 14.6 and d["hum"] == 70 and d["td"] == 9.1
+    assert d["pnm"] == 1010.6 and d["precip"] == 0.0
+    assert "viento_dir" not in d          # '---' = calma / sin dato
+    # La hora local 00:05 es 03:05 UTC.
+    assert primera[0].ts.astimezone(timezone.utc).hour == 3
+
+
+# --------------------------------------------------------------- ThingSpeak
+def test_thingspeak_campos_y_factor():
+    feeds = [{"created_at": "2026-10-10T12:00:00Z", "field1": "15.5", "field2": "80",
+              "field5": "2", "field6": None}]
+    campos = {"field1": "temp", "field2": "hum", "field5": {"variable": "precip", "factor": 0.68}}
+    d = como_dict(thingspeak.parsear_feeds(feeds, "bavio", campos))
+    assert d == {"temp": 15.5, "hum": 80.0, "precip": 1.36}
+
+
+# --------------------------------------------------------------- Wunderground
+def test_wunderground_lluvia_por_diferencias():
+    t0 = datetime(2026, 10, 10, 3, 0, tzinfo=timezone.utc)  # 00:00 hora Argentina
+    acum = [(t0 + timedelta(minutes=5 * i), v) for i, v in enumerate([0.0, 0.0, 1.2, 1.2, 3.0, 0.4])]
+    lluvias = [v for _, v in wunderground.precip_por_intervalo(acum)]
+    # el último "baja" (reinicio de la estación): cuenta como lo nuevo
+    assert lluvias == [0.0, 0.0, 1.2, 0.0, 1.8, 0.4]
+
+
+def test_wunderground_parsear_dia():
+    datos = {"observations": [{
+        "obsTimeUtc": "2026-10-10T15:00:00Z", "humidityAvg": 70, "winddirAvg": 180,
+        "solarRadiationHigh": 500,
+        "metric": {"tempAvg": 20.0, "dewptAvg": 14.0, "windspeedAvg": 36.0, "windgustHigh": 54.0,
+                   "pressureMax": 1015.0, "pressureMin": 1014.0, "precipRate": 0, "precipTotal": 0},
+    }]}
+    d = como_dict(wunderground.parsear_dia(datos, "es7_ep20"))
+    assert d["viento_vel"] == 10.0 and d["racha"] == 15.0   # km/h -> m/s
+    assert d["pnm"] == 1014.5 and d["temp"] == 20.0
+
+
+# --------------------------------------------------------------- Comunidad
+def test_comunidad_csv_columnas_por_nombre():
+    csv = ('"Fecha","Tipo","Escuela","Reportero","Lluvia_mm","Estado_Camino","Resumen",'
+           '"Imagen_URL","Lat","Lon","Instrumento","Periodo"\n'
+           '"10/10/2026 09:05:00","lluvia","EP 23 Bavio","Ana","12,5","","Llovió fuerte","","-35","-57.7",'
+           '"Pluviómetro convencional","24 h hasta las 9"\n'
+           '"","","","","","","","","","","",""\n')
+    [r] = comunidad.parsear_csv(csv, {"EP 23 Bavio": "bavio"})
+    assert r["lluvia_mm"] == 12.5
+    assert r["instrumento"] == "pluviometro_convencional"
+    assert r["periodo"] == "24h_9hs"
+    assert r["estacion_id"] == "bavio"
+    assert r["ts"] == datetime(2026, 10, 10, 9, 5, tzinfo=HORA_ARG)
+
+
+def test_comunidad_planilla_vieja_sin_columnas_nuevas():
+    csv = ('"Fecha","Tipo","Escuela","Reportero","Lluvia_mm","Estado_Camino","Resumen","Imagen_URL","Lat","Lon"\n'
+           '"10/10/2026","rocio","EP 21","Juan","","","Rocío en el pasto","","",""\n')
+    [r] = comunidad.parsear_csv(csv)
+    assert r["instrumento"] == "sin_dato" and r["lluvia_mm"] is None
+
+
+# --------------------------------------------------------------- Pronósticos
+def test_pronostico_real_desarmado():
+    p = json.loads((DATOS / "pronostico_laplata.json").read_text())
+    filas = pronosticos.desarmar(p)
+    assert filas[0]["plazo_dias"] == 0
+    assert [f["plazo_dias"] for f in filas] == list(range(len(filas)))
+    assert filas[0]["temp_max"] is not None
+    assert pronosticos.huella(p) == pronosticos.huella(dict(p))
