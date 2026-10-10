@@ -73,7 +73,8 @@ class Ingesta:
                     ignorar = set((e.get("config") or {}).get("ignorar_variables", []))
                     if ignorar:
                         obs = [o for o in obs if o.variable not in ignorar]
-                    reg["filas"] = db.guardar_observaciones(self.conn, obs, fuente)
+                    reemplazar = wunderground.dias_a_reemplazar(e["id"], obs) if fuente == "wunderground" else None
+                    reg["filas"] = db.guardar_observaciones(self.conn, obs, fuente, reemplazar)
                     total += reg["filas"]
                     log.info("%s %s: %d observaciones leídas, %d nuevas o cambiadas",
                              fuente, e["id"], len(obs), reg["filas"])

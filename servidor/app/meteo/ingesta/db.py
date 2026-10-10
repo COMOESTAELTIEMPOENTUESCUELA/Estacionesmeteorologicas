@@ -57,9 +57,16 @@ ON CONFLICT (estacion_id, variable, ts) DO UPDATE
 """
 
 
-def guardar_observaciones(conn, observaciones, fuente):
-    """Guarda una lista de Obs. Devuelve cuántas filas se insertaron o cambiaron."""
-    if not observaciones:
+def guardar_observaciones(conn, observaciones, fuente, reemplazar=None):
+    """Guarda una lista de Obs. Devuelve cuántas filas se insertaron o cambiaron.
+
+    reemplazar: lista opcional de (estacion_id, variable, desde, hasta). Antes de
+    guardar se BORRAN esas filas, en la misma transacción. Sirve para variables
+    que se calculan a partir de un día completo (la lluvia de Wunderground): al
+    recalcular el día, tiene que quedar SOLO el resultado nuevo, sin restos de
+    cálculos anteriores en horarios que la fuente ya no devuelve.
+    """
+    if not observaciones and not reemplazar:
         return 0
     lim = limites(conn)
     validas = set(lim)
@@ -70,8 +77,13 @@ def guardar_observaciones(conn, observaciones, fuente):
             continue
         filas.append((o.ts, o.estacion_id, o.variable, o.valor, control_rango(o, lim), fuente))
     with conn.cursor() as cur:
-        cur.executemany(SQL_UPSERT, filas)
-        n = cur.rowcount
+        for estacion_id, variable, desde, hasta in reemplazar or []:
+            cur.execute("DELETE FROM observacion WHERE estacion_id = %s AND variable = %s AND ts BETWEEN %s AND %s",
+                        (estacion_id, variable, desde, hasta))
+        n = 0
+        if filas:
+            cur.executemany(SQL_UPSERT, filas)
+            n = cur.rowcount
     conn.commit()
     return max(n, 0)
 

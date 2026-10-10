@@ -102,6 +102,17 @@ def parsear_dia(datos, estacion_id):
     return obs
 
 
+def dias_a_reemplazar(estacion_id, obs):
+    """La lluvia de cada día se calcula con el día completo: al guardar, se
+    reemplaza toda la lluvia de los días traídos (hora argentina, 00 a 24)."""
+    dias = {o.ts.astimezone(HORA_ARG).date() for o in obs if o.variable == "precip"}
+    rangos = []
+    for d in sorted(dias):
+        inicio = datetime(d.year, d.month, d.day, tzinfo=HORA_ARG)
+        rangos.append((estacion_id, "precip", inicio, inicio + timedelta(days=1) - timedelta(microseconds=1)))
+    return rangos
+
+
 def traer(estacion, desde, hasta, sesion):
     cfg = estacion["config"]
     obs = []
