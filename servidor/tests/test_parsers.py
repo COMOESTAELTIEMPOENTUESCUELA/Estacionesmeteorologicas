@@ -246,3 +246,38 @@ def test_synop_real_la_plata_12utc():
     assert d["viento_vel"] == pytest.approx(9 * 0.514444, abs=1e-3)  # i_w = 4: nudos
     assert (d["temp"], d["td"], d["pres_est"], d["pnm"]) == (11.8, 11.6, 1021.2, 1023.9)
     assert (d["tmax"], d["tmin"], d["ww"]) == (12.5, 9.8, 50)
+
+
+def test_wunderground_combina_historial_y_ultimas_24h(monkeypatch):
+    """Para hoy se suman las 'últimas 24 h' (el historial del día puede venir
+    atrasado); las lecturas repetidas se cuentan una sola vez."""
+    hoy = datetime.now(HORA_ARG).date()
+
+    def lectura(hhmm, acum, temp=15.0):
+        hh, mm = (int(x) for x in hhmm.split(":"))
+        t = datetime(hoy.year, hoy.month, hoy.day, hh, mm, tzinfo=HORA_ARG).astimezone(timezone.utc)
+        return {"obsTimeUtc": t.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "metric": {"tempAvg": temp, "precipTotal": acum}}
+
+    historial = [lectura("00:05", 0.0), lectura("06:00", 1.0)]               # atrasado: corta a las 6
+    ultimas_24h = [lectura("06:00", 1.0), lectura("09:00", 3.0), lectura("12:00", 4.5)]
+
+    class Resp:
+        status_code = 200
+        def __init__(self, obs):
+            self._obs = obs
+        def raise_for_status(self):
+            pass
+        def json(self):
+            return {"observations": self._obs}
+
+    class Sesion:
+        def get(self, url, params=None, timeout=None):
+            return Resp(ultimas_24h if url.endswith("/1day") else historial)
+
+    est = {"id": "x", "config": {"wu_id": "X", "wu_key": "k"}}
+    inicio = datetime(hoy.year, hoy.month, hoy.day, tzinfo=HORA_ARG)
+    obs = wunderground.traer(est, inicio, inicio + timedelta(hours=23), Sesion())
+    temps = [o for o in obs if o.variable == "temp"]
+    assert len(temps) == 4                                     # 06:00 no se duplica
+    assert round(sum(o.valor for o in obs if o.variable == "precip"), 2) == 4.5

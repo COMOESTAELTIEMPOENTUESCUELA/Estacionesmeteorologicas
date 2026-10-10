@@ -17,9 +17,30 @@ import psycopg
 log = logging.getLogger(__name__)
 
 
+# Límites de espera: ninguna operación queda colgada para siempre.
+#  - lock_timeout: esperar un bloqueo (otra sesión modificando las mismas filas)
+#  - statement_timeout: una consulta que tarda demasiado
+#  - idle_in_transaction_session_timeout: una sesión que abrió una transacción y
+#    quedó colgada (ej. un comando cortado a la mitad) no bloquea a las demás
+OPCIONES = "-c lock_timeout=30s -c statement_timeout=300s -c idle_in_transaction_session_timeout=600s"
+
+
 def conectar(dsn=None):
     dsn = dsn or os.environ.get("DATABASE_URL", "postgresql://meteo:meteo@db:5432/meteo")
-    return psycopg.connect(dsn, autocommit=False)
+    return psycopg.connect(dsn, autocommit=False, options=OPCIONES)
+
+
+def conexion_sana(conn):
+    """False si la conexión se cortó (ej. se reinició la base)."""
+    if conn is None or conn.closed or conn.broken:
+        return False
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1")
+        conn.rollback()
+        return True
+    except psycopg.Error:
+        return False
 
 
 # ---------------------------------------------------------------------------

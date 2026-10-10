@@ -12,11 +12,16 @@ Por eso la lluvia de cada intervalo se calcula como la diferencia entre
 acumulados consecutivos. Por esa misma razón conviene pedir siempre días
 completos.
 """
+import time
 from datetime import datetime, timedelta
 
 from ..base import HORA_ARG, KMH_A_MS, Obs, num
 
 URL = "https://api.weather.com/v2/pws/history/all"
+# "Últimas 24 h": casi en tiempo real. El historial del día EN CURSO puede ir
+# horas atrasado (Wunderground lo arma de su archivo procesado), así que para
+# hoy se combinan las dos consultas.
+URL_24H = "https://api.weather.com/v2/pws/observations/all/1day"
 
 
 def precip_por_intervalo(acumulados, lecturas_para_confirmar=3):
@@ -113,21 +118,46 @@ def dias_a_reemplazar(estacion_id, obs):
     return rangos
 
 
+def _pedir(sesion, url, params, intentos=3):
+    """GET con reintentos: Wunderground a veces corta la conexión sin responder."""
+    for i in range(intentos):
+        try:
+            r = sesion.get(url, params=params, timeout=60)
+            if r.status_code == 204:  # sin datos
+                return []
+            r.raise_for_status()
+            return (r.json() or {}).get("observations") or []
+        except Exception:
+            if i == intentos - 1:
+                raise
+            time.sleep(3 * (i + 1))
+
+
 def traer(estacion, desde, hasta, sesion):
     cfg = estacion["config"]
-    obs = []
+    base = {"stationId": cfg["wu_id"], "format": "json", "units": "m",
+            "numericPrecision": "decimal", "apiKey": cfg["wu_key"]}
+    hoy = datetime.now(HORA_ARG).date()
     dia = desde.astimezone(HORA_ARG).date()
     ultimo = hasta.astimezone(HORA_ARG).date()
+
+    crudas = []
     while dia <= ultimo:
-        r = sesion.get(URL, params={
-            "stationId": cfg["wu_id"], "date": dia.strftime("%Y%m%d"),
-            "format": "json", "units": "m", "numericPrecision": "decimal",
-            "apiKey": cfg["wu_key"],
-        }, timeout=60)
-        if r.status_code == 204:  # sin datos ese día
-            dia += timedelta(days=1)
-            continue
-        r.raise_for_status()
-        obs += parsear_dia(r.json(), estacion["id"])
+        crudas += _pedir(sesion, URL, {**base, "date": dia.strftime("%Y%m%d")})
         dia += timedelta(days=1)
+    if ultimo >= hoy:
+        crudas += _pedir(sesion, URL_24H, base)
+
+    # Juntar sin repetidos (la misma lectura puede venir en las dos consultas)
+    # y separar por día local: la lluvia de cada día se calcula con el día entero.
+    por_ts = {o["obsTimeUtc"]: o for o in crudas if o.get("obsTimeUtc")}
+    por_dia = {}
+    for o in por_ts.values():
+        ts = datetime.fromisoformat(o["obsTimeUtc"].replace("Z", "+00:00"))
+        por_dia.setdefault(ts.astimezone(HORA_ARG).date(), []).append(o)
+    desde_dia = desde.astimezone(HORA_ARG).date()
+    obs = []
+    for d in sorted(por_dia):
+        if desde_dia <= d <= ultimo:
+            obs += parsear_dia({"observations": por_dia[d]}, estacion["id"])
     return obs

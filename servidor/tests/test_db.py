@@ -126,3 +126,20 @@ def test_reemplazar_borra_restos_de_calculos_viejos(conn):
     db.guardar_observaciones(conn, nuevas, "test", wunderground.dias_a_reemplazar("ep23_los_talas", nuevas))
     assert consulta(conn, "SELECT count(*) FROM observacion WHERE estacion_id = 'ep23_los_talas' "
                           "AND variable = 'temp' AND ts::date = '2026-10-07'")[0][0] == 1
+
+
+def test_conexion_con_limites_de_espera(conn):
+    assert consulta(conn, "SHOW lock_timeout")[0][0] == "30s"
+    assert consulta(conn, "SHOW statement_timeout")[0][0] == "5min"
+
+
+def test_reconecta_si_se_corta_la_conexion():
+    from meteo.ingesta.tareas import Ingesta
+    ing = Ingesta({"estaciones": []}, db.conectar(DSN))
+    ing.conn.close()                       # simula que se reinició la base
+    assert not db.conexion_sana(ing.conn)
+    import os
+    os.environ["DATABASE_URL"] = DSN
+    ing.asegurar_conexion()
+    assert db.conexion_sana(ing.conn)
+    ing.conn.close()

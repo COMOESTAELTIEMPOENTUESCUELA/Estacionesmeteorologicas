@@ -7,6 +7,8 @@ lo repetido no duplica nada, y si la PC estuvo apagada o una estación
 transmitió tarde, se completa solo en la vuelta siguiente.
 """
 import logging
+import os
+import threading
 import time
 from datetime import datetime, timedelta, timezone
 
@@ -108,17 +110,47 @@ class Ingesta:
         raise ValueError(f"Tarea desconocida: {tarea}")
 
     # ----- loop permanente -----
-    def para_siempre(self):
+    def asegurar_conexion(self):
+        """Si la base se reinició, la conexión vieja queda cortada y TODO
+        fallaría (incluso escribir la bitácora). Se reconecta antes de cada tarea."""
+        if not db.conexion_sana(self.conn):
+            log.warning("Conexión con la base perdida: reconectando")
+            try:
+                self.conn.close()
+            except Exception:
+                pass
+            self.conn = db.conectar()
+
+    def para_siempre(self, limite_sin_progreso_min=30):
         frecuencias = self.cfg.get("frecuencias_min", {})
         proxima = {t: 0.0 for t in frecuencias}
+        self.ultimo_progreso = time.time()
+        iniciar_guardian(self, limite_sin_progreso_min * 60)
         while True:
             ahora = time.time()
             for tarea, minutos in frecuencias.items():
                 if ahora >= proxima[tarea]:
                     proxima[tarea] = ahora + minutos * 60
                     try:
+                        self.asegurar_conexion()
                         self.correr(tarea)
                     except Exception as ex:
                         # Queda registrado en ingesta_log; en el log, una línea alcanza.
                         log.warning("Tarea %s falló: %s", tarea, str(ex)[:300])
+                    self.ultimo_progreso = time.time()
             time.sleep(20)
+
+
+def iniciar_guardian(ingesta, limite_seg):
+    """Perro guardián: un hilo aparte que mira si el loop sigue avanzando. Si
+    pasa `limite_seg` sin que termine ninguna tarea (algo quedó colgado), cierra
+    el proceso; Docker lo vuelve a levantar (restart: unless-stopped)."""
+    def vigilar():
+        while True:
+            time.sleep(60)
+            quieto = time.time() - ingesta.ultimo_progreso
+            if quieto > limite_seg:
+                log.critical("Sin progreso hace %.0f min: reiniciando el proceso", quieto / 60)
+                logging.shutdown()
+                os._exit(1)
+    threading.Thread(target=vigilar, daemon=True, name="guardian").start()
