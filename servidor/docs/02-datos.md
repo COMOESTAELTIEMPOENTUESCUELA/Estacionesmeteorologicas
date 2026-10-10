@@ -73,10 +73,24 @@ de 9 a 9 (hora argentina) al día de la lectura, como el SMN.
 |---|---|
 | 0 | Sin controlar |
 | 1 | Pasó el control de rango físico |
-| 3 | Sospechoso (reservado para controles futuros: saltos, persistencia, comparación espacial) |
+| 3 | Sospechoso. Hoy: lluvia de Wunderground registrada justo antes de que la estación "borre" su acumulado fuera de la medianoche (patrón 0 → 0,25 → 0, visto en Los Talas). Se suma igual, pero la tabla de lluvia lo marca con ⚠ y la columna `mm_sospechosos` permite excluirlo. Más adelante: saltos, persistencia, comparación con vecinas. |
 | 4 | Malo: fuera de los límites físicos de la tabla `variable` |
 
-Nada se borra. Las vistas de análisis excluyen `qc = 4`.
+Nada se borra. Las vistas de análisis excluyen `qc = 4`; los `qc = 3` se
+incluyen pero quedan identificados.
+
+### Cambios en la estructura de la base (migraciones)
+
+Los archivos de `db/init/` se ejecutan **solos solo la primera vez** que se
+crea la base. Cuando se agrega uno nuevo, en una base que ya existe hay que
+aplicarlo a mano, **en orden**:
+
+```bash
+docker compose exec -T db psql -U meteo -d meteo < db/init/02-lluvia-sinopticas.sql
+docker compose exec -T db psql -U meteo -d meteo < db/init/03-lluvia-sospechosa.sql
+```
+
+Son seguros de repetir (solo recrean vistas, que no guardan datos).
 
 ### Metadatos
 

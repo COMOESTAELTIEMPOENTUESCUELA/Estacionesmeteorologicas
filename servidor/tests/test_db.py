@@ -100,3 +100,12 @@ def test_lluvia_diaria_sinoptica_usa_24h_de_las_12utc(conn):
     filas = consulta(conn, "SELECT dia::text, lluvia_mm::float, instrumento FROM lluvia_diaria_todas "
                            "WHERE origen = 'omm_87593'")
     assert filas == [("2026-10-10", 3.0, "pluviometro_convencional")]
+
+
+def test_lluvia_sospechosa_se_suma_pero_se_informa(conn):
+    t = datetime(2026, 10, 10, 9, 0, tzinfo=timezone.utc)  # 06 hora argentina
+    db.guardar_observaciones(conn, [Obs(t, "ep23_los_talas", "precip", 0.25, 3),
+                                    Obs(t + timedelta(minutes=5), "ep23_los_talas", "precip", 1.0)], "test")
+    [(mm, sosp)] = consulta(conn, "SELECT lluvia_mm::float, mm_sospechosos::float FROM lluvia_diaria_todas "
+                                  "WHERE origen = 'ep23_los_talas' AND dia = '2026-10-10'")
+    assert (mm, sosp) == (1.3, 0.3)  # Postgres redondea 1,25 -> 1,3 y 0,25 -> 0,3

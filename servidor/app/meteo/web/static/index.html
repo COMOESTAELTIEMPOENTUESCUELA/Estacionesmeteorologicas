@@ -180,7 +180,8 @@ th { color: var(--tinta-2); font-weight: 600; font-size: 12px; position: sticky;
         <a class="boton" id="f-lluvia-csv" href="#">Descargar CSV</a>
       </div>
       <p class="ayuda">Día pluviométrico: lo que llovió entre las 9 hs del día anterior y las 9 hs de ese día.
-        "–" = sin datos ese día (no es lo mismo que 0). * = día en curso (sigue sumando hasta mañana a las 9).</p>
+        "–" = sin datos ese día (no es lo mismo que 0). * = día en curso (sigue sumando hasta mañana a las 9).
+        ⚠ = incluye lluvia sospechosa (pasá el mouse por la celda para ver cuánta).</p>
       <div class="escala" id="escala"></div>
       <div id="calor"></div>
     </div>
@@ -549,9 +550,10 @@ async function cargarLluvia() {
     const esCom = f.tipo_origen === "comunidad";
     const clave = esCom ? `${f.origen}|${f.nombre}` : f.origen;
     const nombre = esCom ? `Comunidad · ${f.origen.replace("comunidad:", "")}${f.nombre ? " (" + f.nombre + ")" : ""}` : f.nombre;
-    if (!origenes.has(clave)) origenes.set(clave, { nombre, tipo: f.tipo_origen, instrumento: f.instrumento, dias: {} });
+    if (!origenes.has(clave)) origenes.set(clave, { nombre, tipo: f.tipo_origen, instrumento: f.instrumento, dias: {}, sosp: {} });
     const o = origenes.get(clave);
     o.dias[f.dia] = (o.dias[f.dia] || 0) + f.lluvia_mm;
+    o.sosp[f.dia] = (o.sosp[f.dia] || 0) + (f.mm_sospechosos || 0);
   }
   if (!origenes.size) { $("#calor").innerHTML = '<p class="tenue">Todavía no hay datos de lluvia en este período.</p>'; return; }
 
@@ -567,7 +569,9 @@ async function cargarLluvia() {
       const v = o.dias[d];
       if (v === undefined) return `<td class="v n0" title="sin datos">–</td>`;
       total += v;
-      return `<td class="v l${nivel(v)} ${v === 0 ? "n0" : ""}" title="${esc(o.nombre)} · ${d}: ${v} mm">${v === 0 ? "0" : v.toFixed(1)}</td>`;
+      const s = o.sosp[d] || 0;
+      const aviso = s > 0 ? ` (${s.toFixed(1)} mm sospechosos: pulsos que la estación borró enseguida)` : "";
+      return `<td class="v l${nivel(v)} ${v === 0 ? "n0" : ""}" title="${esc(o.nombre)} · ${d}: ${v} mm${aviso}">${v === 0 ? "0" : v.toFixed(1)}${s > 0 ? " ⚠" : ""}</td>`;
     }).join("");
     return `<tr><td>${esc(o.nombre)}</td><td class="tenue">${INSTR[o.instrumento] || esc(o.instrumento)}</td>${celdas}<td><b>${total.toFixed(1)}</b></td></tr>`;
   }).join("");

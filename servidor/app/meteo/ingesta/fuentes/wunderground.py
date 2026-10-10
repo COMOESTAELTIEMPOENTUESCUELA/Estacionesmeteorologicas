@@ -20,26 +20,36 @@ URL = "https://api.weather.com/v2/pws/history/all"
 
 
 def precip_por_intervalo(acumulados):
-    """[(ts, acumulado_del_día)] ordenados -> [(ts, lluvia_del_intervalo)].
+    """[(ts, acumulado_del_día)] ordenados -> [(ts, lluvia_del_intervalo, qc)].
 
-    Si el acumulado baja (se reinició a medianoche o la estación se reseteó),
-    el valor nuevo es lo que llovió desde el reinicio.
+    Si el acumulado baja, la estación se reinició: el valor nuevo es lo que
+    llovió desde el reinicio. El reinicio normal es a medianoche. Si en cambio
+    el acumulado SUBE y en el dato siguiente VUELVE A BAJAR fuera de la
+    medianoche (visto en Los Talas: 0 -> 0,25 -> 0), no se puede saber si fue
+    un vuelco real con la consola mal configurada o un pulso falso: esa lluvia
+    se guarda igual, pero marcada como sospechosa (qc = 3).
     """
     salida = []
     anterior = None
     for ts, acum in acumulados:
         if acum is None:
             continue
+        local = ts.astimezone(HORA_ARG)
+        cerca_medianoche = local.hour == 0 and local.minute < 20
         if anterior is None:
             delta = None  # primer dato del día: no sabemos desde cuándo acumula
-            if ts.astimezone(HORA_ARG).hour == 0 and ts.astimezone(HORA_ARG).minute < 10:
+            if cerca_medianoche:
                 delta = acum  # justo después de medianoche: es todo del intervalo
         elif acum >= anterior:
             delta = acum - anterior
         else:
             delta = acum
+            if not cerca_medianoche and salida and salida[-1][1] > 0:
+                # Reinicio fuera de hora justo después de registrar lluvia.
+                t_ant, v_ant, _ = salida[-1]
+                salida[-1] = (t_ant, v_ant, 3)
         if delta is not None:
-            salida.append((ts, round(delta, 2)))
+            salida.append((ts, round(delta, 2), 0))
         anterior = acum
     return salida
 
@@ -70,8 +80,8 @@ def parsear_dia(datos, estacion_id):
         agregar("intens_precip", m.get("precipRate"))
         acumulados.append((ts, num(m.get("precipTotal"))))
 
-    for ts, p in precip_por_intervalo(acumulados):
-        obs.append(Obs(ts, estacion_id, "precip", p))
+    for ts, p, qc in precip_por_intervalo(acumulados):
+        obs.append(Obs(ts, estacion_id, "precip", p, qc))
     return obs
 
 

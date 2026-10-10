@@ -207,7 +207,8 @@ def series(
 def lluvia(dias: int = 14, formato: str = "json"):
     dias = max(1, min(dias, 366))
     filas = consultar("""
-        SELECT dia, origen, nombre, tipo_origen, instrumento, lluvia_mm::float AS lluvia_mm
+        SELECT dia, origen, nombre, tipo_origen, instrumento, lluvia_mm::float AS lluvia_mm,
+               mm_sospechosos::float AS mm_sospechosos
         FROM lluvia_diaria_todas
         WHERE dia > dia_pluviometrico(now()) - %s
         ORDER BY dia, origen""", (dias,))
