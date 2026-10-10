@@ -161,3 +161,16 @@ def test_davis_usa_respaldo_si_la_facultad_no_responde():
 def test_comunidad_fecha_formato_eeuu():
     assert comunidad.parsear_fecha("6/18/2026 14:05:00") == datetime(2026, 6, 18, 14, 5, tzinfo=HORA_ARG)
     assert comunidad.parsear_fecha("18/6/2026 14:05:00") == datetime(2026, 6, 18, 14, 5, tzinfo=HORA_ARG)
+
+
+def test_synop_real_la_plata_12utc():
+    # Mensaje real de La Plata Aero, 10/10/2026 12 UTC (llovizna, 3 mm en 24 h).
+    msg = ("AAXX 10124 87593 01359 81809 10118 20116 30212 40239 51007 60034 75065 886// "
+           "333 10125 20098 32010 56499 60021 88708=")
+    d = como_dict(synop.decodificar(msg, T, "omm_87593"))
+    assert d["precip_24h"] == 3.0   # sección 1: 6 003 4
+    assert d["precip_6h"] == 2.0    # sección 3: 6 002 1
+    assert d["visibilidad"] == 9000 and d["nubosidad"] == 8 and d["viento_dir"] == 180
+    assert d["viento_vel"] == pytest.approx(9 * 0.514444, abs=1e-3)  # i_w = 4: nudos
+    assert (d["temp"], d["td"], d["pres_est"], d["pnm"]) == (11.8, 11.6, 1021.2, 1023.9)
+    assert (d["tmax"], d["tmin"], d["ww"]) == (12.5, 9.8, 50)

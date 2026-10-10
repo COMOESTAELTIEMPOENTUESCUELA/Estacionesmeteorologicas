@@ -25,7 +25,8 @@ def conn():
     c = db.conectar(DSN)
     with c.cursor() as cur:
         cur.execute("DROP SCHEMA public CASCADE; CREATE SCHEMA public;")
-        cur.execute((RAIZ / "db/init/01-esquema.sql").read_text())
+        for sql in sorted((RAIZ / "db/init").glob("*.sql")):
+            cur.execute(sql.read_text())
     c.commit()
     db.sincronizar_estaciones(c, cargar_config(RAIZ / "config/estaciones.yaml")["estaciones"])
     yield c
@@ -89,3 +90,13 @@ def test_bitacora(conn):
             raise ValueError("ups")
     filas = dict(consulta(conn, "SELECT tarea, ok FROM ingesta_log"))
     assert filas == {"prueba": True, "prueba_falla": False}
+
+
+def test_lluvia_diaria_sinoptica_usa_24h_de_las_12utc(conn):
+    obs = [Obs(datetime(2026, 10, 10, 12, tzinfo=timezone.utc), "omm_87593", "precip_24h", 3.0),
+           Obs(datetime(2026, 10, 10, 6, tzinfo=timezone.utc), "omm_87593", "precip_24h", 9.9),   # otro período
+           Obs(datetime(2026, 10, 10, 12, tzinfo=timezone.utc), "omm_87593", "precip_6h", 2.0)]   # no se suma
+    db.guardar_observaciones(conn, obs, "test")
+    filas = consulta(conn, "SELECT dia::text, lluvia_mm::float, instrumento FROM lluvia_diaria_todas "
+                           "WHERE origen = 'omm_87593'")
+    assert filas == [("2026-10-10", 3.0, "pluviometro_convencional")]

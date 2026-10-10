@@ -313,7 +313,7 @@ function verSeriesDe(id) {
 // ======================================================================
 // SERIES
 // ======================================================================
-const VARIABLES_SERIE = ["temp", "hum", "td", "pnm", "pres_est", "precip", "viento_vel", "racha", "viento_dir", "rad_solar"];
+const VARIABLES_SERIE = ["temp", "hum", "td", "pnm", "pres_est", "precip", "precip_6h", "precip_24h", "viento_vel", "racha", "viento_dir", "rad_solar"];
 const seleccion = new Set();
 // Cada estación conserva su color mientras esté seleccionada: agregar o
 // quitar otras no "repinta" a las que ya estaban.
@@ -387,6 +387,7 @@ async function cargarSerie() {
   const dias = $("#f-periodo").value;
   const ids = [...seleccion];
   const qs = new URLSearchParams({ variable, dias });
+  if (variable.startsWith("precip_")) qs.set("paso", "crudo");
   ids.forEach((id) => qs.append("estacion", id));
   $("#f-csv").href = `/api/series?${qs}&formato=csv`;
   if (!ids.length) { if (grafico) grafico.destroy(); grafico = null; $("#nota-serie").textContent = "Elegí al menos una estación."; return; }
@@ -397,12 +398,19 @@ async function cargarSerie() {
   catch (err) { $("#nota-serie").textContent = "Error: " + err.message; return; }
 
   const esLluvia = variable === "precip";
+  // precip_6h, precip_24h...: cada valor es el total de un período fijo (sinópticas).
+  // Se dibujan como puntos sueltos: unirlos o acumularlos sería sumar períodos superpuestos.
+  const esPeriodo = variable.startsWith("precip_");
   const esDireccion = variable === "viento_dir";
+  const soloPuntos = esDireccion || esPeriodo;
   const nombreDe = (id) => (ESTACIONES.find((e) => e.id === id) || {}).nombre || id;
   const pasoTxt = { crudo: "cada dato tal cual llegó", hora: "promedios horarios", dia: "promedios diarios" }[d.paso];
   const sinDatos = d.series.filter((s) => !s.puntos.length).map((s) => nombreDe(s.estacion));
+  const sinopticas = ids.filter((id) => (ESTACIONES.find((e) => e.id === id) || {}).tipo === "sinoptica");
   $("#nota-serie").textContent =
     (esLluvia ? "Lluvia ACUMULADA desde el comienzo del período. " : "") +
+    (esLluvia && sinopticas.length ? "Las sinópticas informan la lluvia por períodos fijos: elegí «Precipitación 6 h» o «24 h» para verlas. " : "") +
+    (esPeriodo ? "Cada punto es el total del período que TERMINA en ese horario (la de 24 h de las 9 hs es el día pluviométrico). " : "") +
     `Resolución: ${esLluvia && d.paso !== "crudo" ? "sumas " + (d.paso === "hora" ? "horarias" : "diarias") : pasoTxt}. ` +
     (sinDatos.length ? `Sin datos en el período: ${sinDatos.join(", ")}.` : "");
 
@@ -411,11 +419,11 @@ async function cargarSerie() {
     if (esLluvia) { let acum = 0; pts = pts.map((p) => ({ x: p.x, y: +(acum += p.y).toFixed(2) })); }
     const color = css(`--s${colorDe.get(s.estacion)}`);
     return {
-      label: nombreDe(s.estacion), data: esDireccion ? pts : conHuecos(pts),
+      label: nombreDe(s.estacion), data: soloPuntos ? pts : conHuecos(pts),
       borderColor: color, backgroundColor: color, borderWidth: 2,
-      pointRadius: esDireccion ? 2.5 : 0, pointHoverRadius: 5,
+      pointRadius: esDireccion ? 2.5 : esPeriodo ? 4 : 0, pointHoverRadius: 6,
       pointHoverBorderColor: css("--superficie"), pointHoverBorderWidth: 2,
-      showLine: !esDireccion, spanGaps: false, tension: 0,
+      showLine: !soloPuntos, spanGaps: false, tension: 0,
     };
   });
 
