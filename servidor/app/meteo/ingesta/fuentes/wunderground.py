@@ -23,22 +23,21 @@ def precip_por_intervalo(acumulados, lecturas_para_confirmar=3):
     """[(ts, acumulado_del_día)] ordenados -> [(ts, lluvia_del_intervalo, qc)].
 
     Técnica del MÁXIMO ACUMULADO: solo cuenta como lluvia nueva lo que supera
-    el máximo acumulado visto hasta ese momento del día.
+    el máximo acumulado visto hasta ese momento del día. Así el total del día
+    es el mayor acumulado que informó la estación, que es lo que muestra
+    Wunderground en su propio resumen diario.
 
-    Por qué: algunas consolas (visto en Los Talas y ES7, 08/10/2026) mandan un
-    "0" suelto en medio de una tormenta y en la lectura siguiente vuelven al
-    acumulado real (20 -> 0 -> 20,5). Restando lecturas consecutivas, ese 0
-    hacía contar de nuevo los 20 mm: daba 259 mm donde las vecinas midieron 23.
-    Con el máximo acumulado, el total del día nunca supera el mayor acumulado
-    que informó la estación.
+    Fallas reales del contador que esto resuelve (Los Talas y ES7, oct/2026):
+    - Bajadas de un vuelco: 9,40 -> 8,89 y se queda ahí dos horas. Es ruido
+      del contador, no un reinicio: se ignora.
+    - Un "0" suelto en medio de la tormenta (20 -> 0 -> 20,5): se ignora.
+    - El acumulado sube y vuelve a 0 enseguida (0 -> 0,25 -> 0): no se sabe si
+      fue un vuelco real o un pulso falso: queda marcado como sospechoso.
 
-    - Una bajada que se mantiene `lecturas_para_confirmar` lecturas seguidas (o
-      que pasa cerca de la medianoche) es un reinicio real: se empieza a contar
-      de nuevo desde ahí.
-    - Una bajada que no se mantiene es una falla del contador: se ignora.
-    - Si en el día hubo alguna bajada fuera de la medianoche, el contador fue
-      inestable: TODA la lluvia de ese día queda marcada como sospechosa
-      (qc = 3). Se guarda igual; el análisis decide si la usa.
+    Reinicio real = el acumulado cae a casi 0 (<= 0,3 mm o < 5 % del máximo)
+    y se queda abajo `lecturas_para_confirmar` lecturas, o pasa a medianoche.
+    Si hubo una caída a casi 0 fuera de la medianoche, el contador se comportó
+    raro ese día: toda su lluvia queda con qc = 3 (se guarda igual).
     """
     datos = [(ts, a) for ts, a in acumulados if a is not None]
     salida = []
@@ -55,15 +54,16 @@ def precip_por_intervalo(acumulados, lecturas_para_confirmar=3):
             salida.append((ts, 0.0))
             continue
         if acum < maximo - 1e-9:
-            siguientes = [a for _, a in datos[i + 1:i + 1 + lecturas_para_confirmar]]
-            reinicio = cerca_medianoche or all(a < maximo - 1e-9 for a in siguientes)
-            if not cerca_medianoche:
+            casi_cero = acum <= max(0.3, 0.05 * maximo)
+            if casi_cero and not cerca_medianoche:
                 inestable = True
+            siguientes = [a for _, a in datos[i + 1:i + 1 + lecturas_para_confirmar]]
+            reinicio = casi_cero and (cerca_medianoche or all(a < maximo - 1e-9 for a in siguientes))
             if reinicio:
                 maximo = acum
                 salida.append((ts, round(acum, 2)))   # lo que llovió desde el reinicio
             else:
-                salida.append((ts, 0.0))              # falla pasajera: se ignora
+                salida.append((ts, 0.0))              # ruido del contador: se ignora
             continue
         salida.append((ts, round(acum - maximo, 2)))
         maximo = acum

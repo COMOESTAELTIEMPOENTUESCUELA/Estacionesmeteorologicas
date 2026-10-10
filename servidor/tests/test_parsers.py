@@ -103,6 +103,35 @@ def test_wunderground_lluvia_normal():
     assert all(q == 0 for _, _, q in res)
 
 
+# Serie REAL de Los Talas (IBERIS14), 07/10/2026: hora local -> acumulado del día (mm).
+LOS_TALAS_07_10 = [
+    ("00:04", 0.0), ("14:09", 0.25), ("14:24", 1.27), ("14:29", 1.02), ("14:34", 1.52), ("14:39", 2.54),
+    ("14:44", 3.3), ("14:49", 3.81), ("14:54", 4.57), ("15:04", 5.59), ("15:09", 6.1), ("15:14", 6.35),
+    ("15:19", 6.6), ("15:24", 7.37), ("15:34", 8.38), ("15:39", 7.87), ("15:49", 8.38), ("15:59", 8.89),
+    ("16:04", 9.4), ("16:09", 8.89), ("16:14", 8.89), ("17:00", 8.89), ("18:00", 8.89), ("18:14", 9.4),
+    ("18:19", 9.91), ("18:24", 10.41), ("18:29", 11.18), ("18:34", 13.46), ("18:39", 15.75), ("18:44", 18.54),
+    ("18:49", 20.57), ("18:54", 20.83), ("18:59", 22.61), ("19:04", 23.88), ("19:09", 24.89), ("19:19", 26.92),
+    ("19:24", 27.69), ("19:29", 28.19), ("19:33", 28.7), ("19:39", 29.72), ("19:44", 30.48), ("19:49", 30.99),
+    ("19:54", 31.5), ("19:59", 32.51), ("20:04", 32.26), ("20:09", 33.27), ("20:14", 33.78), ("20:19", 34.54),
+    ("20:24", 35.56), ("20:29", 37.08), ("20:34", 37.59), ("20:39", 39.88), ("20:43", 39.37), ("20:49", 40.64),
+    ("20:54", 41.4), ("20:59", 40.89), ("21:04", 41.4), ("21:14", 42.42), ("21:23", 41.91), ("21:29", 42.42),
+    ("21:34", 41.91), ("22:00", 41.91), ("23:00", 41.91), ("23:55", 41.91),
+]
+
+
+def test_wunderground_serie_real_los_talas_07_10():
+    lecturas = []
+    for hhmm, acum in LOS_TALAS_07_10:
+        hh, mm = (int(x) for x in hhmm.split(":"))
+        lecturas.append((datetime(2026, 10, 7, hh, mm, tzinfo=HORA_ARG), acum))
+    res = wunderground.precip_por_intervalo(lecturas)
+    # El total es el máximo del día; las bajaditas de un vuelco (9,40 -> 8,89 que
+    # se mantiene 2 h; 42,42 -> 41,91 al final) NO se cuentan como reinicios.
+    assert round(sum(v for _, v, _ in res), 2) == 42.42
+    assert max(v for _, v, _ in res) < 3.0                # ningún "salto" imposible
+    assert all(q == 0 for _, _, q in res)                 # el ruido de un vuelco no es sospechoso
+
+
 def test_wunderground_cero_suelto_en_medio_de_la_tormenta_no_duplica():
     # Patrón que daba 259 mm en Los Talas el 08/10: un 0 suelto y vuelta al acumulado.
     t0 = datetime(2026, 10, 8, 15, 0, tzinfo=timezone.utc)
