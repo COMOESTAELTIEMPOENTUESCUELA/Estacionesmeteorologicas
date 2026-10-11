@@ -314,6 +314,11 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
 const TZ = "America/Argentina/Buenos_Aires";
 const fmtHora = new Intl.DateTimeFormat("es-AR", { timeZone: TZ, day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 const fmtDia = new Intl.DateTimeFormat("es-AR", { timeZone: TZ, day: "2-digit", month: "2-digit" });
+// Las observaciones sinópticas se nombran por su hora UTC (la de Ogimet y la
+// de los mapas): la mostramos al lado de la hora argentina (UTC-3).
+const fmtUTC = new Intl.DateTimeFormat("es-AR", { timeZone: "UTC", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+const horaUTC = (d) => fmtUTC.format(d).replace(/:00$/, "") + " UTC";
+const fmtHoraDoble = (d) => `${fmtHora.format(d)} (${horaUTC(d)})`;
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -642,7 +647,7 @@ function dibujarGrafico(datasets, tituloY, esDireccion) {
           backgroundColor: css("--superficie"), titleColor: css("--tinta"), bodyColor: css("--tinta"),
           borderColor: css("--eje"), borderWidth: 1, padding: 10, usePointStyle: true,
           callbacks: {
-            title: (items) => items.length ? fmtHora.format(new Date(items[0].parsed.x)) : "",
+            title: (items) => items.length ? fmtHoraDoble(new Date(items[0].parsed.x)) : "",
             label: (it) => ` ${it.dataset.label}: ${it.parsed.y}`,
           },
         },
@@ -708,7 +713,7 @@ function panel(canvas, datasets, { unidad, tipo = "line", xmin, xmax, min, max, 
           backgroundColor: css("--superficie"), titleColor: css("--tinta"), bodyColor: css("--tinta"),
           borderColor: css("--eje"), borderWidth: 1, padding: 8, usePointStyle: true,
           callbacks: {
-            title: (items) => items.length ? fmtHora.format(new Date(items[0].parsed.x)) : "",
+            title: (items) => items.length ? fmtHoraDoble(new Date(items[0].parsed.x)) : "",
             label: (it) => ` ${it.dataset.label}: ${it.parsed.y} ${unidad || ""}`,
           },
         },
@@ -1031,7 +1036,7 @@ async function cargarSmn() {
   $("#smn-rosa-cont").hidden = pares.length < 6;
   if (pares.length >= 6) rosaVientos($("#smn-rosa"), pares);
 
-  $("#tabla-obs").innerHTML = `<tr><th>Hora</th><th>Tiempo presente</th><th class="num">Nubes</th><th class="num">Temp. °C</th>
+  $("#tabla-obs").innerHTML = `<tr><th title="Hora argentina (UTC−3). Debajo, la hora UTC con la que figura en Ogimet">Hora arg.<br><span class="tenue">UTC</span></th><th>Tiempo presente</th><th class="num">Nubes</th><th class="num">Temp. °C</th>
     <th class="num">Rocío °C</th><th class="num">HR %</th><th title="Barba: el palo apunta de dónde viene el viento; media pluma = 5 nudos, pluma = 10, triángulo = 50">Viento</th><th class="num">Presión hPa</th><th class="num">Visib. km</th>
     <th class="num">Lluvia mm</th><th>Extremos °C</th></tr>` +
     (obs.length ? obs.map((o) => {
@@ -1039,7 +1044,7 @@ async function cargarSmn() {
       const texto = o.viento_vel === null ? "–" : calma ? "Calma" : `${rumbo(o.viento_dir)} ${num(o.viento_vel * 3.6, 0)} km/h`;
       const viento = barba(o.viento_dir, o.viento_vel) + texto;
       return `<tr>
-        <td title="${esc(o.mensaje || "sin mensaje crudo")}">${fmtHora.format(new Date(o.ts))}</td>
+        <td title="${esc(o.mensaje || "sin mensaje crudo")}">${fmtHora.format(new Date(o.ts))}<br><span class="tenue">${horaUTC(new Date(o.ts))}</span></td>
         <td class="ww">${o.ww === null ? '<span class="tenue">–</span>' : esc(WW[o.ww] ?? `código ${o.ww}`)}</td>
         <td class="num">${o.nubosidad === null ? "–" : o.nubosidad === 9 ? "cielo invisible" : `${o.nubosidad}/8`}</td>
         <td class="num"><b>${num(o.temp)}</b></td><td class="num">${num(o.td)}</td><td class="num">${num(o.hum, 0)}</td>
