@@ -21,10 +21,13 @@ Seguridad:
 Arranque (lo hace docker compose):
     uvicorn meteo.web.app:app --host 0.0.0.0 --port 8080
 """
+import asyncio
+import base64
 import csv
 import io
 import math
 import os
+import secrets
 from contextlib import asynccontextmanager
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -56,6 +59,40 @@ async def ciclo_de_vida(_app):
 
 
 app = FastAPI(title="Servidor meteorológico", docs_url="/api/docs", redoc_url=None, lifespan=ciclo_de_vida)
+
+
+# ---------------------------------------------------------------------------
+# Contraseña (opcional)
+# ---------------------------------------------------------------------------
+# Si en .env están WEB_USUARIO y WEB_CLAVE, toda la página y la API piden
+# usuario y contraseña ("autenticación básica" de HTTP: el navegador muestra
+# una ventanita y la recuerda). Si no están, la página queda abierta como
+# antes. Ojo: viaja cifrada solo con HTTPS (Tailscale Funnel lo tiene); por
+# http:// en la red de la casa viaja legible, pero ahí no sale de la casa.
+WEB_USUARIO = os.environ.get("WEB_USUARIO", "")
+WEB_CLAVE = os.environ.get("WEB_CLAVE", "")
+
+
+def credenciales_validas(cabecera):
+    if not cabecera.startswith("Basic "):
+        return False
+    try:
+        usuario, _, clave = base64.b64decode(cabecera[6:]).decode("utf-8").partition(":")
+    except Exception:
+        return False
+    # compare_digest tarda lo mismo acierte o no: no deja adivinar la clave
+    # midiendo cuánto tarda la respuesta.
+    return (secrets.compare_digest(usuario.encode(), WEB_USUARIO.encode())
+            & secrets.compare_digest(clave.encode(), WEB_CLAVE.encode()))
+
+
+@app.middleware("http")
+async def pedir_clave(request, siguiente):
+    if WEB_CLAVE and not credenciales_validas(request.headers.get("authorization", "")):
+        await asyncio.sleep(1)   # frena a quien prueba claves de a miles
+        return Response("Hace falta usuario y contraseña.", status_code=401,
+                        headers={"WWW-Authenticate": 'Basic realm="Servidor meteorologico", charset="UTF-8"'})
+    return await siguiente(request)
 
 
 def consultar(sql, params=()):

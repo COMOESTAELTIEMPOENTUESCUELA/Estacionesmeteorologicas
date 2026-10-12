@@ -124,3 +124,20 @@ def test_verificacion_por_publicacion(cliente):
     assert len(cliente.get("/api/verificacion", params={**q, "publicacion": "en_el_dia"}).json()["dias"]) == 1
     assert cliente.get("/api/verificacion", params={**q, "publicacion": "noche_anterior"}).json()["dias"] == []
     assert cliente.get("/api/verificacion", params={**q, "publicacion": "otra"}).status_code == 400
+
+
+def test_contrasena_opcional(cliente, monkeypatch):
+    import base64
+    from meteo.web import app as modulo
+    assert cliente.get("/api/variables").status_code == 200          # sin clave configurada: abierta
+    monkeypatch.setattr(modulo, "WEB_USUARIO", "grupo")
+    monkeypatch.setattr(modulo, "WEB_CLAVE", "ñandú-2026")
+    async def sin_espera(_segundos):
+        return None
+    monkeypatch.setattr(modulo.asyncio, "sleep", sin_espera)
+    r = cliente.get("/api/variables")
+    assert r.status_code == 401 and r.headers["www-authenticate"].startswith("Basic")
+    mal = base64.b64encode("grupo:otra".encode()).decode()
+    assert cliente.get("/", headers={"Authorization": f"Basic {mal}"}).status_code == 401
+    bien = base64.b64encode("grupo:ñandú-2026".encode()).decode()
+    assert cliente.get("/api/variables", headers={"Authorization": f"Basic {bien}"}).status_code == 200

@@ -80,3 +80,19 @@ informan aparte.
 Cuando se agrega por hora o por día, la dirección del viento se promedia en
 forma **circular** (promedio de seno y coseno): el promedio común de 350° y 10°
 daría 180° (sur) cuando los dos son vientos casi del norte.
+
+## Contraseña (opcional)
+
+Si en `.env` se completan `WEB_USUARIO` y `WEB_CLAVE`, toda la página y la
+API piden usuario y contraseña (autenticación básica de HTTP: el navegador
+muestra una ventanita y la recuerda). Si se dejan vacíos, no pide nada.
+
+```bash
+nano .env                          # completar WEB_USUARIO= y WEB_CLAVE=
+docker compose up -d web           # recrea el contenedor con la clave nueva
+```
+
+Para generar una clave: `openssl rand -base64 12`. Conviene ponerla antes de
+abrir la página al público con Tailscale Funnel: ahí viaja cifrada (HTTPS).
+Por `http://` en la red de la casa viaja legible, pero no sale de la casa.
+Cada intento fallido espera 1 segundo, para frenar a quien prueba claves.

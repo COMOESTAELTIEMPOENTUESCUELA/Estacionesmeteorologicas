@@ -66,6 +66,9 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://meteo:${DB_PASSWORD}@db:5432/meteo
+      # Si están definidos en .env, la página pide usuario y contraseña.
+      WEB_USUARIO: ${WEB_USUARIO:-}
+      WEB_CLAVE: ${WEB_CLAVE:-}
     ports:
       - "${WEB_PUERTO:-8080}:8080"
 
