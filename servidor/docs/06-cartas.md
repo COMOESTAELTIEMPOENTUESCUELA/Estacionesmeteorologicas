@@ -15,9 +15,15 @@ Configurado en `config/cartas.yaml`:
 | Transporte integrado de vapor y convergencia (`IVT_conv`) | 700 hPa | Alicia Bentley, GFS |
 | Vorticidad relativa (`rel_vort`) | 500 hPa | Alicia Bentley, GFS |
 | Tiempo significativo (observaciones, código `Sg`) | Superficie | Ogimet |
-| Precipitación acumulada (observaciones, código `R4`) | Superficie | Ogimet |
+| Precipitación acumulada (observaciones, código `R4`), solo 12 UTC | Superficie | Ogimet |
+| Temperatura máxima y mínima (observaciones, `Tx` y `Tn`), solo 12 UTC | Superficie | Ogimet |
 
 Solo se guardan **análisis** (diagnóstico), no pronósticos.
+
+Cada carta puede tener sus propias horas (`horas_utc` en el YAML): la
+precipitación de 24 h y las temperaturas extremas se informan a las 12 UTC,
+así que esos mapas solo se guardan a esa hora. En la pestaña, a otra hora,
+muestran un aviso con un botón para ir a las 12 UTC del mismo día.
 
 ## Cómo funciona
 

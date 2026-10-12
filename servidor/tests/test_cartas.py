@@ -133,3 +133,32 @@ def test_ogimet_historial_y_control_de_fecha(tmp_path, monkeypatch):
     descarga.correr_ogimet(cfg, tmp_path, Sesion(), datetime(2026, 10, 12, 0, tzinfo=UTC),
                            datetime(2026, 10, 12, 12, tzinfo=UTC))
     assert pedidos == []                                           # ya estaba todo
+
+
+def test_cada_carta_con_sus_horas(tmp_path, monkeypatch):
+    """La precipitación de 24 h y los extremos se informan a las 12 UTC: no se piden a otras horas."""
+    monkeypatch.setattr(descarga, "PAUSA_SEG", 0)
+    monkeypatch.setattr(descarga, "PAUSA_OGIMET_SEG", 0)
+    paginas = []
+
+    class Resp:
+        def __init__(self, contenido=b"", texto=""):
+            self.content, self.text = contenido, texto
+        def raise_for_status(self):
+            pass
+
+    class Sesion:
+        def get(self, url, timeout, params=None):
+            if params:
+                paginas.append(params["hora"])
+                return Resp(texto=HTML_OGIMET.replace("1200_", f"{params['hora']}00_"))
+            return Resp(PNG)
+
+    cfg = {"horas_utc": [0, 6, 12, 18], "productos": [
+        {"id": "og_sg", "fuente": "ogimet", "zona": "amersurs", "codigo": "Sg"},
+        {"id": "og_r4", "fuente": "ogimet", "zona": "amersurs", "codigo": "R4", "horas_utc": [12]}]}
+    n = descarga.correr_ogimet(cfg, tmp_path, Sesion(), datetime(2026, 10, 12, 0, tzinfo=UTC),
+                               datetime(2026, 10, 12, 18, tzinfo=UTC))
+    assert n == 5 and paginas == ["00", "06", "12", "18"]             # Sg x 4 + R4 solo a las 12
+    assert not archivo.existe(tmp_path, "og_r4", datetime(2026, 10, 12, 6, tzinfo=UTC))
+    assert archivo.existe(tmp_path, "og_r4", datetime(2026, 10, 12, 12, tzinfo=UTC))

@@ -36,7 +36,7 @@ def correr(cfg, raiz, sesion):
             r.raise_for_status()
             corridas[p["dominio"]] = bentley.leer_corrida(r.text)
         corrida = corridas[p["dominio"]]
-        for n, valida in bentley.cuadros_analisis(corrida, horas):
+        for n, valida in bentley.cuadros_analisis(corrida, tuple(p.get("horas_utc", horas))):
             if archivo.existe(raiz, p["id"], valida):
                 continue
             url = bentley.url_imagen(p["dominio"], p["variable"], n)
@@ -82,13 +82,15 @@ def _pedir_ogimet(sesion, zona, ts):
 
 def correr_ogimet(cfg, raiz, sesion, desde, hasta):
     """Mapas de Ogimet entre desde y hasta (también sirve para el historial)."""
-    horas = tuple(cfg.get("horas_utc", (0, 6, 12, 18)))
+    def horas_de(p):
+        return tuple(p.get("horas_utc", cfg.get("horas_utc", (0, 6, 12, 18))))
     productos = [p for p in cfg["productos"] if p["fuente"] == "ogimet" and p.get("activo", True)]
+    horas = tuple(sorted({h for p in productos for h in horas_de(p)}))
     nuevas = 0
     for zona in sorted({p["zona"] for p in productos}):
         de_zona = [p for p in productos if p["zona"] == zona]
         for ts in horas_sinopticas(desde, hasta, horas):
-            faltan = [p for p in de_zona if not archivo.existe(raiz, p["id"], ts)]
+            faltan = [p for p in de_zona if ts.hour in horas_de(p) and not archivo.existe(raiz, p["id"], ts)]
             if not faltan:
                 continue
             try:

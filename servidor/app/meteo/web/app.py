@@ -504,8 +504,9 @@ def _cartas_productos():
             cfg = yaml.safe_load(f) or {}
     except FileNotFoundError:
         return []
-    return [{k: p.get(k) for k in ("id", "nombre", "nivel", "fuente")} for p in cfg.get("productos", [])
-            if p.get("activo", True)]
+    horas = cfg.get("horas_utc", [0, 6, 12, 18])
+    return [{**{k: p.get(k) for k in ("id", "nombre", "nivel", "fuente")}, "horas_utc": p.get("horas_utc", horas)}
+            for p in cfg.get("productos", []) if p.get("activo", True)]
 
 
 @app.get("/api/cartas/disponibles")

@@ -134,7 +134,8 @@ th { color: var(--tinta-2); font-weight: 600; font-size: 12px; position: sticky;
 .carta { margin: 0; }
 .carta figcaption { font-size: 13px; margin-bottom: 4px; }
 .carta img { width: 100%; height: auto; display: block; border-radius: 6px; border: 1px solid var(--borde); cursor: zoom-in; background: var(--plano); }
-.carta .falta { aspect-ratio: 4 / 3; display: flex; align-items: center; justify-content: center; text-align: center; padding: 12px;
+.carta .falta.chica { aspect-ratio: auto; min-height: 90px; }
+.carta .falta { aspect-ratio: 4 / 3; display: flex; flex-direction: column; gap: 8px; align-items: center; justify-content: center; text-align: center; padding: 12px;
   border: 1px dashed var(--eje); border-radius: 6px; color: var(--tenue); font-size: 13px; }
 #c-dialogo { max-width: 96vw; max-height: 96vh; padding: 10px; border: 1px solid var(--borde); border-radius: 10px; background: var(--superficie); color: var(--tinta); }
 #c-dialogo img { max-width: 100%; max-height: 82vh; display: block; margin: 0 auto; }
@@ -571,7 +572,8 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
       <p class="ayuda" id="c-nota"></p>
       <div class="cartas-grid" id="c-grid"></div>
       <p class="ayuda" style="margin-top:12px">Cartas de diagnóstico (análisis, no pronóstico) que el servidor archiva solo, cada hora.
-        Fuente: <a href="https://www.atmos.albany.edu/student/abentley/realtime.html" target="_blank" rel="noopener">Alicia Bentley (GFS)</a>.
+        Fuentes: <a href="https://www.atmos.albany.edu/student/abentley/realtime.html" target="_blank" rel="noopener">Alicia Bentley (GFS)</a>
+        y <a href="https://www.ogimet.com/" target="_blank" rel="noopener">Ogimet</a> (observaciones; la precipitación de 24 h y las temperaturas extremas se informan a las 12 UTC).
         Flechas ← → del teclado: 6 horas antes o después. Tocá una carta para verla en grande.</p>
     </div>
     <dialog id="c-dialogo"><p id="c-dialogo-titulo" style="margin:0 0 6px"></p><img alt=""><p style="text-align:right;margin:6px 0 0"><button class="boton" id="c-cerrar">Cerrar</button></p></dialog>
@@ -1639,15 +1641,22 @@ async function cargarCartas() {
   $("#c-titulo").textContent = `${titulo.charAt(0).toUpperCase()}${titulo.slice(1)} · ${String(t.getUTCHours()).padStart(2, "0")} UTC`;
   const r = await api(`/api/cartas?ts=${encodeURIComponent(t.toISOString())}`);
   const hay = r.productos.filter((p) => p.url).length;
+  const esperadas = r.productos.filter((p) => p.horas_utc.includes(t.getUTCHours())).length;
   const claves = Object.keys(cartasDisp);
   $("#c-nota").textContent = !r.productos.length ? "No hay cartas configuradas (config/cartas.yaml)."
     : !claves.length ? "Todavía no hay cartas archivadas. El servidor las baja solo cada hora: en la primera vuelta trae los últimos 14 días."
-    : `${hay} de ${r.productos.length} cartas para esta hora (en Argentina: ${fmtHora.format(t)} hs). Archivo: del ${claves[0].slice(0, 10)} al ${claves[claves.length - 1].slice(0, 10)}.`;
+    : `${hay} de ${esperadas} cartas para esta hora (en Argentina: ${fmtHora.format(t)} hs). Archivo: del ${claves[0].slice(0, 10)} al ${claves[claves.length - 1].slice(0, 10)}.`;
   $("#c-grid").innerHTML = r.productos.map((p) => `<figure class="carta">
       <figcaption><b>${esc(p.nivel || "")}</b> · ${esc(p.nombre)}</figcaption>
       ${p.url ? `<img src="${esc(p.url)}" alt="${esc(p.nombre)}" loading="lazy" data-titulo="${esc((p.nivel ? p.nivel + " · " : "") + p.nombre)}">`
-              : '<div class="falta">No archivada para esta hora</div>'}
+        : !p.horas_utc.includes(t.getUTCHours())
+          ? `<div class="falta chica">Se informa solo a las ${p.horas_utc.map((h) => String(h).padStart(2, "0")).join(", ")} UTC.
+             <button class="boton c-ir-hora" data-hora="${p.horas_utc[0]}">Ver ${String(p.horas_utc[0]).padStart(2, "0")} UTC de este día</button></div>`
+          : '<div class="falta">No archivada para esta hora</div>'}
     </figure>`).join("");
+  document.querySelectorAll("#c-grid .c-ir-hora").forEach((b) => b.addEventListener("click", () => {
+    $("#f-c-hora").value = b.dataset.hora; cargarCartas();
+  }));
   document.querySelectorAll("#c-grid img").forEach((img) => img.addEventListener("click", () => {
     $("#c-dialogo img").src = img.src;
     $("#c-dialogo-titulo").textContent = `${$("#c-titulo").textContent} — ${img.dataset.titulo}`;

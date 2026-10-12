@@ -4,6 +4,7 @@
 # Se guardan en ARCHIVO_DIR/cartas/<producto>/<año>/<mes>/ y se ven en el
 # visualizador con un selector de fecha y hora. Ver docs/06-cartas.md.
 
+# Horas a guardar (UTC). Cada carta puede tener las suyas con "horas_utc".
 horas_utc: [0, 6, 12, 18]
 
 productos:
@@ -47,9 +48,26 @@ productos:
     fuente: ogimet
     zona: amersurs
     codigo: Sg
+  # La precipitación de 24 h y las temperaturas extremas se informan a las
+  # 12 UTC: a otras horas el mapa sale casi vacío.
   - id: ogimet_precipitacion
     nombre: "Precipitación acumulada (observaciones)"
     nivel: "Superficie"
     fuente: ogimet
     zona: amersurs
     codigo: R4
+    horas_utc: [12]
+  - id: ogimet_maxima
+    nombre: "Temperatura máxima (observaciones)"
+    nivel: "Superficie"
+    fuente: ogimet
+    zona: amersurs
+    codigo: Tx
+    horas_utc: [12]
+  - id: ogimet_minima
+    nombre: "Temperatura mínima (observaciones)"
+    nivel: "Superficie"
+    fuente: ogimet
+    zona: amersurs
+    codigo: Tn
+    horas_utc: [12]
