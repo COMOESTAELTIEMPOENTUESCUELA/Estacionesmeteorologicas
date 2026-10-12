@@ -26,6 +26,10 @@ log = logging.getLogger(__name__)
 
 # Un día cuenta como completo si hay datos en al menos 18 de sus 24 horas.
 COMPLETITUD_MINIMA = 0.75
+# Para el viento alcanza con 12 horas: varias estaciones del SMN (Bolívar,
+# Tandil, Dolores) no reportan de noche, y lo que se pronostica es sobre
+# todo el viento del día.
+COMPLETITUD_VIENTO = 0.5
 
 PERIODOS = (("madrugada", 0, 6), ("mañana", 6, 12), ("tarde", 12, 18), ("noche", 18, 24))
 
@@ -91,6 +95,14 @@ def temperaturas(lecturas, extremos, dia):
     12 UTC cubre de 21 a 09 hs: arranca 3 horas ANTES del día. Se usa solo si
     es más extremo que todas las lecturas de esas 3 horas de afuera (o sea,
     si seguro ocurrió dentro del día); si no, se descarta.
+    Si de esas horas de afuera no hay lecturas (estaciones que no reportan
+    de noche), no se puede comprobar: se usa si la mayor parte de su período
+    cae dentro del día (el de las 12 UTC del mismo día sí, 9 de 12 horas;
+    el de las 12 UTC del día siguiente no, solo 3 de 12), que es la
+    convención del SMN.
+
+    Cada extremo vale si el día tiene lecturas casi completas o si lo
+    respalda un grupo del SYNOP aceptado ("tmax_ok", "tmin_ok").
     """
     inicio, fin = limites(dia)
     del_dia = [(t, v) for t, v in lecturas if inicio <= t < fin]
@@ -100,6 +112,7 @@ def temperaturas(lecturas, extremos, dia):
     tmax_t, tmax = max(del_dia, key=lambda x: x[1])
     tmin_t, tmin = min(del_dia, key=lambda x: x[1])
     fuente = {"tmax": "lecturas", "tmin": "lecturas"}
+    con_grupo = {"tmax": False, "tmin": False}
 
     for ts, tipo, valor in extremos:
         desde = ts - timedelta(hours=HORAS_EXTREMO)
@@ -108,13 +121,15 @@ def temperaturas(lecturas, extremos, dia):
         afuera = [(t, v) for t, v in lecturas if desde <= t < inicio or fin <= t <= ts]
         horas_afuera = (max(inicio - desde, timedelta(0)) + max(ts - fin, timedelta(0))) / timedelta(hours=1)
         if horas_afuera:
-            # Hacen falta lecturas de la parte de afuera para poder decidir.
-            if len({t.replace(minute=0) for t, _ in afuera}) < 0.6 * horas_afuera:
-                continue
-            if tipo == "tmin" and not valor < min(v for _, v in afuera) - 0.05:
-                continue
-            if tipo == "tmax" and not valor > max(v for _, v in afuera) + 0.05:
-                continue
+            if len({t.replace(minute=0) for t, _ in afuera}) >= 0.6 * horas_afuera:
+                # Hay lecturas de la parte de afuera: se comprueba.
+                if tipo == "tmin" and not valor < min(v for _, v in afuera) - 0.05:
+                    continue
+                if tipo == "tmax" and not valor > max(v for _, v in afuera) + 0.05:
+                    continue
+            elif horas_afuera > HORAS_EXTREMO / 2:
+                continue   # sin lecturas para comprobar y casi todo afuera
+        con_grupo[tipo] = True
         # La hora: la de la lectura más extrema dentro de la ventana del grupo.
         dentro = [(t, v) for t, v in del_dia if desde <= t <= ts] or del_dia
         if tipo == "tmin" and valor < tmin:
@@ -134,6 +149,8 @@ def temperaturas(lecturas, extremos, dia):
         "tmin": tmin, "tmin_hora": hora_local(tmin_t),
         "tmin_periodo": periodo_de(hora_local(tmin_t)),
         "completitud": completitud, "fuente": fuente, "periodos": por_periodo,
+        "tmax_ok": completitud >= COMPLETITUD_MINIMA or con_grupo["tmax"],
+        "tmin_ok": completitud >= COMPLETITUD_MINIMA or con_grupo["tmin"],
     }
 
 
@@ -172,25 +189,36 @@ def lluvia_synop(cantidades, ww, reportes, dia):
     precipitación, o (b) alguna cantidad > 0 cuyo período cae al menos en un
     75 % dentro del día. Lo segundo evita que la lluvia de 24 h de las 9 hs
     (que es de 9 a 9) se le asigne entera a un solo día civil.
+    No hubo si no hay nada de eso y el día está cubierto: por reportes en
+    18 de las 24 horas, o por cantidades en 0 cuyos períodos tapan al menos
+    18 horas del día (las estaciones que no reportan de noche igual informan
+    la lluvia acumulada de 12 y 24 horas).
     La "traza" (inapreciable) se guarda como 0 mm: cuenta solo si el ww dice
     que hubo llovizna o lluvia.
     """
     inicio, fin = limites(dia)
     completitud = _completitud(reportes, inicio, fin)
-    if not completitud:
+    if not completitud and not cantidades:
         return None
     evidencias = []
     for t, codigo in ww:
         if inicio < t <= fin and codigo in WW_PRECIPITACION:
             evidencias.append(f"ww {codigo} a las {hora_local(t):02d} hs")
+    horas_secas = set()
     for t, horas, mm in cantidades:
         desde = t - timedelta(hours=horas)
         dentro = (min(t, fin) - max(desde, inicio)) / timedelta(hours=horas)
         if dentro >= 0.75 and mm and mm > 0:
             evidencias.append(f"{mm:g} mm en {horas} h hasta las {hora_local(t):02d} hs")
+        if mm == 0:
+            # Si no llovió en todo el período, tampoco en la parte que cae en el día.
+            h = max(desde, inicio)
+            while h < min(t, fin):
+                horas_secas.add(h)
+                h += timedelta(hours=1)
     if evidencias:
         pp = True
-    elif completitud >= COMPLETITUD_MINIMA:
+    elif completitud >= COMPLETITUD_MINIMA or len(horas_secas) >= 24 * COMPLETITUD_MINIMA:
         pp = False
     else:
         pp = None
@@ -312,10 +340,12 @@ def filas_ciudad(ciudad, defs, estaciones, dia):
     for ambito in ("urbana", "suburbana"):
         for est_id in defs.get(ambito) or []:
             t = obs(est_id).get("temp")
-            if t and t["completitud"] >= COMPLETITUD_MINIMA:
+            if t and (t["tmax_ok"] or t["tmin_ok"]):
                 detalle = {k: t[k] for k in ("completitud", "fuente", "periodos", "tmax_hora", "tmin_hora")}
-                filas.append((ciudad, dia, f"tmax_{ambito}", t["tmax"], None, est_id, detalle))
-                filas.append((ciudad, dia, f"tmin_{ambito}", t["tmin"], t["tmin_periodo"], est_id, detalle))
+                if t["tmax_ok"]:
+                    filas.append((ciudad, dia, f"tmax_{ambito}", t["tmax"], None, est_id, detalle))
+                if t["tmin_ok"]:
+                    filas.append((ciudad, dia, f"tmin_{ambito}", t["tmin"], t["tmin_periodo"], est_id, detalle))
                 break
     for est_id in defs.get("lluvia") or defs.get("urbana") or []:
         p = obs(est_id).get("pp")
@@ -324,7 +354,7 @@ def filas_ciudad(ciudad, defs, estaciones, dia):
             break
     for est_id in defs.get("viento") or defs.get("urbana") or []:
         v = obs(est_id).get("viento")
-        if v and v["completitud"] >= COMPLETITUD_MINIMA:
+        if v and v["completitud"] >= COMPLETITUD_VIENTO:
             filas.append((ciudad, dia, "viento_dir", None, v["predominante"], est_id, v))
             filas.append((ciudad, dia, "viento_int", v["max_kmh"], v["intensidad"], est_id, v))
             break

@@ -222,3 +222,27 @@ def test_publicado_la_noche_anterior_se_marca_y_se_puede_separar():
     assert all(f["plazo"] == 1 for f in filas)   # el plazo es el del bloque en los dos
     assert [f["fecha"] for f in puntajes.filtrar_publicacion(filas, "noche_anterior")] == [date(2026, 8, 15)]
     assert [f["fecha"] for f in puntajes.filtrar_publicacion(filas, "en_el_dia")] == [date(2026, 8, 14)]
+
+
+def test_estacion_que_no_reporta_de_noche():
+    # Reportes cada 3 h de 09 a 21 hs (12 a 00 UTC), como algunas del SMN.
+    manana = DIA + timedelta(days=1)
+    lect = horarias({9: 8.0, 12: 14.0, 15: 17.5, 18: 15.0, 21: 12.0})
+    ext = [(datetime(2026, 10, 13, 12, tzinfo=timezone.utc), "tmin", 5.2),    # 21-09: mínima de la madrugada
+           (datetime(2026, 10, 14, 0, tzinfo=timezone.utc), "tmax", 18.1),    # 09-21: máxima del día
+           (datetime(2026, 10, 14, 12, tzinfo=timezone.utc), "tmin", 3.0)]    # 21-09 del día siguiente: NO
+    r = ob.temperaturas(lect + horarias({9: 6.0}, manana), ext, DIA)
+    assert (r["tmax"], r["tmin"], r["tmax_ok"], r["tmin_ok"]) == (18.1, 5.2, True, True)
+    # Sin los grupos, con 5 lecturas el día no alcanza.
+    r = ob.temperaturas(lect, [], DIA)
+    assert (r["tmax_ok"], r["tmin_ok"]) == (False, False)
+
+
+def test_dia_sin_lluvia_por_cantidades_en_cero():
+    # Lluvia de 12 h a las 21 hs (09-21) y de 24 h a las 9 (09-09): en cero,
+    # y además la de 24 h de las 9 del mismo día (cubre 00-09): día seco.
+    reportes = [local(h) for h in (9, 12, 15, 18, 21)]
+    cant = [(local(9), 24, 0.0), (local(21), 12, 0.0), (local(9, DIA + timedelta(days=1)), 24, 0.0)]
+    assert ob.lluvia_synop(cant, [], reportes, DIA)["pp"] is False
+    # Solo la de 12 h (09-21): no alcanza para decir que no llovió.
+    assert ob.lluvia_synop(cant[1:2], [], reportes, DIA)["pp"] is None

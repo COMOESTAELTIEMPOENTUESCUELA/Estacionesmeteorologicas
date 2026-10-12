@@ -36,7 +36,11 @@ martes. La tabla día por día marca esos casos como "nocturna".
 | Intensidad del viento | Categoría del mayor viento medio horario. LEVES ≤ 22 km/h, MODERADOS ≤ 29, REGULARES ≤ 39, FUERTES más. Son los umbrales del equipo. | La mayor categoría nombrada ("leves a moderados" cuenta como MODERADOS) |
 
 Un día cuenta como observado solo si hay datos en al menos 18 de sus 24
-horas. Si no, no entra en la cuenta: no suma como acierto ni como error.
+horas. Hay excepciones para las estaciones del SMN que no reportan de noche
+(Bolívar, Tandil, Dolores):
+- la máxima y la mínima valen si las respalda el grupo correspondiente del SYNOP;
+- el día seco vale si las lluvias acumuladas en 0 cubren al menos 18 horas;
+- para el viento alcanza con 12 horas. Si no, no entra en la cuenta: no suma como acierto ni como error.
 
 Además de los valores del día se guarda el detalle **por período**
 (madrugada, mañana, tarde, noche) en `verif_observado.detalle`. Es la base
