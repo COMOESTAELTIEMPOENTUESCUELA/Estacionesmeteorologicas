@@ -307,3 +307,32 @@ def test_ogimet_sigue_si_falla_una_ventana(monkeypatch):
     obs, crudos = ogimet.traer(est, datetime(2026, 8, 10, tzinfo=timezone.utc), datetime(2026, 8, 24, tzinfo=timezone.utc), Sesion())
     assert len(crudos) >= 1 and any(o.variable == "temp" for o in obs)
     assert Sesion.pedidos.count("202608100000") == 2   # se reintentó la ventana que falló
+
+
+def test_thingspeak_pagina_hacia_atras(monkeypatch):
+    """ThingSpeak devuelve los registros MÁS RECIENTES del rango cuando hay
+    más que `results`: hay que pedir las páginas anteriores corriendo `end`."""
+    from datetime import datetime, timedelta, timezone
+    from meteo.ingesta.fuentes import thingspeak
+    monkeypatch.setattr(thingspeak, "MAX_RESULTADOS", 100)
+    t0 = datetime(2026, 8, 10, tzinfo=timezone.utc)
+    todos = [t0 + timedelta(minutes=5 * i) for i in range(250)]
+
+    class Resp:
+        def __init__(self, feeds):
+            self.feeds = feeds
+        def raise_for_status(self):
+            pass
+        def json(self):
+            return {"feeds": self.feeds}
+
+    class Sesion:
+        def get(self, url, params, timeout):
+            ini = datetime.fromisoformat(params["start"]).replace(tzinfo=timezone.utc)
+            fin = datetime.fromisoformat(params["end"]).replace(tzinfo=timezone.utc)
+            dentro = [t for t in todos if ini <= t <= fin][-params["results"]:]   # los más recientes
+            return Resp([{"created_at": t.strftime("%Y-%m-%dT%H:%M:%SZ"), "field1": "10"} for t in dentro])
+
+    est = {"id": "x", "config": {"canales": [{"id": "1"}], "campos": {"field1": "temp"}}}
+    obs = thingspeak.traer(est, t0, todos[-1], Sesion())
+    assert sorted({o.ts for o in obs}) == todos

@@ -43,14 +43,18 @@ def parsear_feeds(feeds, estacion_id, campos):
 
 
 def traer(estacion, desde, hasta, sesion):
+    """ThingSpeak, cuando hay más de `results` registros entre start y end,
+    devuelve los MÁS RECIENTES (no los primeros). Por eso se pagina hacia
+    ATRÁS: se corre `end` a justo antes del registro más viejo recibido,
+    hasta que una página venga incompleta (ya no hay más)."""
     cfg = estacion["config"]
     obs = []
     for canal in cfg["canales"]:
-        inicio = desde
-        while inicio < hasta:
+        fin = hasta
+        while fin > desde:
             params = {
-                "start": inicio.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
-                "end": hasta.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
+                "start": desde.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
+                "end": fin.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
                 "timezone": "UTC",
                 "results": MAX_RESULTADOS,
             }
@@ -62,7 +66,6 @@ def traer(estacion, desde, hasta, sesion):
             obs += parsear_feeds(feeds, estacion["id"], cfg["campos"])
             if len(feeds) < MAX_RESULTADOS:
                 break
-            # Llegó al tope: seguir desde el último registro recibido.
-            ultimo = datetime.fromisoformat(feeds[-1]["created_at"].replace("Z", "+00:00"))
-            inicio = ultimo + timedelta(seconds=1)
+            primero = min(datetime.fromisoformat(f["created_at"].replace("Z", "+00:00")) for f in feeds)
+            fin = primero - timedelta(seconds=1)
     return obs
