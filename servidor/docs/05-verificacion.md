@@ -170,6 +170,45 @@ error de la mínima en esos días contra el resto. En las estaciones que no
 reportan de noche (Bolívar, Tandil, Dolores) el conteo es un mínimo: una
 mínima nocturna puede no detectarse.
 
+### Etiquetas de situación
+
+Salen de los SYNOP horarios de la estación del SMN de cada ciudad (en La
+Plata, el Aero) y se guardan como elemento `etiquetas` en `verif_observado`,
+con la **evidencia** de cada una (por qué se puso) y la lista de las que no
+se pudieron evaluar por falta de datos. Código: `meteo/verificacion/etiquetas.py`
+(los umbrales están en `UMBRALES`).
+
+| Etiqueta | Criterio |
+|---|---|
+| Paso de frente frío | En 6 h: presión +3 hPa o más, temperatura −4 °C o más, y el viento pasa al cuadrante sur (SE a SW) |
+| Noche radiativa | De 21 a 07 hs: nubosidad ≤ 2 octas y viento < 2 m/s en el 70 % de las horas |
+| Viento norte (advección cálida) | 6 h o más de viento del N o NE de 3 m/s o más |
+| Sudestada | 6 h o más de viento del E o SE de 30 km/h o más |
+| Día cubierto | Nubosidad media ≥ 7 octas de 09 a 18 hs |
+| Niebla | Tiempo presente 40-49 o visibilidad < 1 km |
+| Tormenta | Tiempo presente 17, 29 o 91-99 |
+| Lluvia intensa | 20 mm o más en 24 h (reporte de las 12 UTC del día siguiente) |
+| Viento fuerte | Viento medio horario de 40 km/h o más |
+| Helada / helada agrometeorológica | Mínima ≤ 0 °C / ≤ 3 °C en el abrigo |
+| Caída fuerte de presión | −8 hPa o más en 24 h (indicador local; la ciclogénesis de verdad necesita el mapa de presión de la región) |
+| Mínima nocturna | La mínima ocurrió entre las 18 y las 24 hs |
+
+En la pestaña: el filtro **Situación** muestra todas las medidas solo para
+esos días; la tabla **Errores según la situación** compara cada situación
+con el resto de los días; y los días se pueden **ordenar por error**.
+
+### Semáforo de confiabilidad e intervalos
+
+- **Semáforo**: exploratorio (menos de 30 casos), indicativo (30 a 99),
+  robusto (100 o más). Para la lluvia cuentan los días **con lluvia**:
+  menos de 10, exploratorio; 30 o más (y 100 días), robusto.
+- **Intervalo del 90 %** por *bootstrap*: se rearma la muestra al azar 1000
+  veces (días elegidos con repetición) y se toma el rango central de los
+  resultados. Semilla fija: la misma consulta da siempre el mismo rango.
+- **Comparaciones** (una situación contra el resto, nocturnas contra el
+  resto, pronóstico contra persistencia en los mismos días): se calcula el
+  intervalo de la diferencia; si incluye el 0, "la diferencia puede ser azar".
+
 ## 4. Medidas de error
 
 **Temperatura**, con e = pronóstico − observado:

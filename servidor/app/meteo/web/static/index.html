@@ -131,6 +131,12 @@ th { color: var(--tinta-2); font-weight: 600; font-size: 12px; position: sticky;
 #tabla-obs td.ww { white-space: normal; min-width: 170px; }
 .num { text-align: right; }
 .ogimet { font-size: 11px; white-space: nowrap; color: var(--acento); }
+.nivel { font-size: 11px; white-space: nowrap; color: var(--tinta-2); }
+.nivel::before { content: "●"; margin-right: 3px; }
+.nivel.exploratorio::before { color: var(--tenue); } .nivel.indicativo::before { color: var(--demora); } .nivel.robusto::before { color: var(--ok); }
+.nivel.exploratorio { color: var(--tenue); }
+.et { font-size: 10.5px; padding: 0 6px; border-radius: 99px; border: 1px solid var(--borde); color: var(--tinta-2); white-space: nowrap; display: inline-block; margin: 1px 2px 1px 0; }
+.azar { color: var(--tenue); font-size: 11px; } .real { font-size: 11px; font-weight: 600; }
 .bien { color: var(--ok); } .mal { color: var(--caida); }
 .verif td, .verif th { vertical-align: top; }
 .verif .sub { display: block; font-size: 12px; color: var(--tenue); }
@@ -325,6 +331,9 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
             <option value="noche_anterior">La noche anterior</option>
           </select>
         </label>
+        <label>Situación
+          <select id="f-v-etiqueta"><option value="">Todos los días</option></select>
+        </label>
         <a class="boton" id="f-v-csv" href="#">Descargar CSV</a>
       </div>
       <p class="ayuda">Pronósticos de Pronóstico UNLP contra lo observado en las estaciones. El día es el día civil
@@ -332,9 +341,12 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
         Y observación completa (n = días comparados). "Plazo 1" = el día siguiente al del pronóstico (su "Día 2"), aunque se haya publicado la noche anterior.
         <b>Persistencia</b> = pronosticar "lo mismo que ayer"; la <b>destreza</b> dice cuánto menos se erra que con ella.</p>
       <p class="ayuda" id="v-nota"></p>
+      <p class="ayuda">Confiabilidad de cada resultado: <span class="nivel exploratorio">exploratorio</span> (menos de 30 días: orientativo, para mirar casos)
+        · <span class="nivel indicativo">indicativo</span> (30 a 99: tendencias, con cautela) · <span class="nivel robusto">robusto</span> (100 o más).
+        Entre paréntesis, el rango donde muy probablemente está el valor real (intervalo del 90 %).</p>
 
       <div class="panel-titulo">Temperatura <span class="tenue">(error en °C; sesgo + = se pronosticó de más)</span></div>
-      <div class="tabla-scroll"><table class="verif" id="v-temp"></table></div>
+      <div class="tabla-scroll" style="max-height:none"><table class="verif" id="v-temp"></table></div>
 
       <div class="panel-titulo" style="margin-top:16px">Mínimas nocturnas
         <span class="tenue">(días en que la mínima ocurrió entre las 18 y las 24 hs, por ejemplo después de un frente frío)</span></div>
@@ -342,11 +354,11 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
 
       <div class="panel-titulo" style="margin-top:16px">Precipitación: día con / sin precipitación
         <span class="tenue">(se pronostica "sí" si algún período tiene lluvias, lloviznas, tormentas...)</span></div>
-      <div class="tabla-scroll"><table class="verif" id="v-pp"></table></div>
+      <div class="tabla-scroll" style="max-height:none"><table class="verif" id="v-pp"></table></div>
 
       <div class="panel-titulo" style="margin-top:16px">Viento en todo el día
         <span class="tenue">(dirección: acierta si la predominante observada está entre las pronosticadas)</span></div>
-      <div class="tabla-scroll"><table class="verif" id="v-viento"></table></div>
+      <div class="tabla-scroll" style="max-height:none"><table class="verif" id="v-viento"></table></div>
 
       <p class="ayuda" style="margin-top:12px">¿Qué significa cada medida y cómo se calcula todo? Ver <a href="#v-como">Cómo funciona esta verificación</a>, al final de la pestaña.</p>
     </div>
@@ -368,9 +380,21 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
           </select>
         </label>
       </div>
-      <div class="panel-titulo">Máxima y mínima: pronosticada (puntos) y observada (línea)</div>
+      <div class="panel-titulo">Errores según la situación <span class="tenue">(plazo y temperatura elegidos arriba; tocá una fila para ver solo esos días)</span></div>
+      <div class="tabla-scroll" style="max-height:none"><table class="verif" id="v-situaciones"></table></div>
+      <div class="panel-titulo" style="margin-top:14px">Máxima y mínima: pronosticada (puntos) y observada (línea)</div>
       <div class="panel" style="height:260px"><canvas id="v-grafico"></canvas></div>
-      <div class="panel-titulo" style="margin-top:12px">Día por día <span class="tenue">(pasá el mouse por un valor observado para ver de qué estación es)</span></div>
+      <div class="filtros" style="margin-top:12px">
+        <label>Ordenar los días por
+          <select id="f-v-orden">
+            <option value="fecha">Fecha (más reciente primero)</option>
+            <option value="tmax">Mayor error de máxima</option>
+            <option value="tmin">Mayor error de mínima</option>
+            <option value="pp">Fallos de precipitación primero</option>
+          </select>
+        </label>
+      </div>
+      <div class="panel-titulo">Día por día <span class="tenue">(pasá el mouse por un valor observado para ver de qué estación es, o por una etiqueta para ver por qué se puso)</span></div>
       <div class="tabla-scroll" style="max-height:480px"><table class="verif" id="v-dias"></table></div>
     </div>
 
@@ -444,6 +468,43 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
       </details>
 
       <details>
+        <summary><b>Etiquetas de situación: qué tipo de día fue</b></summary>
+        <p>Salen de los SYNOP horarios de la estación del SMN de cada ciudad (en La Plata, el Aero). Un día puede tener varias.
+          Pasando el mouse por una etiqueta en la tabla día por día se ve la <b>evidencia</b> (por qué se puso), para controlarla con el link a Ogimet.
+          Si faltan datos para evaluar una etiqueta (por ejemplo la noche radiativa en una estación que no reporta de noche), se marca como "no evaluada":
+          no es lo mismo "no pasó" que "no se sabe".</p>
+        <div class="tabla-scroll"><table>
+          <tr><th>Etiqueta</th><th>Criterio</th><th>Por qué importa</th></tr>
+          <tr><td>Paso de frente frío</td><td>En 6 h: la presión sube 3 hPa o más, la temperatura baja 4 °C o más y el viento pasa al cuadrante sur (SE a SW)</td><td>Errores de máxima, de mínima (nocturna) y de lluvia</td></tr>
+          <tr><td>Noche radiativa</td><td>De 21 a 07 hs: nubosidad de 2 octas o menos y viento menor a 2 m/s en el 70 % de las horas</td><td>La mínima suele bajar más de lo esperado</td></tr>
+          <tr><td>Viento norte (advección cálida)</td><td>6 horas o más con viento del N o NE de 3 m/s o más</td><td>La máxima suele quedar corta</td></tr>
+          <tr><td>Sudestada</td><td>6 horas o más con viento del E o SE de 30 km/h o más</td><td>Sobre todo La Plata y Mar del Plata</td></tr>
+          <tr><td>Día cubierto</td><td>Nubosidad media de 7 octas o más entre las 09 y las 18 hs</td><td>La máxima no sube lo esperado</td></tr>
+          <tr><td>Niebla</td><td>Tiempo presente 40 a 49, o visibilidad menor a 1 km</td><td>Se pronostica aparte</td></tr>
+          <tr><td>Tormenta</td><td>Tiempo presente 17, 29 o 91 a 99</td><td>Lluvia localizada, difícil de acertar</td></tr>
+          <tr><td>Lluvia intensa</td><td>20 mm o más en 24 h (reporte de las 9 del día siguiente)</td><td>Separa los eventos de la lluvia débil</td></tr>
+          <tr><td>Viento fuerte</td><td>Viento medio horario de 40 km/h o más</td><td>Categoría FUERTES</td></tr>
+          <tr><td>Helada / helada agrometeorológica</td><td>Mínima de 0 °C o menos / de 3 °C o menos en el abrigo (a nivel del suelo suele ya helar)</td><td>Pronóstico para el agro</td></tr>
+          <tr><td>Caída fuerte de presión</td><td>La presión baja 8 hPa o más en 24 h. Indicador local: suele acompañar a una ciclogénesis cercana, pero detectarla de verdad necesita el mapa de presión de la región (etapa futura)</td><td>Situaciones de mal tiempo</td></tr>
+          <tr><td>Mínima nocturna</td><td>La mínima del día ocurrió entre las 18 y las 24 hs</td><td>El pronóstico suele dar la de la madrugada</td></tr>
+        </table></div>
+      </details>
+
+      <details>
+        <summary><b>Semáforo de confiabilidad e intervalos de confianza</b></summary>
+        <p>Un número sin su incertidumbre engaña: "MAE 1,8°" con 8 días no vale lo mismo que con 300. Por eso cada resultado lleva:</p>
+        <ul>
+          <li><b>El semáforo</b>, según cuántos casos hay: <span class="nivel exploratorio">exploratorio</span> (menos de 30: sirve para mirar casos, no para concluir),
+            <span class="nivel indicativo">indicativo</span> (30 a 99: tendencias, con cautela), <span class="nivel robusto">robusto</span> (100 o más).
+            Para la lluvia cuentan los <b>días con lluvia</b>, no todos los días: con 60 días y 5 de lluvia, el HSS se apoya en 5 casos (menos de 10 = exploratorio; 30 o más = robusto).</li>
+          <li><b>El intervalo</b> entre paréntesis, calculado con <i>bootstrap</i>: se rearma la muestra al azar 1000 veces (eligiendo días con repetición) y se mira cuánto varía el resultado.
+            "MAE 1,8° (1,5 a 2,2)" quiere decir que el valor real está, muy probablemente (90 %), en ese rango. Con pocos días el rango es ancho.</li>
+          <li><b>Las comparaciones</b> (días con una situación contra el resto, mínimas nocturnas contra el resto, pronóstico contra persistencia) dicen
+            <span class="real">diferencia real</span> o <span class="azar">la diferencia puede ser azar</span>: si el intervalo de la diferencia incluye el 0, con estos datos no se puede afirmar que exista.</li>
+        </ul>
+      </details>
+
+      <details>
         <summary><b>Problemas que fueron surgiendo y cómo se resolvieron</b></summary>
         <p class="ayuda">En orden de aparición. Cada uno quedó con un test automático que lo reproduce, para que no vuelva a pasar.</p>
         <div class="tabla-scroll" style="max-height:none"><table>
@@ -457,6 +518,8 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
           <tr><td>Bolívar, Tandil y Dolores con muchos días sin dato</td><td>No reportan de noche; la regla de 18 horas los dejaba afuera</td><td>Máx. y mín. validadas con el SYNOP; día seco por lluvias acumuladas en cero; viento con 8 horas</td></tr>
           <tr><td>La Plata urbana (Campbell) con 27 de 62 días</td><td>ThingSpeak devuelve los registros <b>más recientes</b> del rango; el código suponía los primeros y cortaba</td><td>Se pide hacia atrás hasta completar. Ahora 62 de 62</td></tr>
           <tr><td>Bolívar con lluvia en 15 de 62 días</td><td>El indicador iR = 3 del SYNOP ("grupo de lluvia omitido por ser cero") no se leía</td><td>iR = 3 vale 0 mm (24 h a las 12 UTC; 6 h a las 00, 06 y 18 UTC). Ahora 60 de 62</td></tr>
+          <tr><td>La descarga de 8 años de Ogimet rebotaba</td><td>Ogimet acepta una consulta cada 20 segundos por IP; se le pedía cada 8</td><td>Pausa de 21 segundos entre pedidos y tres reintentos</td></tr>
+          <tr><td>El recálculo desde 2018 cortaba la conexión con la base</td><td>Leía 8 años de una vez: tardaba demasiado y la base corta las conexiones inactivas a los 10 minutos</td><td>Se procesa de a un mes</td></tr>
         </table></div>
         <p class="ayuda">Lección: revisar siempre la <b>cobertura</b> (cuántos días hay de cada cosa) antes de mirar los resultados.
           Varios de estos problemas no daban ningún error: solo faltaban datos en silencio.</p>
@@ -1274,6 +1337,24 @@ let verifDatos = null;
 const signo = (v, dec = 1) => v === null || v === undefined ? "–" : (v > 0 ? "+" : "") + num(v, dec);
 const pct = (v) => v === null || v === undefined ? "–" : `${Math.round(v * 100)} %`;
 
+const nivelTxt = { exploratorio: "exploratorio", indicativo: "indicativo", robusto: "robusto" };
+const nivelAyuda = { exploratorio: "Menos de 30 casos: orientativo, sirve para mirar casos, no para concluir",
+                     indicativo: "30 a 99 casos: muestra tendencias, con cautela", robusto: "100 casos o más: se pueden sacar conclusiones" };
+function chipNivel(n, extra = "") {
+  return n ? `<span class="nivel ${n}" title="${nivelAyuda[n]}${extra}">${nivelTxt[n]}</span>` : "";
+}
+const rango = (ic, dec = 1) => ic ? ` <span class="tenue">(${num(ic[0], dec)} a ${num(ic[1], dec)})</span>` : "";
+function textoComparacion(c, mejorSiPositivo = false) {
+  if (!c) return '<span class="azar">pocos casos para comparar</span>';
+  if (c.puede_ser_azar) return '<span class="azar" title="El intervalo de la diferencia incluye el 0: con estos datos no se puede afirmar que haya diferencia">la diferencia puede ser azar</span>';
+  return `<span class="real" title="El intervalo de la diferencia (${num(c.ic[0])} a ${num(c.ic[1])}) no incluye el 0">diferencia real</span>`;
+}
+function chipsEtiquetas(d) {
+  if (!d.etiquetas) return "";
+  const ev = d.etiquetas_evidencia || {};
+  return d.etiquetas.map((e) => `<span class="et" title="${esc(ev[e] || "")}">${esc((verifDatos.etiquetas_def || {})[e] || e)}</span>`).join("");
+}
+
 async function iniciarVerif() {
   const ciudades = await api("/api/verificacion/ciudades");
   $("#f-v-ciudad").innerHTML = (ciudades.length ? ciudades : ["La Plata"]).map((c) => `<option>${esc(c)}</option>`).join("");
@@ -1282,17 +1363,22 @@ async function iniciarVerif() {
   const iso = (d) => new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(d);
   $("#f-v-hasta").value = iso(ayer);
   $("#f-v-desde").value = iso(new Date(ayer.getTime() - 60 * 86400e3));
-  ["#f-v-ciudad", "#f-v-desde", "#f-v-hasta", "#f-v-version", "#f-v-publicacion"].forEach((s) => $(s).addEventListener("change", cargarVerif));
-  ["#f-v-plazo", "#f-v-ambito"].forEach((s) => $(s).addEventListener("change", dibujarVerifDias));
+  ["#f-v-ciudad", "#f-v-desde", "#f-v-hasta", "#f-v-version", "#f-v-publicacion", "#f-v-etiqueta"].forEach((s) => $(s).addEventListener("change", cargarVerif));
+  ["#f-v-plazo", "#f-v-ambito", "#f-v-orden"].forEach((s) => $(s).addEventListener("change", dibujarVerifDias));
   cargarVerif();
 }
 
 async function cargarVerif() {
   const q = new URLSearchParams({ ciudad: $("#f-v-ciudad").value, desde: $("#f-v-desde").value,
                                   hasta: $("#f-v-hasta").value, version: $("#f-v-version").value,
-                                  publicacion: $("#f-v-publicacion").value });
+                                  publicacion: $("#f-v-publicacion").value, etiqueta: $("#f-v-etiqueta").value });
   $("#f-v-csv").href = `/api/verificacion?${q}&formato=csv`;
   verifDatos = await api(`/api/verificacion?${q}`);
+  // Opciones del filtro de situación (una vez) y evidencias por día.
+  const sel = $("#f-v-etiqueta");
+  if (sel.options.length === 1) {
+    sel.insertAdjacentHTML("beforeend", Object.entries(verifDatos.etiquetas_def).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join(""));
+  }
   const r = verifDatos.resumen;
   const plazos = Object.keys(r).map(Number).filter((p) => p <= 3).sort();
   const dias = verifDatos.dias;
@@ -1301,7 +1387,10 @@ async function cargarVerif() {
     ? `${new Set(dias.map((d) => d.fecha)).size} días con pronóstico en el período, ${conObs.size} con observación. ` +
       `${new Set(dias.filter((d) => d.anticipado).map((d) => d.fecha_emision)).size} emisiones se publicaron la noche anterior ` +
       `(su plazo cuenta desde el día del pronóstico, como el resto; la antelación real es un día más).`
-    : "No hay pronósticos guardados en ese período. El servidor junta las emisiones desde que se puso en marcha; el historial anterior se puede importar de la hoja del equipo.";
+    : "No hay pronósticos guardados en ese período (o ningún día con esa situación). El servidor junta las emisiones desde que se puso en marcha; el historial anterior se puede importar de la hoja del equipo.";
+  if (verifDatos.etiqueta) {
+    $("#v-nota").insertAdjacentHTML("afterbegin", `<b>Mostrando solo los días con: ${esc(verifDatos.etiquetas_def[verifDatos.etiqueta])}.</b> `);
+  }
   const cab = `<tr><th></th>${plazos.map((p) => `<th>Plazo ${p}${p === 0 ? " <span class='tenue'>(mismo día)</span>" : ""}</th>`).join("")}</tr>`;
 
   // Temperatura
@@ -1309,11 +1398,14 @@ async function cargarVerif() {
     const celdas = plazos.map((p) => {
       const x = r[p][el];
       if (!x.n) return '<td class="tenue">–</td>';
-      const d = x.destreza;
+      const d = x.destreza, vp = x.vs_persistencia;
       const dest = d === null ? "" : ` · destreza <b class="${d >= 0 ? "bien" : "mal"}">${Math.round(d * 100)} %</b>`;
-      return `<td>MAE <b>${num(x.mae)}°</b> · sesgo ${signo(x.sesgo)}°
-        <span class="sub">RMSE ${num(x.rmse)}° · ±2°: ${x.dentro_2} % · n ${x.n}</span>
-        <span class="sub">persistencia: MAE ${x.persistencia.n ? num(x.persistencia.mae) + "°" : "–"}${dest}</span></td>`;
+      const vsP = !vp ? "" : vp.puede_ser_azar
+        ? ' <span class="azar" title="El intervalo de la diferencia con la persistencia incluye el 0">(no se distingue de la persistencia)</span>'
+        : vp.dif > 0 ? ' <span class="real bien">(le gana)</span>' : ' <span class="real mal">(pierde)</span>';
+      return `<td>MAE <b>${num(x.mae)}°</b>${rango(x.ic && x.ic.mae)} · sesgo ${signo(x.sesgo)}°${rango(x.ic && x.ic.sesgo)}
+        <span class="sub">${chipNivel(x.nivel)} · RMSE ${num(x.rmse)}° · ±2°: ${x.dentro_2} % · n ${x.n}</span>
+        <span class="sub">persistencia: MAE ${x.persistencia.n ? num(x.persistencia.mae) + "°" : "–"}${dest}${vsP}</span></td>`;
     }).join("");
     return `<tr><th>${ETIQUETAS_TEMP[el]}</th>${celdas}</tr>`;
   });
@@ -1322,6 +1414,7 @@ async function cargarVerif() {
   // Precipitación
   const filaPP = (titulo, f) => `<tr><th>${titulo}</th>${plazos.map((p) => `<td>${f(r[p].pp)}</td>`).join("")}</tr>`;
   $("#v-pp").innerHTML = plazos.some((p) => r[p].pp.n) ? cab + [
+    filaPP("Confiabilidad", (x) => `${chipNivel(x.nivel)} <span class="tenue">(${x.a + x.c} días con lluvia)</span>`),
     filaPP("Días comparados", (x) => x.n),
     filaPP("Aciertos (llovió y se anunció)", (x) => x.a),
     filaPP("Falsas alarmas", (x) => x.b),
@@ -1330,14 +1423,14 @@ async function cargarVerif() {
     filaPP("% de días acertados", (x) => pct(x.pc)),
     filaPP("POD · FAR", (x) => `${num(x.pod, 2)} · ${num(x.far, 2)}`),
     filaPP("CSI · BIAS", (x) => `${num(x.csi, 2)} · ${num(x.bias, 2)}`),
-    filaPP("HSS", (x) => `<b>${num(x.hss, 2)}</b>`),
+    filaPP("HSS", (x) => `<b>${num(x.hss, 2)}</b>${rango(x.ic_hss, 2)}`),
     filaPP("Persistencia: % acertados · HSS", (x) => x.persistencia.n
       ? `${pct(x.persistencia.pc)} · ${num(x.persistencia.hss, 2)}` : "–"),
   ].join("") : '<tr><td class="tenue">Sin días comparables.</td></tr>';
 
   // Viento
   const filaV = (titulo, f) => `<tr><th>${titulo}</th>${plazos.map((p) => `<td>${f(r[p])}</td>`).join("")}</tr>`;
-  const conN = (x) => x.n ? `<b>${x.pct} %</b> <span class="tenue">(n ${x.n})</span>` : "–";
+  const conN = (x) => x.n ? `<b>${x.pct} %</b> <span class="tenue">(n ${x.n})</span> ${chipNivel(x.nivel)}` : "–";
   $("#v-viento").innerHTML = plazos.some((p) => r[p].viento_dir.n || r[p].viento_int.n) ? cab + [
     filaV("Dirección: acierto", (x) => conN(x.viento_dir)),
     filaV("Dirección: persistencia", (x) => conN(x.viento_dir.persistencia)),
@@ -1348,6 +1441,39 @@ async function cargarVerif() {
 
   dibujarNocturnas();
   dibujarVerifDias();
+}
+
+function ordenarDias(dias, amb) {
+  const orden = $("#f-v-orden").value;
+  const err = (o) => (o.pron === null || o.obs === null) ? -1 : Math.abs(o.pron - o.obs);
+  const fallo = (d) => d.pp.obs === null ? -1 : d.pp.pron === d.pp.obs ? 0 : 1;
+  const copia = dias.slice();
+  if (orden === "tmax") return copia.sort((a, b) => err(b[`tmax_${amb}`]) - err(a[`tmax_${amb}`]));
+  if (orden === "tmin") return copia.sort((a, b) => err(b[`tmin_${amb}`]) - err(a[`tmin_${amb}`]));
+  if (orden === "pp") return copia.sort((a, b) => fallo(b) - fallo(a) || (a.fecha < b.fecha ? 1 : -1));
+  return copia.reverse();
+}
+
+function dibujarSituaciones(plazo, amb) {
+  const sit = verifDatos.situaciones || {};
+  const def = verifDatos.etiquetas_def || {};
+  const filas = Object.entries(sit).filter(([, pp]) => pp[plazo]).map(([et, pp]) => {
+    const r = pp[plazo];
+    const celda = (el) => {
+      const x = r[`${el}_${amb}`];
+      if (!x || !x.con.n) return "<td class='tenue'>–</td>";
+      return `<td>MAE <b>${num(x.con.mae)}°</b> <span class="tenue">vs ${num(x.sin.mae)}° el resto</span> · sesgo ${signo(x.con.sesgo)}°<br>${textoComparacion(x.comparacion)}</td>`;
+    };
+    const lluvia = r.pp.con.n ? `${r.pp.con.pct} % <span class="tenue">vs ${r.pp.sin.pct ?? "–"} %</span>` : "–";
+    return `<tr class="fila-click" data-et="${et}"><th>${esc(def[et] || et)}</th><td class="num">${r.dias}</td><td>${chipNivel(r.nivel)}</td>
+      ${celda("tmax")}${celda("tmin")}<td>${lluvia}</td></tr>`;
+  });
+  $("#v-situaciones").innerHTML = filas.length
+    ? `<tr><th>Situación</th><th class="num">Días</th><th>Confiabilidad</th><th>Máxima</th><th>Mínima</th><th>Lluvia: % de días acertados</th></tr>${filas.join("")}`
+    : '<tr><td class="tenue">Todavía no hay días etiquetados en el período (las etiquetas salen de los SYNOP de la estación de cada ciudad).</td></tr>';
+  document.querySelectorAll("#v-situaciones tr[data-et]").forEach((tr) => tr.addEventListener("click", () => {
+    $("#f-v-etiqueta").value = tr.dataset.et; cargarVerif(); window.scrollTo({ top: 0, behavior: "smooth" });
+  }));
 }
 
 function dibujarNocturnas() {
@@ -1364,7 +1490,7 @@ function dibujarNocturnas() {
     const err = plazos.map((p) => {
       const e = x.errores[p];
       const f = (k) => e[k].n ? `MAE <b>${num(e[k].mae)}°</b> · sesgo ${signo(e[k].sesgo)}° <span class="tenue">(n ${e[k].n})</span>` : "–";
-      return `<tr><th>Plazo ${p}</th><td>${f("nocturna")}</td><td>${f("resto")}</td></tr>`;
+      return `<tr><th>Plazo ${p}</th><td>${f("nocturna")} ${chipNivel(e.nivel)}</td><td>${f("resto")}</td><td>${textoComparacion(e.comparacion)}</td></tr>`;
     }).join("");
     const dias = x.nocturnas.slice().reverse().map((d) => {
       const pr = Object.entries(d.pronosticos).map(([p, v]) => `${p}: ${num(v, 0)}°`).join(" · ") || "–";
@@ -1376,7 +1502,7 @@ function dibujarNocturnas() {
     return `<p style="margin:8px 0 4px"><b>Mínima ${amb}</b>: <b>${c.noche}</b> de ${n} días (${pctN} %) con mínima nocturna.
         <span class="tenue">Madrugada (00-06): ${c.madrugada} · mañana (06-12): ${c.mañana} · tarde (12-18): ${c.tarde} · noche (18-24): ${c.noche}.
         Estación: ${esc(x.estaciones.join(", "))}.</span></p>${aviso}
-      <div class="tabla-scroll"><table class="verif"><tr><th>¿Se erra más esos días?</th><th>Días con mínima nocturna</th><th>Resto de los días</th></tr>${err}</table></div>
+      <div class="tabla-scroll"><table class="verif"><tr><th>¿Se erra más esos días?</th><th>Días con mínima nocturna</th><th>Resto de los días</th><th>¿Es real?</th></tr>${err}</table></div>
       ${dias ? `<details style="margin:6px 0 10px"><summary>Ver los ${x.nocturnas.length} días</summary>
         <div class="tabla-scroll"><table class="verif"><tr><th>Día</th><th>Mínima (nocturna)</th><th>Mín. de la madrugada <span class="tenue">(diferencia)</span></th><th>Pronosticado por plazo</th></tr>${dias}</table></div></details>` : ""}`;
   }).join("");
@@ -1386,6 +1512,7 @@ function dibujarVerifDias() {
   if (!verifDatos) return;
   const plazo = Number($("#f-v-plazo").value), amb = $("#f-v-ambito").value;
   const dias = verifDatos.dias.filter((d) => d.plazo === plazo);
+  dibujarSituaciones(plazo, amb);
   // El eje arranca en el primer día con datos (no en "desde", que puede ser antes de que existan).
   const primero = verifDatos.dias.length ? verifDatos.dias[0].fecha : verifDatos.desde;
   const x = Date.parse(`${primero > verifDatos.desde ? primero : verifDatos.desde}T12:00:00-03:00`) - 86400e3 / 2;
@@ -1409,13 +1536,13 @@ function dibujarVerifDias() {
   const sn = (v) => v === null ? "–" : v ? "sí" : "no";
   $("#v-dias").innerHTML = `<tr><th>Día</th><th>Pronosticó</th><th>Máx. pron / obs</th><th>Mín. pron / obs</th>
       <th>Precip. pron / obs</th><th>Viento pron / obs</th><th>Intensidad pron / obs</th></tr>` +
-    (dias.length ? dias.slice().reverse().map((d) => {
+    (dias.length ? ordenarDias(dias, amb).map((d) => {
       const pp = d.pp, vd = d.viento_dir, vi = d.viento_int;
       const tmin = d[`tmin_${amb}`];
       const nocturna = d.tmin_periodo.obs === "noche" ? ' <span class="chip" title="La mínima observada fue entre las 18 y las 24 hs">nocturna</span>' : "";
       return `<tr>
         <td>${fmtFecha.format(new Date(t(d)))}<br>${linksOgimet([d[`tmax_${amb}`].estacion, tmin.estacion, pp.estacion, vd.estacion], d.fecha)}</td>
-        <td>${esc(d.pronosticador || "–")}${d.anticipado ? ' <span class="chip" title="Publicado la noche anterior (' + esc(d.publicado_el) + ')">noche ant.</span>' : ""}</td>
+        <td>${esc(d.pronosticador || "–")}<br>${chipsEtiquetas(d)}${d.anticipado ? ' <span class="chip" title="Publicado la noche anterior (' + esc(d.publicado_el) + ')">noche ant.</span>' : ""}</td>
         <td class="num">${temp(d[`tmax_${amb}`])}</td>
         <td class="num">${temp(tmin)}${nocturna}</td>
         <td title="${esc(pp.tipo || "")}">${sn(pp.pron)} / ${sn(pp.obs)}${marca(pp.obs === null ? null : pp.pron === pp.obs)}</td>

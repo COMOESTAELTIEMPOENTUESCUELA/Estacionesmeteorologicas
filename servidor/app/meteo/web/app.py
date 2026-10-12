@@ -39,6 +39,7 @@ from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
 
 from ..verificacion import puntajes
+from ..verificacion.etiquetas import ETIQUETAS, UMBRALES
 
 DSN = os.environ.get("DATABASE_URL", "postgresql://meteo:meteo@db:5432/meteo")
 ESTATICOS = Path(__file__).parent / "static"
@@ -434,7 +435,8 @@ def verificacion_ciudades():
 
 @app.get("/api/verificacion")
 def verificacion(ciudad: str = "La Plata", desde: date | None = None, hasta: date | None = None,
-                 version: str = "final", publicacion: str = "todas", formato: str = "json"):
+                 version: str = "final", publicacion: str = "todas", etiqueta: str = "",
+                 formato: str = "json"):
     """Pronóstico vs. observado, día por día, y las medidas de error por
     plazo. version=final usa la última corrección de cada emisión;
     version=original, lo primero que se publicó."""
@@ -442,6 +444,8 @@ def verificacion(ciudad: str = "La Plata", desde: date | None = None, hasta: dat
         raise HTTPException(400, "version: final u original")
     if publicacion not in puntajes.PUBLICACIONES:
         raise HTTPException(400, "publicacion: todas, en_el_dia o noche_anterior")
+    if etiqueta and etiqueta not in ETIQUETAS:
+        raise HTTPException(400, f"etiqueta: una de {', '.join(ETIQUETAS)}")
     hasta = hasta or datetime.now(timezone(timedelta(hours=-3))).date() - timedelta(days=1)
     desde = desde or hasta - timedelta(days=60)
     if desde > hasta or (hasta - desde).days > 3 * 366:
@@ -462,6 +466,10 @@ def verificacion(ciudad: str = "La Plata", desde: date | None = None, hasta: dat
     filas = puntajes.armar_pares(puntajes.elegir_emisiones(dias, version), observado)
     filas = puntajes.filtrar_publicacion(filas, publicacion)
     filas.sort(key=lambda f: (f["fecha"], f["plazo"]))
+    # La tabla de situaciones se arma con TODOS los días (si no, no hay "resto"
+    # contra qué comparar); el resto de la página, con el filtro de etiqueta.
+    situaciones = puntajes.resumen_situaciones(filas)
+    filas = puntajes.filtrar_etiqueta(filas, etiqueta)
     if formato == "csv":
         planas = []
         for f in filas:
@@ -472,11 +480,14 @@ def verificacion(ciudad: str = "La Plata", desde: date | None = None, hasta: dat
             p["viento_dir_pron"] = " ".join(f["viento_dir"]["pron"])
             p["viento_dir_obs"] = f["viento_dir"]["obs"]
             p["viento_kmh_obs"] = f["viento_int"]["obs_kmh"]
+            p["etiquetas"] = " ".join(f["etiquetas"] or [])
             planas.append(p)
         return _csv(planas, f"verificacion_{ciudad}_{desde}_{hasta}")
     return {"ciudad": ciudad, "desde": desde, "hasta": hasta, "version": version, "publicacion": publicacion,
             "resumen": puntajes.resumen(filas), "dias": filas,
-            "minimas": puntajes.minimas_nocturnas(filas, observado, desde, hasta)}
+            "minimas": puntajes.minimas_nocturnas(filas, observado, desde, hasta),
+            "etiqueta": etiqueta, "situaciones": situaciones,
+            "etiquetas_def": ETIQUETAS, "umbrales": UMBRALES}
 
 
 @app.exception_handler(Exception)

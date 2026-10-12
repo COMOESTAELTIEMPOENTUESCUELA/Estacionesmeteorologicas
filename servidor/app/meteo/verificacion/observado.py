@@ -21,6 +21,7 @@ from datetime import datetime, timedelta, timezone
 from psycopg.types.json import Jsonb
 
 from ..ingesta.base import HORA_ARG
+from . import etiquetas as et
 
 log = logging.getLogger(__name__)
 
@@ -281,7 +282,8 @@ def viento(lecturas, dia):
 # Cálculo para todas las ciudades y guardado
 # ---------------------------------------------------------------------------
 VARIABLES = ("temp", "tmax", "tmin", "precip", "precip_1h", "precip_3h", "precip_6h",
-             "precip_12h", "precip_24h", "ww", "viento_vel", "viento_dir")
+             "precip_12h", "precip_24h", "ww", "viento_vel", "viento_dir",
+             "pnm", "pres_est", "nubosidad", "visibilidad")
 
 
 def _leer(conn, estaciones, inicio, fin):
@@ -313,6 +315,10 @@ def _armar(tipo, d):
         "precip": d["precip"], "cantidades": cantidades,
         "ww": [(t, int(v)) for t, v in d["ww"]], "reportes": reportes,
         "viento": [(t, v, dire.get(t)) for t, v in sorted(vel.items())],
+        # Para las etiquetas. La presión a nivel de la estación o del mar da
+        # igual para ver subidas y bajadas: se usa la que tenga más datos.
+        "presion": max(d["pres_est"], d["pnm"], key=len),
+        "nubes": d["nubosidad"], "vis": d["visibilidad"],
     }
 
 
@@ -358,6 +364,18 @@ def filas_ciudad(ciudad, defs, estaciones, dia):
             filas.append((ciudad, dia, "viento_dir", None, v["predominante"], est_id, v))
             filas.append((ciudad, dia, "viento_int", v["max_kmh"], v["intensidad"], est_id, v))
             break
+
+    # Etiquetas de situación: de la primera estación SINÓPTICA de la ciudad
+    # (tiene viento, presión, nubes y tiempo presente cada hora).
+    ids = [e for clave in ("suburbana", "viento", "lluvia", "urbana") for e in defs.get(clave) or []]
+    sinop = next((e for e in ids if e in estaciones and estaciones[e]["sinoptica"]), None)
+    if sinop:
+        o, est = obs(sinop), estaciones[sinop]
+        inicio, fin = limites(dia)
+        if any(inicio <= t < fin for t in est["reportes"]):
+            r = et.etiquetar(est, dia, temp=o.get("temp"), viento=o.get("viento"),
+                             mm_24h=et.mm_24h_synop(est["cantidades"], dia))
+            filas.append((ciudad, dia, "etiquetas", len(r["etiquetas"]), ",".join(r["etiquetas"]), sinop, r))
     return filas
 
 

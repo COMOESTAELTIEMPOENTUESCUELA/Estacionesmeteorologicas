@@ -281,3 +281,79 @@ def test_minimas_nocturnas_cuenta_lista_y_separa_errores():
     assert (dia["fecha"], dia["hora"], dia["min_madrugada"], dia["pronosticos"]) == (d1, 23, 11.0, {1: 10})
     # El pronóstico de 10° le "erró" a la nocturna (4°) pero acertó la de la madrugada: error 6 contra 1.
     assert r["errores"][1]["nocturna"]["mae"] == 6.0 and r["errores"][1]["resto"]["mae"] == 1.0
+
+
+# ---------------------------------------------------------------------------
+# Etiquetas de situación
+# ---------------------------------------------------------------------------
+def _estacion(horas, temp, pres, vel, dire, nubes=None, ww=None, dia=DIA):
+    ts = [local(h, dia) for h in horas]
+    return {"temp": list(zip(ts, temp)), "presion": list(zip(ts, pres)),
+            "viento": [(t, v, d) for t, v, d in zip(ts, vel, dire)],
+            "nubes": list(zip(ts, nubes)) if nubes else [], "vis": [], "ww": ww or [],
+            "reportes": ts, "cantidades": [], "sinoptica": True}
+
+
+def test_frente_frio():
+    from meteo.verificacion import etiquetas as et
+    horas = list(range(-3, 30))
+    temp = [20.0 if h < 15 else 20.0 - (h - 15) * 1.2 for h in horas]          # cae desde las 15
+    pres = [1008.0 if h < 15 else 1008.0 + (h - 15) * 0.8 for h in horas]      # sube desde las 15
+    dire = [0 if h < 17 else 225 for h in horas]                               # rota al SW
+    est = _estacion(horas, temp, pres, [4.0] * len(horas), [d or 360 for d in dire])
+    r = et.etiquetar(est, DIA)
+    assert "frente_frio" in r["etiquetas"] and "SW" in r["evidencias"]["frente_frio"]
+    # Mismo día sin el salto de presión: no es frente.
+    est = _estacion(horas, temp, [1008.0] * len(horas), [4.0] * len(horas), [d or 360 for d in dire])
+    assert "frente_frio" not in et.etiquetar(est, DIA)["etiquetas"]
+
+
+def test_noche_radiativa_helada_y_caida_de_presion():
+    from meteo.verificacion import etiquetas as et
+    from meteo.verificacion import observado as ob
+    ayer = DIA - timedelta(days=1)
+    horas_ayer, horas = list(range(0, 24)), list(range(0, 24))
+    est_ayer = _estacion(horas_ayer, [5.0] * 24, [1025.0] * 24, [0.5] * 24, [0] * 24, nubes=[0] * 24, dia=ayer)
+    est_hoy = _estacion(horas, [-1.0 + h * 0.3 for h in horas], [1025.0 - h * 0.5 for h in horas],
+                        [0.5] * 8 + [3.0] * 16, [0] * 8 + [90] * 16, nubes=[1] * 8 + [3] * 16)
+    est = {k: est_ayer[k] + est_hoy[k] if isinstance(est_hoy[k], list) else est_hoy[k] for k in est_hoy}
+    temp = ob.temperaturas(est["temp"], [], DIA)
+    r = et.etiquetar(est, DIA, temp=temp)
+    assert {"noche_radiativa", "helada", "helada_agro", "caida_presion"} <= set(r["etiquetas"])
+    assert "−" not in r["evidencias"]["helada"] and "-1" in r["evidencias"]["helada"]
+
+
+def test_sin_datos_de_noche_no_se_evalua():
+    from meteo.verificacion import etiquetas as et
+    horas = list(range(9, 22))            # estación que solo reporta de día (como Bolívar)
+    est = _estacion(horas, [15.0] * 13, [1015.0] * 13, [3.0] * 13, [90] * 13, nubes=[4] * 13)
+    r = et.etiquetar(est, DIA)
+    assert "noche_radiativa" in r["no_evaluadas"] and "noche_radiativa" not in r["etiquetas"]
+
+
+# ---------------------------------------------------------------------------
+# Semáforo e intervalos de confianza
+# ---------------------------------------------------------------------------
+def test_semaforo():
+    assert [puntajes.nivel(n) for n in (10, 30, 99, 100)] == ["exploratorio", "indicativo", "indicativo", "robusto"]
+    # Lluvia: cuentan los días CON lluvia.
+    assert puntajes.nivel(60, eventos=5) == "exploratorio"
+    assert puntajes.nivel(60, eventos=12) == "indicativo"
+    assert puntajes.nivel(300, eventos=40) == "robusto"
+
+
+def test_intervalos_bootstrap():
+    import random
+    random.seed(0)
+    muchos = [random.gauss(0.5, 2) for _ in range(400)]
+    pocos = muchos[:10]
+    ic_m, ic_p = puntajes.ic_errores(muchos), puntajes.ic_errores(pocos)
+    # Con más datos el intervalo es más angosto, y contiene el valor medido.
+    ancho = lambda ic: ic["mae"][1] - ic["mae"][0]
+    assert ancho(ic_m) < ancho(ic_p)
+    mae = sum(abs(e) for e in muchos) / len(muchos)
+    assert ic_m["mae"][0] <= mae <= ic_m["mae"][1]
+    assert puntajes.ic_errores([1, 2]) is None            # muy pocos casos
+    # Dos grupos iguales: la diferencia "puede ser azar"; muy distintos: no.
+    assert puntajes.ic_diferencia_mae(muchos[:200], muchos[200:])["puede_ser_azar"] is True
+    assert puntajes.ic_diferencia_mae([e + 5 for e in muchos[:200]], muchos[200:])["puede_ser_azar"] is False

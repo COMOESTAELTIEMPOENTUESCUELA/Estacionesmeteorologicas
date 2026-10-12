@@ -29,6 +29,8 @@ Para entender las medidas:
 import math
 from datetime import timedelta
 
+import numpy as np
+
 from .pronostico import INTENSIDADES, derivar
 
 TEMPERATURAS = {
@@ -81,6 +83,10 @@ def armar_pares(dias, observado):
             # un día más: se marca para poder separarlos.
             "anticipado": publicado < d["fecha_pronostico"],
             "pronosticador": d.get("publicado_por"), "es_correccion": d.get("es_correccion"),
+            # None = no hay datos para etiquetar ese día; [] = día sin nada especial.
+            "etiquetas": ((obs("etiquetas").get("detalle") or {}).get("etiquetas")
+                          if obs("etiquetas") else None),
+            "etiquetas_evidencia": (obs("etiquetas").get("detalle") or {}).get("evidencias") or {},
         }
         for el, campo in TEMPERATURAS.items():
             fila[el] = {"pron": d.get(campo), "obs": obs(el).get("valor"), "pers": obs(el, ayer).get("valor"),
@@ -102,6 +108,86 @@ def armar_pares(dias, observado):
 
 
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Confiabilidad: semáforo e intervalos de confianza
+# ---------------------------------------------------------------------------
+# Semáforo según cuántos casos hay. Para la lluvia cuentan los días CON
+# lluvia (los "eventos"): con 60 días y 5 de lluvia, el HSS se apoya en 5.
+NIVELES = ((30, 100), (10, 30))   # (días: indicativo desde, robusto desde), (eventos: ídem)
+REMUESTREOS = 1000
+CONFIANZA = 0.90
+
+
+def nivel(n, eventos=None):
+    if eventos is not None:
+        ind, rob = NIVELES[1]
+        if eventos < ind:
+            return "exploratorio"
+        return "robusto" if eventos >= rob and n >= NIVELES[0][1] else "indicativo"
+    ind, rob = NIVELES[0]
+    return "exploratorio" if n < ind else "indicativo" if n < rob else "robusto"
+
+
+def _indices(n, semilla, b=REMUESTREOS):
+    # Semilla fija: la misma consulta da siempre el mismo intervalo.
+    return np.random.default_rng(semilla).integers(0, n, size=(b, n))
+
+
+def _intervalo(valores):
+    a = (1 - CONFIANZA) / 2
+    lo, hi = np.quantile(valores, [a, 1 - a])
+    return [round(float(lo), 2), round(float(hi), 2)]
+
+
+def ic_errores(errores):
+    """Bootstrap: se rearma la muestra al azar (con repetición) muchas
+    veces y se mira cuánto varían el MAE y el sesgo. Devuelve el rango del
+    90 % central. Con menos de 5 casos no tiene sentido."""
+    e = np.asarray(errores, dtype=float)
+    if len(e) < 5:
+        return None
+    m = e[_indices(len(e), 1)]
+    return {"mae": _intervalo(np.abs(m).mean(axis=1)), "sesgo": _intervalo(m.mean(axis=1))}
+
+
+def ic_diferencia_mae(e1, e2):
+    """¿El MAE del grupo 1 es distinto del del grupo 2 (ej. noches con mínima
+    nocturna contra el resto)? Intervalo de MAE1 − MAE2: si incluye el 0,
+    la diferencia puede ser azar."""
+    a, b = np.abs(np.asarray(e1, dtype=float)), np.abs(np.asarray(e2, dtype=float))
+    if len(a) < 5 or len(b) < 5:
+        return None
+    d = a[_indices(len(a), 2)].mean(axis=1) - b[_indices(len(b), 3)].mean(axis=1)
+    lo, hi = _intervalo(d)
+    return {"dif": round(float(a.mean() - b.mean()), 2), "ic": [lo, hi], "puede_ser_azar": lo <= 0 <= hi}
+
+
+def ic_vs_persistencia(e_pron, e_pers):
+    """Mismos días (pares): ¿el pronóstico erra menos que la persistencia?
+    Intervalo de MAE_persistencia − MAE_pronóstico (positivo = gana el
+    pronóstico)."""
+    d = np.abs(np.asarray(e_pers, dtype=float)) - np.abs(np.asarray(e_pron, dtype=float))
+    if len(d) < 5:
+        return None
+    lo, hi = _intervalo(d[_indices(len(d), 4)].mean(axis=1))
+    return {"dif": round(float(d.mean()), 2), "ic": [lo, hi], "puede_ser_azar": lo <= 0 <= hi}
+
+
+def ic_hss(pares):
+    p = np.array([bool(a) for a, o in pares if a is not None and o is not None])
+    o = np.array([bool(o) for a, o in pares if a is not None and o is not None])
+    if len(p) < 5:
+        return None
+    i = _indices(len(p), 5)
+    P, O = p[i], o[i]
+    a = (P & O).sum(1); b = (P & ~O).sum(1); c = (~P & O).sum(1); d = (~P & ~O).sum(1)
+    den = (a + c) * (c + d) + (a + b) * (b + d)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        h = np.where(den > 0, 2 * (a * d - b * c) / den, np.nan)
+    h = h[~np.isnan(h)]
+    return _intervalo(h) if len(h) else None
+
+
 def continuos(pares):
     """pares: [(pronóstico, observado)] numéricos."""
     e = [p - o for p, o in pares if p is not None and o is not None]
@@ -189,11 +275,48 @@ def minimas_nocturnas(filas, observado, desde, hasta):
         errores = {}
         for p in sorted({f["plazo"] for f in filas}):
             v = [f[el] for f in filas if f["plazo"] == p and f[el]["pron"] is not None and f[el]["obs"] is not None]
+            en = [x["pron"] - x["obs"] for x in v if x["periodo"] == "noche"]
+            er = [x["pron"] - x["obs"] for x in v if x["periodo"] != "noche"]
             errores[p] = {"nocturna": continuos([(x["pron"], x["obs"]) for x in v if x["periodo"] == "noche"]),
-                          "resto": continuos([(x["pron"], x["obs"]) for x in v if x["periodo"] != "noche"])}
+                          "resto": continuos([(x["pron"], x["obs"]) for x in v if x["periodo"] != "noche"]),
+                          "nivel": nivel(len(en)), "comparacion": ic_diferencia_mae(en, er)}
         salida[ambito] = {"dias_con_dato": len(filas_obs), "periodos": conteo,
                           "estaciones": sorted({o.get("estacion_id") for _, o in filas_obs if o.get("estacion_id")}),
                           "nocturnas": dias, "errores": errores}
+    return salida
+
+
+def filtrar_etiqueta(filas, etiqueta):
+    return [f for f in filas if etiqueta in (f.get("etiquetas") or [])] if etiqueta else filas
+
+
+def resumen_situaciones(filas):
+    """Para cada etiqueta, plazo y temperatura: el error los días CON esa
+    situación contra el resto de los días etiquetados, y si la diferencia
+    puede ser azar. Más la proporción de aciertos de lluvia."""
+    from .etiquetas import ETIQUETAS
+    etiquetadas = [f for f in filas if f.get("etiquetas") is not None]
+    salida = {}
+    for et in ETIQUETAS:
+        con = [f for f in etiquetadas if et in f["etiquetas"]]
+        if not con:
+            continue
+        sin = [f for f in etiquetadas if et not in f["etiquetas"]]
+        por_plazo = {}
+        for p in sorted({f["plazo"] for f in con}):
+            cp, sp = [f for f in con if f["plazo"] == p], [f for f in sin if f["plazo"] == p]
+            r = {"dias": len(cp), "nivel": nivel(len(cp))}
+            for el in TEMPERATURAS:
+                e1 = [f[el]["pron"] - f[el]["obs"] for f in cp if f[el]["pron"] is not None and f[el]["obs"] is not None]
+                e2 = [f[el]["pron"] - f[el]["obs"] for f in sp if f[el]["pron"] is not None and f[el]["obs"] is not None]
+                if e1:
+                    r[el] = {"con": continuos([(e, 0) for e in e1]), "sin": continuos([(e, 0) for e in e2]),
+                             "comparacion": ic_diferencia_mae(e1, e2)}
+            pp1 = aciertos([(f["pp"]["pron"], f["pp"]["obs"]) for f in cp], lambda a, b: a == b)
+            pp2 = aciertos([(f["pp"]["pron"], f["pp"]["obs"]) for f in sp], lambda a, b: a == b)
+            r["pp"] = {"con": pp1, "sin": pp2}
+            por_plazo[p] = r
+        salida[et] = por_plazo
     return salida
 
 
@@ -214,16 +337,24 @@ def resumen(filas):
             mae_mismos = continuos([(x["pron"], x["obs"]) for x in igual]).get("mae")
             pron["destreza"] = destreza(mae_mismos, ref.get("mae"))
             pron["persistencia"] = ref
+            pron["nivel"] = nivel(pron["n"])
+            pron["ic"] = ic_errores([x["pron"] - x["obs"] for x in v])
+            pron["vs_persistencia"] = ic_vs_persistencia([x["pron"] - x["obs"] for x in igual],
+                                                         [x["pers"] - x["obs"] for x in igual])
             r[el] = pron
         v = [f["pp"] for f in fp]
         r["pp"] = contingencia([(x["pron"], x["obs"]) for x in v])
+        r["pp"]["nivel"] = nivel(r["pp"]["n"], eventos=r["pp"]["a"] + r["pp"]["c"])
+        r["pp"]["ic_hss"] = ic_hss([(x["pron"], x["obs"]) for x in v])
         ref = contingencia([(x["pers"], x["obs"]) for x in v if x["pron"] is not None])
         r["pp"]["persistencia"] = ref
         v = [f["viento_dir"] for f in fp if f["viento_dir"]["pron"]]
         r["viento_dir"] = aciertos([(x["pron"], x["obs"]) for x in v], dir_acierta)
+        r["viento_dir"]["nivel"] = nivel(r["viento_dir"]["n"])
         r["viento_dir"]["persistencia"] = aciertos([(x["pers"], x["obs"]) for x in v], dir_acierta)
         v = [f["viento_int"] for f in fp]
         r["viento_int"] = aciertos([(x["pron"], x["obs"]) for x in v], int_exacta)
+        r["viento_int"]["nivel"] = nivel(r["viento_int"]["n"])
         r["viento_int"]["cerca"] = aciertos([(x["pron"], x["obs"]) for x in v], int_cerca).get("pct")
         r["viento_int"]["persistencia"] = aciertos(
             [(x["pers"], x["obs"]) for x in v if x["pron"]], int_exacta)

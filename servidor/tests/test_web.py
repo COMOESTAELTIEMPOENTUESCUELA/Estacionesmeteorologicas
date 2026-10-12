@@ -141,3 +141,13 @@ def test_contrasena_opcional(cliente, monkeypatch):
     assert cliente.get("/", headers={"Authorization": f"Basic {mal}"}).status_code == 401
     bien = base64.b64encode("grupo:ñandú-2026".encode()).decode()
     assert cliente.get("/api/variables", headers={"Authorization": f"Basic {bien}"}).status_code == 200
+
+
+def test_verificacion_etiquetas_y_semaforo(cliente):
+    q = {"ciudad": "Tandil", "desde": "2026-10-01", "hasta": "2026-10-11"}
+    d = cliente.get("/api/verificacion", params=q).json()
+    assert "frente_frio" in d["etiquetas_def"] and d["umbrales"]["helada_c"] == 0
+    assert d["resumen"]["1"]["tmax_urbana"]["nivel"] == "exploratorio"     # 1 día
+    assert d["dias"][0]["etiquetas"] is not None                            # el día se etiquetó
+    assert cliente.get("/api/verificacion", params={**q, "etiqueta": "sudestada"}).json()["dias"] == []
+    assert cliente.get("/api/verificacion", params={**q, "etiqueta": "otra"}).status_code == 400
