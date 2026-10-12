@@ -72,6 +72,29 @@ respuesta vacía). No se puede rellenar el historial: el archivo empieza el
 día que se activó y se completa a diario. Una respuesta vacía no se
 reintenta (no es un rechazo por el límite: esa hora ya no está).
 
+**Los mapas son transparentes**: solo traen los valores de las estaciones.
+La geografía (costas y límites, `base=bluem`) la pone la página por debajo,
+como otra imagen. Esa imagen no cambia: el servidor busca en la página la
+que nombra la zona o la base, la baja **una vez** a
+`cartas/_fondos/ogimet_amersurs.png` y el visualizador la pone de fondo de
+cada mapa (por eso al principio se veían los recuadros sobre negro). Si
+alguna vez queda mal, se borra ese archivo y se vuelve a bajar en la
+próxima vuelta. Para ver qué arma la página:
+
+```bash
+docker compose exec ingesta python -m meteo.ingesta diagnostico-ogimet
+```
+
+## En el visualizador
+
+- **Placa** (de entrada): todas las cartas de esa hora en una pantalla, como
+  la placa del equipo. A las 00, 06 y 18 UTC no ocupan lugar las que solo
+  se informan a las 12 UTC. **Grandes**: de a dos por fila.
+- Tocando una carta se abre en grande con **zoom**: rueda del mouse o
+  pellizco, arrastrar para moverse, doble clic acerca o vuelve. **← →**
+  cambian la hora *sin perder el zoom* (sirve para seguir un sistema sobre
+  la misma zona) y **↑ ↓** pasan a la carta siguiente.
+
 ## Comandos
 
 ```bash

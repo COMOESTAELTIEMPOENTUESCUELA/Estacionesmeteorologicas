@@ -9,16 +9,27 @@ significativo, precipitación...) como imágenes TEMPORALES:
     <IMG SRC="../tmp/202610121200_amersurs_Te.png" USEMAP="#g_Te" ALT="TEMPERATURA (Celsius)">
 
 Hay que bajarlas enseguida (Ogimet las borra al rato). El nombre trae la
-fecha y hora: se controla que sea la pedida antes de guardar. Ogimet genera
-los mapas de cualquier fecha, así que se puede rellenar el historial; pero
-acepta una consulta cada 20 s (ver ingesta/fuentes/ogimet.py).
+fecha y hora: se controla que sea la pedida antes de guardar. Solo hay
+mapas del último día, y se acepta una consulta cada 20 s (ver
+ingesta/fuentes/ogimet.py).
+
+Esas imágenes son TRANSPARENTES: solo traen los valores de las estaciones.
+La geografía (costas, límites: base=bluem) la pone la página por debajo,
+como imagen de fondo aparte. Esa imagen no cambia de un día a otro: se baja
+una vez por zona y el visualizador la pone debajo de cada mapa.
 """
 import re
 from datetime import datetime, timezone
+from urllib.parse import urljoin
 
 URL_PAGINA = "https://www.ogimet.com/cgi-bin/gsynop"
 URL_TMP = "https://www.ogimet.com/tmp/"
 _IMG = re.compile(r'<IMG\s+SRC="\.\./tmp/(\d{12})_([A-Za-z0-9]+)_([A-Za-z0-9]+)\.png"[^>]*?ALT="([^"]*)"', re.I)
+
+
+# Cualquier imagen que nombre la página: src="...", background="...", url(...)
+_REF = re.compile(r'(?:src|background)\s*=\s*["\']?([^"\'\s>]+\.(?:png|jpe?g|gif))|url\(\s*["\']?([^"\')\s]+\.(?:png|jpe?g|gif))', re.I)
+_MAPA_DEL_DIA = re.compile(r"/tmp/\d{12}_", re.I)
 
 
 def parametros(zona, ts):
@@ -33,3 +44,35 @@ def imagenes(html):
         ts = datetime.strptime(fecha, "%Y%m%d%H%M").replace(tzinfo=timezone.utc)
         salida[codigo] = {"ts": ts, "url": f"{URL_TMP}{fecha}_{zona}_{codigo}.png", "alt": alt}
     return salida
+
+
+def referencias(html):
+    """Todas las imágenes que nombra la página (para el diagnóstico)."""
+    vistas = []
+    for a, b in _REF.findall(html):
+        u = a or b
+        if u not in vistas:
+            vistas.append(u)
+    return vistas
+
+
+def fondos(html, zona, base="bluem"):
+    """Direcciones de la imagen de fondo (la geografía) de esa zona: las
+    imágenes de la página que no son los mapas del día y nombran la zona o
+    la base. La primera es la más probable."""
+    salida = []
+    for u in referencias(html):
+        if _MAPA_DEL_DIA.search(u) or not re.search(f"{zona}|{base}", u, re.I):
+            continue
+        url = urljoin(URL_PAGINA, u)
+        if url not in salida:
+            salida.append(url)
+    return salida
+
+
+def es_transparente(datos):
+    """¿El PNG tiene transparencia? (canal alfa, o paleta con tRNS)"""
+    if datos[:8] != b"\x89PNG\r\n\x1a\n" or len(datos) < 26:
+        return False
+    tipo_color = datos[25]
+    return tipo_color in (4, 6) or b"tRNS" in datos[:4096]

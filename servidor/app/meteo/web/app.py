@@ -505,7 +505,7 @@ def _cartas_productos():
     except FileNotFoundError:
         return []
     horas = cfg.get("horas_utc", [0, 6, 12, 18])
-    return [{**{k: p.get(k) for k in ("id", "nombre", "nivel", "fuente")}, "horas_utc": p.get("horas_utc", horas)}
+    return [{**{k: p.get(k) for k in ("id", "nombre", "nivel", "fuente", "zona")}, "horas_utc": p.get("horas_utc", horas)}
             for p in cfg.get("productos", []) if p.get("activo", True)]
 
 
@@ -520,16 +520,21 @@ def cartas_disponibles(mes: str | None = None):
 
 @app.get("/api/cartas")
 def cartas(ts: datetime):
-    """Las cartas de una hora UTC (ej. ts=2026-10-12T12:00Z), con la dirección de cada imagen."""
+    """Las cartas de una hora UTC (ej. ts=2026-10-12T12:00Z), con la dirección
+    de cada imagen. Los mapas de Ogimet son transparentes: "fondo" es la
+    geografía que va debajo."""
     from ..cartas import archivo
     ts = (ts if ts.tzinfo else ts.replace(tzinfo=timezone.utc)).astimezone(timezone.utc)
+    raiz = Path(ARCHIVO_DIR) / "cartas"
     salida = []
     for p in _cartas_productos():
+        f = archivo.fondo(ARCHIVO_DIR, f"ogimet_{p['zona']}") if p["fuente"] == "ogimet" else None
+        p["fondo"] = "/cartas-img/" + f.relative_to(raiz).as_posix() if f else None
         url = None
         for ext in ("png", "gif", "jpg"):
             f = archivo.ruta(ARCHIVO_DIR, p["id"], ts, ext)
             if f.exists():
-                url = "/cartas-img/" + f.relative_to(Path(ARCHIVO_DIR) / "cartas").as_posix()
+                url = "/cartas-img/" + f.relative_to(raiz).as_posix()
                 break
         salida.append({**p, "url": url})
     return {"ts": ts, "productos": salida}

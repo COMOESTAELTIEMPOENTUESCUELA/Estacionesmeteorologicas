@@ -151,3 +151,25 @@ def test_verificacion_etiquetas_y_semaforo(cliente):
     assert d["dias"][0]["etiquetas"] is not None                            # el día se etiquetó
     assert cliente.get("/api/verificacion", params={**q, "etiqueta": "sudestada"}).json()["dias"] == []
     assert cliente.get("/api/verificacion", params={**q, "etiqueta": "otra"}).status_code == 400
+
+
+def test_cartas_con_fondo(cliente, tmp_path, monkeypatch):
+    """Los mapas de Ogimet llevan la geografía de fondo; los de Bentley no."""
+    from datetime import datetime, timezone
+
+    from meteo.cartas import archivo
+    from meteo.web import app as web
+    cfg = tmp_path / "cartas.yaml"
+    cfg.write_text("productos:\n"
+                   "  - {id: og_te, nombre: T, fuente: ogimet, zona: amersurs, codigo: Te}\n"
+                   "  - {id: b_rv, nombre: V, fuente: bentley, dominio: southamer, variable: rel_vort}\n")
+    monkeypatch.setattr(web, "CARTAS_CONFIG", str(cfg))
+    monkeypatch.setattr(web, "ARCHIVO_DIR", str(tmp_path))
+    png = b"\x89PNG\r\n\x1a\n" + b"0" * 50
+    ts = datetime(2026, 10, 12, 12, tzinfo=timezone.utc)
+    archivo.guardar(tmp_path, "og_te", ts, png)
+    archivo.guardar_fondo(tmp_path, "ogimet_amersurs", png)
+    p = {x["id"]: x for x in cliente.get("/api/cartas", params={"ts": "2026-10-12T12:00Z"}).json()["productos"]}
+    assert p["og_te"]["url"] == "/cartas-img/og_te/2026/10/og_te_2026101212.png"
+    assert p["og_te"]["fondo"] == "/cartas-img/_fondos/ogimet_amersurs.png"
+    assert p["b_rv"]["fondo"] is None and p["b_rv"]["url"] is None

@@ -3,6 +3,8 @@ Archivo de cartas en disco:
 
     {ARCHIVO}/cartas/<producto>/<AAAA>/<MM>/<producto>_<AAAAMMDDHH>.png
 
+    {ARCHIVO}/cartas/_fondos/<nombre>.png   (geografía de los mapas de Ogimet)
+
 Una carta por producto y hora (UTC). No hace falta base de datos: el nombre
 del archivo ya dice qué es, y el visualizador lista las carpetas.
 """
@@ -59,3 +61,28 @@ def disponibles(raiz, productos, anio_mes=None):
                 continue
             salida.setdefault(ts.isoformat().replace("+00:00", "Z"), []).append(p)
     return dict(sorted(salida.items()))
+
+
+def ruta_fondo(raiz, nombre, ext="png"):
+    return Path(raiz) / "cartas" / "_fondos" / f"{nombre}.{ext}"
+
+
+def fondo(raiz, nombre):
+    """El archivo de fondo guardado (o None)."""
+    for e in ("png", "gif", "jpg"):
+        f = ruta_fondo(raiz, nombre, e)
+        if f.exists():
+            return f
+    return None
+
+
+def guardar_fondo(raiz, nombre, datos):
+    ext = tipo_imagen(datos)
+    if not ext:
+        raise ValueError("lo descargado no es una imagen")
+    destino = ruta_fondo(raiz, nombre, ext)
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    tmp = destino.with_suffix(destino.suffix + ".tmp")
+    tmp.write_bytes(datos)
+    os.replace(tmp, destino)
+    return destino

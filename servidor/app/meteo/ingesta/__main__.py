@@ -27,6 +27,10 @@ Uso (dentro del contenedor, o con DATABASE_URL apuntando a la base):
         decodificador actual, sin pedirle nada a Ogimet. Después de mejorar
         synop.py.
 
+    python -m meteo.ingesta diagnostico-ogimet
+        Mira cómo arma Ogimet sus mapas de superficie (qué imágenes trae la
+        página, si son transparentes, cuál es el fondo con la geografía).
+
     python -m meteo.ingesta estaciones
         Copia estaciones.yaml a la base (también se hace al iniciar el servicio).
 """
@@ -46,7 +50,8 @@ def fecha_utc(s):
 
 def main():
     ap = argparse.ArgumentParser(prog="python -m meteo.ingesta")
-    ap.add_argument("comando", choices=["servicio", "una", "historico", "estaciones", "importar-hoja", "reprocesar-synop"])
+    ap.add_argument("comando", choices=["servicio", "una", "historico", "estaciones", "importar-hoja", "reprocesar-synop",
+                                         "diagnostico-ogimet"])
     ap.add_argument("tarea", nargs="?")
     ap.add_argument("--config", default=os.environ.get("ESTACIONES_CONFIG", "/config/estaciones.yaml"))
     ap.add_argument("--desde", type=fecha_utc)
@@ -62,6 +67,10 @@ def main():
     ing = Ingesta(cfg, conn)
     ids = set(args.estaciones.split(",")) if args.estaciones else None
 
+    if args.comando == "diagnostico-ogimet":
+        from ..cartas import descarga
+        print("\n".join(descarga.diagnostico(os.environ.get("ARCHIVO_DIR", "/archivo"), ing.sesion)))
+        return
     if args.comando == "importar-hoja":
         import sys
         from .fuentes import hoja_verificacion

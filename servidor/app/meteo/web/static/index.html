@@ -131,14 +131,27 @@ th { color: var(--tinta-2); font-weight: 600; font-size: 12px; position: sticky;
 #tabla-obs td.ww { white-space: normal; min-width: 170px; }
 .num { text-align: right; }
 .cartas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(480px, 100%), 1fr)); gap: 14px; }
+/* Placa: todas las cartas de la hora en una pantalla, como la placa del equipo */
+.cartas-grid.placa { grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 8px; }
+.cartas-grid.placa .carta figcaption { font-size: 12px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .carta { margin: 0; }
 .carta figcaption { font-size: 13px; margin-bottom: 4px; }
 .carta img { width: 100%; height: auto; display: block; border-radius: 6px; border: 1px solid var(--borde); cursor: zoom-in; background: var(--plano); }
+/* Mapas de Ogimet: la imagen es transparente y la geografía va de fondo */
+img.con-fondo { background-color: #fff !important; background-size: 100% 100%; background-repeat: no-repeat; }
 .carta .falta.chica { aspect-ratio: auto; min-height: 90px; }
 .carta .falta { aspect-ratio: 4 / 3; display: flex; flex-direction: column; gap: 8px; align-items: center; justify-content: center; text-align: center; padding: 12px;
   border: 1px dashed var(--eje); border-radius: 6px; color: var(--tenue); font-size: 13px; }
-#c-dialogo { max-width: 96vw; max-height: 96vh; padding: 10px; border: 1px solid var(--borde); border-radius: 10px; background: var(--superficie); color: var(--tinta); }
-#c-dialogo img { max-width: 100%; max-height: 82vh; display: block; margin: 0 auto; }
+#c-dialogo { width: 96vw; height: 94vh; max-width: 96vw; max-height: 94vh; padding: 8px; border: 1px solid var(--borde); border-radius: 10px;
+  background: var(--superficie); color: var(--tinta); }
+#c-dialogo[open] { display: flex; flex-direction: column; gap: 6px; }
+#c-dialogo .barra { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+#c-dialogo .barra .boton { padding: 4px 10px; }
+#c-dialogo-titulo { margin: 0; flex: 1 1 260px; font-size: 14px; }
+#c-vista { flex: 1; min-height: 0; overflow: hidden; position: relative; display: flex; align-items: center; justify-content: center;
+  touch-action: none; cursor: grab; border-radius: 6px; background: var(--plano); }
+#c-vista.arrastrando { cursor: grabbing; }
+#c-vista img { max-width: 100%; max-height: 100%; transform-origin: 0 0; user-select: none; -webkit-user-drag: none; }
 #c-dialogo::backdrop { background: rgba(0, 0, 0, .6); }
 .ogimet { font-size: 11px; white-space: nowrap; color: var(--acento); }
 .nivel { font-size: 11px; white-space: nowrap; color: var(--tinta-2); }
@@ -567,6 +580,12 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
         <button class="boton" id="c-mas" title="6 horas después (flecha derecha)">+6 h ›</button>
         <button class="boton" id="c-mas-dia" title="Un día después">+1 día »</button>
         <button class="boton" id="c-ultima">Última</button>
+        <label>Vista
+          <select id="f-c-vista">
+            <option value="placa">Placa (todas juntas)</option>
+            <option value="grande">Grandes (de a dos)</option>
+          </select>
+        </label>
       </div>
       <h2 id="c-titulo" style="margin:4px 0 2px; font-size:20px"></h2>
       <p class="ayuda" id="c-nota"></p>
@@ -574,9 +593,24 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
       <p class="ayuda" style="margin-top:12px">Cartas de diagnóstico (análisis, no pronóstico) que el servidor archiva solo, cada hora.
         Fuentes: <a href="https://www.atmos.albany.edu/student/abentley/realtime.html" target="_blank" rel="noopener">Alicia Bentley (GFS)</a>
         y <a href="https://www.ogimet.com/" target="_blank" rel="noopener">Ogimet</a> (observaciones; la precipitación de 24 h y las temperaturas extremas se informan a las 12 UTC).
-        Flechas ← → del teclado: 6 horas antes o después. Tocá una carta para verla en grande.</p>
+        Flechas ← → del teclado: 6 horas antes o después. Tocá una carta para verla en grande:
+        ahí se hace zoom con la rueda del mouse (o pellizcando en el celular), se mueve arrastrando,
+        doble clic acerca o vuelve, y ← → cambian la hora sin perder el zoom (↑ ↓ cambian de carta).</p>
     </div>
-    <dialog id="c-dialogo"><p id="c-dialogo-titulo" style="margin:0 0 6px"></p><img alt=""><p style="text-align:right;margin:6px 0 0"><button class="boton" id="c-cerrar">Cerrar</button></p></dialog>
+    <dialog id="c-dialogo">
+      <div class="barra">
+        <p id="c-dialogo-titulo"></p>
+        <button class="boton" id="c-d-ant" title="Carta anterior (↑)">▲ Carta</button>
+        <button class="boton" id="c-d-sig" title="Carta siguiente (↓)">▼ Carta</button>
+        <button class="boton" id="c-d-menos" title="6 horas antes (←)">‹ −6 h</button>
+        <button class="boton" id="c-d-mas" title="6 horas después (→)">+6 h ›</button>
+        <button class="boton" id="c-d-alejar" title="Alejar">−</button>
+        <button class="boton" id="c-d-acercar" title="Acercar">+</button>
+        <button class="boton" id="c-d-ajustar" title="Ver entera">Entera</button>
+        <button class="boton" id="c-cerrar">Cerrar</button>
+      </div>
+      <div id="c-vista"><img alt="" draggable="false"></div>
+    </dialog>
   </section>
 
   <!-- ============================ ESTADO ============================ -->
@@ -1627,28 +1661,51 @@ async function iniciarCartas() {
     if (k.length) { ponerTsCarta(new Date(k[k.length - 1])); cargarCartas(); }
   });
   $("#c-cerrar").addEventListener("click", () => $("#c-dialogo").close());
+  try { $("#f-c-vista").value = localStorage.getItem("cartas-vista") || "placa"; } catch (_) {}
+  $("#f-c-vista").addEventListener("change", () => {
+    try { localStorage.setItem("cartas-vista", $("#f-c-vista").value); } catch (_) {}
+    cargarCartas();
+  });
+  iniciarVisor();
   document.addEventListener("keydown", (e) => {
-    if ($("#tab-cartas").hidden || $("#c-dialogo").open || ["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement.tagName)) return;
-    if (e.key === "ArrowLeft") moverCarta(-6);
-    if (e.key === "ArrowRight") moverCarta(6);
+    if ($("#tab-cartas").hidden || ["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement.tagName)) return;
+    if (e.key === "ArrowLeft") { e.preventDefault(); moverCarta(-6); }
+    if (e.key === "ArrowRight") { e.preventDefault(); moverCarta(6); }
+    if ($("#c-dialogo").open && e.key === "ArrowUp") { e.preventDefault(); otraCarta(-1); }
+    if ($("#c-dialogo").open && e.key === "ArrowDown") { e.preventDefault(); otraCarta(1); }
   });
   cargarCartas();
 }
+
+let cartasHora = [];        // las cartas que se están mostrando (para el visor grande)
+
+function imgCarta(p, extra = "") {
+  // Los mapas de Ogimet vienen transparentes: la geografía se pone de fondo.
+  const fondo = p.fondo ? ` class="con-fondo" style="background-image:url('${esc(p.fondo)}')"` : "";
+  return `<img src="${esc(p.url)}" alt="${esc(p.nombre)}"${fondo}${extra}>`;
+}
+const tituloCarta = (p) => (p.nivel ? p.nivel + " · " : "") + p.nombre;
 
 async function cargarCartas() {
   const t = tsCarta();
   const titulo = fmtCartaTitulo.format(t);
   $("#c-titulo").textContent = `${titulo.charAt(0).toUpperCase()}${titulo.slice(1)} · ${String(t.getUTCHours()).padStart(2, "0")} UTC`;
   const r = await api(`/api/cartas?ts=${encodeURIComponent(t.toISOString())}`);
-  const hay = r.productos.filter((p) => p.url).length;
-  const esperadas = r.productos.filter((p) => p.horas_utc.includes(t.getUTCHours())).length;
+  const placa = $("#f-c-vista").value === "placa";
+  const deLaHora = r.productos.filter((p) => p.horas_utc.includes(t.getUTCHours()));
+  const otras = r.productos.filter((p) => !p.horas_utc.includes(t.getUTCHours()));
+  cartasHora = deLaHora.filter((p) => p.url);
   const claves = Object.keys(cartasDisp);
   $("#c-nota").textContent = !r.productos.length ? "No hay cartas configuradas (config/cartas.yaml)."
     : !claves.length ? "Todavía no hay cartas archivadas. El servidor las baja solo cada hora: en la primera vuelta trae los últimos 14 días."
-    : `${hay} de ${esperadas} cartas para esta hora (en Argentina: ${fmtHora.format(t)} hs). Archivo: del ${claves[0].slice(0, 10)} al ${claves[claves.length - 1].slice(0, 10)}.`;
-  $("#c-grid").innerHTML = r.productos.map((p) => `<figure class="carta">
-      <figcaption><b>${esc(p.nivel || "")}</b> · ${esc(p.nombre)}</figcaption>
-      ${p.url ? `<img src="${esc(p.url)}" alt="${esc(p.nombre)}" loading="lazy" data-titulo="${esc((p.nivel ? p.nivel + " · " : "") + p.nombre)}">`
+    : `${cartasHora.length} de ${deLaHora.length} cartas para esta hora (en Argentina: ${fmtHora.format(t)} hs). Archivo: del ${claves[0].slice(0, 10)} al ${claves[claves.length - 1].slice(0, 10)}.`
+      + (placa && otras.length ? ` ${otras.map((p) => p.nombre.replace(/ \(observaciones\)/, "")).join(", ")}: solo a las 12 UTC.` : "");
+  // En la placa no se ocupa lugar con las cartas que no corresponden a esta hora.
+  const mostrar = placa ? deLaHora : r.productos;
+  $("#c-grid").classList.toggle("placa", placa);
+  $("#c-grid").innerHTML = mostrar.map((p) => `<figure class="carta">
+      <figcaption title="${esc(tituloCarta(p))}"><b>${esc(p.nivel || "")}</b> · ${esc(p.nombre)}</figcaption>
+      ${p.url ? imgCarta(p, ` loading="lazy" data-id="${esc(p.id)}"`)
         : !p.horas_utc.includes(t.getUTCHours())
           ? `<div class="falta chica">Se informa solo a las ${p.horas_utc.map((h) => String(h).padStart(2, "0")).join(", ")} UTC.
              <button class="boton c-ir-hora" data-hora="${p.horas_utc[0]}">Ver ${String(p.horas_utc[0]).padStart(2, "0")} UTC de este día</button></div>`
@@ -1657,11 +1714,100 @@ async function cargarCartas() {
   document.querySelectorAll("#c-grid .c-ir-hora").forEach((b) => b.addEventListener("click", () => {
     $("#f-c-hora").value = b.dataset.hora; cargarCartas();
   }));
-  document.querySelectorAll("#c-grid img").forEach((img) => img.addEventListener("click", () => {
-    $("#c-dialogo img").src = img.src;
-    $("#c-dialogo-titulo").textContent = `${$("#c-titulo").textContent} — ${img.dataset.titulo}`;
-    $("#c-dialogo").showModal();
-  }));
+  document.querySelectorAll("#c-grid img").forEach((img) => img.addEventListener("click", () => abrirCarta(img.dataset.id)));
+  if ($("#c-dialogo").open) mostrarEnVisor();
+}
+
+// ---------- Visor grande con zoom ----------
+// La imagen se mueve con transform: translate(x, y) scale(s), con origen en
+// su esquina de arriba a la izquierda. Para acercar "hacia el mouse", el
+// punto que está bajo el cursor tiene que quedar bajo el cursor después.
+const zoom = { s: 1, x: 0, y: 0 };
+let cartaVisor = null;     // id del producto que se está viendo
+
+function aplicarZoom() {
+  if (zoom.s <= 1) Object.assign(zoom, { s: 1, x: 0, y: 0 });
+  $("#c-vista img").style.transform = `translate(${zoom.x}px, ${zoom.y}px) scale(${zoom.s})`;
+}
+function zoomEn(factor, clientX, clientY) {
+  const img = $("#c-vista img"), r = img.getBoundingClientRect();
+  if (clientX === undefined) { clientX = r.left + r.width / 2; clientY = r.top + r.height / 2; }
+  const s2 = Math.min(10, Math.max(1, zoom.s * factor));
+  // (cx, cy): el cursor medido desde la esquina de la imagen SIN mover
+  const cx = clientX - (r.left - zoom.x), cy = clientY - (r.top - zoom.y);
+  zoom.x = cx - (cx - zoom.x) * (s2 / zoom.s);
+  zoom.y = cy - (cy - zoom.y) * (s2 / zoom.s);
+  zoom.s = s2;
+  aplicarZoom();
+}
+
+function mostrarEnVisor() {
+  const p = cartasHora.find((c) => c.id === cartaVisor);
+  const img = $("#c-vista img");
+  $("#c-dialogo-titulo").textContent = `${$("#c-titulo").textContent} — ${p ? tituloCarta(p) : "no archivada para esta hora"}`;
+  img.hidden = !p;
+  if (!p) return;
+  img.src = p.url;
+  img.className = p.fondo ? "con-fondo" : "";
+  img.style.backgroundImage = p.fondo ? `url('${p.fondo}')` : "";
+  aplicarZoom();          // al cambiar de hora se mantiene el zoom: se compara el mismo lugar
+}
+function abrirCarta(id) {
+  cartaVisor = id;
+  Object.assign(zoom, { s: 1, x: 0, y: 0 });
+  $("#c-dialogo").showModal();
+  mostrarEnVisor();
+}
+function otraCarta(paso) {
+  if (!cartasHora.length) return;
+  const i = cartasHora.findIndex((c) => c.id === cartaVisor);
+  cartaVisor = cartasHora[(i + paso + cartasHora.length) % cartasHora.length].id;
+  Object.assign(zoom, { s: 1, x: 0, y: 0 });
+  mostrarEnVisor();
+}
+
+function iniciarVisor() {
+  const vista = $("#c-vista");
+  vista.addEventListener("wheel", (e) => { e.preventDefault(); zoomEn(e.deltaY < 0 ? 1.2 : 1 / 1.2, e.clientX, e.clientY); }, { passive: false });
+  vista.addEventListener("dblclick", (e) => {
+    if (zoom.s > 1) { zoom.s = 1; aplicarZoom(); } else zoomEn(3, e.clientX, e.clientY);
+  });
+  // Arrastrar con un dedo o el mouse; pellizcar con dos dedos.
+  const punteros = new Map();
+  let pellizco = null;
+  vista.addEventListener("pointerdown", (e) => {
+    vista.setPointerCapture(e.pointerId);
+    punteros.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    vista.classList.add("arrastrando");
+  });
+  vista.addEventListener("pointermove", (e) => {
+    const antes = punteros.get(e.pointerId);
+    if (!antes) return;
+    punteros.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (punteros.size === 2) {
+      const [a, b] = [...punteros.values()];
+      const d = Math.hypot(a.x - b.x, a.y - b.y);
+      if (pellizco) zoomEn(d / pellizco, (a.x + b.x) / 2, (a.y + b.y) / 2);
+      pellizco = d;
+    } else if (zoom.s > 1) {
+      zoom.x += e.clientX - antes.x; zoom.y += e.clientY - antes.y;
+      aplicarZoom();
+    }
+  });
+  const soltar = (e) => {
+    punteros.delete(e.pointerId);
+    if (punteros.size < 2) pellizco = null;
+    if (!punteros.size) vista.classList.remove("arrastrando");
+  };
+  vista.addEventListener("pointerup", soltar);
+  vista.addEventListener("pointercancel", soltar);
+  $("#c-d-acercar").addEventListener("click", () => zoomEn(1.5));
+  $("#c-d-alejar").addEventListener("click", () => zoomEn(1 / 1.5));
+  $("#c-d-ajustar").addEventListener("click", () => { zoom.s = 1; aplicarZoom(); });
+  $("#c-d-ant").addEventListener("click", () => otraCarta(-1));
+  $("#c-d-sig").addEventListener("click", () => otraCarta(1));
+  $("#c-d-menos").addEventListener("click", () => moverCarta(-6));
+  $("#c-d-mas").addEventListener("click", () => moverCarta(6));
 }
 
 // ======================================================================

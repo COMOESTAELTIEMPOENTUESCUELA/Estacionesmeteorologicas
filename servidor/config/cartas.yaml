@@ -40,8 +40,10 @@ productos:
   # --- Ogimet: mapas de observaciones de superficie ----------------------
   # https://www.ogimet.com/cgi-bin/gsynop?zona=amersurs&... : una consulta
   # trae ~12 mapas de esa hora; "codigo" elige cuál (Te temperatura, Td rocío,
-  # Tx máxima, Tn mínima, Sg, R2, R4, Pr, Hr, Wi, Dt, Hi). Se puede rellenar
-  # el historial: python -m meteo.ingesta historico cartas --desde ... --hasta ...
+  # Tx máxima, Tn mínima, Sg, R2, R4, Pr, Hr, Wi, Dt, Hi). Ogimet solo tiene
+  # los mapas del último día: el historial se arma archivándolos a diario.
+  # Los mapas son transparentes; la geografía se baja una vez por zona a
+  # cartas/_fondos/ y el visualizador la pone debajo.
   # A las 00, 06, 12 y 18 UTC: tiempo presente y temperatura.
   - id: ogimet_tiempo_significativo
     nombre: "Tiempo presente (observaciones)"

@@ -208,3 +208,42 @@ def test_ogimet_respuesta_vacia_no_se_reintenta(tmp_path, monkeypatch):
     assert descarga.correr_ogimet(cfg, tmp_path, Sesion(), datetime(2026, 10, 5, 0, tzinfo=UTC),
                                   datetime(2026, 10, 5, 18, tzinfo=UTC)) == 0
     assert pedidos == ["00", "06", "12", "18"]          # una sola vez cada hora, sin reintentos
+
+
+def test_ogimet_fondo_y_transparencia():
+    """Los mapas de Ogimet son transparentes; la geografía viene aparte."""
+    from meteo.cartas import ogimet
+    html = HTML_OGIMET + '<TD BACKGROUND="../img/bases/amersurs_bluem_orto.png"><img src="/img/ogimet.jpg">'
+    assert ogimet.fondos(html, "amersurs") == ["https://www.ogimet.com/img/bases/amersurs_bluem_orto.png"]
+    assert ogimet.fondos(HTML_OGIMET, "amersurs") == []          # los mapas del día no son el fondo
+    ihdr = b"\x89PNG\r\n\x1a\n" + b"\x00\x00\x00\x0dIHDR" + b"\x00" * 8 + b"\x08"
+    assert ogimet.es_transparente(ihdr + b"\x06" + b"0" * 20)    # RGBA
+    assert not ogimet.es_transparente(ihdr + b"\x02" + b"0" * 20)  # RGB
+    assert ogimet.es_transparente(ihdr + b"\x03" + b"0" * 20 + b"tRNS")   # paleta con transparencia
+
+
+def test_ogimet_baja_el_fondo_una_vez(tmp_path, monkeypatch):
+    monkeypatch.setattr(descarga, "PAUSA_SEG", 0)
+    monkeypatch.setattr(descarga, "PAUSA_OGIMET_SEG", 0)
+    fondos = []
+
+    class Resp:
+        def __init__(self, contenido=b"", texto=""):
+            self.content, self.text = contenido, texto
+        def raise_for_status(self):
+            pass
+
+    class Sesion:
+        def get(self, url, timeout, params=None):
+            if params:
+                return Resp(texto=HTML_OGIMET.replace("1200_", f"{params['hora']}00_")
+                            + '<TD background="../img/amersurs_bluem.png">')
+            if "bluem" in url:
+                fondos.append(url)
+            return Resp(PNG)
+
+    cfg = {"horas_utc": [0, 6], "productos": [{"id": "og_sg", "fuente": "ogimet", "zona": "amersurs", "codigo": "Sg"}]}
+    descarga.correr_ogimet(cfg, tmp_path, Sesion(), datetime(2026, 10, 12, 0, tzinfo=UTC), datetime(2026, 10, 12, 6, tzinfo=UTC))
+    assert fondos == ["https://www.ogimet.com/img/amersurs_bluem.png"]     # dos horas, un solo fondo
+    assert archivo.fondo(tmp_path, "ogimet_amersurs").relative_to(tmp_path).as_posix() == "cartas/_fondos/ogimet_amersurs.png"
+    assert "_fondos" not in str(archivo.disponibles(tmp_path, ["og_sg"]))

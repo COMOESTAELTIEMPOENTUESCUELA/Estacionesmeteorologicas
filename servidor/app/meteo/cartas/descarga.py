@@ -102,8 +102,30 @@ def horas_sinopticas(desde, hasta, horas_utc):
         t += timedelta(hours=1)
 
 
+def nombre_fondo(zona):
+    return f"ogimet_{zona}"
+
+
+def _bajar_fondo(raiz, sesion, zona, html):
+    """La geografía que va debajo de los mapas (una vez por zona)."""
+    if archivo.fondo(raiz, nombre_fondo(zona)):
+        return
+    candidatos = ogimet.fondos(html, zona)
+    for url in candidatos:
+        try:
+            r = sesion.get(url, timeout=60)
+            r.raise_for_status()
+            archivo.guardar_fondo(raiz, nombre_fondo(zona), r.content)
+            log.info("cartas: fondo de Ogimet %s guardado (%s)", zona, url)
+            return
+        except Exception as ex:
+            log.info("cartas: fondo %s: %s", url, str(ex)[:100])
+    log.warning("cartas: no encontré la imagen de fondo de Ogimet %s (probados: %s). Correr "
+                "'python -m meteo.ingesta diagnostico-ogimet' y mandar la salida", zona, candidatos or "ninguno")
+
+
 def _pedir_ogimet(sesion, zona, ts):
-    """Página de mapas de esa hora -> {código: imagen}. Si Ogimet rechaza
+    """Página de mapas de esa hora -> ({código: imagen}, html). Si Ogimet rechaza
     la consulta (límite de una cada 20 s) responde una página SIN mapas:
     eso se toma como error y se reintenta, no como "no hay mapa"."""
     for i in range(len(ESPERAS_OGIMET) + 1):
@@ -116,7 +138,7 @@ def _pedir_ogimet(sesion, zona, ts):
             if not imgs:
                 aviso = "límite de consultas" if "quota" in r.text.lower() else "página sin mapas"
                 raise RuntimeError(f"Ogimet no devolvió mapas ({aviso})")
-            return imgs
+            return imgs, r.text
         except NoDisponible:
             raise                   # reintentar no sirve
         except Exception as ex:
@@ -145,7 +167,7 @@ def _correr_ogimet(cfg, raiz, sesion, desde, hasta):
             if not faltan:
                 continue
             try:
-                imgs = _pedir_ogimet(sesion, zona, ts)
+                imgs, html = _pedir_ogimet(sesion, zona, ts)
             except NoDisponible as ex:
                 log.info("cartas: %s", ex)
                 time.sleep(PAUSA_OGIMET_SEG)
@@ -154,6 +176,10 @@ def _correr_ogimet(cfg, raiz, sesion, desde, hasta):
                 log.warning("cartas ogimet %s: %s", ts, str(ex)[:150])
                 time.sleep(PAUSA_OGIMET_SEG)
                 continue
+            try:
+                _bajar_fondo(raiz, sesion, zona, html)
+            except Exception as ex:
+                log.warning("cartas: fondo de Ogimet: %s", str(ex)[:150])
             for p in faltan:
                 img = imgs.get(p["codigo"])
                 if not img:
@@ -172,3 +198,28 @@ def _correr_ogimet(cfg, raiz, sesion, desde, hasta):
                 time.sleep(PAUSA_SEG)
             time.sleep(PAUSA_OGIMET_SEG)
     return nuevas
+
+
+def diagnostico(raiz, sesion, zona="amersurs"):
+    """Pide la página de Ogimet de la última hora sinóptica y cuenta qué
+    imágenes trae y si los mapas son transparentes. Guarda el HTML en
+    cartas/_diag/ para poder mirarlo. Devuelve líneas de texto."""
+    ts = datetime.now(timezone.utc) - OGIMET_MARGEN
+    ts = ts.replace(hour=ts.hour - ts.hour % 6, minute=0, second=0, microsecond=0)
+    r = sesion.get(ogimet.URL_PAGINA, params=ogimet.parametros(zona, ts), timeout=120)
+    r.raise_for_status()
+    carpeta = Path(raiz, "cartas", "_diag")
+    carpeta.mkdir(parents=True, exist_ok=True)
+    (carpeta / "ogimet.html").write_text(r.text, encoding="utf-8")
+    lineas = [f"Página de {ts:%d/%m %H} UTC: {len(r.text)} caracteres (copia en {carpeta / 'ogimet.html'})",
+              "Imágenes que nombra la página:"]
+    lineas += [f"  {u}" for u in ogimet.referencias(r.text)] or ["  (ninguna)"]
+    imgs = ogimet.imagenes(r.text)
+    if "Te" in imgs:
+        time.sleep(PAUSA_SEG)
+        datos = sesion.get(imgs["Te"]["url"], timeout=60).content
+        lineas.append(f"Mapa Te: {len(datos)} bytes, transparente: {'sí' if ogimet.es_transparente(datos) else 'no'}")
+    lineas.append(f"Candidatos a fondo: {ogimet.fondos(r.text, zona) or 'ninguno'}")
+    f = archivo.fondo(raiz, nombre_fondo(zona))
+    lineas.append(f"Fondo guardado: {f or 'todavía no'}")
+    return lineas
