@@ -162,3 +162,27 @@ def test_cada_carta_con_sus_horas(tmp_path, monkeypatch):
     assert n == 5 and paginas == ["00", "06", "12", "18"]             # Sg x 4 + R4 solo a las 12
     assert not archivo.existe(tmp_path, "og_r4", datetime(2026, 10, 12, 6, tzinfo=UTC))
     assert archivo.existe(tmp_path, "og_r4", datetime(2026, 10, 12, 12, tzinfo=UTC))
+
+
+def test_ogimet_rechazo_se_reintenta_y_no_dos_descargas(tmp_path, monkeypatch):
+    monkeypatch.setattr(descarga, "PAUSA_SEG", 0)
+    monkeypatch.setattr(descarga, "PAUSA_OGIMET_SEG", 0)
+    monkeypatch.setattr(descarga, "ESPERAS_OGIMET", (0,))
+    respuestas = ["Sorry, your quota limit for slow queries rate has been reached", HTML_OGIMET]
+
+    class Resp:
+        def __init__(self, contenido=b"", texto=""):
+            self.content, self.text = contenido, texto
+        def raise_for_status(self):
+            pass
+
+    class Sesion:
+        def get(self, url, timeout, params=None):
+            return Resp(texto=respuestas.pop(0)) if params else Resp(PNG)
+
+    cfg = {"horas_utc": [12], "productos": [{"id": "og_sg", "fuente": "ogimet", "zona": "amersurs", "codigo": "Sg"}]}
+    ts = datetime(2026, 10, 12, 12, tzinfo=UTC)
+    assert descarga.correr_ogimet(cfg, tmp_path, Sesion(), ts, ts) == 1     # el rechazo se reintentó
+    with descarga.una_sola_descarga(tmp_path):
+        with pytest.raises(descarga.EnCurso):
+            descarga.correr_ogimet(cfg, tmp_path, Sesion(), ts, ts)

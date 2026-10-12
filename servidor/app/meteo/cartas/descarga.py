@@ -3,8 +3,11 @@ Tarea "cartas" del servicio de ingesta: baja las cartas nuevas y las archiva.
 Lo ya guardado no se vuelve a pedir; entre imagen e imagen se espera un poco
 para no cargar los servidores ajenos.
 """
+import fcntl
 import logging
 import time
+from contextlib import contextmanager
+from pathlib import Path
 from datetime import datetime, timedelta, timezone
 
 from . import archivo, bentley, ogimet
@@ -20,7 +23,32 @@ OGIMET_HORAS_ATRAS = 48
 OGIMET_MARGEN = timedelta(hours=2)
 
 
+class EnCurso(Exception):
+    pass
+
+
+@contextmanager
+def una_sola_descarga(raiz):
+    """Evita dos descargas a la vez (ej. el servicio y un 'una cartas' a
+    mano): pidiéndole los dos a Ogimet, se pasan de su límite de consultas."""
+    Path(raiz, "cartas").mkdir(parents=True, exist_ok=True)
+    with open(Path(raiz, "cartas", ".descargando"), "w") as f:
+        try:
+            fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise EnCurso("ya hay otra descarga de cartas en curso (por ejemplo, la del servicio); probá en unos minutos")
+        try:
+            yield
+        finally:
+            fcntl.flock(f, fcntl.LOCK_UN)
+
+
 def correr(cfg, raiz, sesion):
+    with una_sola_descarga(raiz):
+        return _correr(cfg, raiz, sesion)
+
+
+def _correr(cfg, raiz, sesion):
     horas = tuple(cfg.get("horas_utc", (0, 6, 12, 18)))
     activos = [p for p in cfg["productos"] if p.get("activo", True)]
     nuevas = 0
@@ -54,7 +82,7 @@ def correr(cfg, raiz, sesion):
             time.sleep(PAUSA_SEG)
     ahora = datetime.now(timezone.utc) - OGIMET_MARGEN
     desde = ahora - timedelta(hours=OGIMET_HORAS_ATRAS)
-    nuevas += correr_ogimet(cfg, raiz, sesion, desde, ahora)
+    nuevas += _correr_ogimet(cfg, raiz, sesion, desde, ahora)
     log.info("cartas: %d nuevas", nuevas)
     return nuevas
 
@@ -68,11 +96,18 @@ def horas_sinopticas(desde, hasta, horas_utc):
 
 
 def _pedir_ogimet(sesion, zona, ts):
+    """Página de mapas de esa hora -> {código: imagen}. Si Ogimet rechaza
+    la consulta (límite de una cada 20 s) responde una página SIN mapas:
+    eso se toma como error y se reintenta, no como "no hay mapa"."""
     for i in range(len(ESPERAS_OGIMET) + 1):
         try:
             r = sesion.get(ogimet.URL_PAGINA, params=ogimet.parametros(zona, ts), timeout=120)
             r.raise_for_status()
-            return r.text
+            imgs = ogimet.imagenes(r.text)
+            if not imgs:
+                aviso = "límite de consultas" if "quota" in r.text.lower() else "página sin mapas"
+                raise RuntimeError(f"Ogimet no devolvió mapas ({aviso})")
+            return imgs
         except Exception as ex:
             if i == len(ESPERAS_OGIMET):
                 raise
@@ -82,6 +117,11 @@ def _pedir_ogimet(sesion, zona, ts):
 
 def correr_ogimet(cfg, raiz, sesion, desde, hasta):
     """Mapas de Ogimet entre desde y hasta (también sirve para el historial)."""
+    with una_sola_descarga(raiz):
+        return _correr_ogimet(cfg, raiz, sesion, desde, hasta)
+
+
+def _correr_ogimet(cfg, raiz, sesion, desde, hasta):
     def horas_de(p):
         return tuple(p.get("horas_utc", cfg.get("horas_utc", (0, 6, 12, 18))))
     productos = [p for p in cfg["productos"] if p["fuente"] == "ogimet" and p.get("activo", True)]
@@ -94,7 +134,7 @@ def correr_ogimet(cfg, raiz, sesion, desde, hasta):
             if not faltan:
                 continue
             try:
-                imgs = ogimet.imagenes(_pedir_ogimet(sesion, zona, ts))
+                imgs = _pedir_ogimet(sesion, zona, ts)
             except Exception as ex:
                 log.warning("cartas ogimet %s: %s", ts, str(ex)[:150])
                 time.sleep(PAUSA_OGIMET_SEG)

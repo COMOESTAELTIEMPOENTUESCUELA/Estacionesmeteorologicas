@@ -114,6 +114,12 @@ class Ingesta:
         from ..cartas import descarga
         cfg = cargar_config(os.environ.get("CARTAS_CONFIG", "/config/cartas.yaml"))
         raiz = os.environ.get("ARCHIVO_DIR", "/archivo")
+        try:
+            self._cartas(descarga, cfg, raiz, desde, hasta)
+        except descarga.EnCurso as ex:
+            log.warning("cartas: %s", ex)
+
+    def _cartas(self, descarga, cfg, raiz, desde, hasta):
         with db.registrar_tarea(self.conn, "cartas") as reg:
             if desde:
                 reg["filas"] = descarga.correr_ogimet(cfg, raiz, self.sesion, desde, hasta)
