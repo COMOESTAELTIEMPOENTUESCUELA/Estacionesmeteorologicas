@@ -209,3 +209,16 @@ def test_hoja_se_deriva_igual_que_un_pronostico_capturado():
     seco = pronostico.derivar(em[("La Plata", "2026-10-11")]["daily_forecasts"][0]["period_forecasts"])
     assert (seco["pp"], seco["viento_dirs"], seco["viento_int"]) == (False, ["E", "SE"], "LEVES")
     assert em[("La Plata", "2026-10-11")]["es_correccion"] is True
+
+
+def test_publicado_la_noche_anterior_se_marca_y_se_puede_separar():
+    base = {"ciudad": "Junín", "capturado": datetime(2026, 8, 13, 23, tzinfo=timezone.utc), "publicado_por": "A",
+            "es_correccion": False, "plazo_dias": 1, "temp_min": 5, "temp_max": 12,
+            "temp_min_suburbana": None, "temp_max_suburbana": None, "periodos": []}
+    en_el_dia = dict(base, fecha_pronostico=date(2026, 8, 13), fecha=date(2026, 8, 14), publicado_el=date(2026, 8, 13))
+    noche = dict(base, fecha_pronostico=date(2026, 8, 14), fecha=date(2026, 8, 15), publicado_el=date(2026, 8, 13))
+    filas = puntajes.armar_pares([en_el_dia, noche], {})
+    assert [f["anticipado"] for f in filas] == [False, True]
+    assert all(f["plazo"] == 1 for f in filas)   # el plazo es el del bloque en los dos
+    assert [f["fecha"] for f in puntajes.filtrar_publicacion(filas, "noche_anterior")] == [date(2026, 8, 15)]
+    assert [f["fecha"] for f in puntajes.filtrar_publicacion(filas, "en_el_dia")] == [date(2026, 8, 14)]

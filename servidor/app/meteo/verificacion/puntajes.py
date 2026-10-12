@@ -37,6 +37,17 @@ TEMPERATURAS = {
 }
 
 
+PUBLICACIONES = ("todas", "en_el_dia", "noche_anterior")
+
+
+def filtrar_publicacion(filas, publicacion):
+    if publicacion == "en_el_dia":
+        return [f for f in filas if not f["anticipado"]]
+    if publicacion == "noche_anterior":
+        return [f for f in filas if f["anticipado"]]
+    return filas
+
+
 def elegir_emisiones(dias, version="final"):
     """Si una emisión se corrigió, hay varias para el mismo (ciudad, fecha de
     emisión). 'final' usa la última capturada; 'original', la primera."""
@@ -60,8 +71,15 @@ def armar_pares(dias, observado):
         ayer = d["fecha_pronostico"] - timedelta(days=1)
         der = derivar(d["periodos"])
         obs = lambda el, dia=f: observado.get((c, dia, el)) or {}
+        publicado = d.get("publicado_el") or d["fecha_pronostico"]
         fila = {
             "ciudad": c, "fecha": f, "plazo": d["plazo_dias"], "fecha_emision": d["fecha_pronostico"],
+            "publicado_el": publicado,
+            # Publicado la noche anterior: el "Día 1" de un pronóstico del
+            # martes se publicó el lunes. El plazo sigue siendo el del bloque
+            # (comparable entre pronosticadores), pero la antelación real es
+            # un día más: se marca para poder separarlos.
+            "anticipado": publicado < d["fecha_pronostico"],
             "pronosticador": d.get("publicado_por"), "es_correccion": d.get("es_correccion"),
         }
         for el, campo in TEMPERATURAS.items():

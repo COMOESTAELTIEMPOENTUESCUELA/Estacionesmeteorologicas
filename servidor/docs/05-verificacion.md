@@ -46,6 +46,14 @@ para la segunda etapa: verificar por período y por probabilidad.
 (más adelante se sumará LPO). La Plata suburbana es el Aero. En las otras
 ciudades se usa el aeropuerto, igual que en la hoja del equipo.
 
+**Publicado la noche anterior.** El equipo puede publicar el pronóstico de
+mañana la noche anterior. El plazo se cuenta igual para todos, desde el día
+del pronóstico: el "Día 2" es siempre plazo 1. Así se pueden comparar los
+pronosticadores entre sí. Esas emisiones quedan marcadas (`anticipado`) y el
+filtro **Publicación** las separa. Sirve para ver si hay diferencias, porque
+su antelación real es un día más. El día de publicación sale de la hoja
+(`publicado_el`) o del momento en que el servidor capturó la emisión.
+
 **Versión.** Si una emisión se corrigió, `final` usa la corrección y
 `original` lo primero que se publicó. Comparar las dos muestra si las
 correcciones mejoran el pronóstico.

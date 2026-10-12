@@ -116,3 +116,11 @@ def test_verificacion(cliente):
                                                     "hasta": "2026-10-11", "formato": "csv"})
     assert csv.text.startswith("ciudad,fecha,plazo")
     assert cliente.get("/api/verificacion", params={"version": "otra"}).status_code == 400
+
+
+def test_verificacion_por_publicacion(cliente):
+    q = {"ciudad": "Tandil", "desde": "2026-10-01", "hasta": "2026-10-11"}
+    # La emisión de Tandil del test_db la "capturó" el servidor hoy, después de su fecha: no es anticipada.
+    assert len(cliente.get("/api/verificacion", params={**q, "publicacion": "en_el_dia"}).json()["dias"]) == 1
+    assert cliente.get("/api/verificacion", params={**q, "publicacion": "noche_anterior"}).json()["dias"] == []
+    assert cliente.get("/api/verificacion", params={**q, "publicacion": "otra"}).status_code == 400

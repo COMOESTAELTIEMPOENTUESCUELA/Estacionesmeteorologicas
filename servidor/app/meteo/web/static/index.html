@@ -312,11 +312,18 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
             <option value="original">Original (lo primero publicado)</option>
           </select>
         </label>
+        <label>Publicación
+          <select id="f-v-publicacion">
+            <option value="todas" selected>Todas</option>
+            <option value="en_el_dia">En el mismo día</option>
+            <option value="noche_anterior">La noche anterior</option>
+          </select>
+        </label>
         <a class="boton" id="f-v-csv" href="#">Descargar CSV</a>
       </div>
       <p class="ayuda">Pronósticos de Pronóstico UNLP contra lo observado en las estaciones. El día es el día civil
         (00 a 24 hs): la mínima puede ser de madrugada o nocturna. Un día entra en la cuenta solo si hay pronóstico
-        Y observación completa (n = días comparados). "Plazo 1" = pronóstico emitido el día anterior.
+        Y observación completa (n = días comparados). "Plazo 1" = el día siguiente al del pronóstico (su "Día 2"), aunque se haya publicado la noche anterior.
         <b>Persistencia</b> = pronosticar "lo mismo que ayer"; la <b>destreza</b> dice cuánto menos se erra que con ella.</p>
       <p class="ayuda" id="v-nota"></p>
 
@@ -1151,14 +1158,15 @@ async function iniciarVerif() {
   const iso = (d) => new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(d);
   $("#f-v-hasta").value = iso(ayer);
   $("#f-v-desde").value = iso(new Date(ayer.getTime() - 60 * 86400e3));
-  ["#f-v-ciudad", "#f-v-desde", "#f-v-hasta", "#f-v-version"].forEach((s) => $(s).addEventListener("change", cargarVerif));
+  ["#f-v-ciudad", "#f-v-desde", "#f-v-hasta", "#f-v-version", "#f-v-publicacion"].forEach((s) => $(s).addEventListener("change", cargarVerif));
   ["#f-v-plazo", "#f-v-ambito"].forEach((s) => $(s).addEventListener("change", dibujarVerifDias));
   cargarVerif();
 }
 
 async function cargarVerif() {
   const q = new URLSearchParams({ ciudad: $("#f-v-ciudad").value, desde: $("#f-v-desde").value,
-                                  hasta: $("#f-v-hasta").value, version: $("#f-v-version").value });
+                                  hasta: $("#f-v-hasta").value, version: $("#f-v-version").value,
+                                  publicacion: $("#f-v-publicacion").value });
   $("#f-v-csv").href = `/api/verificacion?${q}&formato=csv`;
   verifDatos = await api(`/api/verificacion?${q}`);
   const r = verifDatos.resumen;
@@ -1166,7 +1174,9 @@ async function cargarVerif() {
   const dias = verifDatos.dias;
   const conObs = new Set(dias.filter((d) => Object.keys(ETIQUETAS_TEMP).some((k) => d[k].obs !== null) || d.pp.obs !== null).map((d) => d.fecha));
   $("#v-nota").textContent = dias.length
-    ? `${new Set(dias.map((d) => d.fecha)).size} días con pronóstico en el período, ${conObs.size} con observación.`
+    ? `${new Set(dias.map((d) => d.fecha)).size} días con pronóstico en el período, ${conObs.size} con observación. ` +
+      `${new Set(dias.filter((d) => d.anticipado).map((d) => d.fecha_emision)).size} emisiones se publicaron la noche anterior ` +
+      `(su plazo cuenta desde el día del pronóstico, como el resto; la antelación real es un día más).`
     : "No hay pronósticos guardados en ese período. El servidor junta las emisiones desde que se puso en marcha; el historial anterior se puede importar de la hoja del equipo.";
   const cab = `<tr><th></th>${plazos.map((p) => `<th>Plazo ${p}${p === 0 ? " <span class='tenue'>(mismo día)</span>" : ""}</th>`).join("")}</tr>`;
 
@@ -1248,7 +1258,7 @@ function dibujarVerifDias() {
       const nocturna = d.tmin_periodo.obs === "noche" ? ' <span class="chip" title="La mínima observada fue entre las 18 y las 24 hs">nocturna</span>' : "";
       return `<tr>
         <td>${fmtFecha.format(new Date(t(d)))}</td>
-        <td>${esc(d.pronosticador || "–")}</td>
+        <td>${esc(d.pronosticador || "–")}${d.anticipado ? ' <span class="chip" title="Publicado la noche anterior (' + esc(d.publicado_el) + ')">noche ant.</span>' : ""}</td>
         <td class="num">${temp(d[`tmax_${amb}`])}</td>
         <td class="num">${temp(tmin)}${nocturna}</td>
         <td title="${esc(pp.tipo || "")}">${sn(pp.pron)} / ${sn(pp.obs)}${marca(pp.obs === null ? null : pp.pron === pp.obs)}</td>
