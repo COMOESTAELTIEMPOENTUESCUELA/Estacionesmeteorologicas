@@ -246,3 +246,19 @@ def test_dia_sin_lluvia_por_cantidades_en_cero():
     assert ob.lluvia_synop(cant, [], reportes, DIA)["pp"] is False
     # Solo la de 12 h (09-21): no alcanza para decir que no llovió.
     assert ob.lluvia_synop(cant[1:2], [], reportes, DIA)["pp"] is None
+
+
+def test_bolivar_dia_seco_con_ir3_y_grupos_de_6h():
+    """Día real de Bolívar (10/08/2026): reporta de 09 a 21 hs. Las 24 h de
+    las 12 UTC del 10 y del 11 en 0 (iR=3) + 6 h de las 18 y 00 UTC en 0."""
+    from meteo.ingesta.synop import decodificar
+    msjs = {
+        datetime(2026, 8, 10, 12, tzinfo=timezone.utc): "AAXX 10123 87640 31960 00000 10015 21007 30250 40370 52017 700// 333 10050 21022 30104=",
+        datetime(2026, 8, 10, 18, tzinfo=timezone.utc): "AAXX 10183 87640 12565 31403 10110 20010 30238 4//// 57020 60001 83100 333 56300 83825=",
+        datetime(2026, 8, 11, 0, tzinfo=timezone.utc): "AAXX 11003 87640 12960 00000 10038 20007 30236 40355 52010 60001 333 10113 20015=",
+        datetime(2026, 8, 11, 12, tzinfo=timezone.utc): "AAXX 11123 87640 31965 60000 11004 21010 30218 40338 50001 702// 80006 333 10038 21015 34102 56006 86270=",
+    }
+    obs = [o for ts, m in msjs.items() for o in decodificar(m, ts, "omm_87640")]
+    cant = [(o.ts, int(o.variable.split("_")[1][:-1]), o.valor) for o in obs if o.variable.startswith("precip_")]
+    r = ob.lluvia_synop(cant, [], list(msjs), date(2026, 8, 10))
+    assert r["pp"] is False

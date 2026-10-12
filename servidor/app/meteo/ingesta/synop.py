@@ -178,6 +178,15 @@ def decodificar(mensaje, ts, estacion_id):
                 agregar_lluvia(g)
             elif c == "7" and "/" not in g[1:]:
                 agregar("precip_24h", 0.0 if g[1:] == "9999" else int(g[1:]) / 10)
+
+    # iR = 3 (primera cifra de iRixhVV): "grupo de lluvia omitido porque la
+    # lluvia fue CERO". Sin esto, una estación que no reporta de noche (ej.
+    # Bolívar, que manda NIL de 21 a 09 hs) nunca permite decir "no llovió".
+    # El período es el que esa hora informa en Argentina: 24 h a las 12 UTC
+    # (de 9 a 9), 6 h a las 00, 06 y 18 UTC. En otras horas no se asume nada.
+    horas_ir3 = {12: 24, 0: 6, 6: 6, 18: 6}.get(ts.hour) if ts.minute == 0 else None
+    if iihvv[:1] == "3" and horas_ir3 and not any(o.variable.startswith("precip_") for o in obs):
+        agregar(f"precip_{horas_ir3}h", 0.0)
     return obs
 
 

@@ -26,10 +26,10 @@ log = logging.getLogger(__name__)
 
 # Un día cuenta como completo si hay datos en al menos 18 de sus 24 horas.
 COMPLETITUD_MINIMA = 0.75
-# Para el viento alcanza con 12 horas: varias estaciones del SMN (Bolívar,
-# Tandil, Dolores) no reportan de noche, y lo que se pronostica es sobre
-# todo el viento del día.
-COMPLETITUD_VIENTO = 0.5
+# Para el viento alcanza con 8 horas: varias estaciones del SMN (Bolívar,
+# Tandil, Dolores) solo reportan de 09 a 21 hs, a veces con huecos, y lo que
+# se pronostica es sobre todo el viento del día.
+COMPLETITUD_VIENTO = 8 / 24
 
 PERIODOS = (("madrugada", 0, 6), ("mañana", 6, 12), ("tarde", 12, 18), ("noche", 18, 24))
 

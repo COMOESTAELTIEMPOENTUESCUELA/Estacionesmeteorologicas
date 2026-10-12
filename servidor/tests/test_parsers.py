@@ -336,3 +336,22 @@ def test_thingspeak_pagina_hacia_atras(monkeypatch):
     est = {"id": "x", "config": {"canales": [{"id": "1"}], "campos": {"field1": "temp"}}}
     obs = thingspeak.traer(est, t0, todos[-1], Sesion())
     assert sorted({o.ts for o in obs}) == todos
+
+
+def test_synop_ir3_es_lluvia_cero():
+    """Bolívar (mensajes reales del 10-11/08/2026): de noche manda NIL; a las
+    12 UTC iR=3 (lluvia omitida por ser 0) -> 0 mm en 24 h."""
+    from datetime import datetime, timezone
+    from meteo.ingesta.synop import decodificar
+    m12 = "AAXX 10123 87640 31960 00000 10015 21007 30250 40370 52017 700// 333 10050 21022 30104="
+    obs = decodificar(m12, datetime(2026, 8, 10, 12, tzinfo=timezone.utc), "omm_87640")
+    assert {(o.variable, o.valor) for o in obs if o.variable.startswith("precip")} == {("precip_24h", 0.0)}
+    # Hora intermedia con iR=4 (no informado): nada.
+    m13 = "AAXX 10133 87640 42965 11402 10044 20022 30256 4//// 52017 80001 333 56006 81070="
+    obs = decodificar(m13, datetime(2026, 8, 10, 13, tzinfo=timezone.utc), "omm_87640")
+    assert not [o for o in obs if o.variable.startswith("precip")]
+    # A las 18 UTC con el grupo 60001 explícito: 0 mm en 6 h, sin duplicar.
+    m18 = "AAXX 10183 87640 12565 31403 10110 20010 30238 4//// 57020 60001 83100 333 56300 83825="
+    obs = decodificar(m18, datetime(2026, 8, 10, 18, tzinfo=timezone.utc), "omm_87640")
+    assert [(o.variable, o.valor) for o in obs if o.variable.startswith("precip")] == [("precip_6h", 0.0)]
+    assert decodificar("AAXX 11014 87640 NIL=", datetime(2026, 8, 11, 1, tzinfo=timezone.utc), "omm_87640") == []

@@ -39,8 +39,13 @@ Un día cuenta como observado solo si hay datos en al menos 18 de sus 24
 horas. Hay excepciones para las estaciones del SMN que no reportan de noche
 (Bolívar, Tandil, Dolores):
 - la máxima y la mínima valen si las respalda el grupo correspondiente del SYNOP;
-- el día seco vale si las lluvias acumuladas en 0 cubren al menos 18 horas;
-- para el viento alcanza con 12 horas. Si no, no entra en la cuenta: no suma como acierto ni como error.
+- el día seco vale si las lluvias acumuladas en 0 cubren al menos 18 horas.
+  Cuenta también el indicador iR = 3 del SYNOP ("grupo de lluvia omitido por
+  ser cero"): a las 12 UTC vale 0 mm en 24 h y a las 00, 06 y 18 UTC 0 mm en 6 h;
+- para el viento alcanza con 8 horas.
+
+Después de cambiar el decodificador, los mensajes ya guardados se vuelven a
+leer sin pedirle nada a Ogimet con `python -m meteo.ingesta reprocesar-synop`. Si no, no entra en la cuenta: no suma como acierto ni como error.
 
 Además de los valores del día se guarda el detalle **por período**
 (madrugada, mañana, tarde, noche) en `verif_observado.detalle`. Es la base

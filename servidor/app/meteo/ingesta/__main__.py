@@ -22,6 +22,11 @@ Uso (dentro del contenedor, o con DATABASE_URL apuntando a la base):
         no se duplica. Desde fuera del contenedor:
         docker compose exec -T ingesta python -m meteo.ingesta importar-hoja - < archivo.csv
 
+    python -m meteo.ingesta reprocesar-synop [--desde 2026-08-01 --hasta 2026-10-01] [--estaciones omm_87640]
+        Vuelve a decodificar los SYNOP ya guardados (tabla synop_crudo) con el
+        decodificador actual, sin pedirle nada a Ogimet. Después de mejorar
+        synop.py.
+
     python -m meteo.ingesta estaciones
         Copia estaciones.yaml a la base (también se hace al iniciar el servicio).
 """
@@ -41,7 +46,7 @@ def fecha_utc(s):
 
 def main():
     ap = argparse.ArgumentParser(prog="python -m meteo.ingesta")
-    ap.add_argument("comando", choices=["servicio", "una", "historico", "estaciones", "importar-hoja"])
+    ap.add_argument("comando", choices=["servicio", "una", "historico", "estaciones", "importar-hoja", "reprocesar-synop"])
     ap.add_argument("tarea", nargs="?")
     ap.add_argument("--config", default=os.environ.get("ESTACIONES_CONFIG", "/config/estaciones.yaml"))
     ap.add_argument("--desde", type=fecha_utc)
@@ -65,6 +70,22 @@ def main():
         texto = sys.stdin.read() if args.tarea == "-" else open(args.tarea, encoding="utf-8").read()
         nuevas, salteadas = hoja_verificacion.importar(conn, texto)
         print(f"{nuevas} emisiones importadas; {salteadas} ya estaban capturadas en vivo por el servidor.")
+    elif args.comando == "reprocesar-synop":
+        from .synop import decodificar
+        sql = "SELECT estacion_id, ts, mensaje FROM synop_crudo WHERE true"
+        params = []
+        if args.desde:
+            sql += " AND ts >= %s"; params.append(args.desde)
+        if args.hasta:
+            sql += " AND ts <= %s"; params.append(args.hasta)
+        if ids:
+            sql += " AND estacion_id = ANY(%s)"; params.append(list(ids))
+        with conn.cursor() as cur:
+            cur.execute(sql, params)
+            mensajes = cur.fetchall()
+        obs = [o for est, ts, m in mensajes for o in decodificar(m, ts, est)]
+        n = db.guardar_observaciones(conn, obs, "ogimet")
+        print(f"{len(mensajes)} mensajes decodificados de nuevo: {len(obs)} valores, {n} nuevos o cambiados.")
     elif args.comando == "servicio":
         ing.para_siempre()
     elif args.comando == "una":
