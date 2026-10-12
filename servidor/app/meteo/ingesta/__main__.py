@@ -16,6 +16,12 @@ Uso (dentro del contenedor, o con DATABASE_URL apuntando a la base):
         Recalcula lo observado para verificar pronósticos en ese rango
         (después de rellenar Ogimet del mismo período).
 
+    python -m meteo.ingesta importar-hoja verificacion.csv     (o "-" para leer de la entrada)
+        Importa el historial de pronósticos exportado de la hoja
+        Verificacion_Pronostico del equipo. Se puede repetir: lo ya importado
+        no se duplica. Desde fuera del contenedor:
+        docker compose exec -T ingesta python -m meteo.ingesta importar-hoja - < archivo.csv
+
     python -m meteo.ingesta estaciones
         Copia estaciones.yaml a la base (también se hace al iniciar el servicio).
 """
@@ -35,13 +41,13 @@ def fecha_utc(s):
 
 def main():
     ap = argparse.ArgumentParser(prog="python -m meteo.ingesta")
-    ap.add_argument("comando", choices=["servicio", "una", "historico", "estaciones"])
+    ap.add_argument("comando", choices=["servicio", "una", "historico", "estaciones", "importar-hoja"])
     ap.add_argument("tarea", nargs="?")
     ap.add_argument("--config", default=os.environ.get("ESTACIONES_CONFIG", "/config/estaciones.yaml"))
     ap.add_argument("--desde", type=fecha_utc)
     ap.add_argument("--hasta", type=fecha_utc)
     ap.add_argument("--estaciones", help="ids separados por coma")
-    args = ap.parse_args()
+    args = ap.parse_intermixed_args()   # permite "importar-hoja --config x.yaml -"
 
     logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"),
                         format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -51,7 +57,15 @@ def main():
     ing = Ingesta(cfg, conn)
     ids = set(args.estaciones.split(",")) if args.estaciones else None
 
-    if args.comando == "servicio":
+    if args.comando == "importar-hoja":
+        import sys
+        from .fuentes import hoja_verificacion
+        if not args.tarea:
+            ap.error("falta el archivo CSV (o - para leerlo de la entrada)")
+        texto = sys.stdin.read() if args.tarea == "-" else open(args.tarea, encoding="utf-8").read()
+        nuevas, salteadas = hoja_verificacion.importar(conn, texto)
+        print(f"{nuevas} emisiones importadas; {salteadas} ya estaban capturadas en vivo por el servidor.")
+    elif args.comando == "servicio":
         ing.para_siempre()
     elif args.comando == "una":
         if not args.tarea:

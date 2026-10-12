@@ -4,6 +4,7 @@ import json
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
+from meteo.ingesta.fuentes import pronosticos
 from meteo.verificacion import observado as ob
 from meteo.verificacion import pronostico, puntajes
 
@@ -179,3 +180,32 @@ def test_pares_y_resumen_con_persistencia():
     assert r["tmax_urbana"]["destreza"] == 0.25
     assert r["pp"]["pc"] == 1.0 and r["pp"]["persistencia"]["pc"] == 1.0
     assert r["viento_dir"]["pct"] == 100 and r["viento_int"]["pct"] == 100
+
+
+# ---------------------------------------------------------------------------
+# Historial desde la hoja del equipo
+# ---------------------------------------------------------------------------
+def test_hoja_se_agrupa_por_emision_nominal():
+    from meteo.ingesta.fuentes import hoja_verificacion as hoja
+    texto = (Path(__file__).parent / "datos/hoja_verificacion.csv").read_text(encoding="utf-8")
+    em = {(e["city"], e["forecast_date"]): e for e in hoja.leer_csv(texto)}
+    junin = em[("Junín", "2026-08-12")]
+    assert [d["date"] for d in junin["daily_forecasts"]] == ["2026-08-13", "2026-08-14", "2026-08-15"]
+    # Mar del Plata se publicó el 13 a la noche como pronóstico del 14:
+    # Día 2 (plazo 1) = el 15. La emisión nominal es la del 14.
+    mdp = em[("Mar del Plata", "2026-08-14")]
+    assert mdp["publicado_el"] == ["2026-08-13"]
+    dias = {d["fecha"].isoformat(): d["plazo_dias"] for d in pronosticos.desarmar(mdp)}
+    assert dias == {"2026-08-15": 1}
+
+
+def test_hoja_se_deriva_igual_que_un_pronostico_capturado():
+    from meteo.ingesta.fuentes import hoja_verificacion as hoja
+    texto = (Path(__file__).parent / "datos/hoja_verificacion.csv").read_text(encoding="utf-8")
+    em = {(e["city"], e["forecast_date"]): e for e in hoja.leer_csv(texto)}
+    dia3 = em[("Junín", "2026-08-12")]["daily_forecasts"][2]
+    d = pronostico.derivar(dia3["period_forecasts"])
+    assert (d["pp"], d["viento_dirs"], d["viento_int"], d["tormenta"]) == (True, ["SW", "W"], "MODERADOS", True)
+    seco = pronostico.derivar(em[("La Plata", "2026-10-11")]["daily_forecasts"][0]["period_forecasts"])
+    assert (seco["pp"], seco["viento_dirs"], seco["viento_int"]) == (False, ["E", "SE"], "LEVES")
+    assert em[("La Plata", "2026-10-11")]["es_correccion"] is True

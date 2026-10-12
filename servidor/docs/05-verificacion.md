@@ -84,11 +84,40 @@ docker compose exec ingesta python -m meteo.ingesta historico ogimet --desde 202
 docker compose exec ingesta python -m meteo.ingesta historico verificacion --desde 2026-01-01 --hasta 2026-10-01
 ```
 
+## Importar el historial de la hoja del equipo
+
+El servidor guarda las emisiones recién desde que se puso en marcha. Lo
+anterior está en la hoja `Verificacion_Pronostico`: se descarga como CSV
+(Archivo → Descargar → CSV, con esa pestaña abierta) y se importa así:
+
+```bash
+docker compose exec -T ingesta python -m meteo.ingesta importar-hoja - < Verificacion_Pronostico.csv
+```
+
+- Se puede repetir con una versión más nueva del CSV: lo que no cambió no se
+  duplica. Si una fila cambió (se corrigió), entra como versión nueva y
+  "final" usa la más reciente.
+- Las emisiones que el servidor ya capturó en vivo no se importan: esas
+  tienen los períodos completos.
+- La hoja guarda lo ya resumido (SI/NO, "W, SW", "LEVES, MODERADOS") y solo
+  la versión vigente, sin plazo 0. Por eso, en el historial importado,
+  "original" y "final" son iguales.
+- **Plazo**: se respeta el de la hoja, que es el bloque del pronóstico (Día 2
+  = plazo 1). Si alguien publicó la noche anterior, la fecha real de
+  publicación queda en `contenido->'publicado_el'`.
+
+Después hay que traer las observaciones de esas fechas y recalcular:
+
+```bash
+docker compose exec ingesta python -m meteo.ingesta historico ogimet --desde 2026-08-10 --hasta 2026-10-13
+docker compose exec ingesta python -m meteo.ingesta historico thingspeak --desde 2026-08-10 --hasta 2026-10-13 --estaciones observatorio_campbell
+docker compose exec ingesta python -m meteo.ingesta historico verificacion --desde 2026-08-10 --hasta 2026-10-13
+```
+
 ## Próximas etapas
 
-1. Importar el historial de pronósticos desde la hoja `Verificacion_Pronostico`.
-2. Verificar por período (madrugada, mañana, tarde, noche) y por probabilidad
+1. Verificar por período (madrugada, mañana, tarde, noche) y por probabilidad
    de precipitación: puntaje de Brier y diagrama de confiabilidad.
-3. Comparar con modelos numéricos (GFS / ECMWF) para medir cuánto valor
+2. Comparar con modelos numéricos (GFS / ECMWF) para medir cuánto valor
    agrega el pronosticador.
-4. Sumar la estación LPO como urbana de La Plata.
+3. Sumar la estación LPO como urbana de La Plata.

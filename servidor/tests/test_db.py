@@ -173,3 +173,16 @@ def test_verificacion_de_punta_a_punta(conn):
     assert filas[("2026-10-09", "pp")] == (0.0, "NO")
     assert filas[("2026-10-10", "viento_dir")] == (None, "SW")
     assert filas[("2026-10-10", "viento_int")] == (18.0, "LEVES")
+
+
+def test_importar_hoja_sin_duplicar_ni_pisar_lo_capturado(conn):
+    from meteo.ingesta.fuentes import hoja_verificacion
+    texto = (Path(__file__).parent / "datos/hoja_verificacion.csv").read_text(encoding="utf-8")
+    # La Plata 11/10 ya la capturó el servidor en vivo: no se importa.
+    pronosticos.guardar(conn, [{"city": "La Plata", "forecast_date": "2026-10-11", "daily_forecasts": []}])
+    assert hoja_verificacion.importar(conn, texto) == (2, 1)
+    assert hoja_verificacion.importar(conn, texto) == (0, 1)   # repetir no duplica
+    filas = consulta(conn, """SELECT d.fecha::text, d.plazo_dias, d.temp_max FROM pronostico_dia d
+                              JOIN pronostico_emision e ON e.id = d.emision_id
+                              WHERE e.contenido ->> 'origen' IS NOT NULL ORDER BY 1, 2""")
+    assert ("2026-08-15", 1, 13.0) in filas and ("2026-08-15", 3, 15.0) in filas and len(filas) == 4

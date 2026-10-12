@@ -1,0 +1,6 @@
+ciudad,pronosticador,fecha_emision,fecha_pronostico,plazo,tmin_urb,tmax_urb,tmin_sub,tmax_sub,precip,precip_tipo,v_dir,v_int,niebla,tormenta,min_noc,comentarios,vigente,reemplazada_en,es_correccion
+Junín,Persona A,2026-08-12,2026-08-13,1,5,12,,,NO,,"E, NE",LEVES,NO,NO,SI,,SI,,NO
+Junín,Persona A,2026-08-12,2026-08-14,2,6,11,,,NO,,E,LEVES,NO,NO,,Cielo parcialmente nublado a cubierto.,SI,,NO
+Junín,Persona A,2026-08-12,2026-08-15,3,11,15,,,SI,lluvias aisladas,"W, SW","LEVES, MODERADOS",NO,SI,,10-40% prob. lluvias aisladas,SI,,NO
+Mar del Plata,Persona B,2026-08-13,2026-08-15,1,11,13,,,SI,lluvias aisladas,NE,MODERADOS,NO,NO,SI,,SI,,NO
+La Plata,Persona C,2026-10-11,2026-10-12,1,9,15,8,15,NO,,"SE, E",LEVES,SI,NO,SI,,SI,,SI
