@@ -36,11 +36,20 @@ productos:
     dominio: southamer
     variable: rel_vort
 
-  # --- Ogimet: mapa de observaciones de superficie ------------------------
-  # Pendiente: falta confirmar en qué dirección está la imagen del mapa.
-  - id: ogimet_superficie
-    nombre: "Observaciones de superficie (tiempo presente)"
+  # --- Ogimet: mapas de observaciones de superficie ----------------------
+  # https://www.ogimet.com/cgi-bin/gsynop?zona=amersurs&... : una consulta
+  # trae ~12 mapas de esa hora; "codigo" elige cuál (Te temperatura, Td rocío,
+  # Tx máxima, Tn mínima, Sg, R2, R4, Pr, Hr, Wi, Dt, Hi). Se puede rellenar
+  # el historial: python -m meteo.ingesta historico cartas --desde ... --hasta ...
+  - id: ogimet_tiempo_significativo
+    nombre: "Tiempo significativo (observaciones)"
     nivel: "Superficie"
     fuente: ogimet
-    activo: false
     zona: amersurs
+    codigo: Sg
+  - id: ogimet_precipitacion
+    nombre: "Precipitación acumulada (observaciones)"
+    nivel: "Superficie"
+    fuente: ogimet
+    zona: amersurs
+    codigo: R4

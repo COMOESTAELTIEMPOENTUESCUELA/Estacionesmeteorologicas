@@ -81,3 +81,55 @@ def test_descarga_completa_y_no_repite(tmp_path, monkeypatch):
     pedidos.clear()
     assert descarga.correr(cfg, tmp_path, Sesion()) == 0          # lo guardado no se vuelve a pedir
     assert len(pedidos) == 1                                       # solo la página
+
+
+# Líneas reales de la página gsynop de Ogimet (12/10/2026 12 UTC).
+HTML_OGIMET = """
+<IMG src="/tmp/gfsmodel.gif" alt="Mapas modelo GFS" border="0" style="max-width: 100%">
+<IMG SRC="../tmp/202610121200_amersurs_Te.png" USEMAP="#g_Te" ALT="TEMPERATURA (Celsius)" border="0">
+<IMG SRC="../tmp/202610121200_amersurs_Sg.png" USEMAP="#g_Sg" ALT="TIEMPO SIGNIFICATIVO" border="0">
+<IMG SRC="../tmp/202610121200_amersurs_R4.png" USEMAP="#g_R4" ALT="PRECIPITACION" border="0">
+"""
+
+
+def test_ogimet_imagenes_de_la_pagina():
+    from meteo.cartas import ogimet
+    imgs = ogimet.imagenes(HTML_OGIMET)
+    assert set(imgs) == {"Te", "Sg", "R4"}                        # el gif del menú no cuenta
+    assert imgs["Sg"]["url"] == "https://www.ogimet.com/tmp/202610121200_amersurs_Sg.png"
+    assert imgs["Sg"]["ts"] == datetime(2026, 10, 12, 12, tzinfo=UTC)
+    assert ogimet.parametros("amersurs", datetime(2026, 10, 12, 6, tzinfo=UTC))["hora"] == "06"
+
+
+def test_ogimet_historial_y_control_de_fecha(tmp_path, monkeypatch):
+    monkeypatch.setattr(descarga, "PAUSA_SEG", 0)
+    monkeypatch.setattr(descarga, "PAUSA_OGIMET_SEG", 0)
+    pedidos = []
+
+    class Resp:
+        def __init__(self, contenido=b"", texto=""):
+            self.content, self.text = contenido, texto
+        def raise_for_status(self):
+            pass
+
+    class Sesion:
+        def get(self, url, timeout, params=None):
+            pedidos.append((url, params))
+            if params:
+                # Para las 18 UTC, Ogimet "se equivoca" y devuelve los mapas de las 12.
+                hora = "12" if params["hora"] == "18" else params["hora"]
+                return Resp(texto=HTML_OGIMET.replace("1200_", f"{hora}00_"))
+            return Resp(PNG)
+
+    cfg = {"horas_utc": [0, 6, 12, 18], "productos": [
+        {"id": "og_sg", "fuente": "ogimet", "zona": "amersurs", "codigo": "Sg"},
+        {"id": "og_r4", "fuente": "ogimet", "zona": "amersurs", "codigo": "R4"}]}
+    n = descarga.correr_ogimet(cfg, tmp_path, Sesion(), datetime(2026, 10, 12, 0, tzinfo=UTC),
+                               datetime(2026, 10, 12, 18, tzinfo=UTC))
+    assert n == 6                                                  # 00, 06 y 12 x 2 mapas; las 18 no
+    assert not archivo.existe(tmp_path, "og_sg", datetime(2026, 10, 12, 18, tzinfo=UTC))
+    assert sum(1 for _, p in pedidos if p) == 4                    # una página por hora
+    pedidos.clear()
+    descarga.correr_ogimet(cfg, tmp_path, Sesion(), datetime(2026, 10, 12, 0, tzinfo=UTC),
+                           datetime(2026, 10, 12, 12, tzinfo=UTC))
+    assert pedidos == []                                           # ya estaba todo

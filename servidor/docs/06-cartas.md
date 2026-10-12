@@ -14,7 +14,8 @@ Configurado en `config/cartas.yaml`:
 | Temperatura potencial equivalente (`850_thetae`) | 850 hPa | Alicia Bentley, GFS |
 | Transporte integrado de vapor y convergencia (`IVT_conv`) | 700 hPa | Alicia Bentley, GFS |
 | Vorticidad relativa (`rel_vort`) | 500 hPa | Alicia Bentley, GFS |
-| Observaciones de superficie | Superficie | Ogimet (pendiente) |
+| Tiempo significativo (observaciones, código `Sg`) | Superficie | Ogimet |
+| Precipitación acumulada (observaciones, código `R4`) | Superficie | Ogimet |
 
 Solo se guardan **análisis** (diagnóstico), no pronósticos.
 
@@ -46,18 +47,36 @@ del inicio de la corrida; si no, se espera a la vuelta siguiente.
 Lo descargado se controla: si no es una imagen de verdad (por ejemplo, una
 página de error), no se guarda.
 
+### Ogimet
+
+Una consulta a `gsynop` genera unos 12 mapas de esa hora como imágenes
+**temporales** (`/tmp/202610121200_amersurs_Sg.png`): se bajan enseguida.
+El nombre trae la fecha y la hora, y se controla que sea la pedida antes de
+guardar. Códigos: Te temperatura, Td rocío, Tx máxima, Tn mínima, y Sg, R2,
+R4, Pr, Hr, Wi, Dt, Hi (el texto de cada uno está en el ALT de la imagen;
+se eligen en `config/cartas.yaml` con `codigo`).
+
+En la vuelta de cada hora se completan las últimas 48 horas. Como Ogimet
+genera los mapas de **cualquier fecha**, se puede rellenar el historial;
+respeta su límite de una consulta cada 20 segundos (unos 22 s por hora
+sinóptica: un mes son unas 120 horas, unos 45 minutos).
+
 ## Comandos
 
 ```bash
 # Bajar ahora (sin esperar a la vuelta de cada hora):
 docker compose exec ingesta python -m meteo.ingesta una cartas
+# Historial de Ogimet (de fondo, puede tardar horas o días):
+docker compose exec ingesta python -m meteo.ingesta historico cartas --desde 2026-09-01 --hasta 2026-10-13
 # Ver qué hay archivado:
 ls -R /srv/meteo/archivo/cartas | head
 ```
 
 ## Espacio
 
-Unas 4 cartas × 4 horas × ~200 KB ≈ 3 MB por día, 1 GB por año.
+Unas 6 cartas × 4 horas × ~200 KB ≈ 5 MB por día, unos 2 GB por año. El
+historial de Ogimet desde 2018 (dos mapas) son unos 25.000 mapas: varios GB.
+Conviene mirar el espacio libre (`df -h /srv`) antes de bajar años enteros.
 
 ## Para sumar otra carta
 
@@ -67,8 +86,5 @@ y reiniciar: `docker compose up -d ingesta web`.
 
 ## Pendiente
 
-- **Ogimet** (mapa de observaciones de superficie): falta confirmar en qué
-  dirección está la imagen dentro de la página. Ogimet genera los mapas para
-  cualquier fecha, así que ahí sí se puede rellenar el historial desde 2018.
 - **Satélite**: sumar a la grilla las imágenes del módulo GOES-19.
 - **Cartas propias desde el GFS / ERA5**, para tener todo el historial desde 2018.
