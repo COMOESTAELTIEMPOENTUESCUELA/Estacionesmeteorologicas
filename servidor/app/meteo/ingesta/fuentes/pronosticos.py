@@ -12,7 +12,7 @@ pronosticado en pronostico_dia, que es lo cómodo para analizar.
 """
 import hashlib
 import json
-from datetime import date
+from datetime import date, timedelta
 
 from psycopg.types.json import Jsonb
 
@@ -45,6 +45,26 @@ def desarmar(p):
             "periodos": Jsonb(d.get("period_forecasts") or []),
         })
     return filas
+
+
+DIAS_SEMANA = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
+
+
+def correr_fechas(p, dias, publicado_el, motivo):
+    """Corrige una emisión publicada con la fecha equivocada (ej. con
+    "para mañana" tildado a la mañana): mueve la fecha del pronóstico y la
+    de cada día `dias` días, y deja anotado qué se tocó y por qué. Lo demás
+    (temperaturas, períodos) queda igual."""
+    q = json.loads(json.dumps(p))          # copia, el original no se toca
+    mover = lambda f: (date.fromisoformat(f) + timedelta(days=dias)).isoformat()
+    q["forecast_date"] = mover(p["forecast_date"])
+    for d in q.get("daily_forecasts") or []:
+        if d.get("date"):
+            d["date"] = mover(d["date"])
+            d["day_name"] = DIAS_SEMANA[date.fromisoformat(d["date"]).weekday()]
+    q["publicado_el"] = [publicado_el]
+    q["correccion_manual"] = {"fecha_original": p["forecast_date"], "dias": dias, "motivo": motivo}
+    return q
 
 
 def traer(cfg, sesion):

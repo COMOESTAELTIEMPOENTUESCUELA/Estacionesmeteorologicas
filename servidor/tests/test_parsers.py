@@ -355,3 +355,18 @@ def test_synop_ir3_es_lluvia_cero():
     obs = decodificar(m18, datetime(2026, 8, 10, 18, tzinfo=timezone.utc), "omm_87640")
     assert [(o.variable, o.valor) for o in obs if o.variable.startswith("precip")] == [("precip_6h", 0.0)]
     assert decodificar("AAXX 11014 87640 NIL=", datetime(2026, 8, 11, 1, tzinfo=timezone.utc), "omm_87640") == []
+
+
+def test_correr_fechas_de_una_emision():
+    """Publicado el viernes con "para mañana" tildado por error: se corre un día."""
+    from meteo.ingesta.fuentes import pronosticos
+    p = {"city": "La Plata", "forecast_date": "2026-10-10", "publicado_por": "Micaela",
+         "daily_forecasts": [{"date": "2026-10-10", "day_name": "sábado", "temp_max": 20},
+                             {"date": "2026-10-11", "day_name": "domingo", "temp_max": 22}]}
+    q = pronosticos.correr_fechas(p, -1, "2026-10-09", "para mañana tildado por error")
+    assert q["forecast_date"] == "2026-10-09" and p["forecast_date"] == "2026-10-10"   # el original no cambia
+    assert [(d["date"], d["day_name"], d["temp_max"]) for d in q["daily_forecasts"]] == [
+        ("2026-10-09", "viernes", 20), ("2026-10-10", "sábado", 22)]
+    assert q["correccion_manual"]["fecha_original"] == "2026-10-10" and q["publicado_el"] == ["2026-10-09"]
+    assert [f["plazo_dias"] for f in pronosticos.desarmar(q)] == [0, 1]
+    assert pronosticos.huella(q) != pronosticos.huella(p)

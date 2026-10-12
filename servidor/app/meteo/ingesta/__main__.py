@@ -27,6 +27,13 @@ Uso (dentro del contenedor, o con DATABASE_URL apuntando a la base):
         decodificador actual, sin pedirle nada a Ogimet. Después de mejorar
         synop.py.
 
+    python -m meteo.ingesta importar-emision archivo.json --mover-dias -1 --publicado-el 2026-10-09 --motivo "..."
+        Carga a mano una emisión (el JSON de la columna json_completo de la
+        hoja "Pronosticos") que el servidor no llegó a ver. Con --mover-dias
+        se corrigen las fechas de una publicada con "para mañana" por error.
+        Desde fuera del contenedor, con "-" en vez del archivo:
+        docker compose exec -T ingesta python -m meteo.ingesta importar-emision - ... < emision.json
+
     python -m meteo.ingesta diagnostico-ogimet
         Mira cómo arma Ogimet sus mapas de superficie (qué imágenes trae la
         página, si son transparentes, cuál es el fondo con la geografía).
@@ -51,12 +58,15 @@ def fecha_utc(s):
 def main():
     ap = argparse.ArgumentParser(prog="python -m meteo.ingesta")
     ap.add_argument("comando", choices=["servicio", "una", "historico", "estaciones", "importar-hoja", "reprocesar-synop",
-                                         "diagnostico-ogimet"])
+                                         "diagnostico-ogimet", "importar-emision"])
     ap.add_argument("tarea", nargs="?")
     ap.add_argument("--config", default=os.environ.get("ESTACIONES_CONFIG", "/config/estaciones.yaml"))
     ap.add_argument("--desde", type=fecha_utc)
     ap.add_argument("--hasta", type=fecha_utc)
     ap.add_argument("--estaciones", help="ids separados por coma")
+    ap.add_argument("--mover-dias", type=int, default=0)
+    ap.add_argument("--publicado-el", type=lambda s: datetime.strptime(s, "%Y-%m-%d").date().isoformat())
+    ap.add_argument("--motivo", default="")
     args = ap.parse_intermixed_args()   # permite "importar-hoja --config x.yaml -"
 
     logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"),
@@ -70,6 +80,22 @@ def main():
     if args.comando == "diagnostico-ogimet":
         from ..cartas import descarga
         print("\n".join(descarga.diagnostico(os.environ.get("ARCHIVO_DIR", "/archivo"), ing.sesion)))
+        return
+    if args.comando == "importar-emision":
+        import json
+        import sys
+        from .fuentes import pronosticos
+        if not (args.tarea and args.publicado_el and args.motivo):
+            ap.error("importar-emision necesita el archivo (o -), --publicado-el y --motivo")
+        texto = sys.stdin.read() if args.tarea == "-" else open(args.tarea, encoding="utf-8").read()
+        p = json.loads(texto)
+        p.pop("team_password", None)
+        p = pronosticos.correr_fechas(p, args.mover_dias, args.publicado_el, args.motivo)
+        dias = ", ".join(f"{d['date']} ({d['day_name']}) {d.get('temp_min')}/{d.get('temp_max')}"
+                         for d in p.get("daily_forecasts") or [])
+        n = pronosticos.guardar(conn, [p])
+        print(f"{p.get('city')}, pronóstico del {p['forecast_date']} ({p.get('publicado_por')}): "
+              f"{'cargado' if n else 'ya estaba cargado'}.\n  Días: {dias}")
         return
     if args.comando == "importar-hoja":
         import sys
