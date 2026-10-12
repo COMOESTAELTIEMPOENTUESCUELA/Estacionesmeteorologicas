@@ -303,16 +303,32 @@ VARIABLES_METEOGRAMA = ["temp", "td", "hum", "pnm", "pres_est", "precip", "vient
                         "racha", "viento_dir", "rad_solar"]
 
 
+def _rango(dias, desde, hasta, max_dias):
+    """El período pedido: "los últimos `dias`" o, si vienen, de `desde` a
+    `hasta` (para ver un día o un evento del pasado). Sin zona horaria se
+    toma como UTC; la página manda las horas argentinas con su -03:00."""
+    utc = lambda t: (t if t.tzinfo else t.replace(tzinfo=timezone.utc)).astimezone(timezone.utc)
+    if desde is None and hasta is None:
+        dias = max(0.25, min(dias, max_dias))
+        hasta = datetime.now(timezone.utc)
+        return hasta - timedelta(days=dias), hasta
+    hasta = utc(hasta) if hasta else datetime.now(timezone.utc)
+    desde = utc(desde) if desde else hasta - timedelta(days=dias)
+    if desde >= hasta:
+        raise HTTPException(400, "desde tiene que ser anterior a hasta")
+    if hasta - desde > timedelta(days=max_dias):
+        raise HTTPException(400, f"período de {max_dias} días como máximo")
+    return desde, hasta
+
+
 @app.get("/api/estacion/{estacion_id}/meteograma")
-def meteograma(estacion_id: str, dias: float = 2):
+def meteograma(estacion_id: str, dias: float = 2, desde: datetime | None = None, hasta: datetime | None = None):
     """Todas las variables de UNA estación, listas para paneles apilados.
 
     Hasta 3 días: cada dato tal cual llegó; más: promedios horarios. La lluvia
     va siempre en sumas horarias (barras), que es como se lee una EMA."""
-    dias = max(0.25, min(dias, 60))
-    hasta = datetime.now(timezone.utc)
-    desde = hasta - timedelta(days=dias)
-    crudo = dias <= 3
+    desde, hasta = _rango(dias, desde, hasta, 60)
+    crudo = hasta - desde <= timedelta(days=3)
     otras = [v for v in VARIABLES_METEOGRAMA if v != "precip"]
     if crudo:
         filas = consultar("""
@@ -378,27 +394,29 @@ COLUMNAS_SYNOP = ["temp", "td", "hum", "pnm", "pres_est", "viento_dir", "viento_
 
 
 @app.get("/api/sinoptica/{estacion_id}/observaciones")
-def observaciones_sinoptica(estacion_id: str, dias: float = 2, formato: str = "json"):
+def observaciones_sinoptica(estacion_id: str, dias: float = 2, desde: datetime | None = None,
+                            hasta: datetime | None = None, formato: str = "json"):
     """Una fila por mensaje SYNOP (hora), con todas sus variables, como el
     parte de observaciones del SMN. La humedad se calcula de T y Td si el
-    mensaje no la trae."""
-    dias = max(0.25, min(dias, 31))
+    mensaje no la trae. Período: los últimos `dias`, o de `desde` a `hasta`."""
+    desde, hasta = _rango(dias, desde, hasta, 31)
     columnas = ",\n".join(f"max(valor) FILTER (WHERE variable = '{c}') AS {c}" for c in COLUMNAS_SYNOP)
     filas = consultar(f"""
         SELECT ts, {columnas}
         FROM observacion
-        WHERE estacion_id = %s AND ts > now() - make_interval(secs => %s) AND qc <> 4
-        GROUP BY ts ORDER BY ts DESC""", (estacion_id, dias * 86400))
+        WHERE estacion_id = %s AND ts > %s AND ts <= %s AND qc <> 4
+        GROUP BY ts ORDER BY ts DESC""", (estacion_id, desde, hasta))
     for f in filas:
         if f["hum"] is None:
             f["hum"] = humedad_relativa(f["temp"], f["td"])
     crudos = {r["ts"]: r["mensaje"] for r in consultar(
-        "SELECT ts, mensaje FROM synop_crudo WHERE estacion_id = %s AND ts > now() - make_interval(secs => %s)",
-        (estacion_id, dias * 86400))}
+        "SELECT ts, mensaje FROM synop_crudo WHERE estacion_id = %s AND ts > %s AND ts <= %s",
+        (estacion_id, desde, hasta))}
     for f in filas:
         f["mensaje"] = crudos.get(f["ts"])
     if formato == "csv":
-        return _csv(filas, f"{estacion_id}_observaciones", ["ts"] + COLUMNAS_SYNOP + ["mensaje"])
+        return _csv(filas, f"{estacion_id}_observaciones_{desde:%Y%m%d%H}_{hasta:%Y%m%d%H}",
+                    ["ts"] + COLUMNAS_SYNOP + ["mensaje"])
     return _json(filas)
 
 

@@ -152,6 +152,11 @@ img.con-fondo { background-color: #fff !important; background-size: 100% 100%; b
   touch-action: none; cursor: grab; border-radius: 6px; background: var(--plano); }
 #c-vista.arrastrando { cursor: grabbing; }
 #c-vista img { max-width: 100%; max-height: 100%; transform-origin: 0 0; user-select: none; -webkit-user-drag: none; }
+/* Control de período (EMAs y SMN): últimos días, un día o un período */
+.periodo, .periodo .p-dia, .periodo .p-per { display: inline-flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
+.periodo .p-dia .boton { padding: 6px 10px; }
+.periodo .p-aviso { color: var(--caida); font-size: 13px; align-self: center; }
+.periodo [hidden] { display: none !important; }
 /* Panel "pronóstico del grupo" de la pestaña Cartas */
 #cp-mapa { height: 340px; border-radius: 8px; border: 1px solid var(--borde); }
 .cp-etq { position: absolute; transform: translate(-50%, calc(-100% - 6px)); background: var(--superficie); color: var(--tinta); border: 1px solid var(--borde); border-radius: 6px; padding: 2px 5px;
@@ -245,15 +250,7 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
     <div class="tarjeta" style="margin-top:16px">
       <div class="filtros">
         <label>Estación <select id="f-ema"></select></label>
-        <label>Período
-          <select id="f-ema-dias">
-            <option value="1">Últimas 24 h</option>
-            <option value="2" selected>Últimos 2 días</option>
-            <option value="3">Últimos 3 días</option>
-            <option value="7">Últimos 7 días</option>
-            <option value="30">Últimos 30 días</option>
-          </select>
-        </label>
+        <span class="periodo" id="p-ema"></span>
       </div>
       <p class="ayuda" id="nota-meteograma"></p>
       <div id="meteograma"></div>
@@ -275,14 +272,7 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
     <div class="tarjeta" style="margin-top:16px">
       <div class="filtros">
         <label>Estación <select id="f-smn"></select></label>
-        <label>Período
-          <select id="f-smn-dias">
-            <option value="1" selected>Últimas 24 h</option>
-            <option value="2">Últimos 2 días</option>
-            <option value="3">Últimos 3 días</option>
-            <option value="7">Últimos 7 días</option>
-          </select>
-        </label>
+        <span class="periodo" id="p-smn"></span>
         <a class="boton" id="f-smn-csv" href="#">Descargar CSV</a>
         <a class="boton" id="f-smn-ogimet" href="#" target="_blank" rel="noopener" title="La misma estación y período en Ogimet (horas en UTC)">Ver en Ogimet ↗</a>
       </div>
@@ -1212,6 +1202,77 @@ function paresViento(dirs, vels) {
 // ======================================================================
 let emaElegida = null;
 
+// ---------- Control de período (EMAs y SMN) ----------
+// Tres modos: "los últimos N días" (como siempre), un día civil (00 a 24 hs
+// de Argentina, con ◀ ▶ para pasar de día) o un período de días completos
+// (para mirar un evento). Devuelve el rango y cómo pedírselo al servidor.
+const HOY_AR = () => new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
+const inicioDiaAR = (fecha) => new Date(`${fecha}T00:00:00-03:00`);
+const sumarDias = (fecha, n) => new Date(Date.parse(`${fecha}T12:00:00Z`) + n * 86400e3).toISOString().slice(0, 10);
+
+function controlPeriodo(cont, { ultimos, porDefecto, maxDias, alCambiar }) {
+  cont.innerHTML = `
+    <label>Período <select class="p-modo">
+      ${ultimos.map(([d, t]) => `<option value="u:${d}" ${d === porDefecto ? "selected" : ""}>${t}</option>`).join("")}
+      <option value="dia">Un día…</option>
+      <option value="per">Período (evento)…</option>
+    </select></label>
+    <span class="p-dia" hidden>
+      <button class="boton p-ant" title="Día anterior">◀</button>
+      <label>Día <input type="date" class="p-fecha"></label>
+      <button class="boton p-sig" title="Día siguiente">▶</button>
+    </span>
+    <span class="p-per" hidden>
+      <label>Desde <input type="date" class="p-desde"></label>
+      <label>Hasta <input type="date" class="p-hasta"></label>
+    </span>
+    <span class="p-aviso" hidden></span>`;
+  const q = (c) => cont.querySelector(c);
+  const hoy = HOY_AR();
+  q(".p-fecha").value = hoy; q(".p-fecha").max = hoy;
+  q(".p-desde").value = sumarDias(hoy, -2); q(".p-hasta").value = hoy;
+  q(".p-desde").max = hoy; q(".p-hasta").max = hoy;
+
+  const ctl = {
+    rango() {
+      const modo = q(".p-modo").value;
+      if (modo.startsWith("u:")) {
+        const dias = Number(modo.slice(2)), hasta = new Date();
+        return { desde: new Date(hasta - dias * 86400e3), hasta, dias, query: `dias=${dias}`,
+                 etiqueta: q(".p-modo").selectedOptions[0].textContent.toLowerCase() };
+      }
+      let d1, d2;
+      if (modo === "dia") { d1 = d2 = q(".p-fecha").value || hoy; }
+      else {
+        d1 = q(".p-desde").value || hoy; d2 = q(".p-hasta").value || hoy;
+        if (d2 < d1) [d1, d2] = [d2, d1];
+      }
+      const desde = inicioDiaAR(d1), hasta = inicioDiaAR(sumarDias(d2, 1));
+      const dias = (hasta - desde) / 86400e3;
+      const f = (d) => `${d.slice(8)}/${d.slice(5, 7)}/${d.slice(0, 4)}`;
+      return { desde, hasta, dias, error: dias > maxDias ? `Máximo ${maxDias} días` : null,
+               query: `desde=${encodeURIComponent(desde.toISOString())}&hasta=${encodeURIComponent(hasta.toISOString())}`,
+               etiqueta: d1 === d2 ? `el ${f(d1)} (00 a 24 hs)` : `del ${f(d1)} al ${f(d2)}` };
+    },
+  };
+  const cambio = () => {
+    const modo = q(".p-modo").value;
+    q(".p-dia").hidden = modo !== "dia";
+    q(".p-per").hidden = modo !== "per";
+    const r = ctl.rango();
+    q(".p-aviso").hidden = !r.error; q(".p-aviso").textContent = r.error || "";
+    q(".p-sig").disabled = q(".p-fecha").value >= hoy;
+    if (!r.error) alCambiar();
+  };
+  const mover = (n) => { q(".p-fecha").value = sumarDias(q(".p-fecha").value || hoy, n); cambio(); };
+  q(".p-modo").addEventListener("change", cambio);
+  ["p-fecha", "p-desde", "p-hasta"].forEach((c) => q("." + c).addEventListener("change", cambio));
+  q(".p-ant").addEventListener("click", () => mover(-1));
+  q(".p-sig").addEventListener("click", () => mover(1));
+  return ctl;
+}
+let periodoEma = null, periodoSmn = null;
+
 async function iniciarEmas() {
   if (!ESTACIONES.length) ESTACIONES = await api("/api/estaciones");
   const emas = ESTACIONES.filter((e) => e.activa && e.tipo !== "sinoptica");
@@ -1221,7 +1282,8 @@ async function iniciarEmas() {
   emaElegida = emaElegida || (emas.find((e) => e.id === "observatorio_campbell") || emas[0] || {}).id;
   sel.value = emaElegida;
   sel.addEventListener("change", () => { emaElegida = sel.value; cargarMeteograma(); cargarResumenEmas(); });
-  $("#f-ema-dias").addEventListener("change", cargarMeteograma);
+  periodoEma = controlPeriodo($("#p-ema"), { ultimos: [[1, "Últimas 24 h"], [2, "Últimos 2 días"], [3, "Últimos 3 días"],
+    [7, "Últimos 7 días"], [30, "Últimos 30 días"]], porDefecto: 2, maxDias: 60, alCambiar: cargarMeteograma });
   cargarResumenEmas();
   cargarMeteograma();
 }
@@ -1244,17 +1306,17 @@ async function cargarResumenEmas() {
 
 async function cargarMeteograma() {
   const id = $("#f-ema").value;
-  const dias = $("#f-ema-dias").value;
+  const per = periodoEma.rango();
   const cont = $("#meteograma");
   $("#nota-meteograma").textContent = "Cargando…";
   let d;
-  try { d = await api(`/api/estacion/${encodeURIComponent(id)}/meteograma?dias=${dias}`); }
+  try { d = await api(`/api/estacion/${encodeURIComponent(id)}/meteograma?${per.query}`); }
   catch (err) { $("#nota-meteograma").textContent = "Error: " + err.message; return; }
   const S = d.series, x = { xmin: Date.parse(d.desde), xmax: Date.parse(d.hasta) };
   const est = ESTACIONES.find((e) => e.id === id) || {};
   const totalLluvia = (S.precip || []).reduce((a, [, v]) => a + v, 0);
   $("#nota-meteograma").textContent =
-    `${est.nombre || id} · ${d.paso === "crudo" ? "cada dato tal cual llegó" : "promedios horarios"}` +
+    `${est.nombre || id} · ${per.etiqueta} · ${d.paso === "crudo" ? "cada dato tal cual llegó" : "promedios horarios"}` +
     (S.precip ? ` · lluvia total del período: ${totalLluvia.toFixed(1)} mm` : "") +
     (Object.keys(S).length ? "" : " · sin datos en el período");
 
@@ -1342,7 +1404,8 @@ async function iniciarSmn() {
   smnElegida = smnElegida || (smn.find((e) => e.id === "omm_87593") || smn[0] || {}).id;
   sel.value = smnElegida;
   sel.addEventListener("change", () => { smnElegida = sel.value; cargarSmn(); cargarResumenSmn(); });
-  $("#f-smn-dias").addEventListener("change", cargarSmn);
+  periodoSmn = controlPeriodo($("#p-smn"), { ultimos: [[1, "Últimas 24 h"], [2, "Últimos 2 días"], [3, "Últimos 3 días"],
+    [7, "Últimos 7 días"]], porDefecto: 1, maxDias: 31, alCambiar: cargarSmn });
   cargarResumenSmn();
   cargarSmn();
 }
@@ -1370,13 +1433,13 @@ async function cargarResumenSmn() {
 
 async function cargarSmn() {
   const id = $("#f-smn").value;
-  const dias = $("#f-smn-dias").value;
-  $("#f-smn-csv").href = `/api/sinoptica/${encodeURIComponent(id)}/observaciones?dias=${dias}&formato=csv`;
-  $("#f-smn-ogimet").href = urlOgimetHasta(id, new Date(), Math.max(1, Math.ceil(Number(dias)))) || "#";
-  const obs = await api(`/api/sinoptica/${encodeURIComponent(id)}/observaciones?dias=${dias}`);
+  const per = periodoSmn.rango();
+  $("#f-smn-csv").href = `/api/sinoptica/${encodeURIComponent(id)}/observaciones?${per.query}&formato=csv`;
+  $("#f-smn-ogimet").href = urlOgimetHasta(id, per.hasta, Math.max(1, Math.ceil(per.dias))) || "#";
+  const obs = await api(`/api/sinoptica/${encodeURIComponent(id)}/observaciones?${per.query}`);
   const asc = obs.slice().reverse();
   const serie = (k) => asc.filter((o) => o[k] !== null).map((o) => [o.ts, o[k]]);
-  const x = { xmin: Date.now() - dias * 86400e3, xmax: Date.now() };
+  const x = { xmin: per.desde.getTime(), xmax: per.hasta.getTime() };
   panel($("#smn-temp"), [serieLinea("Temperatura", serie("temp"), 2), serieLinea("Rocío", serie("td"), 1)], { unidad: "°C", ...x });
   const dsPres = [serieLinea("Presión", serie("pnm"), 7)];
   panel($("#smn-pres"), dsPres, { unidad: "hPa", rango: rangoAjustado(dsPres), ...x });

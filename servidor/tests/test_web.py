@@ -181,3 +181,20 @@ def test_verificacion_dia(cliente):
     c = r.json()["ciudades"]
     assert c[0]["ciudad"] == "La Plata" and c[0]["coord"] and "Bolívar" not in {x["ciudad"] for x in c}
     assert cliente.get("/api/verificacion/dia", params={"fecha": "2026-10-12", "plazo": 9}).status_code == 400
+
+
+def test_periodos_por_fecha(cliente):
+    """Un día o un período del pasado (para eventos), además de "los últimos N días"."""
+    dia = {"desde": "2026-10-09T03:00:00Z", "hasta": "2026-10-10T03:00:00Z"}     # 9/10, 00 a 24 hs de Argentina
+    r = cliente.get("/api/estacion/bavio/meteograma", params=dia)
+    assert r.status_code == 200 and r.json()["desde"].startswith("2026-10-09T03:00") and r.json()["paso"] == "crudo"
+    largo = cliente.get("/api/estacion/bavio/meteograma", params={"desde": "2026-09-01T03:00:00Z", "hasta": "2026-09-11T03:00:00Z"})
+    assert largo.json()["paso"] == "hora"                                         # más de 3 días: promedios horarios
+    assert cliente.get("/api/sinoptica/omm_87593/observaciones", params=dia).status_code == 200
+    csv = cliente.get("/api/sinoptica/omm_87593/observaciones", params={**dia, "formato": "csv"})
+    assert "2026100903_2026101003" in csv.headers["content-disposition"]
+    al_reves = {"desde": dia["hasta"], "hasta": dia["desde"]}
+    assert cliente.get("/api/sinoptica/omm_87593/observaciones", params=al_reves).status_code == 400
+    muy_largo = {"desde": "2026-01-01T00:00:00Z", "hasta": "2026-03-01T00:00:00Z"}
+    assert cliente.get("/api/sinoptica/omm_87593/observaciones", params=muy_largo).status_code == 400
+    assert cliente.get("/api/sinoptica/omm_87593/observaciones", params={"dias": 2}).status_code == 200
