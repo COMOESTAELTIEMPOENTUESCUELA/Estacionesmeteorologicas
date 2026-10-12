@@ -281,3 +281,29 @@ def test_wunderground_combina_historial_y_ultimas_24h(monkeypatch):
     temps = [o for o in obs if o.variable == "temp"]
     assert len(temps) == 4                                     # 06:00 no se duplica
     assert round(sum(o.valor for o in obs if o.variable == "precip"), 2) == 4.5
+
+
+def test_ogimet_sigue_si_falla_una_ventana(monkeypatch):
+    from datetime import datetime, timezone
+    from meteo.ingesta.fuentes import ogimet
+    monkeypatch.setattr(ogimet, "PAUSA_SEG", 0)
+    monkeypatch.setattr(ogimet, "ESPERAS_REINTENTO", (0,))
+    linea = "87593,2026,08,20,12,00,AAXX 20121 87593 32970 11204 10150 20110 30195 40210=\n"
+
+    class Resp:
+        def __init__(self, texto, codigo=200):
+            self.text, self.status_code = texto, codigo
+        def raise_for_status(self):
+            if self.status_code >= 400:
+                raise RuntimeError(f"{self.status_code} Server Error: Gateway Time-out")
+
+    class Sesion:
+        pedidos = []
+        def get(self, url, params, timeout):
+            self.pedidos.append(params["begin"])
+            return Resp("", 504) if params["begin"].startswith("20260810") else Resp(linea)
+
+    est = {"id": "omm_87593", "omm": "87593"}
+    obs, crudos = ogimet.traer(est, datetime(2026, 8, 10, tzinfo=timezone.utc), datetime(2026, 8, 24, tzinfo=timezone.utc), Sesion())
+    assert len(crudos) >= 1 and any(o.variable == "temp" for o in obs)
+    assert Sesion.pedidos.count("202608100000") == 2   # se reintentó la ventana que falló
