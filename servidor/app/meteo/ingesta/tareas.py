@@ -98,6 +98,9 @@ class Ingesta:
             emisiones = pronosticos.traer(self.cfg["pronosticos"], self.sesion)
             reg["filas"] = pronosticos.guardar(self.conn, emisiones)
             log.info("pronosticos: %d emisiones nuevas", reg["filas"])
+            # Por si llegó una publicación con la fecha equivocada ya anotada.
+            from . import correcciones
+            correcciones.aplicar(self.conn, correcciones.cargar())
 
     def correr_verificacion(self, desde=None, hasta=None):
         """Recalcula lo observado de los últimos días (los SYNOP llegan

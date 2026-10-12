@@ -190,3 +190,29 @@ def test_importar_hoja_sin_duplicar_ni_pisar_lo_capturado(conn):
                               JOIN pronostico_emision e ON e.id = d.emision_id
                               WHERE e.contenido ->> 'origen' IS NOT NULL ORDER BY 1, 2""")
     assert ("2026-08-15", 1, 13.0) in filas and ("2026-08-15", 3, 15.0) in filas and len(filas) == 4
+
+
+def test_correccion_de_fecha_de_un_pronostico(conn):
+    """Publicado el viernes con "para mañana" tildado: se corre un día en el
+    lugar, una sola vez, y si vuelve a llegar el original no se duplica."""
+    from meteo.ingesta import correcciones
+    from meteo.ingesta.fuentes import pronosticos
+    p = {"city": "Ciudad Test", "forecast_date": "2026-10-10", "emission_time": "08:00:00", "publicado_por": "Micaela",
+         "daily_forecasts": [{"date": "2026-10-10", "day_name": "sábado", "temp_min": 11, "temp_max": 16},
+                             {"date": "2026-10-11", "day_name": "domingo", "temp_min": 11, "temp_max": 16}]}
+    assert pronosticos.guardar(conn, [p]) == 1
+    c = [{"ciudad": "Ciudad Test", "fecha_guardada": "2026-10-10", "publicado_por": "Micaela",
+          "hora_emision": "08:00:00", "mover_dias": -1, "publicado_el": "2026-10-09", "motivo": "test"}]
+    try:
+        assert correcciones.aplicar(conn, c) == ["Ciudad Test 2026-10-10 (Micaela): corregido a 2026-10-09"]
+        assert correcciones.aplicar(conn, c) == ["Ciudad Test 2026-10-10 (Micaela): ya estaba corregido"]
+        assert pronosticos.guardar(conn, [p]) == 0                 # el original equivocado no vuelve a entrar
+        with conn.cursor() as cur:
+            cur.execute("""SELECT e.fecha_pronostico::text, d.fecha::text, d.plazo_dias, e.contenido -> 'publicado_el' ->> 0
+                           FROM pronostico_dia d JOIN pronostico_emision e ON e.id = d.emision_id
+                           WHERE e.ciudad = 'Ciudad Test' ORDER BY d.fecha""")
+            assert cur.fetchall() == [("2026-10-09", "2026-10-09", 0, "2026-10-09"), ("2026-10-09", "2026-10-10", 1, "2026-10-09")]
+    finally:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM pronostico_emision WHERE ciudad = 'Ciudad Test'")
+        conn.commit()

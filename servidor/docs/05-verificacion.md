@@ -265,10 +265,12 @@ reproduce, para que no vuelva a pasar.
 | 7 | Bolívar, Tandil y Dolores tenían muchos días sin dato | Unas 4.500 a 7.800 observaciones contra 13.000 de las otras | No reportan de noche (mandan `NIL`); la regla de 18 horas los dejaba afuera | Máxima y mínima validadas con los grupos del SYNOP; día seco con lluvias acumuladas en cero; viento con 8 horas. |
 | 8 | La Plata urbana (Campbell) tenía solo 27 de 62 días | Consulta de cobertura | Con más de 8000 registros en el rango, ThingSpeak devuelve los **más recientes**; el código suponía los primeros y cortaba | Se pagina hacia atrás hasta que una tanda viene incompleta. Ahora 62 de 62. |
 | 9 | Bolívar tenía lluvia en solo 15 de 62 días | Mensajes reales del 10/08: `31960` a las 12 UTC, `NIL` de noche | El indicador iR = 3 ("grupo de lluvia omitido por ser cero") no se leía, así que la noche quedaba sin información | iR = 3 vale 0 mm (24 h a las 12 UTC; 6 h a las 00, 06 y 18 UTC). Comando `reprocesar-synop` para volver a leer lo guardado sin pedir nada a Ogimet. Ahora 60 de 62. |
+| 10 | El pronóstico del viernes 9/10 de La Plata no aparecía en ningún lado | El portal mostró el del jueves todo el viernes; en la hoja "Pronosticos", la fila decía 10/10 pero se guardó el 9/10 a las 08:14 | Publicado a la mañana con "CREAR PARA MAÑANA (Turno noche)" tildado: TODAS las fechas corridas un día. Revisando la hoja completa: 8 casos así | `config/correcciones_pronosticos.yaml` (registro) + `aplicar-correcciones`: se corrigen las fechas en el lugar, anotando el motivo. "Publicado el día anterior" no siempre es turno noche: hay que mirar la HORA. |
 
 Lección general: **revisar siempre la cobertura** (cuántos días hay de cada
 cosa) antes de mirar los resultados. Los problemas 6 a 9 aparecieron así, y
-ninguno daba error: solo faltaban datos en silencio.
+ninguno daba error: solo faltaban datos en silencio. El 10 tampoco daba
+error: los datos estaban, pero con la fecha equivocada.
 
 ## 6. Limitaciones conocidas
 
