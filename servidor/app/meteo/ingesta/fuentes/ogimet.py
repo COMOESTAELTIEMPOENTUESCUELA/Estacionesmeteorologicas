@@ -20,10 +20,13 @@ from .. import synop
 log = logging.getLogger(__name__)
 
 URL = "https://www.ogimet.com/cgi-bin/getsynop"
-PAUSA_SEG = 8
+# Regla de Ogimet (dicha en su propio error 501): "a query per remote IP
+# every 20 seconds". Con 8 s alcanzaba para pocas semanas, pero en una
+# descarga de años cada pedido rebotaba y había que reintentarlo.
+PAUSA_SEG = 21
 # Ogimet a veces responde 504 (Gateway Time-out) cuando está cargado: se
 # reintenta la misma ventana esperando cada vez más.
-ESPERAS_REINTENTO = (30, 90)
+ESPERAS_REINTENTO = (30, 90, 180)
 
 
 def _pedir_ventana(estacion, ini, fin, sesion):
