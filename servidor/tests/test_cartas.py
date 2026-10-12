@@ -186,3 +186,25 @@ def test_ogimet_rechazo_se_reintenta_y_no_dos_descargas(tmp_path, monkeypatch):
     with descarga.una_sola_descarga(tmp_path):
         with pytest.raises(descarga.EnCurso):
             descarga.correr_ogimet(cfg, tmp_path, Sesion(), ts, ts)
+
+
+def test_ogimet_respuesta_vacia_no_se_reintenta(tmp_path, monkeypatch):
+    """Ogimet solo tiene los mapas del último día: para fechas viejas responde vacío."""
+    monkeypatch.setattr(descarga, "PAUSA_SEG", 0)
+    monkeypatch.setattr(descarga, "PAUSA_OGIMET_SEG", 0)
+    pedidos = []
+
+    class Resp:
+        content, text = b"", ""
+        def raise_for_status(self):
+            pass
+
+    class Sesion:
+        def get(self, url, timeout, params=None):
+            pedidos.append(params["hora"])
+            return Resp()
+
+    cfg = {"horas_utc": [0, 6, 12, 18], "productos": [{"id": "og_sg", "fuente": "ogimet", "zona": "amersurs", "codigo": "Sg"}]}
+    assert descarga.correr_ogimet(cfg, tmp_path, Sesion(), datetime(2026, 10, 5, 0, tzinfo=UTC),
+                                  datetime(2026, 10, 5, 18, tzinfo=UTC)) == 0
+    assert pedidos == ["00", "06", "12", "18"]          # una sola vez cada hora, sin reintentos

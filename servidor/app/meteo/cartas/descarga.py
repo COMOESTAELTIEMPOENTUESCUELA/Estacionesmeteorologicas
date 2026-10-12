@@ -19,12 +19,19 @@ PAUSA_OGIMET_SEG = 21
 ESPERAS_OGIMET = (30, 90)
 # En la vuelta de cada hora se miran las últimas horas sinópticas. Se deja
 # un margen para que Ogimet ya tenga los SYNOP de esa hora.
-OGIMET_HORAS_ATRAS = 48
+# OJO: Ogimet solo genera estos mapas para el último día, aproximadamente
+# (probado el 12/10/2026: hoy sí; hace 2 días o una semana, respuesta
+# vacía). No se puede rellenar el historial: hay que archivarlos a diario.
+OGIMET_HORAS_ATRAS = 24
 OGIMET_MARGEN = timedelta(hours=2)
 
 
 class EnCurso(Exception):
     pass
+
+
+class NoDisponible(Exception):
+    """Ogimet respondió vacío: esa hora ya no está disponible (no es un rechazo)."""
 
 
 @contextmanager
@@ -103,11 +110,15 @@ def _pedir_ogimet(sesion, zona, ts):
         try:
             r = sesion.get(ogimet.URL_PAGINA, params=ogimet.parametros(zona, ts), timeout=120)
             r.raise_for_status()
+            if not r.text.strip():
+                raise NoDisponible(f"Ogimet ya no tiene los mapas de {ts:%d/%m %H} UTC (solo guarda el último día)")
             imgs = ogimet.imagenes(r.text)
             if not imgs:
                 aviso = "límite de consultas" if "quota" in r.text.lower() else "página sin mapas"
                 raise RuntimeError(f"Ogimet no devolvió mapas ({aviso})")
             return imgs
+        except NoDisponible:
+            raise                   # reintentar no sirve
         except Exception as ex:
             if i == len(ESPERAS_OGIMET):
                 raise
@@ -135,6 +146,10 @@ def _correr_ogimet(cfg, raiz, sesion, desde, hasta):
                 continue
             try:
                 imgs = _pedir_ogimet(sesion, zona, ts)
+            except NoDisponible as ex:
+                log.info("cartas: %s", ex)
+                time.sleep(PAUSA_OGIMET_SEG)
+                continue
             except Exception as ex:
                 log.warning("cartas ogimet %s: %s", ts, str(ex)[:150])
                 time.sleep(PAUSA_OGIMET_SEG)

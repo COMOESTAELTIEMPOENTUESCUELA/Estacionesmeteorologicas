@@ -63,27 +63,28 @@ guardar. Códigos: Te temperatura, Td rocío, Tx máxima, Tn mínima, y Sg, R2,
 R4, Pr, Hr, Wi, Dt, Hi (el texto de cada uno está en el ALT de la imagen;
 se eligen en `config/cartas.yaml` con `codigo`).
 
-En la vuelta de cada hora se completan las últimas 48 horas. Como Ogimet
-genera los mapas de **cualquier fecha**, se puede rellenar el historial;
-respeta su límite de una consulta cada 20 segundos (unos 22 s por hora
-sinóptica: un mes son unas 120 horas, unos 45 minutos).
+En la vuelta de cada hora se completan las últimas 24 horas, respetando su
+límite de una consulta cada 20 segundos.
+
+**Ogimet solo genera estos mapas para el último día** (probado el 12/10/2026:
+para hoy devuelve los 12 mapas; para hace 2 días o una semana, una
+respuesta vacía). No se puede rellenar el historial: el archivo empieza el
+día que se activó y se completa a diario. Una respuesta vacía no se
+reintenta (no es un rechazo por el límite: esa hora ya no está).
 
 ## Comandos
 
 ```bash
 # Bajar ahora (sin esperar a la vuelta de cada hora):
 docker compose exec ingesta python -m meteo.ingesta una cartas
-# Historial de Ogimet (de fondo, puede tardar horas o días):
-docker compose exec ingesta python -m meteo.ingesta historico cartas --desde 2026-09-01 --hasta 2026-10-13
 # Ver qué hay archivado:
 ls -R /srv/meteo/archivo/cartas | head
 ```
 
 ## Espacio
 
-Unas 6 cartas × 4 horas × ~200 KB ≈ 5 MB por día, unos 2 GB por año. El
-historial de Ogimet desde 2018 (dos mapas) son unos 25.000 mapas: varios GB.
-Conviene mirar el espacio libre (`df -h /srv`) antes de bajar años enteros.
+Unas 9 cartas por día y hora sinóptica × ~200 KB ≈ 6 MB por día, unos 2 GB
+por año.
 
 ## Para sumar otra carta
 
@@ -95,3 +96,5 @@ y reiniciar: `docker compose up -d ingesta web`.
 
 - **Satélite**: sumar a la grilla las imágenes del módulo GOES-19.
 - **Cartas propias desde el GFS / ERA5**, para tener todo el historial desde 2018.
+- **Mapas de superficie propios** para fechas viejas: bajar de Ogimet los SYNOP
+  de toda la región (eso sí tiene historial) y dibujar los mapas en el servidor.

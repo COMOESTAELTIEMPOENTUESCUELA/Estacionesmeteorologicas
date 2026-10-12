@@ -122,6 +122,8 @@ class Ingesta:
     def _cartas(self, descarga, cfg, raiz, desde, hasta):
         with db.registrar_tarea(self.conn, "cartas") as reg:
             if desde:
+                log.warning("cartas: Ogimet solo tiene los mapas del último día; para fechas viejas "
+                            "la respuesta va a venir vacía")
                 reg["filas"] = descarga.correr_ogimet(cfg, raiz, self.sesion, desde, hasta)
             else:
                 reg["filas"] = descarga.correr(cfg, raiz, self.sesion)
