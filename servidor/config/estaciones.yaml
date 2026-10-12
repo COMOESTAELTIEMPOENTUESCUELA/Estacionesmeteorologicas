@@ -22,6 +22,7 @@ frecuencias_min:
   ogimet: 60
   comunidad: 30
   pronosticos: 60
+  verificacion: 180
 
 estaciones:
 
@@ -222,3 +223,26 @@ comunidad:
 pronosticos:
   url: https://script.google.com/macros/s/AKfycbyKbRPl7kgOPJWsDtq_2eb7Da6P8iDGvF75_-D55Rwo0xn3WSv_eJnQe2Azgwj4i3XS/exec
   ciudades: [La Plata, Junín, Mar del Plata, Bolívar, Tandil, Bahía Blanca]
+
+# =====================================================================
+# Verificación de pronósticos (ver docs/05-verificacion.md)
+# =====================================================================
+# Para cada ciudad, qué estaciones representan lo observado. Es una lista
+# por prioridad: se usa la primera que tenga el día completo.
+#   urbana / suburbana: temperaturas (se comparan con la mín/máx urbana o
+#                       suburbana del pronóstico)
+#   lluvia, viento:     si no se ponen, se usa la lista "urbana"
+# Igual que la hoja del equipo: La Plata Aero es la suburbana de La Plata;
+# en las otras ciudades la estación del aeropuerto es la "urbana".
+verificacion:
+  ciudades:
+    La Plata:
+      urbana: [observatorio_campbell, observatorio_davis]   # después: LPO
+      suburbana: [omm_87593]
+      lluvia: [omm_87593, observatorio_campbell, observatorio_davis]
+      viento: [omm_87593]          # la Davis no tiene anemómetro; Campbell está entre árboles
+    Junín: {urbana: [omm_87548]}
+    Mar del Plata: {urbana: [omm_87692]}
+    Bolívar: {urbana: [omm_87640]}
+    Tandil: {urbana: [omm_87645]}
+    Bahía Blanca: {urbana: [omm_87750]}

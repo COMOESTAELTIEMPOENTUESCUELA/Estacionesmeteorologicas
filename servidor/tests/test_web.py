@@ -99,3 +99,20 @@ def test_direccion_del_viento_promedio_circular(cliente):
                                            "dias": 10, "paso": "hora"}).json()
     [valor] = [v for t, v in d["series"][0]["puntos"] if t == h.strftime("%Y-%m-%dT%H:%M:%SZ")]
     assert min(valor, 360 - valor) < 0.01
+
+
+def test_verificacion(cliente):
+    # Datos cargados por test_db.test_verificacion_de_punta_a_punta.
+    r = cliente.get("/api/verificacion", params={"ciudad": "Tandil", "desde": "2026-10-01", "hasta": "2026-10-11"})
+    assert r.status_code == 200
+    d = r.json()
+    [dia] = d["dias"]
+    assert dia["plazo"] == 1 and dia["tmax_urbana"] == {"pron": 19, "obs": 18.0, "pers": None, "estacion": "omm_87645"}
+    assert dia["pp"]["pron"] is True and dia["pp"]["obs"] is True
+    assert dia["viento_dir"]["obs"] == "SW" and dia["viento_int"]["pron"] == "MODERADOS"
+    assert d["resumen"]["1"]["tmax_urbana"]["mae"] == 1.0
+    assert "Tandil" in cliente.get("/api/verificacion/ciudades").json()
+    csv = cliente.get("/api/verificacion", params={"ciudad": "Tandil", "desde": "2026-10-01",
+                                                    "hasta": "2026-10-11", "formato": "csv"})
+    assert csv.text.startswith("ciudad,fecha,plazo")
+    assert cliente.get("/api/verificacion", params={"version": "otra"}).status_code == 400

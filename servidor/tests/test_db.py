@@ -5,7 +5,7 @@ Para correrlos: TEST_DATABASE_URL=postgresql://... pytest
 """
 import json
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -143,3 +143,33 @@ def test_reconecta_si_se_corta_la_conexion():
     ing.asegurar_conexion()
     assert db.conexion_sana(ing.conn)
     ing.conn.close()
+
+
+def test_verificacion_de_punta_a_punta(conn):
+    """SYNOP horarios de Tandil -> lo observado del día -> pares con el pronóstico."""
+    from meteo.verificacion import observado
+
+    ar = timezone(timedelta(hours=-3))
+    obs = []
+    for h in range(0, 24 * 3):           # 08/10 a 10/10, hora argentina
+        t = datetime(2026, 10, 8, tzinfo=ar) + timedelta(hours=h)
+        hora = h % 24
+        obs += [Obs(t, "omm_87645", "temp", 10 + 8 * (1 - abs(hora - 15) / 15)),
+                Obs(t, "omm_87645", "viento_vel", 5.0), Obs(t, "omm_87645", "viento_dir", 225)]
+    obs.append(Obs(datetime(2026, 10, 10, 15, tzinfo=ar), "omm_87645", "ww", 61))
+    db.guardar_observaciones(conn, obs, "test")
+    emision = {"city": "Tandil", "forecast_date": "2026-10-09", "emission_time": "08:00", "publicado_por": "Ana",
+               "daily_forecasts": [{"date": "2026-10-10", "temp_min": 11, "temp_max": 19, "period_forecasts": [
+                   {"period": "tarde", "precipitation_description": "lluvias", "wind_direction": "sudoeste",
+                    "wind_intensity": "leves a moderados"}]}]}
+    pronosticos.guardar(conn, [emision])
+
+    cfg = cargar_config(RAIZ / "config/estaciones.yaml")["verificacion"]
+    assert observado.calcular(conn, cfg, date(2026, 10, 9), date(2026, 10, 10)) > 0
+    filas = {(f.isoformat(), el): (v, c) for f, el, v, c in consulta(
+        conn, "SELECT fecha, elemento, valor, categoria FROM verif_observado WHERE ciudad = 'Tandil'")}
+    assert filas[("2026-10-10", "tmax_urbana")] == (18.0, None)
+    assert filas[("2026-10-10", "pp")] == (1.0, "SI")
+    assert filas[("2026-10-09", "pp")] == (0.0, "NO")
+    assert filas[("2026-10-10", "viento_dir")] == (None, "SW")
+    assert filas[("2026-10-10", "viento_int")] == (18.0, "LEVES")

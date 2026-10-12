@@ -130,6 +130,10 @@ th { color: var(--tinta-2); font-weight: 600; font-size: 12px; position: sticky;
 #tabla-obs td, #tabla-obs th { white-space: nowrap; }
 #tabla-obs td.ww { white-space: normal; min-width: 170px; }
 .num { text-align: right; }
+.bien { color: var(--ok); } .mal { color: var(--caida); }
+.verif td, .verif th { vertical-align: top; }
+.verif .sub { display: block; font-size: 12px; color: var(--tenue); }
+dl.glosario dt { font-weight: 600; margin-top: 8px; } dl.glosario dd { margin: 2px 0 0 0; color: var(--tinta-2); font-size: 13px; }
 .barba { vertical-align: middle; margin-right: 6px; }
 .barba line, .barba circle { stroke: var(--tinta); stroke-width: 1.6; fill: none; stroke-linecap: round; }
 .barba polygon { fill: var(--tinta); stroke: none; }
@@ -160,6 +164,7 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
     <button role="tab" data-tab="smn" aria-selected="false">Estaciones SMN</button>
     <button role="tab" data-tab="series" aria-selected="false">Comparar</button>
     <button role="tab" data-tab="lluvia" aria-selected="false">Lluvia diaria</button>
+    <button role="tab" data-tab="verif" aria-selected="false">Verificación</button>
     <button role="tab" data-tab="estado" aria-selected="false">Estado de la red</button>
   </nav>
   <span class="tenue" id="actualizado"></span>
@@ -294,6 +299,80 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
     </div>
   </section>
 
+  <!-- ========================= VERIFICACIÓN ========================= -->
+  <section id="tab-verif" hidden>
+    <div class="tarjeta">
+      <div class="filtros">
+        <label>Ciudad <select id="f-v-ciudad"></select></label>
+        <label>Desde <input type="date" id="f-v-desde"></label>
+        <label>Hasta <input type="date" id="f-v-hasta"></label>
+        <label>Versión
+          <select id="f-v-version">
+            <option value="final" selected>Final (con correcciones)</option>
+            <option value="original">Original (lo primero publicado)</option>
+          </select>
+        </label>
+        <a class="boton" id="f-v-csv" href="#">Descargar CSV</a>
+      </div>
+      <p class="ayuda">Pronósticos de Pronóstico UNLP contra lo observado en las estaciones. El día es el día civil
+        (00 a 24 hs): la mínima puede ser de madrugada o nocturna. Un día entra en la cuenta solo si hay pronóstico
+        Y observación completa (n = días comparados). "Plazo 1" = pronóstico emitido el día anterior.
+        <b>Persistencia</b> = pronosticar "lo mismo que ayer"; la <b>destreza</b> dice cuánto menos se erra que con ella.</p>
+      <p class="ayuda" id="v-nota"></p>
+
+      <div class="panel-titulo">Temperatura <span class="tenue">(error en °C; sesgo + = se pronosticó de más)</span></div>
+      <div class="tabla-scroll"><table class="verif" id="v-temp"></table></div>
+
+      <div class="panel-titulo" style="margin-top:16px">Precipitación: día con / sin precipitación
+        <span class="tenue">(se pronostica "sí" si algún período tiene lluvias, lloviznas, tormentas...)</span></div>
+      <div class="tabla-scroll"><table class="verif" id="v-pp"></table></div>
+
+      <div class="panel-titulo" style="margin-top:16px">Viento en todo el día
+        <span class="tenue">(dirección: acierta si la predominante observada está entre las pronosticadas)</span></div>
+      <div class="tabla-scroll"><table class="verif" id="v-viento"></table></div>
+
+      <details style="margin-top:12px">
+        <summary>¿Qué significa cada medida?</summary>
+        <dl class="glosario">
+          <dt>MAE (error absoluto medio)</dt><dd>Promedio de |pronóstico − observado|. 1,5° = en promedio se erró por 1,5°, para arriba o para abajo.</dd>
+          <dt>Sesgo</dt><dd>Promedio del error CON signo. +1° = se pronostica sistemáticamente 1° de más. Un sesgo grande y estable se puede corregir.</dd>
+          <dt>RMSE</dt><dd>Como el MAE, pero castiga más los errores grandes. Si es mucho mayor que el MAE, hubo algunos días con errores muy grandes.</dd>
+          <dt>±2°</dt><dd>Porcentaje de días con error de 2° o menos.</dd>
+          <dt>Destreza (vs. persistencia)</dt><dd>1 − MAE / MAE de la persistencia, en los mismos días. 30 % = el pronóstico erra 30 % menos que decir "igual que ayer". Negativa = peor que la persistencia.</dd>
+          <dt>Aciertos (a), falsas alarmas (b), sorpresas (c), secos acertados (d)</dt><dd>La tabla de contingencia: a = se anunció y llovió; b = se anunció y no llovió; c = llovió sin anunciarse; d = ni se anunció ni llovió.</dd>
+          <dt>POD (probabilidad de detección)</dt><dd>a / (a + c): de los días que llovió, qué fracción se había anunciado. Ideal 1.</dd>
+          <dt>FAR (falsas alarmas)</dt><dd>b / (a + b): de los días que se anunció lluvia, en qué fracción no llovió. Ideal 0.</dd>
+          <dt>CSI</dt><dd>a / (a + b + c): aciertos sin contar los días secos, que son "fáciles". Ideal 1.</dd>
+          <dt>BIAS de frecuencia</dt><dd>(a + b) / (a + c). Mayor que 1 = se anuncia lluvia más seguido de lo que llueve.</dd>
+          <dt>HSS (Heidke)</dt><dd>Aciertos por encima de los que se lograrían por azar. 1 = perfecto, 0 = sin valor, negativo = peor que el azar.</dd>
+        </dl>
+      </details>
+    </div>
+
+    <div class="tarjeta" style="margin-top:16px">
+      <div class="filtros">
+        <label>Plazo
+          <select id="f-v-plazo">
+            <option value="0">0 (mismo día)</option>
+            <option value="1" selected>1 día</option>
+            <option value="2">2 días</option>
+            <option value="3">3 días</option>
+          </select>
+        </label>
+        <label>Temperatura
+          <select id="f-v-ambito">
+            <option value="urbana" selected>Urbana</option>
+            <option value="suburbana">Suburbana</option>
+          </select>
+        </label>
+      </div>
+      <div class="panel-titulo">Máxima y mínima: pronosticada (puntos) y observada (línea)</div>
+      <div class="panel" style="height:260px"><canvas id="v-grafico"></canvas></div>
+      <div class="panel-titulo" style="margin-top:12px">Día por día <span class="tenue">(pasá el mouse por un valor observado para ver de qué estación es)</span></div>
+      <div class="tabla-scroll" style="max-height:480px"><table class="verif" id="v-dias"></table></div>
+    </div>
+  </section>
+
   <!-- ============================ ESTADO ============================ -->
   <section id="tab-estado" hidden>
     <div class="tarjeta">
@@ -354,7 +433,7 @@ function abrir(tab) {
   document.querySelectorAll("nav button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
   document.querySelectorAll("main > section").forEach((s) => (s.hidden = s.id !== `tab-${tab}`));
   if (tab === "mapa" && mapa) setTimeout(() => mapa.invalidateSize(), 50);
-  if (!cargadas[tab]) { cargadas[tab] = true; ({ emas: iniciarEmas, smn: iniciarSmn, series: iniciarSeries, lluvia: cargarLluvia, estado: cargarEstado }[tab] || (() => {}))(); }
+  if (!cargadas[tab]) { cargadas[tab] = true; ({ emas: iniciarEmas, smn: iniciarSmn, series: iniciarSeries, lluvia: cargarLluvia, verif: iniciarVerif, estado: cargarEstado }[tab] || (() => {}))(); }
 }
 document.querySelectorAll("nav button").forEach((b) => b.addEventListener("click", () => abrir(b.dataset.tab)));
 
@@ -1052,6 +1131,130 @@ async function cargarSmn() {
         <td class="num">${o.visibilidad === null ? "–" : num(o.visibilidad / 1000, o.visibilidad < 5000 ? 1 : 0)}</td>
         <td class="num">${lluvia(o)}</td><td class="tenue">${extremos(o)}</td></tr>`;
     }).join("") : '<tr><td colspan="11" class="tenue">Sin observaciones en el período.</td></tr>');
+}
+
+// ======================================================================
+// VERIFICACIÓN DE PRONÓSTICOS
+// ======================================================================
+const ETIQUETAS_TEMP = { tmax_urbana: "Máxima urbana", tmin_urbana: "Mínima urbana",
+                         tmax_suburbana: "Máxima suburbana", tmin_suburbana: "Mínima suburbana" };
+const fmtFecha = new Intl.DateTimeFormat("es-AR", { timeZone: TZ, weekday: "short", day: "2-digit", month: "2-digit" });
+let verifDatos = null;
+const signo = (v, dec = 1) => v === null || v === undefined ? "–" : (v > 0 ? "+" : "") + num(v, dec);
+const pct = (v) => v === null || v === undefined ? "–" : `${Math.round(v * 100)} %`;
+
+async function iniciarVerif() {
+  const ciudades = await api("/api/verificacion/ciudades");
+  $("#f-v-ciudad").innerHTML = (ciudades.length ? ciudades : ["La Plata"]).map((c) => `<option>${esc(c)}</option>`).join("");
+  if (ciudades.includes("La Plata")) $("#f-v-ciudad").value = "La Plata";
+  const ayer = new Date(Date.now() - 86400e3);
+  const iso = (d) => new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(d);
+  $("#f-v-hasta").value = iso(ayer);
+  $("#f-v-desde").value = iso(new Date(ayer.getTime() - 60 * 86400e3));
+  ["#f-v-ciudad", "#f-v-desde", "#f-v-hasta", "#f-v-version"].forEach((s) => $(s).addEventListener("change", cargarVerif));
+  ["#f-v-plazo", "#f-v-ambito"].forEach((s) => $(s).addEventListener("change", dibujarVerifDias));
+  cargarVerif();
+}
+
+async function cargarVerif() {
+  const q = new URLSearchParams({ ciudad: $("#f-v-ciudad").value, desde: $("#f-v-desde").value,
+                                  hasta: $("#f-v-hasta").value, version: $("#f-v-version").value });
+  $("#f-v-csv").href = `/api/verificacion?${q}&formato=csv`;
+  verifDatos = await api(`/api/verificacion?${q}`);
+  const r = verifDatos.resumen;
+  const plazos = Object.keys(r).map(Number).filter((p) => p <= 3).sort();
+  const dias = verifDatos.dias;
+  const conObs = new Set(dias.filter((d) => Object.keys(ETIQUETAS_TEMP).some((k) => d[k].obs !== null) || d.pp.obs !== null).map((d) => d.fecha));
+  $("#v-nota").textContent = dias.length
+    ? `${new Set(dias.map((d) => d.fecha)).size} días con pronóstico en el período, ${conObs.size} con observación.`
+    : "No hay pronósticos guardados en ese período. El servidor junta las emisiones desde que se puso en marcha; el historial anterior se puede importar de la hoja del equipo.";
+  const cab = `<tr><th></th>${plazos.map((p) => `<th>Plazo ${p}${p === 0 ? " <span class='tenue'>(mismo día)</span>" : ""}</th>`).join("")}</tr>`;
+
+  // Temperatura
+  const filasT = Object.keys(ETIQUETAS_TEMP).filter((el) => plazos.some((p) => r[p][el].n)).map((el) => {
+    const celdas = plazos.map((p) => {
+      const x = r[p][el];
+      if (!x.n) return '<td class="tenue">–</td>';
+      const d = x.destreza;
+      const dest = d === null ? "" : ` · destreza <b class="${d >= 0 ? "bien" : "mal"}">${Math.round(d * 100)} %</b>`;
+      return `<td>MAE <b>${num(x.mae)}°</b> · sesgo ${signo(x.sesgo)}°
+        <span class="sub">RMSE ${num(x.rmse)}° · ±2°: ${x.dentro_2} % · n ${x.n}</span>
+        <span class="sub">persistencia: MAE ${x.persistencia.n ? num(x.persistencia.mae) + "°" : "–"}${dest}</span></td>`;
+    }).join("");
+    return `<tr><th>${ETIQUETAS_TEMP[el]}</th>${celdas}</tr>`;
+  });
+  $("#v-temp").innerHTML = filasT.length ? cab + filasT.join("") : '<tr><td class="tenue">Sin días comparables.</td></tr>';
+
+  // Precipitación
+  const filaPP = (titulo, f) => `<tr><th>${titulo}</th>${plazos.map((p) => `<td>${f(r[p].pp)}</td>`).join("")}</tr>`;
+  $("#v-pp").innerHTML = plazos.some((p) => r[p].pp.n) ? cab + [
+    filaPP("Días comparados", (x) => x.n),
+    filaPP("Aciertos (llovió y se anunció)", (x) => x.a),
+    filaPP("Falsas alarmas", (x) => x.b),
+    filaPP("Sorpresas (llovió sin anunciarse)", (x) => x.c),
+    filaPP("Días secos acertados", (x) => x.d),
+    filaPP("% de días acertados", (x) => pct(x.pc)),
+    filaPP("POD · FAR", (x) => `${num(x.pod, 2)} · ${num(x.far, 2)}`),
+    filaPP("CSI · BIAS", (x) => `${num(x.csi, 2)} · ${num(x.bias, 2)}`),
+    filaPP("HSS", (x) => `<b>${num(x.hss, 2)}</b>`),
+    filaPP("Persistencia: % acertados · HSS", (x) => x.persistencia.n
+      ? `${pct(x.persistencia.pc)} · ${num(x.persistencia.hss, 2)}` : "–"),
+  ].join("") : '<tr><td class="tenue">Sin días comparables.</td></tr>';
+
+  // Viento
+  const filaV = (titulo, f) => `<tr><th>${titulo}</th>${plazos.map((p) => `<td>${f(r[p])}</td>`).join("")}</tr>`;
+  const conN = (x) => x.n ? `<b>${x.pct} %</b> <span class="tenue">(n ${x.n})</span>` : "–";
+  $("#v-viento").innerHTML = plazos.some((p) => r[p].viento_dir.n || r[p].viento_int.n) ? cab + [
+    filaV("Dirección: acierto", (x) => conN(x.viento_dir)),
+    filaV("Dirección: persistencia", (x) => conN(x.viento_dir.persistencia)),
+    filaV("Intensidad: categoría exacta", (x) => conN(x.viento_int)),
+    filaV("Intensidad: ±1 categoría", (x) => x.viento_int.n ? `${x.viento_int.cerca} %` : "–"),
+    filaV("Intensidad: persistencia", (x) => conN(x.viento_int.persistencia)),
+  ].join("") : '<tr><td class="tenue">Sin días comparables.</td></tr>';
+
+  dibujarVerifDias();
+}
+
+function dibujarVerifDias() {
+  if (!verifDatos) return;
+  const plazo = Number($("#f-v-plazo").value), amb = $("#f-v-ambito").value;
+  const dias = verifDatos.dias.filter((d) => d.plazo === plazo);
+  // El eje arranca en el primer día con datos (no en "desde", que puede ser antes de que existan).
+  const primero = verifDatos.dias.length ? verifDatos.dias[0].fecha : verifDatos.desde;
+  const x = Date.parse(`${primero > verifDatos.desde ? primero : verifDatos.desde}T12:00:00-03:00`) - 86400e3 / 2;
+  const x2 = Date.parse(`${verifDatos.hasta}T12:00:00-03:00`) + 86400e3 / 2;
+  const t = (d) => `${d.fecha}T12:00:00-03:00`;
+  const pts = (k, cual) => dias.filter((d) => d[k][cual] !== null).map((d) => [t(d), d[k][cual]]);
+  panel($("#v-grafico"), [
+    serieLinea("Máx. observada", pts(`tmax_${amb}`, "obs"), 2),
+    serieLinea(`Máx. pronosticada (plazo ${plazo})`, pts(`tmax_${amb}`, "pron"), 4, { soloPuntos: true }),
+    serieLinea("Mín. observada", pts(`tmin_${amb}`, "obs"), 1),
+    serieLinea(`Mín. pronosticada (plazo ${plazo})`, pts(`tmin_${amb}`, "pron"), 7, { soloPuntos: true }),
+  ], { unidad: "°C", xmin: x, xmax: x2 });
+
+  const err = (o) => {
+    if (o.pron === null || o.obs === null) return "";
+    const e = o.pron - o.obs;
+    return ` <span class="${Math.abs(e) <= 2 ? "bien" : Math.abs(e) > 4 ? "mal" : "tenue"}">(${signo(e)})</span>`;
+  };
+  const temp = (o) => `${num(o.pron, 0)} / <span title="${esc(o.estacion || "")}">${num(o.obs)}</span>${err(o)}`;
+  const marca = (ok) => ok === null ? "" : ok ? ' <span class="bien">✓</span>' : ' <span class="mal">✕</span>';
+  const sn = (v) => v === null ? "–" : v ? "sí" : "no";
+  $("#v-dias").innerHTML = `<tr><th>Día</th><th>Pronosticó</th><th>Máx. pron / obs</th><th>Mín. pron / obs</th>
+      <th>Precip. pron / obs</th><th>Viento pron / obs</th><th>Intensidad pron / obs</th></tr>` +
+    (dias.length ? dias.slice().reverse().map((d) => {
+      const pp = d.pp, vd = d.viento_dir, vi = d.viento_int;
+      const tmin = d[`tmin_${amb}`];
+      const nocturna = d.tmin_periodo.obs === "noche" ? ' <span class="chip" title="La mínima observada fue entre las 18 y las 24 hs">nocturna</span>' : "";
+      return `<tr>
+        <td>${fmtFecha.format(new Date(t(d)))}</td>
+        <td>${esc(d.pronosticador || "–")}</td>
+        <td class="num">${temp(d[`tmax_${amb}`])}</td>
+        <td class="num">${temp(tmin)}${nocturna}</td>
+        <td title="${esc(pp.tipo || "")}">${sn(pp.pron)} / ${sn(pp.obs)}${marca(pp.obs === null ? null : pp.pron === pp.obs)}</td>
+        <td>${vd.pron.length ? vd.pron.join(" ") : "–"} / ${vd.obs || "–"}${marca(vd.obs && vd.pron.length ? vd.pron.includes(vd.obs) : null)}</td>
+        <td>${(vi.pron || "–").toLowerCase()} / ${(vi.obs || "–").toLowerCase()}${vi.obs_kmh !== null ? ` <span class="tenue">(${num(vi.obs_kmh, 0)} km/h)</span>` : ""}${marca(vi.obs && vi.pron ? vi.pron === vi.obs : null)}</td></tr>`;
+    }).join("") : `<tr><td colspan="7" class="tenue">Sin pronósticos a ${plazo} día(s) en el período.</td></tr>`);
 }
 
 // ======================================================================

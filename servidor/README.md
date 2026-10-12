@@ -42,6 +42,7 @@ servidor solo lee y copia.
 2. [Los datos](docs/02-datos.md): fuentes, modelo de datos, consultas SQL y desde Python.
 3. [Satélite](docs/03-satelite.md): cómo funciona el módulo GOES-19.
 4. [Visualizador web](docs/04-visualizador.md): pestañas, API y cómo usarla desde Python.
+5. [Verificación de pronósticos](docs/05-verificacion.md): Pronóstico UNLP contra lo observado.
 
 ## Arranque rápido
 

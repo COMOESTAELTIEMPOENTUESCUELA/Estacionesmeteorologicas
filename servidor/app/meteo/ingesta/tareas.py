@@ -15,7 +15,8 @@ from datetime import datetime, timedelta, timezone
 import yaml
 
 from . import db
-from .base import sesion_http
+from ..verificacion import observado
+from .base import HORA_ARG, sesion_http
 from .fuentes import comunidad, davis, ogimet, pronosticos, thingspeak, wunderground
 
 log = logging.getLogger(__name__)
@@ -98,6 +99,16 @@ class Ingesta:
             reg["filas"] = pronosticos.guardar(self.conn, emisiones)
             log.info("pronosticos: %d emisiones nuevas", reg["filas"])
 
+    def correr_verificacion(self, desde=None, hasta=None):
+        """Recalcula lo observado de los últimos días (los SYNOP llegan
+        tarde a veces, y la Davis/Campbell se completan en el día)."""
+        with db.registrar_tarea(self.conn, "verificacion") as reg:
+            hoy = datetime.now(HORA_ARG).date()
+            # --desde 2026-01-01 llega como medianoche UTC: se usa la fecha tal cual.
+            d = desde.date() if desde else hoy - timedelta(days=5)
+            h = hasta.date() if hasta else hoy
+            reg["filas"] = observado.calcular(self.conn, self.cfg["verificacion"], d, h)
+
     def correr(self, tarea, desde=None, hasta=None, ids=None, incluir_inactivas=False):
         hasta = hasta or datetime.now(timezone.utc)
         if tarea in RECOLECTORES:
@@ -107,6 +118,9 @@ class Ingesta:
             return self.correr_comunidad()
         if tarea == "pronosticos":
             return self.correr_pronosticos()
+        if tarea == "verificacion":
+            # Sin --desde/--hasta (servicio, "una"): los últimos días.
+            return self.correr_verificacion(desde if desde else None, hasta if desde else None)
         raise ValueError(f"Tarea desconocida: {tarea}")
 
     # ----- loop permanente -----

@@ -88,9 +88,11 @@ aplicarlo a mano, **en orden**:
 ```bash
 docker compose exec -T db psql -U meteo -d meteo < db/init/02-lluvia-sinopticas.sql
 docker compose exec -T db psql -U meteo -d meteo < db/init/03-lluvia-sospechosa.sql
+docker compose exec -T db psql -U meteo -d meteo < db/init/04-verificacion.sql
 ```
 
-Son seguros de repetir (solo recrean vistas, que no guardan datos).
+Son seguros de repetir: el 02 y el 03 solo recrean vistas (que no guardan
+datos) y el 04 crea su tabla solo si no existe.
 
 ### Metadatos
 

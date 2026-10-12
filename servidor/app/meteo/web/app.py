@@ -35,6 +35,8 @@ from fastapi.staticfiles import StaticFiles
 from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
 
+from ..verificacion import puntajes
+
 DSN = os.environ.get("DATABASE_URL", "postgresql://meteo:meteo@db:5432/meteo")
 ESTATICOS = Path(__file__).parent / "static"
 
@@ -382,6 +384,53 @@ def resumen_sinopticas(dias: int = 3):
         LEFT JOIN lluvia_diaria l ON l.estacion_id = t.estacion_id AND l.dia = t.dia
         WHERE t.dia > (now() AT TIME ZONE '{TZ_AR}')::date - %s
         ORDER BY e.nombre, t.dia""", (dias, dias)))
+
+
+# ---------------------------------------------------------------------------
+# Verificación de pronósticos (Pronóstico UNLP)
+# ---------------------------------------------------------------------------
+@app.get("/api/verificacion/ciudades")
+def verificacion_ciudades():
+    return [r["ciudad"] for r in consultar(
+        "SELECT ciudad FROM pronostico_emision UNION SELECT ciudad FROM verif_observado ORDER BY 1")]
+
+
+@app.get("/api/verificacion")
+def verificacion(ciudad: str = "La Plata", desde: date | None = None, hasta: date | None = None,
+                 version: str = "final", formato: str = "json"):
+    """Pronóstico vs. observado, día por día, y las medidas de error por
+    plazo. version=final usa la última corrección de cada emisión;
+    version=original, lo primero que se publicó."""
+    if version not in ("final", "original"):
+        raise HTTPException(400, "version: final u original")
+    hasta = hasta or datetime.now(timezone(timedelta(hours=-3))).date() - timedelta(days=1)
+    desde = desde or hasta - timedelta(days=60)
+    if desde > hasta or (hasta - desde).days > 3 * 366:
+        raise HTTPException(400, "Rango de fechas inválido (máximo 3 años)")
+    dias = consultar("""
+        SELECT e.ciudad, e.fecha_pronostico, e.capturado, e.publicado_por, e.es_correccion,
+               d.fecha, d.plazo_dias, d.temp_min, d.temp_max, d.temp_min_suburbana,
+               d.temp_max_suburbana, d.periodos
+        FROM pronostico_dia d JOIN pronostico_emision e ON e.id = d.emision_id
+        WHERE e.ciudad = %s AND d.fecha BETWEEN %s AND %s""", (ciudad, desde, hasta))
+    observado = {(r["ciudad"], r["fecha"], r["elemento"]): r for r in consultar("""
+        SELECT ciudad, fecha, elemento, valor, categoria, estacion_id FROM verif_observado
+        WHERE ciudad = %s AND fecha BETWEEN %s AND %s""", (ciudad, desde - timedelta(days=5), hasta))}
+    filas = puntajes.armar_pares(puntajes.elegir_emisiones(dias, version), observado)
+    filas.sort(key=lambda f: (f["fecha"], f["plazo"]))
+    if formato == "csv":
+        planas = []
+        for f in filas:
+            p = {k: f[k] for k in ("ciudad", "fecha", "plazo", "fecha_emision", "pronosticador")}
+            for el in (*puntajes.TEMPERATURAS, "pp", "viento_int"):
+                p[f"{el}_pron"], p[f"{el}_obs"] = f[el]["pron"], f[el]["obs"]
+            p["viento_dir_pron"] = " ".join(f["viento_dir"]["pron"])
+            p["viento_dir_obs"] = f["viento_dir"]["obs"]
+            p["viento_kmh_obs"] = f["viento_int"]["obs_kmh"]
+            planas.append(p)
+        return _csv(planas, f"verificacion_{ciudad}_{desde}_{hasta}")
+    return {"ciudad": ciudad, "desde": desde, "hasta": hasta, "version": version,
+            "resumen": puntajes.resumen(filas), "dias": filas}
 
 
 @app.exception_handler(Exception)
