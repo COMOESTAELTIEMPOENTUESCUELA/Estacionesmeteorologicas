@@ -179,5 +179,5 @@ def test_verificacion_dia(cliente):
     r = cliente.get("/api/verificacion/dia", params={"fecha": "2026-10-12"})
     assert r.status_code == 200
     c = r.json()["ciudades"]
-    assert c[0]["ciudad"] == "La Plata" and len(c) >= 6 and c[0]["coord"]
+    assert c[0]["ciudad"] == "La Plata" and c[0]["coord"] and "Bolívar" not in {x["ciudad"] for x in c}
     assert cliente.get("/api/verificacion/dia", params={"fecha": "2026-10-12", "plazo": 9}).status_code == 400

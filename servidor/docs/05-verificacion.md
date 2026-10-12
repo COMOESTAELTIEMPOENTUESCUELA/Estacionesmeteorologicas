@@ -69,7 +69,7 @@ el día completo):
 | La Plata | Campbell (Observatorio); si falta, Davis | La Plata Aero (87593) | Aero, después Campbell, después Davis | Aero |
 | Junín | Junín Aero (87548) | – | igual | igual |
 | Mar del Plata | Mar del Plata Aero (87692) | – | igual | igual |
-| Bolívar | Bolívar Aero (87640) | – | igual | igual |
+| Bolívar (sin pronósticos por ahora; desactivada en `estaciones.yaml`) | Bolívar Aero (87640) | – | igual | igual |
 | Tandil | Tandil Aero (87645) | – | igual | igual |
 | Bahía Blanca | Bahía Blanca Aero (87750) | – | igual | igual |
 
