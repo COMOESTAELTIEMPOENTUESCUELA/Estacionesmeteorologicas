@@ -216,3 +216,40 @@ def test_correccion_de_fecha_de_un_pronostico(conn):
         with conn.cursor() as cur:
             cur.execute("DELETE FROM pronostico_emision WHERE ciudad = 'Ciudad Test'")
         conn.commit()
+
+
+def test_importar_hoja_pronosticos_completa(conn, tmp_path, monkeypatch):
+    """Hoja "Pronosticos": no duplica lo capturado, corrige lo anotado, avisa
+    lo sospechoso, reemplaza lo resumido y no guarda la clave del equipo."""
+    from meteo.ingesta import correcciones
+    from meteo.ingesta.fuentes import hoja_pronosticos, hoja_verificacion
+    texto = (Path(__file__).parent / "datos/hoja_pronosticos.csv").read_text(encoding="utf-8")
+    yaml_corr = tmp_path / "corr.yaml"
+    yaml_corr.write_text("correcciones:\n  - {ciudad: Ciudad A, fecha_guardada: 2026-10-10, publicado_por: Persona M,"
+                         " hora_emision: '08:00:00', mover_dias: -1, publicado_el: 2026-10-09, motivo: test}\n")
+    monkeypatch.setattr(correcciones, "RUTA", str(yaml_corr))
+    try:
+        # Ya capturada en vivo: la primera publicación, idéntica (sin la clave).
+        vivo, _ = hoja_pronosticos.leer_csv(texto)[0][0]
+        pronosticos.guardar(conn, [vivo])
+        # Resumida de la hoja de verificación para Ciudad B 09/10: la completa la reemplaza.
+        pronosticos.guardar(conn, [{"city": "Ciudad B", "forecast_date": "2026-10-09", "origen": hoja_verificacion.ORIGEN,
+                                    "daily_forecasts": [{"date": "2026-10-10", "temp_max": 1}]}])
+        r = hoja_pronosticos.importar(conn, texto)
+        assert (r["leidas"], r["malas"], r["nuevas"], r["ya_estaban"]) == (4, 1, 3, 1)
+        assert r["resumidas_reemplazadas"] == 1
+        assert r["correcciones"] == ["Ciudad A 2026-10-10 (Persona M): corregido a 2026-10-09"]
+        assert len(r["sospechosas_sin_corregir"]) == 1 and "Ciudad B" in r["sospechosas_sin_corregir"][0]
+        filas = consulta(conn, """SELECT ciudad, fecha_pronostico::text, publicado_por, contenido ? 'team_password',
+                                         contenido -> 'publicado_el' ->> 0, contenido ->> 'origen'
+                                  FROM pronostico_emision WHERE ciudad LIKE 'Ciudad %%' ORDER BY 1, 2""")
+        assert ("Ciudad A", "2026-10-09", "Persona M", False, "2026-10-09", "hoja Pronosticos") in filas
+        assert ("Ciudad B", "2026-10-09", "Persona L", False, "2026-10-08", "hoja Pronosticos") in filas   # turno noche: intacto
+        assert not any(f[5] == hoja_verificacion.ORIGEN for f in filas)
+        assert not any(f[3] for f in filas)                                     # nunca la clave
+        r2 = hoja_pronosticos.importar(conn, texto)                             # repetir no duplica
+        assert r2["nuevas"] == 0 and r2["correcciones"] == ["Ciudad A 2026-10-10 (Persona M): ya estaba corregido"]
+    finally:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM pronostico_emision WHERE ciudad LIKE 'Ciudad %%'")
+        conn.commit()

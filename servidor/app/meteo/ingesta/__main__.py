@@ -34,6 +34,13 @@ Uso (dentro del contenedor, o con DATABASE_URL apuntando a la base):
         Desde fuera del contenedor, con "-" en vez del archivo:
         docker compose exec -T ingesta python -m meteo.ingesta importar-emision - ... < emision.json
 
+    python -m meteo.ingesta importar-pronosticos pronosticos.csv     (o "-" para leer de la entrada)
+        Importa el historial COMPLETO de la hoja "Pronosticos" del portal
+        (columna json_completo: con períodos, probabilidades, ráfagas).
+        Lo ya capturado no se duplica, se aplican las correcciones y se
+        reemplaza lo resumido que vino de la hoja de verificación.
+        docker compose exec -T ingesta python -m meteo.ingesta importar-pronosticos - < archivo.csv
+
     python -m meteo.ingesta aplicar-correcciones
         Aplica config/correcciones_pronosticos.yaml (pronósticos publicados
         con la fecha equivocada) a lo ya guardado. Se puede repetir.
@@ -63,7 +70,7 @@ def main():
     ap = argparse.ArgumentParser(prog="python -m meteo.ingesta")
     ap.add_argument("comando", choices=["servicio", "una", "historico", "estaciones", "importar-hoja", "reprocesar-synop",
                                          "diagnostico-ogimet", "importar-emision",
-                                         "aplicar-correcciones"])
+                                         "aplicar-correcciones", "importar-pronosticos"])
     ap.add_argument("tarea", nargs="?")
     ap.add_argument("--config", default=os.environ.get("ESTACIONES_CONFIG", "/config/estaciones.yaml"))
     ap.add_argument("--desde", type=fecha_utc)
@@ -85,6 +92,23 @@ def main():
     if args.comando == "diagnostico-ogimet":
         from ..cartas import descarga
         print("\n".join(descarga.diagnostico(os.environ.get("ARCHIVO_DIR", "/archivo"), ing.sesion)))
+        return
+    if args.comando == "importar-pronosticos":
+        import sys
+        from .fuentes import hoja_pronosticos
+        if not args.tarea:
+            ap.error("falta el archivo CSV (o - para leerlo de la entrada)")
+        texto = sys.stdin.read() if args.tarea == "-" else open(args.tarea, encoding="utf-8").read()
+        r = hoja_pronosticos.importar(conn, texto)
+        print(f"{r['leidas']} publicaciones leídas ({r['malas']} filas con el JSON roto, salteadas).")
+        print(f"  {r['nuevas']} nuevas; {r['ya_estaban']} ya estaban (capturadas en vivo, importadas antes o repetidas en la hoja por un doble clic).")
+        print(f"  {r['resumidas_reemplazadas']} emisiones resumidas (hoja de verificación) reemplazadas por la completa.")
+        print("Correcciones de fecha:")
+        print("\n".join("  " + s for s in r["correcciones"]) or "  (ninguna anotada)")
+        if r["sospechosas_sin_corregir"]:
+            print("OJO, publicadas a la mañana para el día siguiente y SIN corrección anotada"
+                  " (¿'para mañana' por error? revisar y agregar a config/correcciones_pronosticos.yaml):")
+            print("\n".join("  " + s for s in r["sospechosas_sin_corregir"]))
         return
     if args.comando == "aplicar-correcciones":
         from . import correcciones

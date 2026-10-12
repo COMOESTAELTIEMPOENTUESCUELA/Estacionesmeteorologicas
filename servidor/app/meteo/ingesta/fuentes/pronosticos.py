@@ -80,17 +80,22 @@ def traer(cfg, sesion):
     return emisiones
 
 
-def guardar(conn, emisiones):
+def guardar(conn, emisiones, extras=None):
+    """Guarda las emisiones nuevas (las ya vistas se reconocen por la huella).
+    extras: una por emisión, datos que se agregan al contenido SIN cambiar la
+    huella (ej. de qué hoja vino); "capturado" es cuándo se publicó, si se sabe."""
     nuevas = 0
     with conn.cursor() as cur:
-        for p in emisiones:
+        for i, p in enumerate(emisiones):
+            extra = dict((extras or [{}] * len(emisiones))[i] or {})
+            capturado = extra.pop("capturado", None)
             cur.execute(
                 """INSERT INTO pronostico_emision (ciudad, fecha_pronostico, hora_emision, publicado_por,
-                                                   es_correccion, contenido, huella)
-                   VALUES (%s, %s, %s, %s, %s, %s, %s)
+                                                   es_correccion, contenido, huella, capturado)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, COALESCE(%s, now()))
                    ON CONFLICT (huella) DO NOTHING RETURNING id""",
                 (p.get("city"), p["forecast_date"], p.get("emission_time"), p.get("publicado_por"),
-                 p.get("es_correccion"), Jsonb(p), huella(p)),
+                 p.get("es_correccion"), Jsonb({**p, **extra}), huella(p), capturado),
             )
             fila = cur.fetchone()
             if not fila:

@@ -295,6 +295,11 @@ error: los datos estaban, pero con la fecha equivocada.
 # Importar el historial de la hoja (descargada como CSV; se puede repetir, no duplica):
 docker compose exec -T ingesta python -m meteo.ingesta importar-hoja - < /srv/meteo/verificacion.csv
 
+# Mejor: el historial COMPLETO de la hoja "Pronosticos" (con períodos, Día 1,
+# probabilidades). Aplica las correcciones de fecha y reemplaza lo resumido:
+docker compose exec -T ingesta python -m meteo.ingesta importar-pronosticos - < pronosticos.csv
+# Corregir fechas anotadas en config/correcciones_pronosticos.yaml:
+docker compose exec ingesta python -m meteo.ingesta aplicar-correcciones
 # Traer observaciones de un período:
 docker compose exec ingesta python -m meteo.ingesta historico ogimet --desde 2026-08-10 --hasta 2026-10-13
 docker compose exec ingesta python -m meteo.ingesta historico thingspeak --desde 2026-08-10 --hasta 2026-10-13 --estaciones observatorio_campbell

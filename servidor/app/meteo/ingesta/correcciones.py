@@ -30,7 +30,8 @@ log = logging.getLogger(__name__)
 RUTA = os.environ.get("CORRECCIONES_CONFIG", "/config/correcciones_pronosticos.yaml")
 
 
-def cargar(ruta=RUTA):
+def cargar(ruta=None):
+    ruta = ruta or RUTA
     try:
         with open(ruta, encoding="utf-8") as f:
             return (yaml.safe_load(f) or {}).get("correcciones") or []
@@ -55,11 +56,19 @@ def aplicar(conn, correcciones):
                         (c["ciudad"], fecha, c["publicado_por"], c.get("hora_emision"), c.get("hora_emision")))
             filas = cur.fetchall()
             etiqueta = f"{c['ciudad']} {fecha} ({c['publicado_por']})"
+            cur.execute("""SELECT 1 FROM pronostico_emision WHERE ciudad = %s AND publicado_por = %s
+                           AND contenido -> 'correccion_manual' ->> 'fecha_original' = %s""",
+                        (c["ciudad"], c["publicado_por"], fecha.isoformat()))
+            ya_corregida = cur.fetchone() is not None
             if not filas:
-                cur.execute("""SELECT 1 FROM pronostico_emision WHERE ciudad = %s AND publicado_por = %s
-                               AND contenido -> 'correccion_manual' ->> 'fecha_original' = %s""",
-                            (c["ciudad"], c["publicado_por"], fecha.isoformat()))
-                salida.append(f"{etiqueta}: {'ya estaba corregido' if cur.fetchone() else 'no está en el servidor'}")
+                salida.append(f"{etiqueta}: {'ya estaba corregido' if ya_corregida else 'no está en el servidor'}")
+                continue
+            if ya_corregida:
+                # Ya está la versión corregida (ej. cargada a mano con importar-emision):
+                # esta es la misma publicación con la fecha mal, entró de nuevo
+                # (ej. al importar la hoja). Se descarta para no tenerla dos veces.
+                cur.execute("DELETE FROM pronostico_emision WHERE id = ANY(%s)", ([f[0] for f in filas],))
+                salida.append(f"{etiqueta}: ya estaba corregido; se descartó la copia con la fecha mal")
                 continue
             for fila in filas:
                 id_, contenido = fila

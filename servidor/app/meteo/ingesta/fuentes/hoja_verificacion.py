@@ -92,7 +92,9 @@ def importar(conn, texto):
 
     emisiones = leer_csv(texto)
     with conn.cursor() as cur:
-        cur.execute("SELECT ciudad, fecha_pronostico FROM pronostico_emision WHERE NOT contenido ? 'origen'")
+        # Las completas (capturadas en vivo o de la hoja "Pronosticos") ganan.
+        cur.execute("SELECT ciudad, fecha_pronostico FROM pronostico_emision WHERE contenido ->> 'origen' IS DISTINCT FROM %s",
+                    (ORIGEN,))
         en_vivo = {(c, f.isoformat()) for c, f in cur.fetchall()}
     nuevas = [e for e in emisiones if (e["city"], e["forecast_date"]) not in en_vivo]
     return pronosticos.guardar(conn, nuevas), len(emisiones) - len(nuevas)
