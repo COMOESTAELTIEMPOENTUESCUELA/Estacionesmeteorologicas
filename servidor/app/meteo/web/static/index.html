@@ -133,6 +133,10 @@ th { color: var(--tinta-2); font-weight: 600; font-size: 12px; position: sticky;
 .bien { color: var(--ok); } .mal { color: var(--caida); }
 .verif td, .verif th { vertical-align: top; }
 .verif .sub { display: block; font-size: 12px; color: var(--tenue); }
+.como details { border-top: 1px solid var(--borde); padding: 10px 0; }
+.como summary { cursor: pointer; }
+.como table td, .como table th { vertical-align: top; }
+.como ol, .como ul { margin: 8px 0; padding-left: 22px; } .como li { margin: 4px 0; }
 dl.glosario dt { font-weight: 600; margin-top: 8px; } dl.glosario dd { margin: 2px 0 0 0; color: var(--tinta-2); font-size: 13px; }
 .barba { vertical-align: middle; margin-right: 6px; }
 .barba line, .barba circle { stroke: var(--tinta); stroke-width: 1.6; fill: none; stroke-linecap: round; }
@@ -338,22 +342,7 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
         <span class="tenue">(dirección: acierta si la predominante observada está entre las pronosticadas)</span></div>
       <div class="tabla-scroll"><table class="verif" id="v-viento"></table></div>
 
-      <details style="margin-top:12px">
-        <summary>¿Qué significa cada medida?</summary>
-        <dl class="glosario">
-          <dt>MAE (error absoluto medio)</dt><dd>Promedio de |pronóstico − observado|. 1,5° = en promedio se erró por 1,5°, para arriba o para abajo.</dd>
-          <dt>Sesgo</dt><dd>Promedio del error CON signo. +1° = se pronostica sistemáticamente 1° de más. Un sesgo grande y estable se puede corregir.</dd>
-          <dt>RMSE</dt><dd>Como el MAE, pero castiga más los errores grandes. Si es mucho mayor que el MAE, hubo algunos días con errores muy grandes.</dd>
-          <dt>±2°</dt><dd>Porcentaje de días con error de 2° o menos.</dd>
-          <dt>Destreza (vs. persistencia)</dt><dd>1 − MAE / MAE de la persistencia, en los mismos días. 30 % = el pronóstico erra 30 % menos que decir "igual que ayer". Negativa = peor que la persistencia.</dd>
-          <dt>Aciertos (a), falsas alarmas (b), sorpresas (c), secos acertados (d)</dt><dd>La tabla de contingencia: a = se anunció y llovió; b = se anunció y no llovió; c = llovió sin anunciarse; d = ni se anunció ni llovió.</dd>
-          <dt>POD (probabilidad de detección)</dt><dd>a / (a + c): de los días que llovió, qué fracción se había anunciado. Ideal 1.</dd>
-          <dt>FAR (falsas alarmas)</dt><dd>b / (a + b): de los días que se anunció lluvia, en qué fracción no llovió. Ideal 0.</dd>
-          <dt>CSI</dt><dd>a / (a + b + c): aciertos sin contar los días secos, que son "fáciles". Ideal 1.</dd>
-          <dt>BIAS de frecuencia</dt><dd>(a + b) / (a + c). Mayor que 1 = se anuncia lluvia más seguido de lo que llueve.</dd>
-          <dt>HSS (Heidke)</dt><dd>Aciertos por encima de los que se lograrían por azar. 1 = perfecto, 0 = sin valor, negativo = peor que el azar.</dd>
-        </dl>
-      </details>
+      <p class="ayuda" style="margin-top:12px">¿Qué significa cada medida y cómo se calcula todo? Ver <a href="#v-como">Cómo funciona esta verificación</a>, al final de la pestaña.</p>
     </div>
 
     <div class="tarjeta" style="margin-top:16px">
@@ -377,6 +366,106 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
       <div class="panel" style="height:260px"><canvas id="v-grafico"></canvas></div>
       <div class="panel-titulo" style="margin-top:12px">Día por día <span class="tenue">(pasá el mouse por un valor observado para ver de qué estación es)</span></div>
       <div class="tabla-scroll" style="max-height:480px"><table class="verif" id="v-dias"></table></div>
+    </div>
+
+    <div class="tarjeta como" id="v-como" style="margin-top:16px">
+      <h2 style="margin:0 0 4px; font-size:18px">Cómo funciona esta verificación</h2>
+      <p class="ayuda">Qué datos se usan, con qué criterios, y los problemas que fueron apareciendo al armarla.
+        La versión completa, con comandos, está en <code>servidor/docs/05-verificacion.md</code>.</p>
+
+      <details open>
+        <summary><b>La idea en tres pasos</b></summary>
+        <ol>
+          <li><b>Lo pronosticado.</b> Cada emisión del grupo se captura cada hora desde el Apps Script (con sus correcciones como versiones aparte).
+            Lo anterior al 10/10/2026 viene de la hoja <i>Verificacion_Pronostico</i>. Se lleva a categorías: día con o sin precipitación, direcciones e intensidad del viento.</li>
+          <li><b>Lo observado.</b> Para cada ciudad y día se arma, con las estaciones, la máxima, la mínima, si llovió y el viento, <b>en los mismos términos</b> que el pronóstico.
+            Se recalcula solo cada 3 horas.</li>
+          <li><b>La comparación.</b> Se ponen uno al lado del otro y se calculan las medidas de error por plazo, junto con las de la persistencia ("igual que ayer") como referencia.</li>
+        </ol>
+      </details>
+
+      <details>
+        <summary><b>Qué estaciones representan cada ciudad</b></summary>
+        <div class="tabla-scroll"><table>
+          <tr><th>Ciudad</th><th>Temp. urbana</th><th>Temp. suburbana</th><th>Lluvia</th><th>Viento</th></tr>
+          <tr><td>La Plata</td><td>Campbell (Observatorio); si falta, Davis</td><td>La Plata Aero</td><td>Aero → Campbell → Davis</td><td>Aero</td></tr>
+          <tr><td>Junín, Mar del Plata, Bolívar, Tandil, Bahía Blanca</td><td>el aeropuerto de cada una</td><td>–</td><td>el mismo</td><td>el mismo</td></tr>
+        </table></div>
+        <p class="ayuda">Se usa la primera estación de la lista que tenga el día completo. En La Plata el viento sale del Aero:
+          la Davis no tiene anemómetro y Campbell está entre los árboles del Bosque. En las otras ciudades el aeropuerto hace de "urbana", como en la hoja del equipo.</p>
+      </details>
+
+      <details>
+        <summary><b>Definiciones y parámetros</b></summary>
+        <p><b>El día</b> es el día civil, de 00 a 24 hs (hora argentina), no el de 9 a 9 del SMN: la mínima puede ser <b>nocturna</b>
+          (por ejemplo, después de un frente frío que pasa a la tarde). La mínima del martes es la más baja de todo el martes, sea a las 6 o a las 23.</p>
+        <div class="tabla-scroll"><table>
+          <tr><th>Elemento</th><th>Observado</th><th>Pronosticado</th></tr>
+          <tr><td>Máxima y mínima</td><td>Mayor y menor valor del día entre las lecturas, más los extremos que informa el SYNOP (grupos 1 y 2).
+            La mínima de las 12 UTC cubre de 21 a 09 hs: se usa solo si se comprueba que ocurrió dentro del día.</td><td>Máx. y mín. urbana y suburbana</td></tr>
+          <tr><td>Día con precipitación</td><td>EMA: 0,1 mm o más. Sinóptica: algún reporte con tiempo presente de precipitación (llovizna con traza incluida),
+            o una cantidad mayor que 0 cuyo período cae al menos 75 % dentro del día.</td><td>Algún período con lluvias, lloviznas, chaparrones, tormentas... (sin mirar la probabilidad, como la hoja)</td></tr>
+          <tr><td>Dirección del viento</td><td>Sector de 8 rumbos más frecuente en los valores horarios, sin contar las calmas</td><td>Todas las direcciones nombradas; acierta si la observada está entre ellas</td></tr>
+          <tr><td>Intensidad del viento</td><td>Categoría del mayor viento medio horario (no las ráfagas)</td><td>La mayor nombrada ("leves a moderados" = MODERADOS)</td></tr>
+        </table></div>
+        <div class="tabla-scroll" style="margin-top:14px"><table>
+          <tr><th>Parámetro</th><th>Valor</th></tr>
+          <tr><td>Día completo</td><td>datos en 18 de las 24 horas (si no, el día no cuenta: ni acierto ni error)</td></tr>
+          <tr><td>Día completo para el viento</td><td>8 horas (hay estaciones que solo reportan de día)</td></tr>
+          <tr><td>Categorías de viento (del equipo)</td><td>LEVES ≤ 22 km/h · MODERADOS ≤ 29 · REGULARES ≤ 39 · FUERTES más</td></tr>
+          <tr><td>Calma</td><td>menos de 0,5 m/s (unos 2 km/h)</td></tr>
+          <tr><td>Período de los extremos del SYNOP</td><td>las 12 h anteriores al reporte</td></tr>
+          <tr><td>Plazo</td><td>desde el día del pronóstico: su "Día 2" es plazo 1, aunque se haya publicado la noche anterior</td></tr>
+          <tr><td>Versión</td><td>"final" = con la última corrección; "original" = lo primero publicado</td></tr>
+        </table></div>
+      </details>
+
+      <details>
+        <summary><b>Las medidas de error</b></summary>
+        <dl class="glosario">
+          <dt>MAE (error absoluto medio)</dt><dd>Promedio de |pronóstico − observado|. 1,5° = en promedio se erró por 1,5°, para arriba o para abajo.</dd>
+          <dt>Sesgo</dt><dd>Promedio del error CON signo. +1° = se pronostica sistemáticamente 1° de más. Un sesgo grande y estable se puede corregir.</dd>
+          <dt>RMSE</dt><dd>Como el MAE, pero castiga más los errores grandes. Si es mucho mayor que el MAE, hubo algunos días con errores muy grandes.</dd>
+          <dt>±2°</dt><dd>Porcentaje de días con error de 2° o menos.</dd>
+          <dt>Destreza (vs. persistencia)</dt><dd>1 − MAE / MAE de la persistencia, en los mismos días. 30 % = el pronóstico erra 30 % menos que decir "igual que ayer". Negativa = peor que la persistencia.</dd>
+          <dt>Aciertos (a), falsas alarmas (b), sorpresas (c), secos acertados (d)</dt><dd>La tabla de contingencia: a = se anunció y llovió; b = se anunció y no llovió; c = llovió sin anunciarse; d = ni se anunció ni llovió.</dd>
+          <dt>POD (probabilidad de detección)</dt><dd>a / (a + c): de los días que llovió, qué fracción se había anunciado. Ideal 1.</dd>
+          <dt>FAR (falsas alarmas)</dt><dd>b / (a + b): de los días que se anunció lluvia, en qué fracción no llovió. Ideal 0.</dd>
+          <dt>CSI</dt><dd>a / (a + b + c): aciertos sin contar los días secos, que son "fáciles". Ideal 1.</dd>
+          <dt>BIAS de frecuencia</dt><dd>(a + b) / (a + c). Mayor que 1 = se anuncia lluvia más seguido de lo que llueve.</dd>
+          <dt>HSS (Heidke)</dt><dd>Aciertos por encima de los que se lograrían por azar. 1 = perfecto, 0 = sin valor, negativo = peor que el azar.</dd>
+        </dl>
+      </details>
+
+      <details>
+        <summary><b>Problemas que fueron surgiendo y cómo se resolvieron</b></summary>
+        <p class="ayuda">En orden de aparición. Cada uno quedó con un test automático que lo reproduce, para que no vuelva a pasar.</p>
+        <div class="tabla-scroll" style="max-height:none"><table>
+          <tr><th>Problema</th><th>Causa</th><th>Solución</th></tr>
+          <tr><td>La tabla de observaciones "no coincidía" con Ogimet en la hora</td><td>El visualizador muestra hora argentina y Ogimet UTC (3 horas más); los datos eran los mismos</td><td>Se muestra la hora UTC al lado</td></tr>
+          <tr><td>La mínima de la hoja vieja parecía asignada al día equivocado</td><td>El script de la hoja le asigna al día X la mínima que termina a las 09 hs del día X+1</td><td>El servidor usa el día civil. <i>Pendiente de confirmar con los datos reales.</i></td></tr>
+          <tr><td>La mínima puede ser nocturna (planteado por el grupo)</td><td>Con el día de 9 a 9, una mínima de las 23 hs se asignaría al día siguiente</td><td>Día civil 00-24; la mínima del SYNOP de las 12 UTC solo si se comprueba que fue dentro del día</td></tr>
+          <tr><td>La lluvia de 24 h se informa de 9 a 9</td><td>Un día civil queda repartido entre dos reportes</td><td>Una cantidad cuenta solo si su período cae 75 % dentro del día; el tiempo presente de cada hora completa la información</td></tr>
+          <tr><td>48 filas de la hoja con el plazo distinto de las fechas</td><td>16 pronósticos publicados la noche anterior</td><td>Mismo plazo para todos; quedan marcados ("noche ant.") y se pueden filtrar</td></tr>
+          <tr><td>La Plata Aero no se descargó</td><td>Ogimet respondió 504 (sobrecargado) en una semana y eso descartaba la estación entera</td><td>Cada semana se reintenta; si sigue fallando, se avisa y se sigue con las demás</td></tr>
+          <tr><td>Bolívar, Tandil y Dolores con muchos días sin dato</td><td>No reportan de noche; la regla de 18 horas los dejaba afuera</td><td>Máx. y mín. validadas con el SYNOP; día seco por lluvias acumuladas en cero; viento con 8 horas</td></tr>
+          <tr><td>La Plata urbana (Campbell) con 27 de 62 días</td><td>ThingSpeak devuelve los registros <b>más recientes</b> del rango; el código suponía los primeros y cortaba</td><td>Se pide hacia atrás hasta completar. Ahora 62 de 62</td></tr>
+          <tr><td>Bolívar con lluvia en 15 de 62 días</td><td>El indicador iR = 3 del SYNOP ("grupo de lluvia omitido por ser cero") no se leía</td><td>iR = 3 vale 0 mm (24 h a las 12 UTC; 6 h a las 00, 06 y 18 UTC). Ahora 60 de 62</td></tr>
+        </table></div>
+        <p class="ayuda">Lección: revisar siempre la <b>cobertura</b> (cuántos días hay de cada cosa) antes de mirar los resultados.
+          Varios de estos problemas no daban ningún error: solo faltaban datos en silencio.</p>
+      </details>
+
+      <details>
+        <summary><b>Limitaciones conocidas</b></summary>
+        <ul>
+          <li>Viento de Bolívar: algunos días la estación manda 2 o 3 reportes y no alcanza para saber la dirección predominante; esos días quedan afuera.</li>
+          <li>Con lecturas horarias, el extremo real puede caer entre dos horas; los grupos del SYNOP lo compensan, pero no siempre se pueden usar.</li>
+          <li>El historial de la hoja no tiene los períodos ni las correcciones: la comparación original/final y la verificación por período valen desde el 10/10/2026.</li>
+          <li>"Día con precipitación" no mira la probabilidad: "10 a 30 % de lluvias aisladas" cuenta como "sí". Eso sube las falsas alarmas; la verificación por probabilidad (próxima etapa) lo va a tratar mejor.</li>
+          <li>Con pocos días (n chico), uno o dos días malos mueven mucho los promedios.</li>
+        </ul>
+      </details>
     </div>
   </section>
 
