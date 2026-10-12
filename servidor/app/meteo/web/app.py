@@ -490,10 +490,55 @@ def verificacion(ciudad: str = "La Plata", desde: date | None = None, hasta: dat
             "etiquetas_def": ETIQUETAS, "umbrales": UMBRALES}
 
 
+# ---------------------------------------------------------------------------
+# Cartas de diagnóstico (imágenes archivadas por el servicio de ingesta)
+# ---------------------------------------------------------------------------
+CARTAS_CONFIG = os.environ.get("CARTAS_CONFIG", "/config/cartas.yaml")
+ARCHIVO_DIR = os.environ.get("ARCHIVO_DIR", "/archivo")
+
+
+def _cartas_productos():
+    import yaml
+    try:
+        with open(CARTAS_CONFIG, encoding="utf-8") as f:
+            cfg = yaml.safe_load(f) or {}
+    except FileNotFoundError:
+        return []
+    return [{k: p.get(k) for k in ("id", "nombre", "nivel", "fuente")} for p in cfg.get("productos", [])
+            if p.get("activo", True)]
+
+
+@app.get("/api/cartas/disponibles")
+def cartas_disponibles(mes: str | None = None):
+    """Horas (UTC) con cartas archivadas: {ts: [productos]}. mes=AAAA-MM para uno solo."""
+    from ..cartas import archivo
+    if mes and not (len(mes) == 7 and mes[4] == "-" and mes.replace("-", "").isdigit()):
+        raise HTTPException(400, "mes: AAAA-MM")
+    return archivo.disponibles(ARCHIVO_DIR, [p["id"] for p in _cartas_productos()], mes)
+
+
+@app.get("/api/cartas")
+def cartas(ts: datetime):
+    """Las cartas de una hora UTC (ej. ts=2026-10-12T12:00Z), con la dirección de cada imagen."""
+    from ..cartas import archivo
+    ts = (ts if ts.tzinfo else ts.replace(tzinfo=timezone.utc)).astimezone(timezone.utc)
+    salida = []
+    for p in _cartas_productos():
+        url = None
+        for ext in ("png", "gif", "jpg"):
+            f = archivo.ruta(ARCHIVO_DIR, p["id"], ts, ext)
+            if f.exists():
+                url = "/cartas-img/" + f.relative_to(Path(ARCHIVO_DIR) / "cartas").as_posix()
+                break
+        salida.append({**p, "url": url})
+    return {"ts": ts, "productos": salida}
+
+
 @app.exception_handler(Exception)
 def _error(_request, exc):
     return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
 
 
 # La página y sus archivos. Va al final para que /api/... tenga prioridad.
+app.mount("/cartas-img", StaticFiles(directory=Path(ARCHIVO_DIR) / "cartas", check_dir=False), name="cartas")
 app.mount("/", StaticFiles(directory=ESTATICOS, html=True), name="web")

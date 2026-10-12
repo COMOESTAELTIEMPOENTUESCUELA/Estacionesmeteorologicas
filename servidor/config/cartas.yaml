@@ -1,0 +1,46 @@
+# =====================================================================
+# Cartas de diagnóstico para el análisis de eventos (pestaña "Cartas")
+# =====================================================================
+# Se guardan en ARCHIVO_DIR/cartas/<producto>/<año>/<mes>/ y se ven en el
+# visualizador con un selector de fecha y hora. Ver docs/06-cartas.md.
+
+horas_utc: [0, 6, 12, 18]
+
+productos:
+  # --- Página de Alicia Bentley (GFS, análisis) -------------------------
+  # https://www.atmos.albany.edu/student/abentley/realtime/standard.php?domain=southamer&variable=VARIABLE
+  # La página muestra los últimos 14 días de análisis: el servidor los va
+  # guardando, así que el archivo empieza 14 días antes de activarlo.
+  - id: bentley_mslp_jet
+    nombre: "Presión, espesor 1000/500 hPa y corriente en chorro"
+    nivel: "Superficie y 1000/500 hPa"
+    fuente: bentley
+    dominio: southamer
+    variable: mslp_jet
+  - id: bentley_850_thetae
+    nombre: "Temperatura potencial equivalente"
+    nivel: "850 hPa"
+    fuente: bentley
+    dominio: southamer
+    variable: 850_thetae
+  - id: bentley_ivt_conv
+    nombre: "Transporte integrado de vapor (IVT) y convergencia"
+    nivel: "700 hPa"
+    fuente: bentley
+    dominio: southamer
+    variable: IVT_conv
+  - id: bentley_rel_vort
+    nombre: "Vorticidad relativa"
+    nivel: "500 hPa"
+    fuente: bentley
+    dominio: southamer
+    variable: rel_vort
+
+  # --- Ogimet: mapa de observaciones de superficie ------------------------
+  # Pendiente: falta confirmar en qué dirección está la imagen del mapa.
+  - id: ogimet_superficie
+    nombre: "Observaciones de superficie (tiempo presente)"
+    nivel: "Superficie"
+    fuente: ogimet
+    activo: false
+    zona: amersurs

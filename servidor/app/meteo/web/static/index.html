@@ -130,6 +130,15 @@ th { color: var(--tinta-2); font-weight: 600; font-size: 12px; position: sticky;
 #tabla-obs td, #tabla-obs th { white-space: nowrap; }
 #tabla-obs td.ww { white-space: normal; min-width: 170px; }
 .num { text-align: right; }
+.cartas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(480px, 100%), 1fr)); gap: 14px; }
+.carta { margin: 0; }
+.carta figcaption { font-size: 13px; margin-bottom: 4px; }
+.carta img { width: 100%; height: auto; display: block; border-radius: 6px; border: 1px solid var(--borde); cursor: zoom-in; background: var(--plano); }
+.carta .falta { aspect-ratio: 4 / 3; display: flex; align-items: center; justify-content: center; text-align: center; padding: 12px;
+  border: 1px dashed var(--eje); border-radius: 6px; color: var(--tenue); font-size: 13px; }
+#c-dialogo { max-width: 96vw; max-height: 96vh; padding: 10px; border: 1px solid var(--borde); border-radius: 10px; background: var(--superficie); color: var(--tinta); }
+#c-dialogo img { max-width: 100%; max-height: 82vh; display: block; margin: 0 auto; }
+#c-dialogo::backdrop { background: rgba(0, 0, 0, .6); }
 .ogimet { font-size: 11px; white-space: nowrap; color: var(--acento); }
 .nivel { font-size: 11px; white-space: nowrap; color: var(--tinta-2); }
 .nivel::before { content: "●"; margin-right: 3px; }
@@ -176,6 +185,7 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
     <button role="tab" data-tab="series" aria-selected="false">Comparar</button>
     <button role="tab" data-tab="lluvia" aria-selected="false">Lluvia diaria</button>
     <button role="tab" data-tab="verif" aria-selected="false">Verificación</button>
+    <button role="tab" data-tab="cartas" aria-selected="false">Cartas</button>
     <button role="tab" data-tab="estado" aria-selected="false">Estado de la red</button>
   </nav>
   <span class="tenue" id="actualizado"></span>
@@ -538,6 +548,35 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
     </div>
   </section>
 
+  <!-- ============================ CARTAS ============================ -->
+  <section id="tab-cartas" hidden>
+    <div class="tarjeta">
+      <div class="filtros">
+        <label>Fecha <input type="date" id="f-c-fecha"></label>
+        <label>Hora
+          <select id="f-c-hora">
+            <option value="0">00 UTC (21 hs del día anterior)</option>
+            <option value="6">06 UTC (03 hs)</option>
+            <option value="12" selected>12 UTC (09 hs)</option>
+            <option value="18">18 UTC (15 hs)</option>
+          </select>
+        </label>
+        <button class="boton" id="c-menos-dia" title="Un día antes">« −1 día</button>
+        <button class="boton" id="c-menos" title="6 horas antes (flecha izquierda)">‹ −6 h</button>
+        <button class="boton" id="c-mas" title="6 horas después (flecha derecha)">+6 h ›</button>
+        <button class="boton" id="c-mas-dia" title="Un día después">+1 día »</button>
+        <button class="boton" id="c-ultima">Última</button>
+      </div>
+      <h2 id="c-titulo" style="margin:4px 0 2px; font-size:20px"></h2>
+      <p class="ayuda" id="c-nota"></p>
+      <div class="cartas-grid" id="c-grid"></div>
+      <p class="ayuda" style="margin-top:12px">Cartas de diagnóstico (análisis, no pronóstico) que el servidor archiva solo, cada hora.
+        Fuente: <a href="https://www.atmos.albany.edu/student/abentley/realtime.html" target="_blank" rel="noopener">Alicia Bentley (GFS)</a>.
+        Flechas ← → del teclado: 6 horas antes o después. Tocá una carta para verla en grande.</p>
+    </div>
+    <dialog id="c-dialogo"><p id="c-dialogo-titulo" style="margin:0 0 6px"></p><img alt=""><p style="text-align:right;margin:6px 0 0"><button class="boton" id="c-cerrar">Cerrar</button></p></dialog>
+  </section>
+
   <!-- ============================ ESTADO ============================ -->
   <section id="tab-estado" hidden>
     <div class="tarjeta">
@@ -598,7 +637,7 @@ function abrir(tab) {
   document.querySelectorAll("nav button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
   document.querySelectorAll("main > section").forEach((s) => (s.hidden = s.id !== `tab-${tab}`));
   if (tab === "mapa" && mapa) setTimeout(() => mapa.invalidateSize(), 50);
-  if (!cargadas[tab]) { cargadas[tab] = true; ({ emas: iniciarEmas, smn: iniciarSmn, series: iniciarSeries, lluvia: cargarLluvia, verif: iniciarVerif, estado: cargarEstado }[tab] || (() => {}))(); }
+  if (!cargadas[tab]) { cargadas[tab] = true; ({ emas: iniciarEmas, smn: iniciarSmn, series: iniciarSeries, lluvia: cargarLluvia, verif: iniciarVerif, cartas: iniciarCartas, estado: cargarEstado }[tab] || (() => {}))(); }
 }
 document.querySelectorAll("nav button").forEach((b) => b.addEventListener("click", () => abrir(b.dataset.tab)));
 
@@ -1549,6 +1588,71 @@ function dibujarVerifDias() {
         <td>${vd.pron.length ? vd.pron.join(" ") : "–"} / ${vd.obs || "–"}${marca(vd.obs && vd.pron.length ? vd.pron.includes(vd.obs) : null)}</td>
         <td>${(vi.pron || "–").toLowerCase()} / ${(vi.obs || "–").toLowerCase()}${vi.obs_kmh !== null ? ` <span class="tenue">(${num(vi.obs_kmh, 0)} km/h)</span>` : ""}${marca(vi.obs && vi.pron ? vi.pron === vi.obs : null)}</td></tr>`;
     }).join("") : `<tr><td colspan="7" class="tenue">Sin pronósticos a ${plazo} día(s) en el período.</td></tr>`);
+}
+
+// ======================================================================
+// CARTAS DE DIAGNÓSTICO
+// ======================================================================
+const fmtCartaTitulo = new Intl.DateTimeFormat("es-AR", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long", year: "numeric" });
+let cartasDisp = {};
+
+function tsCarta() {
+  const f = $("#f-c-fecha").value, h = String($("#f-c-hora").value).padStart(2, "0");
+  return new Date(`${f}T${h}:00:00Z`);
+}
+function ponerTsCarta(d) {
+  $("#f-c-fecha").value = d.toISOString().slice(0, 10);
+  $("#f-c-hora").value = String(d.getUTCHours());
+}
+function moverCarta(horas) {
+  ponerTsCarta(new Date(tsCarta().getTime() + horas * 3600e3));
+  cargarCartas();
+}
+
+async function iniciarCartas() {
+  cartasDisp = await api("/api/cartas/disponibles");
+  const claves = Object.keys(cartasDisp);
+  ponerTsCarta(claves.length ? new Date(claves[claves.length - 1]) : new Date(Math.floor(Date.now() / 21600e3) * 21600e3));
+  $("#f-c-fecha").addEventListener("change", cargarCartas);
+  $("#f-c-hora").addEventListener("change", cargarCartas);
+  $("#c-menos").addEventListener("click", () => moverCarta(-6));
+  $("#c-mas").addEventListener("click", () => moverCarta(6));
+  $("#c-menos-dia").addEventListener("click", () => moverCarta(-24));
+  $("#c-mas-dia").addEventListener("click", () => moverCarta(24));
+  $("#c-ultima").addEventListener("click", async () => {
+    cartasDisp = await api("/api/cartas/disponibles");
+    const k = Object.keys(cartasDisp);
+    if (k.length) { ponerTsCarta(new Date(k[k.length - 1])); cargarCartas(); }
+  });
+  $("#c-cerrar").addEventListener("click", () => $("#c-dialogo").close());
+  document.addEventListener("keydown", (e) => {
+    if ($("#tab-cartas").hidden || $("#c-dialogo").open || ["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement.tagName)) return;
+    if (e.key === "ArrowLeft") moverCarta(-6);
+    if (e.key === "ArrowRight") moverCarta(6);
+  });
+  cargarCartas();
+}
+
+async function cargarCartas() {
+  const t = tsCarta();
+  const titulo = fmtCartaTitulo.format(t);
+  $("#c-titulo").textContent = `${titulo.charAt(0).toUpperCase()}${titulo.slice(1)} · ${String(t.getUTCHours()).padStart(2, "0")} UTC`;
+  const r = await api(`/api/cartas?ts=${encodeURIComponent(t.toISOString())}`);
+  const hay = r.productos.filter((p) => p.url).length;
+  const claves = Object.keys(cartasDisp);
+  $("#c-nota").textContent = !r.productos.length ? "No hay cartas configuradas (config/cartas.yaml)."
+    : !claves.length ? "Todavía no hay cartas archivadas. El servidor las baja solo cada hora: en la primera vuelta trae los últimos 14 días."
+    : `${hay} de ${r.productos.length} cartas para esta hora (en Argentina: ${fmtHora.format(t)} hs). Archivo: del ${claves[0].slice(0, 10)} al ${claves[claves.length - 1].slice(0, 10)}.`;
+  $("#c-grid").innerHTML = r.productos.map((p) => `<figure class="carta">
+      <figcaption><b>${esc(p.nivel || "")}</b> · ${esc(p.nombre)}</figcaption>
+      ${p.url ? `<img src="${esc(p.url)}" alt="${esc(p.nombre)}" loading="lazy" data-titulo="${esc((p.nivel ? p.nivel + " · " : "") + p.nombre)}">`
+              : '<div class="falta">No archivada para esta hora</div>'}
+    </figure>`).join("");
+  document.querySelectorAll("#c-grid img").forEach((img) => img.addEventListener("click", () => {
+    $("#c-dialogo img").src = img.src;
+    $("#c-dialogo-titulo").textContent = `${$("#c-titulo").textContent} — ${img.dataset.titulo}`;
+    $("#c-dialogo").showModal();
+  }));
 }
 
 // ======================================================================

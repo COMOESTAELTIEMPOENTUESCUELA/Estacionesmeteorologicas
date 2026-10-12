@@ -43,6 +43,7 @@ servidor solo lee y copia.
 3. [Satélite](docs/03-satelite.md): cómo funciona el módulo GOES-19.
 4. [Visualizador web](docs/04-visualizador.md): pestañas, API y cómo usarla desde Python.
 5. [Verificación de pronósticos](docs/05-verificacion.md): Pronóstico UNLP contra lo observado.
+6. [Cartas de diagnóstico](docs/06-cartas.md): archivo de cartas de Bentley y Ogimet para analizar eventos.
 
 ## Arranque rápido
 

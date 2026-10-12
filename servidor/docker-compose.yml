@@ -49,9 +49,12 @@ services:
     environment:
       DATABASE_URL: postgresql://meteo:${DB_PASSWORD}@db:5432/meteo
       ESTACIONES_CONFIG: /config/estaciones.yaml
+      CARTAS_CONFIG: /config/cartas.yaml
+      ARCHIVO_DIR: /archivo
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
     volumes:
       - ./config:/config:ro
+      - ${ARCHIVO_DIR:-./datos/archivo}:/archivo          # cartas de diagnóstico
 
   # Visualizador web + API (solo lectura). Se abre en http://IP-DEL-SERVIDOR:8080
   # Escucha en la red de casa y en Tailscale; el router no lo publica a internet.
@@ -69,6 +72,11 @@ services:
       # Si están definidos en .env, la página pide usuario y contraseña.
       WEB_USUARIO: ${WEB_USUARIO:-}
       WEB_CLAVE: ${WEB_CLAVE:-}
+      CARTAS_CONFIG: /config/cartas.yaml
+      ARCHIVO_DIR: /archivo
+    volumes:
+      - ./config:/config:ro
+      - ${ARCHIVO_DIR:-./datos/archivo}:/archivo:ro       # solo lectura: la web no escribe
     ports:
       - "${WEB_PUERTO:-8080}:8080"
 

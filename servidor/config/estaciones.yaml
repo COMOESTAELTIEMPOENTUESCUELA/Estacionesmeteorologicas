@@ -23,6 +23,7 @@ frecuencias_min:
   comunidad: 30
   pronosticos: 60
   verificacion: 180
+  cartas: 60
 
 estaciones:
 

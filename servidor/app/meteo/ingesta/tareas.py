@@ -109,6 +109,12 @@ class Ingesta:
             h = hasta.date() if hasta else hoy
             reg["filas"] = observado.calcular(self.conn, self.cfg["verificacion"], d, h)
 
+    def correr_cartas(self):
+        from ..cartas import descarga
+        ruta = os.environ.get("CARTAS_CONFIG", "/config/cartas.yaml")
+        with db.registrar_tarea(self.conn, "cartas") as reg:
+            reg["filas"] = descarga.correr(cargar_config(ruta), os.environ.get("ARCHIVO_DIR", "/archivo"), self.sesion)
+
     def correr(self, tarea, desde=None, hasta=None, ids=None, incluir_inactivas=False):
         hasta = hasta or datetime.now(timezone.utc)
         if tarea in RECOLECTORES:
@@ -118,6 +124,8 @@ class Ingesta:
             return self.correr_comunidad()
         if tarea == "pronosticos":
             return self.correr_pronosticos()
+        if tarea == "cartas":
+            return self.correr_cartas()
         if tarea == "verificacion":
             # Sin --desde/--hasta (servicio, "una"): los últimos días.
             return self.correr_verificacion(desde if desde else None, hasta if desde else None)

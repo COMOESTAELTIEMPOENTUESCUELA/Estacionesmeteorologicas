@@ -6,7 +6,7 @@ Uso (dentro del contenedor, o con DATABASE_URL apuntando a la base):
 
     python -m meteo.ingesta una thingspeak
         Corre una sola tarea ahora (thingspeak | wunderground | davis | ogimet |
-        comunidad | pronosticos | verificacion) y termina. Útil para probar.
+        comunidad | pronosticos | verificacion | cartas) y termina. Útil para probar.
 
     python -m meteo.ingesta historico ogimet --desde 2026-01-01 --hasta 2026-10-01 [--estaciones omm_87593]
         Rellena el pasado. ThingSpeak y Wunderground guardan historia (con
