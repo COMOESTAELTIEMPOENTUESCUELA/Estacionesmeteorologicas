@@ -334,6 +334,10 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
       <div class="panel-titulo">Temperatura <span class="tenue">(error en °C; sesgo + = se pronosticó de más)</span></div>
       <div class="tabla-scroll"><table class="verif" id="v-temp"></table></div>
 
+      <div class="panel-titulo" style="margin-top:16px">Mínimas nocturnas
+        <span class="tenue">(días en que la mínima ocurrió entre las 18 y las 24 hs, por ejemplo después de un frente frío)</span></div>
+      <div id="v-noct"></div>
+
       <div class="panel-titulo" style="margin-top:16px">Precipitación: día con / sin precipitación
         <span class="tenue">(se pronostica "sí" si algún período tiene lluvias, lloviznas, tormentas...)</span></div>
       <div class="tabla-scroll"><table class="verif" id="v-pp"></table></div>
@@ -1311,7 +1315,40 @@ async function cargarVerif() {
     filaV("Intensidad: persistencia", (x) => conN(x.viento_int.persistencia)),
   ].join("") : '<tr><td class="tenue">Sin días comparables.</td></tr>';
 
+  dibujarNocturnas();
   dibujarVerifDias();
+}
+
+function dibujarNocturnas() {
+  const m = verifDatos.minimas || {};
+  const ambitos = Object.keys(m);
+  if (!ambitos.length) { $("#v-noct").innerHTML = '<p class="tenue">Sin mínimas observadas en el período.</p>'; return; }
+  const sinNoche = ["omm_87640", "omm_87645", "omm_87663"];   // no reportan de noche
+  $("#v-noct").innerHTML = ambitos.map((amb) => {
+    const x = m[amb], c = x.periodos, n = x.dias_con_dato;
+    const pctN = n ? Math.round(100 * c.noche / n) : 0;
+    const aviso = x.estaciones.some((e) => sinNoche.includes(e))
+      ? '<p class="ayuda">⚠ Esta estación no reporta de noche: una mínima nocturna puede no detectarse. El conteo es un mínimo.</p>' : "";
+    const plazos = Object.keys(x.errores).map(Number).filter((p) => p <= 3);
+    const err = plazos.map((p) => {
+      const e = x.errores[p];
+      const f = (k) => e[k].n ? `MAE <b>${num(e[k].mae)}°</b> · sesgo ${signo(e[k].sesgo)}° <span class="tenue">(n ${e[k].n})</span>` : "–";
+      return `<tr><th>Plazo ${p}</th><td>${f("nocturna")}</td><td>${f("resto")}</td></tr>`;
+    }).join("");
+    const dias = x.nocturnas.slice().reverse().map((d) => {
+      const pr = Object.entries(d.pronosticos).map(([p, v]) => `${p}: ${num(v, 0)}°`).join(" · ") || "–";
+      const dif = d.min_madrugada !== null && d.min_madrugada !== undefined ? ` <span class="tenue">(${signo(d.tmin - d.min_madrugada)}°)</span>` : "";
+      return `<tr><td>${fmtFecha.format(new Date(`${d.fecha}T12:00:00-03:00`))}</td>
+        <td class="num"><b>${num(d.tmin)}°</b> <span class="tenue">a las ${d.hora ?? "–"} hs</span></td>
+        <td class="num">${num(d.min_madrugada)}°${dif}</td><td>${pr}</td></tr>`;
+    }).join("");
+    return `<p style="margin:8px 0 4px"><b>Mínima ${amb}</b>: <b>${c.noche}</b> de ${n} días (${pctN} %) con mínima nocturna.
+        <span class="tenue">Madrugada (00-06): ${c.madrugada} · mañana (06-12): ${c.mañana} · tarde (12-18): ${c.tarde} · noche (18-24): ${c.noche}.
+        Estación: ${esc(x.estaciones.join(", "))}.</span></p>${aviso}
+      <div class="tabla-scroll"><table class="verif"><tr><th>¿Se erra más esos días?</th><th>Días con mínima nocturna</th><th>Resto de los días</th></tr>${err}</table></div>
+      ${dias ? `<details style="margin:6px 0 10px"><summary>Ver los ${x.nocturnas.length} días</summary>
+        <div class="tabla-scroll"><table class="verif"><tr><th>Día</th><th>Mínima (nocturna)</th><th>Mín. de la madrugada <span class="tenue">(diferencia)</span></th><th>Pronosticado por plazo</th></tr>${dias}</table></div></details>` : ""}`;
+  }).join("");
 }
 
 function dibujarVerifDias() {

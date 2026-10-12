@@ -84,7 +84,7 @@ def armar_pares(dias, observado):
         }
         for el, campo in TEMPERATURAS.items():
             fila[el] = {"pron": d.get(campo), "obs": obs(el).get("valor"), "pers": obs(el, ayer).get("valor"),
-                        "estacion": obs(el).get("estacion_id")}
+                        "estacion": obs(el).get("estacion_id"), "periodo": obs(el).get("categoria")}
         fila["tmin_periodo"] = {"pron": der["tmin_periodo"], "obs": obs("tmin_urbana").get("categoria")
                                 or obs("tmin_suburbana").get("categoria")}
         si_no = lambda o: None if not o else o.get("categoria") == "SI"
@@ -152,6 +152,49 @@ def destreza(error, error_ref):
     if error is None or not error_ref:
         return None
     return round(1 - error / error_ref, 2)
+
+
+def minimas_nocturnas(filas, observado, desde, hasta):
+    """¿Cuántos días la mínima fue NOCTURNA (entre las 18 y las 24 hs), cuáles,
+    y si el pronóstico erra más esos días?
+
+    observado: {(ciudad, fecha, elemento): {"valor", "categoria", "detalle"...}}
+    Para cada ámbito (urbana/suburbana): conteo por período del día en que
+    ocurrió la mínima, la lista de días nocturnos (con la mínima de la
+    madrugada de ese mismo día, para ver la diferencia) y el error de la
+    mínima por plazo separando días nocturnos del resto."""
+    salida = {}
+    for ambito in ("urbana", "suburbana"):
+        el = f"tmin_{ambito}"
+        filas_obs = sorted(((f, o) for (c, f, e), o in observado.items() if e == el and desde <= f <= hasta),
+                           key=lambda x: x[0])
+        if not filas_obs:
+            continue
+        conteo = {p: 0 for p in ("madrugada", "mañana", "tarde", "noche")}
+        for _, o in filas_obs:
+            if o.get("categoria") in conteo:
+                conteo[o["categoria"]] += 1
+        pron = {(f["fecha"], f["plazo"]): f[el]["pron"] for f in filas}
+        dias = []
+        for fecha, o in filas_obs:
+            if o.get("categoria") != "noche":
+                continue
+            det = o.get("detalle") or {}
+            per = det.get("periodos") or {}
+            dias.append({"fecha": fecha, "tmin": o["valor"], "hora": det.get("tmin_hora"),
+                         "min_madrugada": (per.get("madrugada") or {}).get("min"),
+                         "min_manana": (per.get("mañana") or {}).get("min"),
+                         "estacion": o.get("estacion_id"),
+                         "pronosticos": {p: pron.get((fecha, p)) for p in range(4) if pron.get((fecha, p)) is not None}})
+        errores = {}
+        for p in sorted({f["plazo"] for f in filas}):
+            v = [f[el] for f in filas if f["plazo"] == p and f[el]["pron"] is not None and f[el]["obs"] is not None]
+            errores[p] = {"nocturna": continuos([(x["pron"], x["obs"]) for x in v if x["periodo"] == "noche"]),
+                          "resto": continuos([(x["pron"], x["obs"]) for x in v if x["periodo"] != "noche"])}
+        salida[ambito] = {"dias_con_dato": len(filas_obs), "periodos": conteo,
+                          "estaciones": sorted({o.get("estacion_id") for _, o in filas_obs if o.get("estacion_id")}),
+                          "nocturnas": dias, "errores": errores}
+    return salida
 
 
 def resumen(filas):

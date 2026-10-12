@@ -107,7 +107,7 @@ def test_verificacion(cliente):
     assert r.status_code == 200
     d = r.json()
     [dia] = d["dias"]
-    assert dia["plazo"] == 1 and dia["tmax_urbana"] == {"pron": 19, "obs": 18.0, "pers": None, "estacion": "omm_87645"}
+    assert dia["plazo"] == 1 and dia["tmax_urbana"] == {"pron": 19, "obs": 18.0, "pers": None, "estacion": "omm_87645", "periodo": None}
     assert dia["pp"]["pron"] is True and dia["pp"]["obs"] is True
     assert dia["viento_dir"]["obs"] == "SW" and dia["viento_int"]["pron"] == "MODERADOS"
     assert d["resumen"]["1"]["tmax_urbana"]["mae"] == 1.0

@@ -420,7 +420,7 @@ def verificacion(ciudad: str = "La Plata", desde: date | None = None, hasta: dat
         FROM pronostico_dia d JOIN pronostico_emision e ON e.id = d.emision_id
         WHERE e.ciudad = %s AND d.fecha BETWEEN %s AND %s""", (ciudad, desde, hasta))
     observado = {(r["ciudad"], r["fecha"], r["elemento"]): r for r in consultar("""
-        SELECT ciudad, fecha, elemento, valor, categoria, estacion_id FROM verif_observado
+        SELECT ciudad, fecha, elemento, valor, categoria, estacion_id, detalle FROM verif_observado
         WHERE ciudad = %s AND fecha BETWEEN %s AND %s""", (ciudad, desde - timedelta(days=5), hasta))}
     filas = puntajes.armar_pares(puntajes.elegir_emisiones(dias, version), observado)
     filas = puntajes.filtrar_publicacion(filas, publicacion)
@@ -438,7 +438,8 @@ def verificacion(ciudad: str = "La Plata", desde: date | None = None, hasta: dat
             planas.append(p)
         return _csv(planas, f"verificacion_{ciudad}_{desde}_{hasta}")
     return {"ciudad": ciudad, "desde": desde, "hasta": hasta, "version": version, "publicacion": publicacion,
-            "resumen": puntajes.resumen(filas), "dias": filas}
+            "resumen": puntajes.resumen(filas), "dias": filas,
+            "minimas": puntajes.minimas_nocturnas(filas, observado, desde, hasta)}
 
 
 @app.exception_handler(Exception)

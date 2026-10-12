@@ -149,6 +149,16 @@ adelante.
   correcciones mejoran el pronóstico. En el historial importado de la hoja
   son iguales, porque la hoja solo guardaba la versión vigente.
 
+### Mínimas nocturnas
+
+La pestaña cuenta, para la mínima urbana y la suburbana, en qué período del
+día ocurrió la mínima (madrugada 00-06, mañana 06-12, tarde 12-18, noche
+18-24). También lista los días con mínima nocturna, con la mínima de la
+madrugada de ese mismo día y lo pronosticado en cada plazo, y compara el
+error de la mínima en esos días contra el resto. En las estaciones que no
+reportan de noche (Bolívar, Tandil, Dolores) el conteo es un mínimo: una
+mínima nocturna puede no detectarse.
+
 ## 4. Medidas de error
 
 **Temperatura**, con e = pronóstico − observado:

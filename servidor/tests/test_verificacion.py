@@ -262,3 +262,22 @@ def test_bolivar_dia_seco_con_ir3_y_grupos_de_6h():
     cant = [(o.ts, int(o.variable.split("_")[1][:-1]), o.valor) for o in obs if o.variable.startswith("precip_")]
     r = ob.lluvia_synop(cant, [], list(msjs), date(2026, 8, 10))
     assert r["pp"] is False
+
+
+def test_minimas_nocturnas_cuenta_lista_y_separa_errores():
+    d1, d2, d3 = date(2026, 9, 1), date(2026, 9, 2), date(2026, 9, 3)
+    obs = {
+        ("La Plata", d1, "tmin_urbana"): {"valor": 4.0, "categoria": "noche", "estacion_id": "observatorio_campbell",
+                                          "detalle": {"tmin_hora": 23, "periodos": {"madrugada": {"min": 11.0}}}},
+        ("La Plata", d2, "tmin_urbana"): {"valor": 3.0, "categoria": "madrugada", "estacion_id": "observatorio_campbell"},
+        ("La Plata", d3, "tmin_urbana"): {"valor": 6.0, "categoria": "mañana", "estacion_id": "observatorio_campbell"},
+    }
+    filas = [{"fecha": f, "plazo": 1, "tmin_urbana": {"pron": p, "obs": obs[("La Plata", f, "tmin_urbana")]["valor"],
+                                                     "periodo": obs[("La Plata", f, "tmin_urbana")]["categoria"]}}
+             for f, p in ((d1, 10), (d2, 4), (d3, 5))]
+    r = puntajes.minimas_nocturnas(filas, obs, d1, d3)["urbana"]
+    assert r["dias_con_dato"] == 3 and r["periodos"]["noche"] == 1
+    [dia] = r["nocturnas"]
+    assert (dia["fecha"], dia["hora"], dia["min_madrugada"], dia["pronosticos"]) == (d1, 23, 11.0, {1: 10})
+    # El pronóstico de 10° le "erró" a la nocturna (4°) pero acertó la de la madrugada: error 6 contra 1.
+    assert r["errores"][1]["nocturna"]["mae"] == 6.0 and r["errores"][1]["resto"]["mae"] == 1.0
