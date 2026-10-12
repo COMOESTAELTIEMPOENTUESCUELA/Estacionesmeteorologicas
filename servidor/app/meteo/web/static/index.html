@@ -152,6 +152,18 @@ img.con-fondo { background-color: #fff !important; background-size: 100% 100%; b
   touch-action: none; cursor: grab; border-radius: 6px; background: var(--plano); }
 #c-vista.arrastrando { cursor: grabbing; }
 #c-vista img { max-width: 100%; max-height: 100%; transform-origin: 0 0; user-select: none; -webkit-user-drag: none; }
+/* Panel "pronóstico del grupo" de la pestaña Cartas */
+#cp-mapa { height: 340px; border-radius: 8px; border: 1px solid var(--borde); }
+.cp-etq { position: absolute; transform: translate(-50%, calc(-100% - 6px)); background: var(--superficie); color: var(--tinta); border: 1px solid var(--borde); border-radius: 6px; padding: 2px 5px;
+  font-size: 11px; line-height: 1.25; white-space: nowrap; box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+.cp-etq b { font-size: 12px; }
+.cp-punto { position: absolute; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: var(--tinta); border: 1px solid #fff; }
+.err { display: inline-block; min-width: 1.6em; padding: 0 4px; border-radius: 4px; font-size: 11px; font-weight: 600; text-align: center; }
+.err.e-ok { background: color-mix(in srgb, var(--ok) 22%, transparent); }
+.err.e-medio { background: color-mix(in srgb, var(--demora) 35%, transparent); }
+.err.e-mal { background: color-mix(in srgb, var(--caida) 30%, transparent); }
+#cp-tabla td, #cp-tabla th { white-space: nowrap; }
+#cp-tabla .detalle td { white-space: normal; background: var(--plano); font-size: 13px; }
 #c-dialogo::backdrop { background: rgba(0, 0, 0, .6); }
 .ogimet { font-size: 11px; white-space: nowrap; color: var(--acento); }
 .nivel { font-size: 11px; white-space: nowrap; color: var(--tinta-2); }
@@ -596,6 +608,28 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
         Flechas ← → del teclado: 6 horas antes o después. Tocá una carta para verla en grande:
         ahí se hace zoom con la rueda del mouse (o pellizcando en el celular), se mueve arrastrando,
         doble clic acerca o vuelve, y ← → cambian la hora sin perder el zoom (↑ ↓ cambian de carta).</p>
+    </div>
+    <div class="tarjeta" id="cp" style="margin-top:16px">
+      <div class="filtros">
+        <h2 style="margin:0; font-size:18px; flex:1 1 280px" id="cp-titulo">Pronóstico del grupo</h2>
+        <label>Pronóstico
+          <select id="f-cp-plazo">
+            <option value="0">del mismo día</option>
+            <option value="1">del día anterior</option>
+            <option value="2">de 2 días antes</option>
+            <option value="3">de 3 días antes</option>
+          </select>
+        </label>
+      </div>
+      <p class="ayuda" id="cp-nota"></p>
+      <div class="grilla-2">
+        <div id="cp-mapa"></div>
+        <div style="overflow-x:auto"><table id="cp-tabla"></table></div>
+      </div>
+      <p class="ayuda" style="margin-top:8px">Pronosticado / observado en cada ciudad para el día civil (00 a 24 hs de Argentina) de la carta elegida.
+        Temperaturas: urbana (en La Plata, el Observatorio; en las demás, el aeropuerto). El color es el error:
+        <span class="err e-ok">≤2</span> <span class="err e-medio">≤4</span> <span class="err e-mal">&gt;4 °C</span>;
+        ▲ hizo más calor de lo pronosticado, ▼ más frío. Tocá una ciudad para ver el pronóstico por período.</p>
     </div>
     <dialog id="c-dialogo">
       <div class="barra">
@@ -1667,6 +1701,7 @@ async function iniciarCartas() {
     cargarCartas();
   });
   iniciarVisor();
+  $("#f-cp-plazo").addEventListener("change", cargarPronoDia);
   document.addEventListener("keydown", (e) => {
     if ($("#tab-cartas").hidden || ["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement.tagName)) return;
     if (e.key === "ArrowLeft") { e.preventDefault(); moverCarta(-6); }
@@ -1716,6 +1751,92 @@ async function cargarCartas() {
   }));
   document.querySelectorAll("#c-grid img").forEach((img) => img.addEventListener("click", () => abrirCarta(img.dataset.id)));
   if ($("#c-dialogo").open) mostrarEnVisor();
+  cargarPronoDia();
+}
+
+// ---------- Pronóstico del grupo para el día de la carta ----------
+// La carta está en hora UTC; el pronóstico es para el día civil argentino
+// (UTC-3): la carta de las 00 UTC del 13 es el 12 a las 21 hs.
+let cpMapa = null, cpCapa = null, cpClave = "";
+const fmtDiaSemana = new Intl.DateTimeFormat("es-AR", { timeZone: "UTC", weekday: "long" });
+
+function claseErr(e) { const a = Math.abs(e); return a <= 2 ? "e-ok" : a <= 4 ? "e-medio" : "e-mal"; }
+function celdaTemp(t) {
+  if (!t || t.pron === null || t.pron === undefined) return "–";
+  if (t.obs === null || t.obs === undefined) return `${num(t.pron, 0)} / <span class="tenue">s/d</span>`;
+  const e = t.obs - t.pron;
+  const flecha = Math.abs(e) <= 0.5 ? "" : e > 0 ? "▲" : "▼";
+  return `${num(t.pron, 0)} / ${num(t.obs)} <span class="err ${claseErr(e)}" title="error ${e > 0 ? "+" : ""}${num(e)} °C">${flecha}${num(Math.abs(e))}</span>`;
+}
+function siNo(v) { return v === null || v === undefined ? '<span class="tenue">s/d</span>' : v ? "sí" : "no"; }
+function celdaPP(pp) {
+  if (!pp) return "–";
+  const ok = pp.obs === null || pp.obs === undefined ? "" : pp.obs === pp.pron ? ' <span class="err e-ok">✓</span>' : ' <span class="err e-mal">✗</span>';
+  return `${siNo(pp.pron)} / ${siNo(pp.obs)}${ok}`;
+}
+function celdaViento(f) {
+  const vi = f.viento_int, vd = f.viento_dir;
+  const pron = [(vd.pron || []).join("-"), vi.pron].filter(Boolean).join(" ") || "–";
+  const obs = [vd.obs, vi.obs ? vi.obs.toLowerCase() : null].filter(Boolean).join(" ")
+    + (vi.obs_kmh !== null && vi.obs_kmh !== undefined ? ` (${num(vi.obs_kmh, 0)} km/h)` : "");
+  return `${esc(pron)} / ${obs ? esc(obs) : '<span class="tenue">s/d</span>'}`;
+}
+function detallePeriodos(f) {
+  const per = (f.periodos || []).map((p) => `<li><b>${esc(p.period)}</b>: ${esc([
+      p.sky_condition, p.precipitation_description && `${p.precipitation_description}${p.probability_of_precipitation ? ` (${p.probability_of_precipitation})` : ""}`,
+      p.wind_direction && `viento del ${p.wind_direction}${p.wind_intensity ? ` ${p.wind_intensity}` : ""}`,
+      p.wind_gusts && `ráfagas ${p.wind_gusts}`, p.temperature !== null && p.temperature !== undefined && `${p.temperature} °C`,
+    ].filter(Boolean).join(", ") || "sin detalle")}</li>`).join("");
+  const sub = f.tmin_suburbana && f.tmin_suburbana.pron !== null
+    ? `<p style="margin:4px 0">Suburbana (Aero): mín ${celdaTemp(f.tmin_suburbana)} · máx ${celdaTemp(f.tmax_suburbana)}</p>` : "";
+  const quien = [f.pronosticador && `Pronosticó: ${f.pronosticador}`, f.publicado_el && `publicado el ${f.publicado_el}${f.hora_emision ? ` (${f.hora_emision})` : ""}`,
+    f.anticipado && "la noche anterior", f.es_correccion && "corregido"].filter(Boolean).join(" · ");
+  return `${sub}${per ? `<ul style="margin:4px 0; padding-left:18px">${per}</ul>` : '<p style="margin:4px 0">Sin pronóstico por períodos.</p>'}
+    <p class="tenue" style="margin:4px 0">${esc(quien)}</p>`;
+}
+
+async function cargarPronoDia() {
+  const t = tsCarta();
+  const dia = new Date(t.getTime() - 3 * 3600e3).toISOString().slice(0, 10);   // día argentino
+  const plazo = $("#f-cp-plazo").value;
+  if (`${dia}|${plazo}` === cpClave) return;          // mismo día: no se vuelve a pedir
+  cpClave = `${dia}|${plazo}`;
+  const titulo = `${fmtDiaSemana.format(new Date(`${dia}T12:00:00Z`))} ${Number(dia.slice(8))}/${Number(dia.slice(5, 7))}`;
+  $("#cp-titulo").textContent = `Pronóstico del grupo para el ${titulo}`;
+  const r = await api(`/api/verificacion/dia?fecha=${dia}&plazo=${plazo}`);
+  if (cpClave !== `${dia}|${plazo}`) return;          // llegó tarde: ya se pidió otro día
+  const con = r.ciudades.filter((c) => c.pronostico);
+  $("#cp-nota").textContent = con.length
+    ? `${con.length} de ${r.ciudades.length} ciudades con pronóstico ${$("#f-cp-plazo").selectedOptions[0].textContent} para ese día.`
+    : `No hay pronósticos ${$("#f-cp-plazo").selectedOptions[0].textContent} guardados para ese día.`;
+  $("#cp-tabla").innerHTML = `<tr><th>Ciudad</th><th>Mín pron / obs</th><th>Máx pron / obs</th><th>Lluvia</th><th>Viento</th></tr>`
+    + r.ciudades.map((c, i) => {
+      const f = c.pronostico;
+      if (!f) return `<tr><th>${esc(c.ciudad)}</th><td colspan="4" class="tenue">sin pronóstico</td></tr>`;
+      return `<tr class="fila-click" data-i="${i}"><th>${esc(c.ciudad)}</th><td>${celdaTemp(f.tmin_urbana)}</td><td>${celdaTemp(f.tmax_urbana)}</td>
+        <td>${celdaPP(f.pp)}</td><td>${celdaViento(f)}</td></tr>
+        <tr class="detalle" data-de="${i}" hidden><td colspan="5">${detallePeriodos(f)}</td></tr>`;
+    }).join("");
+  document.querySelectorAll("#cp-tabla .fila-click").forEach((tr) => tr.addEventListener("click", () => {
+    const d = $(`#cp-tabla tr[data-de="${tr.dataset.i}"]`); d.hidden = !d.hidden;
+  }));
+  // Mapa de la provincia con una etiqueta por ciudad.
+  if (!cpMapa) {
+    cpMapa = L.map("cp-mapa", { scrollWheelZoom: false, zoomSnap: 0.25 }).fitBounds([[-39.0, -63.0], [-33.6, -56.9]]);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 12, attribution: "© OpenStreetMap" }).addTo(cpMapa);
+  }
+  if (cpCapa) cpCapa.remove();
+  cpCapa = L.layerGroup().addTo(cpMapa);
+  r.ciudades.filter((c) => c.coord).forEach((c, i) => {
+    const f = c.pronostico;
+    const tx = (el) => f && f[el] && f[el].pron !== null ? num(f[el].pron, 0) : "–";
+    const html = `<div class="cp-punto"></div><div class="cp-etq"><b>${esc(c.ciudad)}</b><br>${f ? `${tx("tmin_urbana")} / ${tx("tmax_urbana")} °C${f.pp && f.pp.pron ? " ☂" : ""}` : '<span class="tenue">sin pron.</span>'}</div>`;
+    L.marker(c.coord, { icon: L.divIcon({ className: "", html, iconSize: [0, 0], iconAnchor: [0, 0] }) })
+      .addTo(cpCapa).on("click", () => {
+        const d = $(`#cp-tabla tr[data-de="${r.ciudades.indexOf(c)}"]`); if (d) d.hidden = false;
+      });
+  });
+  setTimeout(() => cpMapa.invalidateSize(), 0);
 }
 
 // ---------- Visor grande con zoom ----------

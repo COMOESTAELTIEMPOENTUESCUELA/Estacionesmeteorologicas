@@ -173,3 +173,11 @@ def test_cartas_con_fondo(cliente, tmp_path, monkeypatch):
     assert p["og_te"]["url"] == "/cartas-img/og_te/2026/10/og_te_2026101212.png"
     assert p["og_te"]["fondo"] == "/cartas-img/_fondos/ogimet_amersurs.png"
     assert p["b_rv"]["fondo"] is None and p["b_rv"]["url"] is None
+
+
+def test_verificacion_dia(cliente):
+    r = cliente.get("/api/verificacion/dia", params={"fecha": "2026-10-12"})
+    assert r.status_code == 200
+    c = r.json()["ciudades"]
+    assert c[0]["ciudad"] == "La Plata" and len(c) >= 6 and c[0]["coord"]
+    assert cliente.get("/api/verificacion/dia", params={"fecha": "2026-10-12", "plazo": 9}).status_code == 400

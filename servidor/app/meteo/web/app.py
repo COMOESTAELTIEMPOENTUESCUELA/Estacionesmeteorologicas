@@ -490,6 +490,46 @@ def verificacion(ciudad: str = "La Plata", desde: date | None = None, hasta: dat
             "etiquetas_def": ETIQUETAS, "umbrales": UMBRALES}
 
 
+# Ubicación de las ciudades que pronostica el grupo (para el mapa del panel).
+CIUDADES_COORD = {
+    "La Plata": (-34.92, -57.95), "Junín": (-34.59, -60.95), "Mar del Plata": (-38.00, -57.56),
+    "Bolívar": (-36.23, -61.11), "Tandil": (-37.32, -59.13), "Bahía Blanca": (-38.72, -62.27),
+}
+
+
+@app.get("/api/verificacion/dia")
+def verificacion_dia(fecha: date, plazo: int = 0, version: str = "final"):
+    """Para analizar un evento: lo que el grupo pronosticó para ESE día en
+    todas las ciudades (con plazo 0 = el pronóstico del mismo día, 1 = el
+    del día anterior...) y lo que se observó."""
+    if version not in ("final", "original"):
+        raise HTTPException(400, "version: final u original")
+    if not 0 <= plazo <= 6:
+        raise HTTPException(400, "plazo: de 0 a 6")
+    dias = consultar("""
+        SELECT e.ciudad, e.fecha_pronostico, e.capturado, e.publicado_por, e.es_correccion, e.hora_emision,
+               COALESCE((e.contenido -> 'publicado_el' ->> 0)::date,
+                        (e.capturado AT TIME ZONE 'America/Argentina/Buenos_Aires')::date) AS publicado_el,
+               d.fecha, d.plazo_dias, d.temp_min, d.temp_max, d.temp_min_suburbana,
+               d.temp_max_suburbana, d.periodos
+        FROM pronostico_dia d JOIN pronostico_emision e ON e.id = d.emision_id
+        WHERE d.fecha = %s AND d.plazo_dias = %s""", (fecha, plazo))
+    observado = {(r["ciudad"], r["fecha"], r["elemento"]): r for r in consultar("""
+        SELECT ciudad, fecha, elemento, valor, categoria, estacion_id, detalle FROM verif_observado
+        WHERE fecha BETWEEN %s AND %s""", (fecha - timedelta(days=plazo + 1), fecha))}
+    elegidos = puntajes.elegir_emisiones(dias, version)
+    filas = {f["ciudad"]: f for f in puntajes.armar_pares(elegidos, observado)}
+    extra = {d["ciudad"]: d for d in elegidos}
+    ciudades = sorted(set(CIUDADES_COORD) | set(filas), key=lambda c: (c != "La Plata", c))
+    salida = []
+    for c in ciudades:
+        f = filas.get(c)
+        if f:
+            f = {**f, "periodos": extra[c]["periodos"] or [], "hora_emision": extra[c].get("hora_emision")}
+        salida.append({"ciudad": c, "coord": CIUDADES_COORD.get(c), "pronostico": f})
+    return {"fecha": fecha, "plazo": plazo, "ciudades": salida}
+
+
 # ---------------------------------------------------------------------------
 # Cartas de diagnóstico (imágenes archivadas por el servicio de ingesta)
 # ---------------------------------------------------------------------------

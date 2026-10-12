@@ -95,6 +95,20 @@ docker compose exec ingesta python -m meteo.ingesta diagnostico-ogimet
   cambian la hora *sin perder el zoom* (sirve para seguir un sistema sobre
   la misma zona) y **↑ ↓** pasan a la carta siguiente.
 
+## Pronóstico del grupo para el día de la carta
+
+Debajo de las cartas está lo que el grupo pronosticó para ese día en las 6
+ciudades (mapa y tabla), contra lo observado, con el mismo cálculo que la
+pestaña Verificación (`/api/verificacion/dia?fecha=AAAA-MM-DD&plazo=0`).
+
+- El día es el **civil argentino**: la carta de las 00 UTC del 13 es el 12 a
+  las 21 hs, así que muestra el pronóstico del 12.
+- "Pronóstico **del mismo día**" (plazo 0) es el que viene de entrada; se
+  puede elegir el del día anterior, o de 2 o 3 días antes, para ver cómo se
+  fue ajustando el pronóstico a medida que se acercaba el evento.
+- Tocando una ciudad se ve el pronóstico por período (mañana, tarde, noche),
+  la suburbana de La Plata, quién lo hizo y cuándo se publicó.
+
 ## Comandos
 
 ```bash
