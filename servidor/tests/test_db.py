@@ -165,7 +165,11 @@ def test_verificacion_de_punta_a_punta(conn):
     pronosticos.guardar(conn, [emision])
 
     cfg = cargar_config(RAIZ / "config/estaciones.yaml")["verificacion"]
-    assert observado.calcular(conn, cfg, date(2026, 10, 9), date(2026, 10, 10)) > 0
+    # De a tramos de 1 día tiene que dar lo mismo que de una vez.
+    observado.DIAS_POR_TRAMO = 1
+    n1 = observado.calcular(conn, cfg, date(2026, 10, 9), date(2026, 10, 10))
+    observado.DIAS_POR_TRAMO = 31
+    assert observado.calcular(conn, cfg, date(2026, 10, 9), date(2026, 10, 10)) == n1 > 0
     filas = {(f.isoformat(), el): (v, c) for f, el, v, c in consulta(
         conn, "SELECT fecha, elemento, valor, categoria FROM verif_observado WHERE ciudad = 'Tandil'")}
     assert filas[("2026-10-10", "tmax_urbana")] == (18.0, None)

@@ -361,18 +361,34 @@ def filas_ciudad(ciudad, defs, estaciones, dia):
     return filas
 
 
+# Se procesa de a tramos: leer años de datos de una vez tarda demasiado (cada
+# día recorre la lista entera) y deja la conexión abierta sin actividad más
+# de lo que la base permite (idle_in_transaction_session_timeout).
+DIAS_POR_TRAMO = 31
+
+
 def calcular(conn, cfg, desde, hasta):
     """Recalcula verif_observado para los días civiles [desde, hasta].
     Solo días ya terminados. Devuelve cuántas filas se guardaron."""
-    ciudades = cfg["ciudades"]
-    ids = {e for defs in ciudades.values() for lista in defs.values() for e in lista or []}
     ayer = (datetime.now(HORA_ARG) - timedelta(days=1)).date()
     hasta = min(hasta, ayer)
-    if desde > hasta:
-        return 0
+    total = 0
+    tramo = desde
+    while tramo <= hasta:
+        fin_tramo = min(tramo + timedelta(days=DIAS_POR_TRAMO - 1), hasta)
+        total += _calcular_tramo(conn, cfg, tramo, fin_tramo)
+        tramo = fin_tramo + timedelta(days=1)
+    log.info("verificación: %d valores observados entre %s y %s", total, desde, hasta)
+    return total
+
+
+def _calcular_tramo(conn, cfg, desde, hasta):
+    ciudades = cfg["ciudades"]
+    ids = {e for defs in ciudades.values() for lista in defs.values() for e in lista or []}
     inicio = limites(desde)[0] - timedelta(hours=HORAS_EXTREMO)
     fin = limites(hasta)[1] + timedelta(hours=HORAS_EXTREMO)
     tipos, crudos = _leer(conn, ids, inicio, fin)
+    conn.commit()   # cierra la transacción de lectura mientras se calcula
     estaciones = {e: _armar(tipos.get(e), crudos[e]) for e in ids if e in crudos}
 
     filas = []
@@ -383,7 +399,7 @@ def calcular(conn, cfg, desde, hasta):
         dia += timedelta(days=1)
 
     with conn.cursor() as cur:
-        # Reemplazo completo del rango: si una estación dejó de cumplir (ej.
+        # Reemplazo completo del tramo: si una estación dejó de cumplir (ej.
         # se corrigió un dato), no queda una fila vieja.
         cur.execute("DELETE FROM verif_observado WHERE ciudad = ANY(%s) AND fecha BETWEEN %s AND %s",
                     (list(ciudades), desde, hasta))
@@ -392,5 +408,5 @@ def calcular(conn, cfg, desde, hasta):
                VALUES (%s, %s, %s, %s, %s, %s, %s)""",
             [(*f[:6], Jsonb(f[6])) for f in filas])
     conn.commit()
-    log.info("verificación: %d valores observados entre %s y %s", len(filas), desde, hasta)
+    log.info("verificación: %s a %s, %d valores", desde, hasta, len(filas))
     return len(filas)
