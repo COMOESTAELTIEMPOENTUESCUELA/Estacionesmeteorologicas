@@ -42,12 +42,19 @@ productos:
   # trae ~12 mapas de esa hora; "codigo" elige cuál (Te temperatura, Td rocío,
   # Tx máxima, Tn mínima, Sg, R2, R4, Pr, Hr, Wi, Dt, Hi). Se puede rellenar
   # el historial: python -m meteo.ingesta historico cartas --desde ... --hasta ...
+  # A las 00, 06, 12 y 18 UTC: tiempo presente y temperatura.
   - id: ogimet_tiempo_significativo
-    nombre: "Tiempo significativo (observaciones)"
+    nombre: "Tiempo presente (observaciones)"
     nivel: "Superficie"
     fuente: ogimet
     zona: amersurs
     codigo: Sg
+  - id: ogimet_temperatura
+    nombre: "Temperatura (observaciones)"
+    nivel: "Superficie"
+    fuente: ogimet
+    zona: amersurs
+    codigo: Te
   # La precipitación de 24 h y las temperaturas extremas se informan a las
   # 12 UTC: a otras horas el mapa sale casi vacío.
   - id: ogimet_precipitacion

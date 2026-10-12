@@ -14,7 +14,8 @@ Configurado en `config/cartas.yaml`:
 | Temperatura potencial equivalente (`850_thetae`) | 850 hPa | Alicia Bentley, GFS |
 | Transporte integrado de vapor y convergencia (`IVT_conv`) | 700 hPa | Alicia Bentley, GFS |
 | Vorticidad relativa (`rel_vort`) | 500 hPa | Alicia Bentley, GFS |
-| Tiempo significativo (observaciones, código `Sg`) | Superficie | Ogimet |
+| Tiempo presente (observaciones, código `Sg`) | Superficie | Ogimet |
+| Temperatura (observaciones, código `Te`) | Superficie | Ogimet |
 | Precipitación acumulada (observaciones, código `R4`), solo 12 UTC | Superficie | Ogimet |
 | Temperatura máxima y mínima (observaciones, `Tx` y `Tn`), solo 12 UTC | Superficie | Ogimet |
 
