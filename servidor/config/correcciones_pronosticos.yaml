@@ -3,6 +3,8 @@
 # =====================================================================
 # Cada una: la emisión de esa ciudad, guardada con "fecha_guardada", de
 # esa persona (y esa hora escrita, si la tiene) se corre "mover_dias".
+# "huella" (opcional) la identifica sin dudas: conviene ponerla cuando la
+# misma persona podría publicar de verdad para esa fecha más adelante.
 # "publicado_el" es el día real en que se publicó. Esto es también el
 # REGISTRO de lo corregido: no borrar entradas.
 #
@@ -28,6 +30,8 @@ correcciones:
      mover_dias: -1, publicado_el: 2026-10-02, motivo: "guardado 02/10 08:06 con 'para mañana' tildado"}
   - {ciudad: La Plata, fecha_guardada: 2026-10-10, publicado_por: Micaela, hora_emision: "08:00:00",
      mover_dias: -1, publicado_el: 2026-10-09, motivo: "guardado 09/10 08:14 con 'para mañana' tildado"}
-  # Bahía Blanca guardado el 12/10 08:45 como del 13: NO se anota acá porque
-  # se puede arreglar en el día volviendo a publicar sin la casilla (pisa la
-  # fila equivocada). Si no se hizo, agregarlo con fecha_guardada 2026-10-13.
+  # Guardado el 12/10 a la mañana como del 13 y no se volvió a publicar en el
+  # día. Con huella: Micaela podría publicar de verdad Bahía Blanca para el 13.
+  - {ciudad: Bahía Blanca, fecha_guardada: 2026-10-13, publicado_por: Micaela, hora_emision: "08:30:00",
+     huella: 27937321730276a2df4c3bcbd36b0c9e,
+     mover_dias: -1, publicado_el: 2026-10-12, motivo: "guardado 12/10 08:45 con 'para mañana' tildado"}

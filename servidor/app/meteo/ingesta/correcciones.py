@@ -24,6 +24,7 @@ from datetime import date, timedelta
 import yaml
 from psycopg.types.json import Jsonb
 
+from .fuentes.hoja_verificacion import ORIGEN as RESUMIDA
 from .fuentes.pronosticos import correr_fechas
 
 log = logging.getLogger(__name__)
@@ -52,16 +53,24 @@ def aplicar(conn, correcciones):
                 SELECT id, contenido FROM pronostico_emision
                 WHERE ciudad = %s AND fecha_pronostico = %s AND publicado_por = %s
                   AND NOT contenido ? 'correccion_manual'
-                  AND (hora_emision IS NULL OR %s::text IS NULL OR hora_emision = %s::text)""",
-                        (c["ciudad"], fecha, c["publicado_por"], c.get("hora_emision"), c.get("hora_emision")))
+                  AND (hora_emision IS NULL OR %s::text IS NULL OR hora_emision = %s::text)
+                  AND (%s::text IS NULL OR huella = %s::text)""",
+                        (c["ciudad"], fecha, c["publicado_por"], c.get("hora_emision"), c.get("hora_emision"),
+                         c.get("huella"), c.get("huella")))
             filas = cur.fetchall()
             etiqueta = f"{c['ciudad']} {fecha} ({c['publicado_por']})"
+            # ¿Ya hay una versión COMPLETA corregida? (la resumida de la hoja de
+            # verificación no cuenta: si llega la completa, se corrige y gana).
             cur.execute("""SELECT 1 FROM pronostico_emision WHERE ciudad = %s AND publicado_por = %s
-                           AND contenido -> 'correccion_manual' ->> 'fecha_original' = %s""",
-                        (c["ciudad"], c["publicado_por"], fecha.isoformat()))
+                           AND contenido -> 'correccion_manual' ->> 'fecha_original' = %s
+                           AND contenido ->> 'origen' IS DISTINCT FROM %s""",
+                        (c["ciudad"], c["publicado_por"], fecha.isoformat(), RESUMIDA))
             ya_corregida = cur.fetchone() is not None
             if not filas:
-                salida.append(f"{etiqueta}: {'ya estaba corregido' if ya_corregida else 'no está en el servidor'}")
+                cur.execute("""SELECT 1 FROM pronostico_emision WHERE ciudad = %s AND publicado_por = %s
+                               AND contenido -> 'correccion_manual' ->> 'fecha_original' = %s""",
+                            (c["ciudad"], c["publicado_por"], fecha.isoformat()))
+                salida.append(f"{etiqueta}: {'ya estaba corregido' if cur.fetchone() else 'no está en el servidor'}")
                 continue
             if ya_corregida:
                 # Ya está la versión corregida (ej. cargada a mano con importar-emision):

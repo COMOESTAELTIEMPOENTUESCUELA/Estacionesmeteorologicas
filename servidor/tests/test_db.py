@@ -253,3 +253,34 @@ def test_importar_hoja_pronosticos_completa(conn, tmp_path, monkeypatch):
         with conn.cursor() as cur:
             cur.execute("DELETE FROM pronostico_emision WHERE ciudad LIKE 'Ciudad %%'")
         conn.commit()
+
+
+def test_correccion_prefiere_la_version_completa(conn):
+    """Si primero se corrigió la versión resumida (hoja de verificación) y
+    después llega la completa con la fecha mal, se corrige la completa (no
+    se descarta); una corrección con huella no toca otras publicaciones."""
+    from meteo.ingesta import correcciones
+    from meteo.ingesta.fuentes import hoja_verificacion
+    resumida = {"city": "Ciudad Test", "forecast_date": "2026-09-05", "publicado_por": "M", "origen": hoja_verificacion.ORIGEN,
+                "daily_forecasts": [{"date": "2026-09-06", "temp_max": 1}]}
+    completa = {"city": "Ciudad Test", "forecast_date": "2026-09-05", "emission_time": "08:20:00", "publicado_por": "M",
+                "daily_forecasts": [{"date": "2026-09-05", "temp_max": 20}]}
+    otra = {**completa, "forecast_date": "2026-09-06", "daily_forecasts": [{"date": "2026-09-06", "temp_max": 25}]}
+    c = [{"ciudad": "Ciudad Test", "fecha_guardada": "2026-09-05", "publicado_por": "M", "hora_emision": "08:20:00",
+          "mover_dias": -1, "publicado_el": "2026-09-04", "motivo": "t"},
+         {"ciudad": "Ciudad Test", "fecha_guardada": "2026-09-06", "publicado_por": "M", "huella": "otra-cosa",
+          "mover_dias": -1, "publicado_el": "2026-09-05", "motivo": "t"}]
+    try:
+        pronosticos.guardar(conn, [resumida])
+        correcciones.aplicar(conn, c)                       # corrige la resumida
+        pronosticos.guardar(conn, [completa, otra])
+        r = correcciones.aplicar(conn, c)
+        assert r[0] == "Ciudad Test 2026-09-05 (M): corregido a 2026-09-04"
+        assert r[1] == "Ciudad Test 2026-09-06 (M): no está en el servidor"   # la huella no coincide: no se toca
+        filas = consulta(conn, """SELECT fecha_pronostico::text, contenido ->> 'origen' FROM pronostico_emision
+                                  WHERE ciudad = 'Ciudad Test' ORDER BY 1, 2""")
+        assert filas == [("2026-09-04", hoja_verificacion.ORIGEN), ("2026-09-04", None), ("2026-09-06", None)]
+    finally:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM pronostico_emision WHERE ciudad = 'Ciudad Test'")
+        conn.commit()
