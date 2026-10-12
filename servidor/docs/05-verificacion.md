@@ -149,6 +149,17 @@ adelante.
   correcciones mejoran el pronóstico. En el historial importado de la hoja
   son iguales, porque la hoja solo guardaba la versión vigente.
 
+### Controlar un dato en Ogimet
+
+Cada día de la tabla día por día (y de la lista de mínimas nocturnas) tiene
+un link "Ogimet NNNNN ↗" por cada estación sinóptica usada ese día. Abre la
+tabla de SYNOP decodificados de Ogimet hasta las 12 UTC del día siguiente,
+con 2 días hacia atrás: se ve todo el día civil más el reporte que trae la
+mínima de esa noche. **Ogimet muestra las horas en UTC** (3 más que la hora
+argentina). Si el día todavía no terminó, el link corta en la hora actual
+(Ogimet responde "400 Bad Request" si se le pide una hora futura). En la
+pestaña Estaciones SMN, "Ver en Ogimet" abre la misma estación y período.
+
 ### Mínimas nocturnas
 
 La pestaña cuenta, para la mínima urbana y la suburbana, en qué período del

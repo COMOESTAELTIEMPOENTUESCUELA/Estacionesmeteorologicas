@@ -130,6 +130,7 @@ th { color: var(--tinta-2); font-weight: 600; font-size: 12px; position: sticky;
 #tabla-obs td, #tabla-obs th { white-space: nowrap; }
 #tabla-obs td.ww { white-space: normal; min-width: 170px; }
 .num { text-align: right; }
+.ogimet { font-size: 11px; white-space: nowrap; color: var(--acento); }
 .bien { color: var(--ok); } .mal { color: var(--caida); }
 .verif td, .verif th { vertical-align: top; }
 .verif .sub { display: block; font-size: 12px; color: var(--tenue); }
@@ -241,6 +242,7 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
           </select>
         </label>
         <a class="boton" id="f-smn-csv" href="#">Descargar CSV</a>
+        <a class="boton" id="f-smn-ogimet" href="#" target="_blank" rel="noopener" title="La misma estación y período en Ogimet (horas en UTC)">Ver en Ogimet ↗</a>
       </div>
       <div class="grilla-2">
         <div><div class="panel-titulo">Temperatura y rocío <span class="tenue">(°C)</span></div><div class="panel"><canvas id="smn-temp"></canvas></div></div>
@@ -1197,6 +1199,7 @@ async function cargarSmn() {
   const id = $("#f-smn").value;
   const dias = $("#f-smn-dias").value;
   $("#f-smn-csv").href = `/api/sinoptica/${encodeURIComponent(id)}/observaciones?dias=${dias}&formato=csv`;
+  $("#f-smn-ogimet").href = urlOgimetHasta(id, new Date(), Math.max(1, Math.ceil(Number(dias)))) || "#";
   const obs = await api(`/api/sinoptica/${encodeURIComponent(id)}/observaciones?dias=${dias}`);
   const asc = obs.slice().reverse();
   const serie = (k) => asc.filter((o) => o[k] !== null).map((o) => [o.ts, o[k]]);
@@ -1239,6 +1242,34 @@ async function cargarSmn() {
 const ETIQUETAS_TEMP = { tmax_urbana: "Máxima urbana", tmin_urbana: "Mínima urbana",
                          tmax_suburbana: "Máxima suburbana", tmin_suburbana: "Mínima suburbana" };
 const fmtFecha = new Intl.DateTimeFormat("es-AR", { timeZone: TZ, weekday: "short", day: "2-digit", month: "2-digit" });
+
+// Link a la tabla de SYNOP decodificados de Ogimet, para controlar un dato.
+// Para el día civil X se pide hasta las 12 UTC del día X+1 con 2 días hacia
+// atrás: se ve todo el día (00 a 24 hs = 03 a 03 UTC) y además el reporte de
+// las 12 UTC siguiente, que trae la mínima de esa noche.
+// Ogimet responde "400 Bad Request" si el final pedido todavía no pasó: se
+// corta en la hora actual.
+function urlOgimetHasta(estacionId, fin, dias) {
+  const omm = String(estacionId || "").replace(/^omm_/, "");
+  if (!/^\d{5}$/.test(omm)) return null;
+  const ahora = new Date();
+  if (fin > ahora) fin = new Date(Date.UTC(ahora.getUTCFullYear(), ahora.getUTCMonth(), ahora.getUTCDate(), ahora.getUTCHours()));
+  const q = new URLSearchParams({ ind: omm, ndays: dias, ano: fin.getUTCFullYear(),
+    mes: String(fin.getUTCMonth() + 1).padStart(2, "0"), day: String(fin.getUTCDate()).padStart(2, "0"),
+    hora: String(fin.getUTCHours()).padStart(2, "0"), decoded: "yes" });
+  return `https://www.ogimet.com/cgi-bin/gsynres?${q}`;
+}
+function urlOgimet(estacionId, fechaISO) {
+  const fin = new Date(`${fechaISO}T12:00:00Z`);
+  fin.setUTCDate(fin.getUTCDate() + 1);
+  return urlOgimetHasta(estacionId, fin, 2);
+}
+function linksOgimet(estaciones, fechaISO) {
+  return [...new Set(estaciones.filter((e) => String(e || "").startsWith("omm_")))]
+    .map((e) => `<a class="ogimet" href="${urlOgimet(e, fechaISO)}" target="_blank" rel="noopener"
+       title="Ver los SYNOP de ${esc(e.replace("omm_", ""))} de ese día en Ogimet (horas en UTC)">Ogimet ${esc(e.replace("omm_", ""))} ↗</a>`)
+    .join(" ");
+}
 let verifDatos = null;
 const signo = (v, dec = 1) => v === null || v === undefined ? "–" : (v > 0 ? "+" : "") + num(v, dec);
 const pct = (v) => v === null || v === undefined ? "–" : `${Math.round(v * 100)} %`;
@@ -1338,7 +1369,7 @@ function dibujarNocturnas() {
     const dias = x.nocturnas.slice().reverse().map((d) => {
       const pr = Object.entries(d.pronosticos).map(([p, v]) => `${p}: ${num(v, 0)}°`).join(" · ") || "–";
       const dif = d.min_madrugada !== null && d.min_madrugada !== undefined ? ` <span class="tenue">(${signo(d.tmin - d.min_madrugada)}°)</span>` : "";
-      return `<tr><td>${fmtFecha.format(new Date(`${d.fecha}T12:00:00-03:00`))}</td>
+      return `<tr><td>${fmtFecha.format(new Date(`${d.fecha}T12:00:00-03:00`))} ${linksOgimet([d.estacion], d.fecha)}</td>
         <td class="num"><b>${num(d.tmin)}°</b> <span class="tenue">a las ${d.hora ?? "–"} hs</span></td>
         <td class="num">${num(d.min_madrugada)}°${dif}</td><td>${pr}</td></tr>`;
     }).join("");
@@ -1383,7 +1414,7 @@ function dibujarVerifDias() {
       const tmin = d[`tmin_${amb}`];
       const nocturna = d.tmin_periodo.obs === "noche" ? ' <span class="chip" title="La mínima observada fue entre las 18 y las 24 hs">nocturna</span>' : "";
       return `<tr>
-        <td>${fmtFecha.format(new Date(t(d)))}</td>
+        <td>${fmtFecha.format(new Date(t(d)))}<br>${linksOgimet([d[`tmax_${amb}`].estacion, tmin.estacion, pp.estacion, vd.estacion], d.fecha)}</td>
         <td>${esc(d.pronosticador || "–")}${d.anticipado ? ' <span class="chip" title="Publicado la noche anterior (' + esc(d.publicado_el) + ')">noche ant.</span>' : ""}</td>
         <td class="num">${temp(d[`tmax_${amb}`])}</td>
         <td class="num">${temp(tmin)}${nocturna}</td>
