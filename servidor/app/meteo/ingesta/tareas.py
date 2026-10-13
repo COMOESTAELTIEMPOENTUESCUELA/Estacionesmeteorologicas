@@ -113,7 +113,7 @@ class Ingesta:
             reg["filas"] = observado.calcular(self.conn, self.cfg["verificacion"], d, h)
 
     def correr_cartas(self, desde=None, hasta=None):
-        """Sin fechas: la vuelta normal. Con fechas: historial de Ogimet."""
+        """Sin fechas: la vuelta normal. Con fechas: rellenar ese período (satélite y Ogimet)."""
         from ..cartas import descarga
         cfg = cargar_config(os.environ.get("CARTAS_CONFIG", "/config/cartas.yaml"))
         raiz = os.environ.get("ARCHIVO_DIR", "/archivo")
@@ -126,8 +126,8 @@ class Ingesta:
         with db.registrar_tarea(self.conn, "cartas") as reg:
             if desde:
                 r = descarga.correr_historico(cfg, raiz, self.sesion, desde, hasta)
-                log.info("cartas (histórico %s a %s): %s. Ogimet solo tiene el último día; "
-                         "lo que NOAA ya borró no se puede recuperar así.", desde, hasta, r)
+                log.info("cartas (histórico %s a %s): %s nuevas. Lo que NOAA ya borró "
+                         "(guarda ~10 días) no se puede recuperar así.", desde, hasta, r)
                 reg["filas"] = sum(r.values())
             else:
                 reg["filas"] = descarga.correr(cfg, raiz, self.sesion)

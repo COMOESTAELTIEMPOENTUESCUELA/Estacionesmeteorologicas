@@ -19,9 +19,10 @@ PAUSA_OGIMET_SEG = 21
 ESPERAS_OGIMET = (30, 90)
 # En la vuelta de cada hora se miran las últimas horas sinópticas. Se deja
 # un margen para que Ogimet ya tenga los SYNOP de esa hora.
-# OJO: Ogimet solo genera estos mapas para el último día, aproximadamente
-# (probado el 12/10/2026: hoy sí; hace 2 días o una semana, respuesta
-# vacía). No se puede rellenar el historial: hay que archivarlos a diario.
+# Ogimet genera estos mapas también para fechas pasadas (el 12/10/2026 una
+# prueba dio respuestas vacías para fechas viejas, pero fue por cruzarse con
+# las consultas del servicio: el usuario las vio en la página). En la vuelta
+# normal alcanza con el último día; para rellenar: historico cartas.
 OGIMET_HORAS_ATRAS = 24
 OGIMET_MARGEN = timedelta(hours=2)
 
@@ -196,10 +197,10 @@ def correr_ogimet(cfg, raiz, sesion, desde, hasta):
 
 
 def correr_historico(cfg, raiz, sesion, desde, hasta):
-    """Rellenar un período: satélite (NOAA guarda unos días) y, de Ogimet,
-    solo lo que cae en el último día (lo anterior ya no lo tiene: pedirlo
-    sería esperar respuestas vacías). Bentley se completa solo en la vuelta
-    normal (su página tiene 14 días). Devuelve {producto: nuevas}."""
+    """Rellenar un período: satélite (NOAA guarda unos 10 días) y mapas de
+    Ogimet (los genera para fechas pasadas; si responde vacío para una hora,
+    se saltea y se sigue). Bentley se completa solo en la vuelta normal (su
+    página tiene 14 días). Devuelve {producto: nuevas}."""
     horas = tuple(cfg.get("horas_utc", (0, 6, 12, 18)))
     salida = {}
     with una_sola_descarga(raiz):
@@ -209,9 +210,9 @@ def correr_historico(cfg, raiz, sesion, desde, hasta):
                     salida[p["id"]] = _correr_star(p, raiz, sesion, tuple(p.get("horas_utc", horas)), desde, hasta)
                 except Exception as ex:
                     log.warning("cartas %s: %s", p["id"], str(ex)[:150])
-        ultimo_dia = datetime.now(timezone.utc) - timedelta(hours=OGIMET_HORAS_ATRAS)
-        if hasta > ultimo_dia:
-            salida["ogimet"] = _correr_ogimet(cfg, raiz, sesion, max(desde, ultimo_dia), hasta)
+        # Ojo: una consulta "pesada" cada 20 s por IP. Con el servicio corriendo
+        # a la vez se cruzan; por eso una_sola_descarga() bloquea la otra.
+        salida["ogimet"] = _correr_ogimet(cfg, raiz, sesion, desde, hasta)
     return salida
 
 

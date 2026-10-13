@@ -89,11 +89,15 @@ se eligen en `config/cartas.yaml` con `codigo`).
 En la vuelta de cada hora se completan las últimas 24 horas, respetando su
 límite de una consulta cada 20 segundos.
 
-**Ogimet solo genera estos mapas para el último día** (probado el 12/10/2026:
-para hoy devuelve los 12 mapas; para hace 2 días o una semana, una
-respuesta vacía). No se puede rellenar el historial: el archivo empieza el
-día que se activó y se completa a diario. Una respuesta vacía no se
-reintenta (no es un rechazo por el límite: esa hora ya no está).
+**Ogimet genera estos mapas también para fechas pasadas.** El 12/10/2026
+una prueba devolvió respuestas vacías para fechas viejas y se concluyó, mal,
+que solo tenía el último día: en realidad esas consultas se cruzaron con las
+del servicio, y Ogimet corta a quien hace consultas "pesadas" seguidas (los
+mapas viejos los arma en el momento). En la vuelta de cada hora se completa
+el último día; para rellenar un período:
+`python -m meteo.ingesta historico cartas --desde ... --hasta ...`
+(una consulta cada 21 s: ~1,5 minutos por día). Una respuesta vacía no se
+reintenta: esa hora se saltea.
 
 **Los mapas son transparentes**: solo traen los valores de las estaciones.
 La geografía (costas y límites, `base=bluem`) la pone la página por debajo,

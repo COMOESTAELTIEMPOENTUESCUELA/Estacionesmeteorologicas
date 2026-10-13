@@ -328,10 +328,10 @@ def test_star_descarga_solo_las_horas_de_las_cartas(tmp_path, monkeypatch):
     assert pedidos == ["lista"]                    # lo que ya está no se vuelve a bajar
 
 
-def test_historico_baja_satelite_y_no_pide_ogimet_viejo(tmp_path, monkeypatch):
-    """Rellenar 7 al 11/10: satélite sí (NOAA guarda unos días); a Ogimet no se le
-    pide nada viejo (solo tiene el último día)."""
+def test_historico_baja_satelite_y_ogimet(tmp_path, monkeypatch):
+    """Rellenar 7 al 11/10: satélite y mapas de Ogimet del período."""
     monkeypatch.setattr(descarga, "PAUSA_SEG", 0)
+    monkeypatch.setattr(descarga, "PAUSA_OGIMET_SEG", 0)
     pedidos = []
 
     class Resp:
@@ -346,11 +346,13 @@ def test_historico_baja_satelite_y_no_pide_ogimet_viejo(tmp_path, monkeypatch):
     class Sesion:
         def get(self, url, timeout, params=None):
             pedidos.append(url)
+            if params:          # página de Ogimet de esa hora
+                return Resp(texto=HTML_OGIMET.replace("202610121200", f"2026{params['mes']}{params['day']}{params['hora']}00"))
             return Resp(texto=lista) if url.endswith("/") else Resp(b"\xff\xd8\xff" + b"0" * 50)
 
     cfg = {"horas_utc": [0, 6, 12, 18], "productos": [
         {"id": "sat13", "fuente": "star", "sector": "ssa", "banda": "13"},
         {"id": "og_sg", "fuente": "ogimet", "zona": "amersurs", "codigo": "Sg"}]}
     r = descarga.correr_historico(cfg, tmp_path, Sesion(), datetime(2026, 10, 7, tzinfo=UTC), datetime(2026, 10, 11, 18, tzinfo=UTC))
-    assert r == {"sat13": 20}                                  # 5 días x 4 horas; Ogimet ni se intenta
-    assert not any("ogimet" in u for u in pedidos)
+    assert r == {"sat13": 20, "ogimet": 20}                    # 5 días x 4 horas, de cada uno
+    assert archivo.existe(tmp_path, "og_sg", datetime(2026, 10, 7, 12, tzinfo=UTC))

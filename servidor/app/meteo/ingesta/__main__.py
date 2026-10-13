@@ -14,7 +14,7 @@ Uso (dentro del contenedor, o con DATABASE_URL apuntando a la base):
 
     python -m meteo.ingesta historico cartas --desde 2026-10-06 --hasta 2026-10-14
         Rellena las cartas de un período: el satélite (NOAA guarda ~10 días)
-        y, de Ogimet, solo el último día (lo anterior ya no lo tiene).
+        y los mapas de Ogimet (una consulta cada 21 s: ~1,5 min por día).
 
     python -m meteo.ingesta historico verificacion --desde 2026-01-01 --hasta 2026-10-01
         Recalcula lo observado para verificar pronósticos en ese rango
