@@ -539,6 +539,14 @@ CIUDADES_COORD = {
 }
 
 
+# Estación SYNOP (aeropuerto) de cada ciudad, para el link a Ogimet del
+# panel: la misma que usa la verificación (config/estaciones.yaml).
+CIUDADES_SYNOP = {
+    "La Plata": "omm_87593", "Junín": "omm_87548", "Mar del Plata": "omm_87692",
+    "Bolívar": "omm_87640", "Tandil": "omm_87645", "Bahía Blanca": "omm_87750",
+}
+
+
 @app.get("/api/modo")
 def modo():
     """"completo" (el visualizador privado) o "cartas" (la copia pública)."""
@@ -577,7 +585,10 @@ def verificacion_dia(fecha: date, plazo: int = 0, version: str = "final"):
             f = {**f, "periodos": extra[c]["periodos"] or [], "hora_emision": extra[c].get("hora_emision")}
             if WEB_MODO == "cartas":
                 f.pop("pronosticador", None)       # en la copia pública no van nombres de personas
-        salida.append({"ciudad": c, "coord": CIUDADES_COORD.get(c), "pronostico": f})
+        # Para controlar a mano: la estación del aeropuerto y las que se usaron ese día.
+        usadas = [v.get("estacion") for v in (f or {}).values() if isinstance(v, dict) and v.get("estacion")]
+        synop = [e for e in dict.fromkeys([CIUDADES_SYNOP.get(c), *usadas]) if e and e.startswith("omm_")]
+        salida.append({"ciudad": c, "coord": CIUDADES_COORD.get(c), "synop": synop, "pronostico": f})
     return {"fecha": fecha, "plazo": plazo, "ciudades": salida}
 
 

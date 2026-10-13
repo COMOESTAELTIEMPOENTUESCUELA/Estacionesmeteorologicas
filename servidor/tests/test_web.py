@@ -180,6 +180,7 @@ def test_verificacion_dia(cliente):
     assert r.status_code == 200
     c = r.json()["ciudades"]
     assert c[0]["ciudad"] == "La Plata" and c[0]["coord"] and "Bolívar" not in {x["ciudad"] for x in c}
+    assert c[0]["synop"][0] == "omm_87593"                          # el Aero, para el link a Ogimet
     assert cliente.get("/api/verificacion/dia", params={"fecha": "2026-10-12", "plazo": 9}).status_code == 400
 
 

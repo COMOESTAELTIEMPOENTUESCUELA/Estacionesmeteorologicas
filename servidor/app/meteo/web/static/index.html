@@ -620,7 +620,7 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
       <p class="ayuda" style="margin-top:8px">Pronosticado / observado en cada ciudad para el día civil (00 a 24 hs de Argentina) de la carta elegida.
         Temperaturas: urbana (en La Plata, el Observatorio; en las demás, el aeropuerto). El color es el error:
         <span class="err e-ok">≤2</span> <span class="err e-medio">≤4</span> <span class="err e-mal">&gt;4 °C</span>;
-        ▲ hizo más calor de lo pronosticado, ▼ más frío. Tocá una ciudad para ver el pronóstico por período.</p>
+        ▲ hizo más calor de lo pronosticado, ▼ más frío. Tocá una ciudad para ver el pronóstico por período; "Ogimet ↗" abre los SYNOP de su aeropuerto para ese día (horas en UTC: el día civil va de las 03 UTC a las 03 UTC del día siguiente; la lluvia de 24 h y los extremos están en el parte de las 12 UTC del día siguiente).</p>
     </div>
     <dialog id="c-dialogo">
       <div class="barra">
@@ -1876,12 +1876,15 @@ async function cargarPronoDia() {
   $("#cp-tabla").innerHTML = `<tr><th>Ciudad</th><th>Mín pron / obs</th><th>Máx pron / obs</th><th>Lluvia</th><th>Viento</th></tr>`
     + r.ciudades.map((c, i) => {
       const f = c.pronostico;
-      if (!f) return `<tr><th>${esc(c.ciudad)}</th><td colspan="4" class="tenue">sin pronóstico</td></tr>`;
-      return `<tr class="fila-click" data-i="${i}"><th>${esc(c.ciudad)}</th><td>${celdaTemp(f.tmin_urbana)}</td><td>${celdaTemp(f.tmax_urbana)}</td>
+      // Link a los SYNOP de ese día en Ogimet, para controlar lo observado a mano.
+      const og = c.synop && c.synop.length ? `<br>${linksOgimet(c.synop, dia)}` : "";
+      if (!f) return `<tr><th>${esc(c.ciudad)}${og}</th><td colspan="4" class="tenue">sin pronóstico</td></tr>`;
+      return `<tr class="fila-click" data-i="${i}"><th>${esc(c.ciudad)}${og}</th><td>${celdaTemp(f.tmin_urbana)}</td><td>${celdaTemp(f.tmax_urbana)}</td>
         <td>${celdaPP(f.pp)}</td><td>${celdaViento(f)}</td></tr>
         <tr class="detalle" data-de="${i}" hidden><td colspan="5">${detallePeriodos(f)}</td></tr>`;
     }).join("");
-  document.querySelectorAll("#cp-tabla .fila-click").forEach((tr) => tr.addEventListener("click", () => {
+  document.querySelectorAll("#cp-tabla .fila-click").forEach((tr) => tr.addEventListener("click", (e) => {
+    if (e.target.closest("a")) return;          // el link a Ogimet no abre ni cierra el detalle
     const d = $(`#cp-tabla tr[data-de="${tr.dataset.i}"]`); d.hidden = !d.hidden;
   }));
   // Mapa de la provincia con una etiqueta por ciudad.
