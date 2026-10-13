@@ -32,6 +32,18 @@ _REF = re.compile(r'(?:src|background)\s*=\s*["\']?([^"\'\s>]+\.(?:png|jpe?g|gif
 _MAPA_DEL_DIA = re.compile(r"/tmp/\d{12}_", re.I)
 
 
+# Para los mapas que Ogimet tiene que GENERAR (fechas pasadas), responde vacío
+# si el pedido no dice que viene de su propia página del formulario (header
+# Referer), como hace el navegador. Probado el 13/10/2026: sin Referer, 0
+# bytes; con Referer, la página con los mapas. Los del día ya están armados
+# y salían igual: por eso al principio pareció que "solo tenía el último día".
+ENCABEZADOS = {
+    "Referer": "https://www.ogimet.com/gsynop.phtml",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "es-AR,es;q=0.8",
+}
+
+
 def parametros(zona, ts):
     return {"zona": zona, "base": "bluem", "proy": "orto", "ano": ts.year, "mes": f"{ts.month:02d}",
             "day": f"{ts.day:02d}", "hora": f"{ts.hour:02d}", "vall": "All", "enviar": "Ver"}

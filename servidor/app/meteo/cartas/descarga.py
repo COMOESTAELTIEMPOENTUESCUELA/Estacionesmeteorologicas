@@ -172,7 +172,8 @@ def _pedir_ogimet(sesion, zona, ts):
     eso se toma como error y se reintenta, no como "no hay mapa"."""
     for i in range(len(ESPERAS_OGIMET) + 1):
         try:
-            r = sesion.get(ogimet.URL_PAGINA, params=ogimet.parametros(zona, ts), timeout=120)
+            r = sesion.get(ogimet.URL_PAGINA, params=ogimet.parametros(zona, ts), timeout=120,
+                           headers=ogimet.ENCABEZADOS)
             r.raise_for_status()
             if not r.text.strip():
                 raise NoDisponible(f"Ogimet ya no tiene los mapas de {ts:%d/%m %H} UTC (solo guarda el último día)")
@@ -268,7 +269,7 @@ def diagnostico(raiz, sesion, zona="amersurs"):
     cartas/_diag/ para poder mirarlo. Devuelve líneas de texto."""
     ts = datetime.now(timezone.utc) - OGIMET_MARGEN
     ts = ts.replace(hour=ts.hour - ts.hour % 6, minute=0, second=0, microsecond=0)
-    r = sesion.get(ogimet.URL_PAGINA, params=ogimet.parametros(zona, ts), timeout=120)
+    r = sesion.get(ogimet.URL_PAGINA, params=ogimet.parametros(zona, ts), timeout=120, headers=ogimet.ENCABEZADOS)
     r.raise_for_status()
     carpeta = Path(raiz, "cartas", "_diag")
     carpeta.mkdir(parents=True, exist_ok=True)

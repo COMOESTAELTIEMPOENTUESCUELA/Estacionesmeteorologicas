@@ -113,7 +113,7 @@ def test_ogimet_historial_y_control_de_fecha(tmp_path, monkeypatch):
             pass
 
     class Sesion:
-        def get(self, url, timeout, params=None):
+        def get(self, url, timeout, params=None, headers=None):
             pedidos.append((url, params))
             if params:
                 # Para las 18 UTC, Ogimet "se equivoca" y devuelve los mapas de las 12.
@@ -148,7 +148,7 @@ def test_cada_carta_con_sus_horas(tmp_path, monkeypatch):
             pass
 
     class Sesion:
-        def get(self, url, timeout, params=None):
+        def get(self, url, timeout, params=None, headers=None):
             if params:
                 paginas.append(params["hora"])
                 return Resp(texto=HTML_OGIMET.replace("1200_", f"{params['hora']}00_"))
@@ -177,7 +177,7 @@ def test_ogimet_rechazo_se_reintenta_y_no_dos_descargas(tmp_path, monkeypatch):
             pass
 
     class Sesion:
-        def get(self, url, timeout, params=None):
+        def get(self, url, timeout, params=None, headers=None):
             return Resp(texto=respuestas.pop(0)) if params else Resp(PNG)
 
     cfg = {"horas_utc": [12], "productos": [{"id": "og_sg", "fuente": "ogimet", "zona": "amersurs", "codigo": "Sg"}]}
@@ -200,7 +200,7 @@ def test_ogimet_respuesta_vacia_no_se_reintenta(tmp_path, monkeypatch):
             pass
 
     class Sesion:
-        def get(self, url, timeout, params=None):
+        def get(self, url, timeout, params=None, headers=None):
             pedidos.append(params["hora"])
             return Resp()
 
@@ -234,7 +234,7 @@ def test_ogimet_baja_el_fondo_una_vez(tmp_path, monkeypatch):
             pass
 
     class Sesion:
-        def get(self, url, timeout, params=None):
+        def get(self, url, timeout, params=None, headers=None):
             if params:
                 return Resp(texto=HTML_OGIMET.replace("1200_", f"{params['hora']}00_")
                             + '<TD background="../img/amersurs_bluem.png">')
@@ -315,7 +315,7 @@ def test_star_descarga_solo_las_horas_de_las_cartas(tmp_path, monkeypatch):
             pass
 
     class Sesion:
-        def get(self, url, timeout, params=None):
+        def get(self, url, timeout, params=None, headers=None):
             pedidos.append(url.rsplit("/", 1)[-1] or "lista")
             return Resp(texto=HTML_STAR) if url.endswith("/") else Resp(b"\xff\xd8\xff" + b"0" * 50)
 
@@ -344,7 +344,7 @@ def test_historico_baja_satelite_y_ogimet(tmp_path, monkeypatch):
                     for d in range(280, 285) for h in (0, 6, 12, 18))     # 7 al 11/10
 
     class Sesion:
-        def get(self, url, timeout, params=None):
+        def get(self, url, timeout, params=None, headers=None):
             pedidos.append(url)
             if params:          # página de Ogimet de esa hora
                 return Resp(texto=HTML_OGIMET.replace("202610121200", f"2026{params['mes']}{params['day']}{params['hora']}00"))
@@ -356,3 +356,27 @@ def test_historico_baja_satelite_y_ogimet(tmp_path, monkeypatch):
     r = descarga.correr_historico(cfg, tmp_path, Sesion(), datetime(2026, 10, 7, tzinfo=UTC), datetime(2026, 10, 11, 18, tzinfo=UTC))
     assert r == {"sat13": 20, "ogimet": 20}                    # 5 días x 4 horas, de cada uno
     assert archivo.existe(tmp_path, "og_sg", datetime(2026, 10, 7, 12, tzinfo=UTC))
+
+
+def test_ogimet_se_pide_como_desde_su_pagina(tmp_path, monkeypatch):
+    """Sin Referer, Ogimet responde vacío para los mapas que tiene que generar."""
+    monkeypatch.setattr(descarga, "PAUSA_SEG", 0)
+    monkeypatch.setattr(descarga, "PAUSA_OGIMET_SEG", 0)
+
+    class Resp:
+        def __init__(self, contenido=b"", texto=""):
+            self.content, self.text = contenido, texto
+        def raise_for_status(self):
+            pass
+
+    class Sesion:
+        def get(self, url, timeout, params=None, headers=None):
+            if params:
+                if (headers or {}).get("Referer") != "https://www.ogimet.com/gsynop.phtml":
+                    return Resp(texto="")                 # como Ogimet: vacío
+                return Resp(texto=HTML_OGIMET.replace("202610121200", "202610071200"))
+            return Resp(PNG)
+
+    cfg = {"horas_utc": [12], "productos": [{"id": "og_sg", "fuente": "ogimet", "zona": "amersurs", "codigo": "Sg"}]}
+    ts = datetime(2026, 10, 7, 12, tzinfo=UTC)
+    assert descarga.correr_ogimet(cfg, tmp_path, Sesion(), ts, ts) == 1

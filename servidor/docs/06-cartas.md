@@ -89,11 +89,13 @@ se eligen en `config/cartas.yaml` con `codigo`).
 En la vuelta de cada hora se completan las últimas 24 horas, respetando su
 límite de una consulta cada 20 segundos.
 
-**Ogimet genera estos mapas también para fechas pasadas.** El 12/10/2026
-una prueba devolvió respuestas vacías para fechas viejas y se concluyó, mal,
-que solo tenía el último día: en realidad esas consultas se cruzaron con las
-del servicio, y Ogimet corta a quien hace consultas "pesadas" seguidas (los
-mapas viejos los arma en el momento). En la vuelta de cada hora se completa
+**Ogimet genera estos mapas también para fechas pasadas**, pero solo si el
+pedido dice que viene de su página del formulario (encabezado `Referer:
+https://www.ogimet.com/gsynop.phtml`, como manda el navegador); sin eso
+responde vacío. Los del día ya los tiene armados y salen igual: por eso el
+12/10/2026 se concluyó, mal, que "solo tenía el último día". Encontrado el
+13/10 comparando el pedido del navegador (F12 → Red → Copiar como cURL) con
+el de `curl`. En la vuelta de cada hora se completa
 el último día; para rellenar un período:
 `python -m meteo.ingesta historico cartas --desde ... --hasta ...`
 (una consulta cada 21 s: ~1,5 minutos por día). Una respuesta vacía no se
