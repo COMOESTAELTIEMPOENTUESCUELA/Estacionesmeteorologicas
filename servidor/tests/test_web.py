@@ -198,3 +198,22 @@ def test_periodos_por_fecha(cliente):
     muy_largo = {"desde": "2026-01-01T00:00:00Z", "hasta": "2026-03-01T00:00:00Z"}
     assert cliente.get("/api/sinoptica/omm_87593/observaciones", params=muy_largo).status_code == 400
     assert cliente.get("/api/sinoptica/omm_87593/observaciones", params={"dias": 2}).status_code == 200
+
+
+def test_modo_cartas_solo_expone_las_cartas(cliente, monkeypatch):
+    """La copia pública (WEB_MODO=cartas) responde la página, las cartas y el
+    panel del pronóstico, sin nombres; todo lo demás, 404."""
+    from meteo.web import app as web
+    monkeypatch.setattr(web, "WEB_MODO", "cartas")
+    assert cliente.get("/api/modo").json() == {"modo": "cartas"}
+    for ruta in ("/", "/api/cartas/disponibles", "/api/cartas?ts=2026-10-12T12:00Z",
+                 "/api/verificacion/dia?fecha=2026-10-10", "/vendor/chart-4.4.1.umd.js"):
+        assert cliente.get(ruta).status_code == 200, ruta
+    for ruta in ("/api/estaciones", "/api/emas/resumen", "/api/verificacion?ciudad=La%20Plata",
+                 "/api/sinoptica/omm_87593/observaciones", "/api/estado", "/vendor/../api/estaciones",
+                 "/api/cartasXX", "/docs", "/openapi.json"):
+        assert cliente.get(ruta).status_code == 404, ruta
+    dia = cliente.get("/api/verificacion/dia", params={"fecha": "2026-10-10"}).json()
+    assert all("pronosticador" not in (c["pronostico"] or {}) for c in dia["ciudades"])
+    monkeypatch.setattr(web, "WEB_MODO", "completo")
+    assert cliente.get("/api/estaciones").status_code == 200

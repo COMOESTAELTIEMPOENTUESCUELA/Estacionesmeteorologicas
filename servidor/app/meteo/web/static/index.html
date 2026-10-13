@@ -2069,8 +2069,21 @@ async function cargarEstado() {
 }
 
 // ======================================================================
-cargarMapa().catch((e) => { $("#lista").innerHTML = `<p>Error cargando estaciones: ${esc(e.message)}</p>`; });
-setInterval(() => { cargarMapa(); if (cargadas.estado) cargarEstado(); }, 5 * 60e3);  // refresca cada 5 min
+// Copia pública de las cartas (WEB_MODO=cartas): solo esa pestaña. El
+// servidor igual rechaza todo lo demás; esto es para que la página no lo pida.
+(async () => {
+  let modoWeb = "completo";
+  try { modoWeb = (await api("/api/modo")).modo; } catch (_) {}
+  if (modoWeb === "cartas") {
+    document.querySelectorAll("nav button").forEach((b) => (b.hidden = b.dataset.tab !== "cartas"));
+    $("header h1").textContent = "Cartas de diagnóstico";
+    document.title = "Cartas de diagnóstico";
+    abrir("cartas");
+    return;
+  }
+  cargarMapa().catch((e) => { $("#lista").innerHTML = `<p>Error cargando estaciones: ${esc(e.message)}</p>`; });
+  setInterval(() => { cargarMapa(); if (cargadas.estado) cargarEstado(); }, 5 * 60e3);  // refresca cada 5 min
+})();
 </script>
 </body>
 </html>

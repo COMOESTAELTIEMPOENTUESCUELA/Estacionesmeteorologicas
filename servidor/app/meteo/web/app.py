@@ -87,6 +87,27 @@ def credenciales_validas(cabecera):
             & secrets.compare_digest(clave.encode(), WEB_CLAVE.encode()))
 
 
+# Modo "cartas": una copia del visualizador que solo muestra la pestaña
+# Cartas, para compartirla hacia afuera (Tailscale Funnel) sin exponer el
+# resto. El límite lo pone el SERVIDOR (lista de lo permitido), no la
+# página: aunque alguien escriba a mano otra dirección, no la obtiene.
+WEB_MODO = os.environ.get("WEB_MODO", "completo")
+PERMITIDO_EN_CARTAS = ("/api/modo", "/api/cartas", "/api/verificacion/dia", "/cartas-img/", "/vendor/")
+
+
+def permitido(ruta):
+    if WEB_MODO != "cartas":
+        return True
+    return ruta in ("/", "/index.html") or ruta.startswith(PERMITIDO_EN_CARTAS)
+
+
+@app.middleware("http")
+async def solo_lo_permitido(request, siguiente):
+    if not permitido(request.url.path):
+        return Response("No disponible.", status_code=404)
+    return await siguiente(request)
+
+
 @app.middleware("http")
 async def pedir_clave(request, siguiente):
     if WEB_CLAVE and not credenciales_validas(request.headers.get("authorization", "")):
@@ -518,6 +539,12 @@ CIUDADES_COORD = {
 }
 
 
+@app.get("/api/modo")
+def modo():
+    """"completo" (el visualizador privado) o "cartas" (la copia pública)."""
+    return {"modo": WEB_MODO}
+
+
 @app.get("/api/verificacion/dia")
 def verificacion_dia(fecha: date, plazo: int = 0, version: str = "final"):
     """Para analizar un evento: lo que el grupo pronosticó para ESE día en
@@ -548,6 +575,8 @@ def verificacion_dia(fecha: date, plazo: int = 0, version: str = "final"):
         f = filas.get(c)
         if f:
             f = {**f, "periodos": extra[c]["periodos"] or [], "hora_emision": extra[c].get("hora_emision")}
+            if WEB_MODO == "cartas":
+                f.pop("pronosticador", None)       # en la copia pública no van nombres de personas
         salida.append({"ciudad": c, "coord": CIUDADES_COORD.get(c), "pronostico": f})
     return {"fecha": fecha, "plazo": plazo, "ciudades": salida}
 

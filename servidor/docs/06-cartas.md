@@ -109,6 +109,28 @@ pestaña Verificación (`/api/verificacion/dia?fecha=AAAA-MM-DD&plazo=0`).
 - Tocando una ciudad se ve el pronóstico por período (mañana, tarde, noche),
   la suburbana de La Plata, quién lo hizo y cuándo se publicó.
 
+## Compartir solo las cartas (copia pública)
+
+El contenedor `web-cartas` es una copia del visualizador en "modo cartas"
+(`WEB_MODO=cartas`): muestra solo esta pestaña y el panel del pronóstico
+del grupo (sin nombres de pronosticadores). El SERVIDOR rechaza cualquier
+otra dirección (EMAs, SMN, verificación completa, descargas): no depende
+de que la página las oculte.
+
+Escucha solo en la propia máquina (`127.0.0.1:8081`), así que se comparte
+únicamente a través de Tailscale Funnel:
+
+```bash
+sudo tailscale funnel --bg 8081          # abrir: https://<nombre>.ts.net/
+tailscale funnel status                  # ver qué está abierto
+sudo tailscale funnel --https=443 off    # cerrar
+```
+
+El visualizador completo (puerto 8000) sigue privado. Si se quiere que la
+copia pública pida contraseña, completar `CARTAS_USUARIO` y `CARTAS_CLAVE`
+en `.env` (distintas de las del visualizador completo) y
+`docker compose up -d web-cartas`.
+
 ## Comandos
 
 ```bash

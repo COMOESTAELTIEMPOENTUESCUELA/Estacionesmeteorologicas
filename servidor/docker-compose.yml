@@ -80,6 +80,34 @@ services:
     ports:
       - "${WEB_PUERTO:-8080}:8080"
 
+  # Copia del visualizador que SOLO muestra las cartas (y el panel del
+  # pronóstico del grupo), para compartirla hacia afuera con Tailscale
+  # Funnel sin exponer el resto:  sudo tailscale funnel --bg 8081
+  # Escucha solo en esta máquina (127.0.0.1): desde la red no se llega
+  # directo, solo a través del Funnel. Ver docs/06-cartas.md.
+  web-cartas:
+    image: meteo-app
+    build: ./app
+    restart: unless-stopped
+    logging: *logging
+    command: uvicorn meteo.web.app:app --host 0.0.0.0 --port 8080 --proxy-headers
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://meteo:${DB_PASSWORD}@db:5432/meteo
+      WEB_MODO: cartas
+      # Contraseña propia (opcional) para la copia pública; vacía = abierta.
+      WEB_USUARIO: ${CARTAS_USUARIO:-}
+      WEB_CLAVE: ${CARTAS_CLAVE:-}
+      CARTAS_CONFIG: /config/cartas.yaml
+      ARCHIVO_DIR: /archivo
+    volumes:
+      - ./config:/config:ro
+      - ${ARCHIVO_DIR:-./datos/archivo}:/archivo:ro
+    ports:
+      - "127.0.0.1:${CARTAS_PUERTO:-8081}:8080"
+
   # Imágenes del GOES-19 (se activa con --profile satelite).
   satelite:
     image: meteo-app
