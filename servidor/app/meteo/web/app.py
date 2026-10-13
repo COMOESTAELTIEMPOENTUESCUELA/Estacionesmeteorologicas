@@ -692,14 +692,10 @@ def cartas(ts: datetime):
     return {"ts": ts, "productos": salida}
 
 
-VARIABLES_EMA_HORA = ["temp", "td", "hum", "pnm", "pres_est", "viento_vel", "viento_dir", "racha"]
-
-
 @app.get("/api/cartas/observaciones")
 def observaciones_de_la_hora(ts: datetime):
     """Lo observado a la hora de la carta: el SYNOP de esa hora de cada
-    estación del SMN y, de cada EMA, el dato más cercano (hasta 30 min antes
-    o después) y la lluvia de las 6 horas anteriores (como el SYNOP)."""
+    estación del SMN."""
     ts = (ts if ts.tzinfo else ts.replace(tzinfo=timezone.utc)).astimezone(timezone.utc)
     columnas = ",\n".join(f"max(o.valor) FILTER (WHERE o.variable = '{c}') AS {c}" for c in COLUMNAS_SYNOP)
     smn = consultar(f"""
@@ -710,27 +706,7 @@ def observaciones_de_la_hora(ts: datetime):
     for f in smn:
         if f["hum"] is None:
             f["hum"] = humedad_relativa(f["temp"], f["td"])
-    margen = timedelta(minutes=30)
-    cercanos = consultar("""
-        SELECT DISTINCT ON (e.id, o.variable) e.id, e.nombre, o.variable, o.valor, o.ts
-        FROM estacion e JOIN observacion o ON o.estacion_id = e.id
-        WHERE e.tipo <> 'sinoptica' AND e.activa AND o.variable = ANY(%s)
-          AND o.ts BETWEEN %s AND %s AND o.qc <> 4
-        ORDER BY e.id, o.variable, abs(extract(epoch FROM o.ts - %s))""",
-                         (VARIABLES_EMA_HORA, ts - margen, ts + margen, ts))
-    lluvia = {r["id"]: r["mm"] for r in consultar("""
-        SELECT o.estacion_id AS id, sum(o.valor) AS mm FROM observacion o JOIN estacion e ON e.id = o.estacion_id
-        WHERE e.tipo <> 'sinoptica' AND e.activa AND o.variable = 'precip'
-          AND o.ts > %s AND o.ts <= %s AND o.qc <> 4
-        GROUP BY 1""", (ts - timedelta(hours=6), ts))}
-    emas = {}
-    for r in cercanos:
-        f = emas.setdefault(r["id"], {"id": r["id"], "nombre": r["nombre"], "ts": None, "precip_6h": lluvia.get(r["id"])})
-        f[r["variable"]] = r["valor"]
-        if r["variable"] == "temp" or f["ts"] is None:
-            f["ts"] = r["ts"]
-    return {"ts": _iso(ts), "smn": _json(smn),
-            "emas": _json(sorted(emas.values(), key=lambda f: f["nombre"]))}
+    return {"ts": _iso(ts), "smn": _json(smn)}
 
 
 # ---------------------------------------------------------------------------

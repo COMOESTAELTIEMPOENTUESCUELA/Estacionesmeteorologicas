@@ -650,8 +650,6 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
       <p class="ayuda" id="co-nota"></p>
       <div class="panel-titulo">Estaciones del SMN <span class="tenue">(el SYNOP de esa hora)</span></div>
       <div class="tabla-scroll" style="max-height:none"><table id="co-smn"></table></div>
-      <div class="panel-titulo" style="margin-top:12px">EMAs <span class="tenue">(el dato más cercano a esa hora; lluvia de las 6 horas anteriores)</span></div>
-      <div class="tabla-scroll" style="max-height:none"><table id="co-emas"></table></div>
     </div>
     <dialog id="c-dialogo">
       <div class="barra">
@@ -1966,10 +1964,9 @@ async function cargarCartas() {
 
 // ---------- Observaciones de la hora de la carta ----------
 const kmh = (v) => (v === null || v === undefined ? null : v * 3.6);
-function celdaViento2(dir, vel, racha) {
+function celdaViento2(dir, vel) {
   if (vel === null || vel === undefined) return '<span class="tenue">–</span>';
-  const texto = vel === 0 ? "Calma" : `${rumbo(dir)} ${num(kmh(vel), 0)} km/h`;
-  return barba(dir, vel) + texto + (racha ? ` <span class="tenue">(ráf. ${num(kmh(racha), 0)})</span>` : "");
+  return barba(dir, vel) + (vel === 0 ? "Calma" : `${rumbo(dir)} ${num(kmh(vel), 0)} km/h`);
 }
 let coPedido = 0;
 async function cargarObsHora(t) {
@@ -1980,7 +1977,7 @@ async function cargarObsHora(t) {
   catch (err) { $("#co-nota").textContent = "Error: " + err.message; return; }
   if (yo !== coPedido) return;                      // ya se pidió otra hora
   const doce = t.getUTCHours() === 12;
-  $("#co-nota").textContent = `${r.smn.length} estaciones del SMN y ${r.emas.length} EMAs con datos a esa hora.` +
+  $("#co-nota").textContent = `${r.smn.length} estaciones del SMN con datos a esa hora.` +
     (doce ? " A las 12 UTC el SYNOP trae además la lluvia de 24 h y las temperaturas extremas." : "");
   const lluviaSmn = (o) => [["6 h", o.precip_6h], ["12 h", o.precip_12h], ["24 h", o.precip_24h]]
     .filter(([, v]) => v !== null).map(([p, v]) => `${num(v)} <span class="tenue">(${p})</span>`).join("<br>") || "–";
@@ -1995,13 +1992,6 @@ async function cargarObsHora(t) {
       <td class="num">${o.visibilidad === null ? "–" : num(o.visibilidad / 1000, o.visibilidad < 5000 ? 1 : 0)}</td>
       <td class="num">${lluviaSmn(o)}</td>${doce ? `<td class="num">${num(o.tmax)} / ${num(o.tmin)}</td>` : ""}</tr>`).join("")
       : `<tr><td colspan="11" class="tenue">Sin SYNOP archivados para esa hora.</td></tr>`);
-  $("#co-emas").innerHTML = `<tr><th>Estación</th><th>Hora del dato</th><th class="num">Temp.</th><th class="num">Rocío</th>
-      <th class="num">HR %</th><th>Viento</th><th class="num">Presión</th><th class="num">Lluvia 6 h</th></tr>` +
-    (r.emas.length ? r.emas.map((o) => `<tr><th>${esc(o.nombre)}</th><td class="tenue">${o.ts ? fmtHora.format(new Date(o.ts)) : "–"}</td>
-      <td class="num"><b>${num(o.temp)}</b></td><td class="num">${num(o.td)}</td><td class="num">${num(o.hum, 0)}</td>
-      <td>${celdaViento2(o.viento_dir, o.viento_vel, o.racha)}</td><td class="num">${num(o.pnm ?? o.pres_est)}</td>
-      <td class="num">${num(o.precip_6h)}</td></tr>`).join("")
-      : `<tr><td colspan="8" class="tenue">Sin datos de EMAs cerca de esa hora.</td></tr>`);
 }
 
 // ---------- Pronóstico del grupo para el día de la carta ----------

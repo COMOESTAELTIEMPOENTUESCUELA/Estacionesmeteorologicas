@@ -116,8 +116,7 @@ docker compose exec ingesta python -m meteo.ingesta diagnostico-ogimet
 - **Superponer** (visor grande): otra carta del mismo grupo encima, con
   transparencia.
 - **Observaciones de la hora**: debajo, el SYNOP de esa hora de cada
-  estación del SMN y, de cada EMA, el dato más cercano (±30 min) y la lluvia
-  de las 6 horas anteriores.
+  estación del SMN.
 
 ## Pronóstico del grupo para el día de la carta
 
