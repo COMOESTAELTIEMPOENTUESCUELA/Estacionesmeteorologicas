@@ -10,7 +10,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 
-from . import archivo, bentley, ogimet
+from . import archivo, bentley, ogimet, star
 
 log = logging.getLogger(__name__)
 PAUSA_SEG = 1.0
@@ -63,6 +63,12 @@ def _correr(cfg, raiz, sesion):
     for p in activos:
         if p["fuente"] == "ogimet":
             continue      # se baja abajo, todas juntas (una página trae todos los mapas)
+        if p["fuente"] == "star":
+            try:
+                nuevas += _correr_star(p, raiz, sesion, tuple(p.get("horas_utc", horas)))
+            except Exception as ex:
+                log.warning("cartas %s: %s", p["id"], str(ex)[:150])
+            continue
         if p["fuente"] != "bentley":
             log.info("cartas %s: fuente %s todavía no implementada", p["id"], p["fuente"])
             continue
@@ -93,6 +99,37 @@ def _correr(cfg, raiz, sesion):
     # Las archivadas antes de que existieran las miniaturas (o si alguna falló).
     mins = archivo.completar_miniaturas(raiz, [p["id"] for p in activos])
     log.info("cartas: %d nuevas%s", nuevas, f", {mins} miniaturas completadas" if mins else "")
+    return nuevas
+
+
+# NOAA STAR guarda las imágenes con fecha unos pocos días: se miran las
+# últimas 48 horas (si la PC estuvo apagada un día, se recupera).
+STAR_HORAS_ATRAS = 48
+
+
+def _correr_star(p, raiz, sesion, horas_utc):
+    """Satélite (NOAA STAR): la imagen más cercana a cada hora de las cartas."""
+    ahora = datetime.now(timezone.utc)
+    faltan = [ts for ts in horas_sinopticas(ahora - timedelta(hours=STAR_HORAS_ATRAS), ahora, horas_utc)
+              if not archivo.existe(raiz, p["id"], ts)]
+    if not faltan:
+        return 0
+    r = sesion.get(star.url_carpeta(p), timeout=60)
+    r.raise_for_status()
+    disponibles = star.imagenes(r.text, p.get("tamano", "1800x1080"))
+    nuevas = 0
+    for ts in faltan:
+        nombre = star.elegir(disponibles, ts)
+        if not nombre:
+            continue          # todavía no salió (o ya no está): se reintenta en la próxima vuelta
+        try:
+            img = sesion.get(star.url_carpeta(p) + nombre, timeout=60)
+            img.raise_for_status()
+            archivo.guardar(raiz, p["id"], ts, img.content)
+            nuevas += 1
+        except Exception as ex:
+            log.warning("cartas %s %s: %s", p["id"], ts, str(ex)[:150])
+        time.sleep(PAUSA_SEG)
     return nuevas
 
 

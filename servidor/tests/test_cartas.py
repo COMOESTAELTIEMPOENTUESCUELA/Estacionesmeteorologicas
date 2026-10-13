@@ -280,3 +280,49 @@ def test_miniaturas(tmp_path):
     m.unlink()                                               # archivada antes de que existieran
     assert archivo.completar_miniaturas(tmp_path, ["bentley_rel_vort", "ogimet_te"]) == 1
     assert archivo.completar_miniaturas(tmp_path, ["bentley_rel_vort", "ogimet_te"]) == 0
+
+
+# Lista de la carpeta de NOAA STAR (formato de los nombres: año, día del año, hora, minuto).
+HTML_STAR = """
+<a href="20262861150_GOES19-ABI-ssa-13-1800x1080.jpg">20262861150_GOES19-ABI-ssa-13-1800x1080.jpg</a>
+<a href="20262861200_GOES19-ABI-ssa-13-1800x1080.jpg">20262861200_GOES19-ABI-ssa-13-1800x1080.jpg</a>
+<a href="20262861200_GOES19-ABI-ssa-13-900x540.jpg">20262861200_GOES19-ABI-ssa-13-900x540.jpg</a>
+<a href="20262861810_GOES19-ABI-ssa-13-1800x1080.jpg">20262861810_GOES19-ABI-ssa-13-1800x1080.jpg</a>
+<a href="1800x1080.jpg">1800x1080.jpg</a>
+"""
+
+
+def test_star_elige_la_imagen_de_la_hora():
+    from meteo.cartas import star
+    d = star.imagenes(HTML_STAR)
+    assert datetime(2026, 10, 13, 12, tzinfo=UTC) in d                      # día 286 de 2026 = 13/10
+    assert star.elegir(d, datetime(2026, 10, 13, 12, tzinfo=UTC)) == "20262861200_GOES19-ABI-ssa-13-1800x1080.jpg"
+    assert star.elegir(d, datetime(2026, 10, 13, 18, tzinfo=UTC)).startswith("20262861810")   # 10 min: vale
+    assert star.elegir(d, datetime(2026, 10, 13, 6, tzinfo=UTC)) is None                       # no hay cerca
+    assert star.url_carpeta({"sector": "ssa", "banda": "GEOCOLOR"}) == \
+        "https://cdn.star.nesdis.noaa.gov/GOES19/ABI/SECTOR/ssa/GEOCOLOR/"
+
+
+def test_star_descarga_solo_las_horas_de_las_cartas(tmp_path, monkeypatch):
+    monkeypatch.setattr(descarga, "PAUSA_SEG", 0)
+    monkeypatch.setattr(descarga, "datetime", type("F", (datetime,), {"now": staticmethod(lambda tz=None: datetime(2026, 10, 13, 19, tzinfo=UTC))}))
+    pedidos = []
+
+    class Resp:
+        def __init__(self, contenido=b"", texto=""):
+            self.content, self.text = contenido, texto
+        def raise_for_status(self):
+            pass
+
+    class Sesion:
+        def get(self, url, timeout, params=None):
+            pedidos.append(url.rsplit("/", 1)[-1] or "lista")
+            return Resp(texto=HTML_STAR) if url.endswith("/") else Resp(b"\xff\xd8\xff" + b"0" * 50)
+
+    p = {"id": "sat13", "fuente": "star", "sector": "ssa", "banda": "13"}
+    assert descarga._correr_star(p, tmp_path, Sesion(), (0, 6, 12, 18)) == 2           # 12 y 18 UTC del 13
+    assert archivo.existe(tmp_path, "sat13", datetime(2026, 10, 13, 12, tzinfo=UTC))
+    assert archivo.ruta(tmp_path, "sat13", datetime(2026, 10, 13, 12, tzinfo=UTC), "jpg").exists()
+    pedidos.clear()
+    descarga._correr_star(p, tmp_path, Sesion(), (0, 6, 12, 18))
+    assert pedidos == ["lista"]                    # lo que ya está no se vuelve a bajar

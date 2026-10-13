@@ -37,6 +37,22 @@ productos:
     dominio: southamer
     variable: rel_vort
 
+  # --- Satélite GOES-19 (NOAA STAR, gratis) --------------------------------
+  # Sector "ssa" (sur de Sudamérica), 1800x1080. Solo a las horas de las
+  # cartas: la imagen más cercana a cada hora sinóptica (±10 min).
+  - id: satelite_ir13
+    nombre: "Infrarrojo (canal 13)"
+    nivel: "Satélite GOES-19"
+    fuente: star
+    sector: ssa
+    banda: "13"
+  - id: satelite_geocolor
+    nombre: "GeoColor (visible de día, infrarrojo de noche)"
+    nivel: "Satélite GOES-19"
+    fuente: star
+    sector: ssa
+    banda: GEOCOLOR
+
   # --- Ogimet: mapas de observaciones de superficie ----------------------
   # https://www.ogimet.com/cgi-bin/gsynop?zona=amersurs&... : una consulta
   # trae ~12 mapas de esa hora; "codigo" elige cuál (Te temperatura, Td rocío,

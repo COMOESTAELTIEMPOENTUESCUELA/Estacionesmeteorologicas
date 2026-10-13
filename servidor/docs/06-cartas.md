@@ -54,6 +54,22 @@ del inicio de la corrida; si no, se espera a la vuelta siguiente.
 Lo descargado se controla: si no es una imagen de verdad (por ejemplo, una
 página de error), no se guarda.
 
+### Satélite (NOAA STAR)
+
+Infrarrojo (canal 13) y GeoColor del GOES-19 para el sector "ssa" (sur de
+Sudamérica), 1800x1080, ya coloreadas por NOAA (gratis). Solo a las horas
+de las cartas: ~8 imágenes por día, unos 6–8 MB de internet y ~2,5 GB por
+año de disco. NOAA guarda cada imagen con su fecha en el nombre
+(`AAAADDDHHMM_GOES19-ABI-ssa-13-1800x1080.jpg`, con DDD = día del año) unos
+pocos días: la tarea lee la lista de la carpeta y elige la más cercana a
+cada hora sinóptica (±10 min), mirando 48 horas hacia atrás.
+
+Para probar que el servidor llega a NOAA:
+
+```bash
+curl -s https://cdn.star.nesdis.noaa.gov/GOES19/ABI/SECTOR/ssa/13/ | grep -o '[0-9]\{11\}_GOES19-ABI-ssa-13-1800x1080.jpg' | tail -3
+```
+
 ### Ogimet
 
 Una consulta a `gsynop` genera unos 12 mapas de esa hora como imágenes
