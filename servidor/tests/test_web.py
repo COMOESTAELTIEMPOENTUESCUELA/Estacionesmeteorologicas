@@ -212,7 +212,7 @@ def test_periodos_por_fecha(cliente):
 
 def test_modo_cartas_solo_expone_las_cartas(cliente, monkeypatch):
     """La copia pública (WEB_MODO=cartas) responde la página, las cartas y el
-    panel del pronóstico, sin nombres; todo lo demás, 404."""
+    panel del pronóstico (con quién pronosticó); todo lo demás, 404."""
     from meteo.web import app as web
     monkeypatch.setattr(web, "WEB_MODO", "cartas")
     assert cliente.get("/api/modo").json() == {"modo": "cartas"}
@@ -224,7 +224,7 @@ def test_modo_cartas_solo_expone_las_cartas(cliente, monkeypatch):
                  "/api/cartasXX", "/docs", "/openapi.json"):
         assert cliente.get(ruta).status_code == 404, ruta
     dia = cliente.get("/api/verificacion/dia", params={"fecha": "2026-10-10"}).json()
-    assert all("pronosticador" not in (c["pronostico"] or {}) for c in dia["ciudades"])
+    assert any("pronosticador" in (c["pronostico"] or {}) for c in dia["ciudades"])   # el grupo decidió mostrarlo
     monkeypatch.setattr(web, "WEB_MODO", "completo")
     assert cliente.get("/api/estaciones").status_code == 200
 

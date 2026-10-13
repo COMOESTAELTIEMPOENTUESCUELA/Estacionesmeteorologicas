@@ -629,8 +629,6 @@ def verificacion_dia(fecha: date, plazo: int = 0, version: str = "final"):
         f = filas.get(c)
         if f:
             f = {**f, "periodos": extra[c]["periodos"] or [], "hora_emision": extra[c].get("hora_emision")}
-            if WEB_MODO == "cartas":
-                f.pop("pronosticador", None)       # en la copia pública no van nombres de personas
         # Para controlar a mano: la estación del aeropuerto y las que se usaron ese día.
         usadas = [v.get("estacion") for v in (f or {}).values() if isinstance(v, dict) and v.get("estacion")]
         synop = [e for e in dict.fromkeys([CIUDADES_SYNOP.get(c), *usadas]) if e and e.startswith("omm_")]

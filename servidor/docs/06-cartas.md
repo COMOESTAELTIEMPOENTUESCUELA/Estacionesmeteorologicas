@@ -139,7 +139,7 @@ pestaña Verificación (`/api/verificacion/dia?fecha=AAAA-MM-DD&plazo=0`).
 
 El contenedor `web-cartas` es una copia del visualizador en "modo cartas"
 (`WEB_MODO=cartas`): muestra solo esta pestaña y el panel del pronóstico
-del grupo (sin nombres de pronosticadores). El SERVIDOR rechaza cualquier
+del grupo (con quién pronosticó: el grupo decidió que figure). El SERVIDOR rechaza cualquier
 otra dirección (EMAs, SMN, verificación completa, descargas): no depende
 de que la página las oculte.
 
