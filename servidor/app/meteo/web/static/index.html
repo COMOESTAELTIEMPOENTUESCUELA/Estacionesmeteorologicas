@@ -155,10 +155,15 @@ img.con-fondo { background-color: #fff !important; background-size: 100% 100%; b
 #c-svg { position: absolute; left: 0; top: 0; transform-origin: 0 0; pointer-events: none; overflow: visible; }
 #c-herr .boton { padding: 3px 8px; }
 #c-anim-barra .boton { padding: 3px 10px; }
-#c-dialogo label.en-linea { flex-direction: row; align-items: center; gap: 6px; font-size: 13px; display: inline-flex; }
+.filtros label.en-linea, #c-dialogo label.en-linea { flex-direction: row; align-items: center; gap: 6px; font-size: 13px; display: inline-flex; }
 #c-herr .herr.activa { outline: 2px solid var(--acento); outline-offset: 1px; }
 #c-herr input[type="color"] { width: 32px; height: 28px; padding: 0; border: 1px solid var(--borde); border-radius: 6px; }
 .carta-img { position: relative; }
+.cruz { position: absolute; width: 0; height: 0; pointer-events: none; z-index: 2; }
+.cruz::before, .cruz::after { content: ""; position: absolute; background: #e11d8f; box-shadow: 0 0 0 1px #fff; }
+.cruz::before { left: -16px; top: -1px; width: 32px; height: 2px; }
+.cruz::after { left: -1px; top: -16px; width: 2px; height: 32px; }
+#c-vista #c-super { position: absolute; left: 0; top: 0; transform-origin: 0 0; pointer-events: none; max-width: none; max-height: none; }
 .carta-img svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 #c-vista img { max-width: 100%; max-height: 100%; transform-origin: 0 0; user-select: none; -webkit-user-drag: none; }
 /* Fechas en dd/mm/aaaa (ver fechaDMY): el campo del navegador queda escondido */
@@ -597,6 +602,8 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
         <button class="boton" id="c-mas" title="6 horas después (flecha derecha)">+6 h ›</button>
         <button class="boton" id="c-mas-dia" title="Un día después">+1 día »</button>
         <button class="boton" id="c-ultima">Última</button>
+        <label class="en-linea" title="Al pasar el mouse por una carta, una cruz marca el mismo punto en las cartas de la misma proyección">
+          <input type="checkbox" id="f-c-cursor" checked> Cursor sincronizado</label>
         <label>Vista
           <select id="f-c-vista">
             <option value="placa">Placa (todas juntas)</option>
@@ -684,8 +691,11 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
           </select></label>
         <input type="range" id="c-anim-pos" min="0" max="0" value="0" disabled style="flex:1 1 160px" title="Moverse entre los cuadros">
         <span class="tenue" id="c-anim-estado"></span>
+        <label class="en-linea" title="Poner otra carta de la misma proyección encima, con transparencia">Superponer
+          <select id="c-super-sel"><option value="">(nada)</option></select></label>
+        <input type="range" id="c-super-op" min="10" max="90" value="50" title="Transparencia de la carta superpuesta" style="width:90px" hidden>
       </div>
-      <div id="c-vista"><img alt="" draggable="false"><svg id="c-svg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none"></svg></div>
+      <div id="c-vista"><img alt="" draggable="false"><img id="c-super" alt="" draggable="false" hidden><svg id="c-svg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none"></svg></div>
     </dialog>
   </section>
 
@@ -1889,6 +1899,22 @@ function imgCarta(p, extra = "", chica = false) {
   return `<img src="${esc(src)}" alt="${esc(p.nombre)}"${fondo}${extra}>`;
 }
 const tituloCarta = (p) => (p.nivel ? p.nivel + " · " : "") + p.nombre;
+// Cartas con la MISMA proyección y recorte (ej. las 4 de Bentley, o las de
+// Ogimet entre sí): un mismo punto de la imagen es el mismo lugar del mapa.
+const grupoCarta = (p) => `${p.fuente}:${p.dominio || p.zona || ""}`;
+
+// Cursor sincronizado: una cruz en el mismo punto de las otras cartas del grupo.
+function moverCruces(img, e) {
+  if (!$("#f-c-cursor").checked) return;
+  const r = img.getBoundingClientRect(), fx = (e.clientX - r.left) / r.width, fy = (e.clientY - r.top) / r.height;
+  const caja = img.closest(".carta-img");
+  document.querySelectorAll("#c-grid .carta-img").forEach((c) => {
+    const cruz = c.querySelector(".cruz");
+    const mismo = c.dataset.grupo === caja.dataset.grupo && c !== caja;
+    cruz.hidden = !mismo;
+    if (mismo) { cruz.style.left = fx * 100 + "%"; cruz.style.top = fy * 100 + "%"; }
+  });
+}
 
 async function cargarCartas() {
   const t = tsCarta();
@@ -1909,8 +1935,7 @@ async function cargarCartas() {
   $("#c-grid").classList.toggle("placa", placa);
   $("#c-grid").innerHTML = mostrar.map((p) => `<figure class="carta">
       <figcaption title="${esc(tituloCarta(p))}${p.dibujo ? " (con análisis dibujado)" : ""}">${p.dibujo ? "✏️ " : ""}<b>${esc(p.nivel || "")}</b> · ${esc(p.nombre)}</figcaption>
-      ${p.url && p.dibujo ? `<div class="carta-img">${imgCarta(p, ` loading="lazy" data-id="${esc(p.id)}"`, placa)}${svgDibujo(p.dibujo)}</div>`
-        : p.url ? imgCarta(p, ` loading="lazy" data-id="${esc(p.id)}"`, placa)
+      ${p.url ? `<div class="carta-img" data-grupo="${esc(grupoCarta(p))}">${imgCarta(p, ` loading="lazy" data-id="${esc(p.id)}"`, placa)}${p.dibujo ? svgDibujo(p.dibujo) : ""}<div class="cruz" hidden></div></div>`
         : !p.horas_utc.includes(t.getUTCHours())
           ? `<div class="falta chica">Se informa solo a las ${p.horas_utc.map((h) => String(h).padStart(2, "0")).join(", ")} UTC.
              <button class="boton c-ir-hora" data-hora="${p.horas_utc[0]}">Ver ${String(p.horas_utc[0]).padStart(2, "0")} UTC de este día</button></div>`
@@ -1919,7 +1944,11 @@ async function cargarCartas() {
   document.querySelectorAll("#c-grid .c-ir-hora").forEach((b) => b.addEventListener("click", () => {
     $("#f-c-hora").value = b.dataset.hora; cargarCartas();
   }));
-  document.querySelectorAll("#c-grid img").forEach((img) => img.addEventListener("click", () => abrirCarta(img.dataset.id)));
+  document.querySelectorAll("#c-grid img").forEach((img) => {
+    img.addEventListener("click", () => abrirCarta(img.dataset.id));
+    img.addEventListener("pointermove", (e) => moverCruces(img, e));
+  });
+  $("#c-grid").onpointerleave = () => document.querySelectorAll("#c-grid .cruz").forEach((c) => (c.hidden = true));
   if ($("#c-dialogo").open) mostrarEnVisor();
   cargarPronoDia();
 }
@@ -2024,6 +2053,7 @@ function aplicarZoom() {
   const t = `translate(${zoom.x}px, ${zoom.y}px) scale(${zoom.s})`;
   $("#c-vista img").style.transform = t;
   $("#c-svg").style.transform = t;        // el dibujo se mueve junto con la carta
+  $("#c-super").style.transform = t;      // y la carta superpuesta también
 }
 function zoomEn(factor, clientX, clientY) {
   const img = $("#c-vista img"), r = img.getBoundingClientRect();
@@ -2050,6 +2080,7 @@ function mostrarEnVisor() {
   img.style.backgroundImage = p.fondo ? `url('${p.fondo}')` : "";
   aplicarZoom();          // al cambiar de hora se mantiene el zoom: se compara el mismo lugar
   cargarDibujoVisor(p);
+  armarSuperposicion(p);
 }
 function abrirCarta(id) {
   guardarDibujoYa();
@@ -2116,6 +2147,13 @@ function iniciarVisor() {
   $("#c-d-mas").addEventListener("click", () => moverCarta(6));
   iniciarHerramientas();
   iniciarAnimacion();
+  $("#c-super-sel").addEventListener("change", aplicarSuperposicion);
+  $("#c-super-op").addEventListener("input", aplicarSuperposicion);
+  try { $("#f-c-cursor").checked = localStorage.getItem("cartas-cursor") !== "no"; } catch (_) {}
+  $("#f-c-cursor").addEventListener("change", () => {
+    try { localStorage.setItem("cartas-cursor", $("#f-c-cursor").checked ? "si" : "no"); } catch (_) {}
+    if (!$("#f-c-cursor").checked) document.querySelectorAll("#c-grid .cruz").forEach((c) => (c.hidden = true));
+  });
 }
 
 // ---------- Dibujo de análisis sobre las cartas ----------
@@ -2205,9 +2243,29 @@ const svgDibujo = (d) => `<svg viewBox="0 0 ${d.ancho} ${d.alto}" preserveAspect
 
 // ----- en el visor grande -----
 function ubicarSVG() {
-  // El SVG ocupa exactamente el lugar de la imagen (sin el zoom, que se le aplica igual a los dos).
-  const img = $("#c-vista img"), svg = $("#c-svg");
-  Object.assign(svg.style, { left: img.offsetLeft + "px", top: img.offsetTop + "px", width: img.offsetWidth + "px", height: img.offsetHeight + "px" });
+  // El dibujo y la carta superpuesta ocupan exactamente el lugar de la imagen
+  // (sin el zoom, que se les aplica igual a todos).
+  const img = $("#c-vista img"), caja = { left: img.offsetLeft + "px", top: img.offsetTop + "px",
+                                          width: img.offsetWidth + "px", height: img.offsetHeight + "px" };
+  Object.assign($("#c-svg").style, caja);
+  Object.assign($("#c-super").style, caja);
+}
+// Superponer otra carta del mismo grupo (misma proyección), con transparencia.
+function armarSuperposicion(p) {
+  const sel = $("#c-super-sel"), antes = sel.value;
+  const otras = cartasHora.filter((c) => c.id !== p.id && grupoCarta(c) === grupoCarta(p));
+  sel.innerHTML = '<option value="">(nada)</option>' + otras.map((c) => `<option value="${esc(c.id)}">${esc(tituloCarta(c))}</option>`).join("");
+  sel.disabled = !otras.length;
+  sel.value = otras.some((c) => c.id === antes) ? antes : "";
+  aplicarSuperposicion();
+}
+function aplicarSuperposicion() {
+  const sup = $("#c-super"), c = cartasHora.find((x) => x.id === $("#c-super-sel").value);
+  $("#c-super-op").hidden = !c;
+  sup.hidden = !c || animando();
+  if (!c) { sup.removeAttribute("src"); return; }
+  sup.src = c.url;
+  sup.style.opacity = $("#c-super-op").value / 100;
 }
 function pintarDibujoVisor() {
   const svg = $("#c-svg");
@@ -2418,6 +2476,7 @@ async function alternarAnimacion() {
   if (anim.cuadros.length < 2) { $("#c-anim-estado").textContent = "no hay suficientes horas archivadas"; return; }
   $("#c-anim").textContent = "⏸ Pausa";
   $("#c-herr").style.visibility = "hidden";      // mientras anima no se dibuja
+  $("#c-super").hidden = true;                    // ni se superpone (la de encima es de otra hora)
   let i = 0;
   mostrarCuadro(i);
   const paso = () => {
