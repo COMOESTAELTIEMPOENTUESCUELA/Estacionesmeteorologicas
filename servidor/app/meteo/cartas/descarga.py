@@ -107,10 +107,12 @@ def _correr(cfg, raiz, sesion):
 STAR_HORAS_ATRAS = 48
 
 
-def _correr_star(p, raiz, sesion, horas_utc):
-    """Satélite (NOAA STAR): la imagen más cercana a cada hora de las cartas."""
-    ahora = datetime.now(timezone.utc)
-    faltan = [ts for ts in horas_sinopticas(ahora - timedelta(hours=STAR_HORAS_ATRAS), ahora, horas_utc)
+def _correr_star(p, raiz, sesion, horas_utc, desde=None, hasta=None):
+    """Satélite (NOAA STAR): la imagen más cercana a cada hora de las cartas
+    (las últimas STAR_HORAS_ATRAS horas, o de desde a hasta)."""
+    hasta = hasta or datetime.now(timezone.utc)
+    desde = desde or hasta - timedelta(hours=STAR_HORAS_ATRAS)
+    faltan = [ts for ts in horas_sinopticas(desde, hasta, horas_utc)
               if not archivo.existe(raiz, p["id"], ts)]
     if not faltan:
         return 0
@@ -188,9 +190,29 @@ def _pedir_ogimet(sesion, zona, ts):
 
 
 def correr_ogimet(cfg, raiz, sesion, desde, hasta):
-    """Mapas de Ogimet entre desde y hasta (también sirve para el historial)."""
+    """Mapas de Ogimet entre desde y hasta."""
     with una_sola_descarga(raiz):
         return _correr_ogimet(cfg, raiz, sesion, desde, hasta)
+
+
+def correr_historico(cfg, raiz, sesion, desde, hasta):
+    """Rellenar un período: satélite (NOAA guarda unos días) y, de Ogimet,
+    solo lo que cae en el último día (lo anterior ya no lo tiene: pedirlo
+    sería esperar respuestas vacías). Bentley se completa solo en la vuelta
+    normal (su página tiene 14 días). Devuelve {producto: nuevas}."""
+    horas = tuple(cfg.get("horas_utc", (0, 6, 12, 18)))
+    salida = {}
+    with una_sola_descarga(raiz):
+        for p in cfg["productos"]:
+            if p.get("activo", True) and p["fuente"] == "star":
+                try:
+                    salida[p["id"]] = _correr_star(p, raiz, sesion, tuple(p.get("horas_utc", horas)), desde, hasta)
+                except Exception as ex:
+                    log.warning("cartas %s: %s", p["id"], str(ex)[:150])
+        ultimo_dia = datetime.now(timezone.utc) - timedelta(hours=OGIMET_HORAS_ATRAS)
+        if hasta > ultimo_dia:
+            salida["ogimet"] = _correr_ogimet(cfg, raiz, sesion, max(desde, ultimo_dia), hasta)
+    return salida
 
 
 def _correr_ogimet(cfg, raiz, sesion, desde, hasta):

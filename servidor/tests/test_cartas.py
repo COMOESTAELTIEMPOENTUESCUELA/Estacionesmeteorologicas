@@ -326,3 +326,31 @@ def test_star_descarga_solo_las_horas_de_las_cartas(tmp_path, monkeypatch):
     pedidos.clear()
     descarga._correr_star(p, tmp_path, Sesion(), (0, 6, 12, 18))
     assert pedidos == ["lista"]                    # lo que ya está no se vuelve a bajar
+
+
+def test_historico_baja_satelite_y_no_pide_ogimet_viejo(tmp_path, monkeypatch):
+    """Rellenar 7 al 11/10: satélite sí (NOAA guarda unos días); a Ogimet no se le
+    pide nada viejo (solo tiene el último día)."""
+    monkeypatch.setattr(descarga, "PAUSA_SEG", 0)
+    pedidos = []
+
+    class Resp:
+        def __init__(self, contenido=b"", texto=""):
+            self.content, self.text = contenido, texto
+        def raise_for_status(self):
+            pass
+
+    lista = "".join(f"<a>2026{d:03d}{h:02d}00_GOES19-ABI-ssa-13-1800x1080.jpg</a>"
+                    for d in range(280, 285) for h in (0, 6, 12, 18))     # 7 al 11/10
+
+    class Sesion:
+        def get(self, url, timeout, params=None):
+            pedidos.append(url)
+            return Resp(texto=lista) if url.endswith("/") else Resp(b"\xff\xd8\xff" + b"0" * 50)
+
+    cfg = {"horas_utc": [0, 6, 12, 18], "productos": [
+        {"id": "sat13", "fuente": "star", "sector": "ssa", "banda": "13"},
+        {"id": "og_sg", "fuente": "ogimet", "zona": "amersurs", "codigo": "Sg"}]}
+    r = descarga.correr_historico(cfg, tmp_path, Sesion(), datetime(2026, 10, 7, tzinfo=UTC), datetime(2026, 10, 11, 18, tzinfo=UTC))
+    assert r == {"sat13": 20}                                  # 5 días x 4 horas; Ogimet ni se intenta
+    assert not any("ogimet" in u for u in pedidos)

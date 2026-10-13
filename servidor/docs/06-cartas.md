@@ -64,6 +64,13 @@ año de disco. NOAA guarda cada imagen con su fecha en el nombre
 pocos días: la tarea lee la lista de la carpeta y elige la más cercana a
 cada hora sinóptica (±10 min), mirando 48 horas hacia atrás.
 
+NOAA guarda unos 10 días (probado el 14/10/2026: había desde el 3/10). Para
+rellenar un período dentro de eso (ej. para analizar un evento):
+
+```bash
+docker compose exec ingesta python -m meteo.ingesta historico cartas --desde 2026-10-06 --hasta 2026-10-14
+```
+
 Para probar que el servidor llega a NOAA:
 
 ```bash
