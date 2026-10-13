@@ -154,6 +154,8 @@ img.con-fondo { background-color: #fff !important; background-size: 100% 100%; b
 #c-vista.dibujando { cursor: crosshair; }
 #c-svg { position: absolute; left: 0; top: 0; transform-origin: 0 0; pointer-events: none; overflow: visible; }
 #c-herr .boton { padding: 3px 8px; }
+#c-anim-barra .boton { padding: 3px 10px; }
+#c-dialogo label.en-linea { flex-direction: row; align-items: center; gap: 6px; font-size: 13px; display: inline-flex; }
 #c-herr .herr.activa { outline: 2px solid var(--acento); outline-offset: 1px; }
 #c-herr input[type="color"] { width: 32px; height: 28px; padding: 0; border: 1px solid var(--borde); border-radius: 6px; }
 .carta-img { position: relative; }
@@ -668,6 +670,20 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
         <button class="boton solo-dibujo" id="c-limpiar" title="Borrar todo el dibujo de esta carta">Limpiar</button>
         <button class="boton" id="c-exportar" title="Descargar la carta con el dibujo, como imagen">⬇ PNG</button>
         <span class="tenue" id="c-dib-estado"></span>
+      </div>
+      <div class="barra" id="c-anim-barra">
+        <button class="boton" id="c-anim" title="Animar esta carta hacia atrás en el tiempo (barra espaciadora)">▶ Animar</button>
+        <label class="en-linea">los
+          <select id="c-anim-rango">
+            <option value="1">1 día</option><option value="2" selected>2 días</option><option value="3">3 días</option>
+            <option value="5">5 días</option><option value="7">7 días</option>
+          </select> anteriores</label>
+        <label class="en-linea">velocidad
+          <select id="c-anim-vel">
+            <option value="1500">lenta</option><option value="800" selected>media</option><option value="400">rápida</option>
+          </select></label>
+        <input type="range" id="c-anim-pos" min="0" max="0" value="0" disabled style="flex:1 1 160px" title="Moverse entre los cuadros">
+        <span class="tenue" id="c-anim-estado"></span>
       </div>
       <div id="c-vista"><img alt="" draggable="false"><svg id="c-svg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none"></svg></div>
     </dialog>
@@ -2022,6 +2038,8 @@ function zoomEn(factor, clientX, clientY) {
 }
 
 function mostrarEnVisor() {
+  if (animando()) pararAnimacion(false);
+  if (!anim.preparando) { $("#c-anim-pos").disabled = true; $("#c-anim-pos").max = 0; $("#c-anim-estado").textContent = ""; }
   const p = cartasHora.find((c) => c.id === cartaVisor);
   const img = $("#c-vista img");
   $("#c-dialogo-titulo").textContent = `${$("#c-titulo").textContent} — ${p ? tituloCarta(p) : "no archivada para esta hora"}`;
@@ -2097,6 +2115,7 @@ function iniciarVisor() {
   $("#c-d-menos").addEventListener("click", () => moverCarta(-6));
   $("#c-d-mas").addEventListener("click", () => moverCarta(6));
   iniciarHerramientas();
+  iniciarAnimacion();
 }
 
 // ---------- Dibujo de análisis sobre las cartas ----------
@@ -2351,6 +2370,85 @@ function deshacerDibujo() {
   dib.dibujo.elementos = JSON.parse(dib.historia.pop());
   pintarDibujoVisor();
   programarGuardado();
+}
+
+// ---------- Animación de una carta en el tiempo ----------
+// Recorre la carta que se está mirando hacia atrás N días. Antes de arrancar
+// se precargan todas las imágenes: así la animación es fluida y no se traba
+// esperando la red (es lo que hacen los loops de satélite o radar).
+const anim = { cuadros: [], i: 0, reloj: null, preparando: false };
+
+async function prepararAnimacion() {
+  const producto = cartaVisor, t0 = tsCarta().getTime(), dias = +$("#c-anim-rango").value;
+  $("#c-anim-estado").textContent = "preparando…";
+  cartasDisp = await api("/api/cartas/disponibles");
+  const claves = Object.keys(cartasDisp).filter((k) => cartasDisp[k].includes(producto)
+    && Date.parse(k) <= t0 && Date.parse(k) >= t0 - dias * 86400e3).sort();
+  const datos = await Promise.all(claves.map((k) => api(`/api/cartas?ts=${encodeURIComponent(k)}`)));
+  anim.cuadros = datos.map((r, j) => ({ ts: claves[j], p: r.productos.find((x) => x.id === producto) })).filter((c) => c.p?.url);
+  let listos = 0;
+  await Promise.all(anim.cuadros.map((c) => cargarImagen(c.p.url).catch(() => null)
+    .then(() => { $("#c-anim-estado").textContent = `cargando ${++listos}/${anim.cuadros.length}…`; })));
+  const pos = $("#c-anim-pos");
+  pos.max = Math.max(0, anim.cuadros.length - 1); pos.disabled = anim.cuadros.length < 2;
+}
+function mostrarCuadro(i) {
+  const c = anim.cuadros[i];
+  if (!c) return;
+  anim.i = i;
+  $("#c-anim-pos").value = i;
+  const img = $("#c-vista img");
+  img.src = c.p.url;
+  const t = new Date(c.ts), titulo = fmtCartaTitulo.format(t);
+  $("#c-dialogo-titulo").textContent = `${titulo.charAt(0).toUpperCase()}${titulo.slice(1)} · ${String(t.getUTCHours()).padStart(2, "0")} UTC — ${tituloCarta(c.p)}`;
+  $("#c-anim-estado").textContent = `${i + 1}/${anim.cuadros.length}`;
+  // El dibujo de esa hora, si tiene (solo para mirar mientras anima).
+  const svg = $("#c-svg"), d = c.p.dibujo;
+  svg.setAttribute("viewBox", `0 0 ${DIB_ANCHO} ${d?.alto || dib.alto}`);
+  svg.innerHTML = contenidoDibujo(d);
+}
+function animando() { return anim.reloj !== null; }
+async function alternarAnimacion() {
+  if (animando()) return pararAnimacion();
+  if (anim.preparando || !cartaVisor) return;
+  guardarDibujoYa();
+  elegirHerramienta("mover");
+  anim.preparando = true;
+  try { await prepararAnimacion(); } finally { anim.preparando = false; }
+  if (anim.cuadros.length < 2) { $("#c-anim-estado").textContent = "no hay suficientes horas archivadas"; return; }
+  $("#c-anim").textContent = "⏸ Pausa";
+  $("#c-herr").style.visibility = "hidden";      // mientras anima no se dibuja
+  let i = 0;
+  mostrarCuadro(i);
+  const paso = () => {
+    i = (i + 1) % (anim.cuadros.length + 2);        // 2 cuadros de pausa al final antes de repetir
+    if (i < anim.cuadros.length) mostrarCuadro(i);
+    anim.reloj = setTimeout(paso, +$("#c-anim-vel").value);
+  };
+  anim.reloj = setTimeout(paso, +$("#c-anim-vel").value);
+}
+function pararAnimacion(irAlCuadro = true) {
+  clearTimeout(anim.reloj);
+  anim.reloj = null;
+  $("#c-anim").textContent = "▶ Animar";
+  $("#c-herr").style.visibility = "";
+  const c = anim.cuadros[anim.i];
+  // Queda parada en la hora que se estaba viendo: se puede seguir mirando o dibujando desde ahí.
+  if (irAlCuadro && c && $("#c-dialogo").open) { ponerTsCarta(new Date(c.ts)); cargarCartas(); }
+}
+function iniciarAnimacion() {
+  $("#c-anim").addEventListener("click", alternarAnimacion);
+  $("#c-anim-pos").addEventListener("input", (e) => {
+    if (animando()) { clearTimeout(anim.reloj); anim.reloj = null; $("#c-anim").textContent = "▶ Animar"; $("#c-herr").style.visibility = ""; }
+    mostrarCuadro(+e.target.value);
+  });
+  $("#c-anim-pos").addEventListener("change", (e) => { anim.i = +e.target.value; pararAnimacion(); });
+  document.addEventListener("keydown", (e) => {
+    if ($("#c-dialogo").open && e.key === " " && !["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement.tagName)) {
+      e.preventDefault(); alternarAnimacion();
+    }
+  });
+  $("#c-dialogo").addEventListener("close", () => { if (animando()) pararAnimacion(false); });
 }
 
 // ======================================================================
