@@ -2285,12 +2285,23 @@ const svgDibujo = (d) => `<svg viewBox="0 0 ${d.ancho} ${d.alto}" preserveAspect
 // ----- en el visor grande -----
 function ubicarSVG() {
   // El dibujo y la carta superpuesta ocupan exactamente el lugar de la imagen
-  // (sin el zoom, que se les aplica igual a todos).
-  const img = $("#c-vista img"), caja = { left: img.offsetLeft + "px", top: img.offsetTop + "px",
-                                          width: img.offsetWidth + "px", height: img.offsetHeight + "px" };
+  // (sin el zoom, que se les aplica igual a todos). Se mide con decimales:
+  // un píxel de diferencia, con zoom x10, serían 10.
+  const img = $("#c-vista img"), vista = $("#c-vista");
+  if (!img.offsetWidth) return;
+  const ri = img.getBoundingClientRect(), rv = vista.getBoundingClientRect();
+  // getBoundingClientRect ya incluye el zoom: se lo saca para tener la caja original.
+  const caja = { left: ri.left - rv.left - vista.clientLeft - zoom.x + "px", top: ri.top - rv.top - vista.clientTop - zoom.y + "px",
+                 width: ri.width / zoom.s + "px", height: ri.height / zoom.s + "px" };
   Object.assign($("#c-svg").style, caja);
   Object.assign($("#c-super").style, caja);
 }
+// Si la carta cambia de tamaño o de lugar (las barras de arriba pasan a dos
+// líneas, se achica la ventana, se gira el celular), el dibujo y la carta
+// superpuesta se reacomodan solos. Antes se ubicaban solo al cargar la carta
+// y quedaban corridos.
+new ResizeObserver(() => { if ($("#c-dialogo").open) ubicarSVG(); }).observe(document.querySelector("#c-vista img"));
+new ResizeObserver(() => { if ($("#c-dialogo").open) ubicarSVG(); }).observe(document.querySelector("#c-vista"));
 // Superponer otra carta del mismo grupo (misma proyección), con transparencia.
 function armarSuperposicion(p) {
   const sel = $("#c-super-sel"), antes = sel.value;
@@ -2307,6 +2318,7 @@ function aplicarSuperposicion() {
   if (!c) { sup.removeAttribute("src"); return; }
   sup.src = c.url;
   sup.style.opacity = $("#c-super-op").value / 100;
+  requestAnimationFrame(ubicarSVG);       // por si la barra se reacomodó al aparecer la transparencia
 }
 function pintarDibujoVisor() {
   const svg = $("#c-svg");
