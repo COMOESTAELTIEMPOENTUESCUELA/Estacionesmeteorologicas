@@ -25,6 +25,7 @@ import asyncio
 import base64
 import csv
 import io
+import logging
 import math
 import os
 import secrets
@@ -32,10 +33,11 @@ from contextlib import asynccontextmanager
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Body, FastAPI, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from psycopg.rows import dict_row
+from psycopg.types.json import Jsonb
 from psycopg_pool import ConnectionPool
 
 from ..verificacion import puntajes
@@ -52,11 +54,30 @@ pool = ConnectionPool(
             "row_factory": dict_row},
 )
 
+# La ÚNICA escritura de la web: los dibujos de análisis sobre las cartas.
+# Va por una conexión aparte, para que todo lo demás siga en solo lectura.
+# En la copia pública (modo cartas) no existe: ahí no se escribe nada.
+pool_dibujos = None if os.environ.get("WEB_MODO", "completo") == "cartas" else ConnectionPool(
+    DSN, min_size=0, max_size=2, open=False,
+    kwargs={"options": "-c statement_timeout=10000", "row_factory": dict_row},
+)
+SQL_DIBUJOS = (Path(__file__).parent / "dibujos.sql")
+
+
 @asynccontextmanager
 async def ciclo_de_vida(_app):
     pool.open()   # al arrancar
+    if pool_dibujos:
+        pool_dibujos.open()
+        try:
+            with pool_dibujos.connection() as conn:
+                conn.execute(SQL_DIBUJOS.read_text(encoding="utf-8"))
+        except Exception as ex:      # sin la tabla, la web anda igual (sin dibujos)
+            logging.getLogger(__name__).warning("tabla de dibujos: %s", ex)
     yield
     pool.close()  # al apagar
+    if pool_dibujos:
+        pool_dibujos.close()
 
 
 app = FastAPI(title="Servidor meteorológico", docs_url="/api/docs", redoc_url=None, lifespan=ciclo_de_vida)
@@ -72,6 +93,16 @@ app = FastAPI(title="Servidor meteorológico", docs_url="/api/docs", redoc_url=N
 # http:// en la red de la casa viaja legible, pero ahí no sale de la casa.
 WEB_USUARIO = os.environ.get("WEB_USUARIO", "")
 WEB_CLAVE = os.environ.get("WEB_CLAVE", "")
+
+
+def _usuario(cabecera):
+    """El usuario con que se entró (para anotar quién dibujó), o None."""
+    if not cabecera.startswith("Basic "):
+        return None
+    try:
+        return base64.b64decode(cabecera[6:]).decode("utf-8").partition(":")[0] or None
+    except Exception:
+        return None
 
 
 def credenciales_validas(cabecera):
@@ -118,6 +149,8 @@ async def guardar_cartas_en_el_navegador(request, siguiente):
 async def solo_lo_permitido(request, siguiente):
     if not permitido(request.url.path):
         return Response("No disponible.", status_code=404)
+    if WEB_MODO == "cartas" and request.method not in ("GET", "HEAD"):
+        return Response("La copia pública es solo para mirar.", status_code=405)
     return await siguiente(request)
 
 
@@ -641,8 +674,10 @@ def cartas(ts: datetime):
     from ..cartas import archivo
     ts = (ts if ts.tzinfo else ts.replace(tzinfo=timezone.utc)).astimezone(timezone.utc)
     raiz = Path(ARCHIVO_DIR) / "cartas"
+    dibujos = _dibujos_de(ts)
     salida = []
     for p in _cartas_productos():
+        p["dibujo"] = dibujos.get(p["id"])
         f = archivo.fondo(ARCHIVO_DIR, f"ogimet_{p['zona']}") if p["fuente"] == "ogimet" else None
         p["fondo"] = "/cartas-img/" + f.relative_to(raiz).as_posix() if f else None
         m = archivo.ruta_miniatura(ARCHIVO_DIR, p["id"], ts)
@@ -655,6 +690,71 @@ def cartas(ts: datetime):
                 break
         salida.append({**p, "url": url})
     return {"ts": ts, "productos": salida}
+
+
+# ---------------------------------------------------------------------------
+# Dibujos de análisis sobre las cartas
+# ---------------------------------------------------------------------------
+# Un dibujo es {"ancho", "alto", "elementos": [...]}: coordenadas en un
+# lienzo de `ancho` x `alto` (el de la imagen, escalado a 1000 de ancho), así
+# se dibuja igual en la placa chica que en el visor grande.
+TIPOS_DIBUJO = {"trazo", "frente", "centro", "texto", "flecha"}
+MAX_ELEMENTOS = 2000
+
+
+def _dibujos_de(ts):
+    try:
+        return {r["producto"]: r["dibujo"] for r in consultar(
+            "SELECT producto, dibujo FROM carta_dibujo WHERE ts = %s", (ts,))}
+    except Exception:          # la tabla todavía no existe: sin dibujos
+        return {}
+
+
+def _validar_dibujo(d):
+    if not isinstance(d, dict) or not isinstance(d.get("elementos"), list):
+        raise HTTPException(400, "dibujo: {ancho, alto, elementos: [...]}")
+    if len(d["elementos"]) > MAX_ELEMENTOS:
+        raise HTTPException(400, f"dibujo: hasta {MAX_ELEMENTOS} elementos")
+    for e in d["elementos"]:
+        if not isinstance(e, dict) or e.get("tipo") not in TIPOS_DIBUJO:
+            raise HTTPException(400, f"dibujo: tipo de elemento desconocido ({str(e)[:40]})")
+    for k in ("ancho", "alto"):
+        if not isinstance(d.get(k), (int, float)) or not 10 <= d[k] <= 10000:
+            raise HTTPException(400, f"dibujo: {k} inválido")
+    return {"ancho": d["ancho"], "alto": d["alto"], "elementos": d["elementos"]}
+
+
+def _producto_valido(producto):
+    if producto not in {p["id"] for p in _cartas_productos()}:
+        raise HTTPException(404, "carta desconocida")
+
+
+@app.get("/api/cartas/dibujo")
+def leer_dibujo(producto: str, ts: datetime):
+    ts = (ts if ts.tzinfo else ts.replace(tzinfo=timezone.utc)).astimezone(timezone.utc)
+    return {"producto": producto, "ts": _iso(ts), "dibujo": _dibujos_de(ts).get(producto)}
+
+
+@app.put("/api/cartas/dibujo")
+def guardar_dibujo(request: Request, producto: str, ts: datetime, dibujo: dict = Body(...)):
+    """Guarda (o, si quedó vacío, borra) el dibujo de una carta. Solo en el
+    visualizador completo: en la copia pública no existe la conexión de escritura."""
+    if pool_dibujos is None:
+        raise HTTPException(405, "acá no se puede dibujar")
+    _producto_valido(producto)
+    ts = (ts if ts.tzinfo else ts.replace(tzinfo=timezone.utc)).astimezone(timezone.utc)
+    d = _validar_dibujo(dibujo)
+    autor = _usuario(request.headers.get("authorization", ""))
+    with pool_dibujos.connection() as conn:
+        if not d["elementos"]:
+            conn.execute("DELETE FROM carta_dibujo WHERE producto = %s AND ts = %s", (producto, ts))
+        else:
+            conn.execute("""
+                INSERT INTO carta_dibujo (producto, ts, dibujo, autor) VALUES (%s, %s, %s, %s)
+                ON CONFLICT (producto, ts) DO UPDATE
+                SET dibujo = EXCLUDED.dibujo, autor = EXCLUDED.autor, actualizado = now()""",
+                         (producto, ts, Jsonb(d), autor))
+    return {"ok": True, "elementos": len(d["elementos"])}
 
 
 @app.exception_handler(Exception)

@@ -151,6 +151,13 @@ img.con-fondo { background-color: #fff !important; background-size: 100% 100%; b
 #c-vista { flex: 1; min-height: 0; overflow: hidden; position: relative; display: flex; align-items: center; justify-content: center;
   touch-action: none; cursor: grab; border-radius: 6px; background: var(--plano); }
 #c-vista.arrastrando { cursor: grabbing; }
+#c-vista.dibujando { cursor: crosshair; }
+#c-svg { position: absolute; left: 0; top: 0; transform-origin: 0 0; pointer-events: none; overflow: visible; }
+#c-herr .boton { padding: 3px 8px; }
+#c-herr .herr.activa { outline: 2px solid var(--acento); outline-offset: 1px; }
+#c-herr input[type="color"] { width: 32px; height: 28px; padding: 0; border: 1px solid var(--borde); border-radius: 6px; }
+.carta-img { position: relative; }
+.carta-img svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 #c-vista img { max-width: 100%; max-height: 100%; transform-origin: 0 0; user-select: none; -webkit-user-drag: none; }
 /* Fechas en dd/mm/aaaa (ver fechaDMY): el campo del navegador queda escondido */
 .fecha-dmy { position: relative; display: inline-flex; gap: 4px; align-items: center; }
@@ -639,7 +646,30 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
         <button class="boton" id="c-d-ajustar" title="Ver entera">Entera</button>
         <button class="boton" id="c-cerrar">Cerrar</button>
       </div>
-      <div id="c-vista"><img alt="" draggable="false"></div>
+      <div class="barra" id="c-herr">
+        <span class="tenue solo-dibujo">Dibujar:</span>
+        <button class="boton herr activa" data-herr="mover" title="Mover y hacer zoom (sin dibujar)">✋</button>
+        <button class="boton herr solo-dibujo" data-herr="trazo" title="Lápiz: isolíneas, contornos, áreas">✏️</button>
+        <button class="boton herr solo-dibujo" data-herr="frio" title="Frente frío" style="color:#1d4ed8">▲ Frío</button>
+        <button class="boton herr solo-dibujo" data-herr="calido" title="Frente cálido" style="color:#dc2626">◗ Cálido</button>
+        <button class="boton herr solo-dibujo" data-herr="ocluido" title="Frente ocluido" style="color:#7e22ce">▲◗ Ocluido</button>
+        <button class="boton herr solo-dibujo" data-herr="estacionario" title="Frente estacionario"><span style="color:#1d4ed8">▲</span><span style="color:#dc2626">◗</span> Estac.</button>
+        <button class="boton herr solo-dibujo" data-herr="A" title="Centro de alta presión" style="color:#1d4ed8;font-weight:800">A</button>
+        <button class="boton herr solo-dibujo" data-herr="B" title="Centro de baja presión" style="color:#dc2626;font-weight:800">B</button>
+        <button class="boton herr solo-dibujo" data-herr="texto" title="Texto: tocá dónde va">T</button>
+        <button class="boton herr solo-dibujo" data-herr="flecha" title="Flecha (desplazamiento, flujo)">➜</button>
+        <button class="boton herr solo-dibujo" data-herr="girar" title="Dar vuelta los símbolos de un frente: tocá el frente">⇄</button>
+        <button class="boton herr solo-dibujo" data-herr="borrar" title="Borrar: tocá lo que quieras borrar">⌫</button>
+        <input type="color" id="c-color" class="solo-dibujo" value="#111827" title="Color del lápiz, el texto y la flecha">
+        <select id="c-grosor" class="solo-dibujo" title="Grosor del lápiz y la flecha">
+          <option value="2">fino</option><option value="4" selected>medio</option><option value="7">grueso</option>
+        </select>
+        <button class="boton solo-dibujo" id="c-deshacer" title="Deshacer (Ctrl+Z)">↶</button>
+        <button class="boton solo-dibujo" id="c-limpiar" title="Borrar todo el dibujo de esta carta">Limpiar</button>
+        <button class="boton" id="c-exportar" title="Descargar la carta con el dibujo, como imagen">⬇ PNG</button>
+        <span class="tenue" id="c-dib-estado"></span>
+      </div>
+      <div id="c-vista"><img alt="" draggable="false"><svg id="c-svg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none"></svg></div>
     </dialog>
   </section>
 
@@ -1862,8 +1892,9 @@ async function cargarCartas() {
   const mostrar = placa ? deLaHora : r.productos;
   $("#c-grid").classList.toggle("placa", placa);
   $("#c-grid").innerHTML = mostrar.map((p) => `<figure class="carta">
-      <figcaption title="${esc(tituloCarta(p))}"><b>${esc(p.nivel || "")}</b> · ${esc(p.nombre)}</figcaption>
-      ${p.url ? imgCarta(p, ` loading="lazy" data-id="${esc(p.id)}"`, placa)
+      <figcaption title="${esc(tituloCarta(p))}${p.dibujo ? " (con análisis dibujado)" : ""}">${p.dibujo ? "✏️ " : ""}<b>${esc(p.nivel || "")}</b> · ${esc(p.nombre)}</figcaption>
+      ${p.url && p.dibujo ? `<div class="carta-img">${imgCarta(p, ` loading="lazy" data-id="${esc(p.id)}"`, placa)}${svgDibujo(p.dibujo)}</div>`
+        : p.url ? imgCarta(p, ` loading="lazy" data-id="${esc(p.id)}"`, placa)
         : !p.horas_utc.includes(t.getUTCHours())
           ? `<div class="falta chica">Se informa solo a las ${p.horas_utc.map((h) => String(h).padStart(2, "0")).join(", ")} UTC.
              <button class="boton c-ir-hora" data-hora="${p.horas_utc[0]}">Ver ${String(p.horas_utc[0]).padStart(2, "0")} UTC de este día</button></div>`
@@ -1974,7 +2005,9 @@ let cartaVisor = null;     // id del producto que se está viendo
 
 function aplicarZoom() {
   if (zoom.s <= 1) Object.assign(zoom, { s: 1, x: 0, y: 0 });
-  $("#c-vista img").style.transform = `translate(${zoom.x}px, ${zoom.y}px) scale(${zoom.s})`;
+  const t = `translate(${zoom.x}px, ${zoom.y}px) scale(${zoom.s})`;
+  $("#c-vista img").style.transform = t;
+  $("#c-svg").style.transform = t;        // el dibujo se mueve junto con la carta
 }
 function zoomEn(factor, clientX, clientY) {
   const img = $("#c-vista img"), r = img.getBoundingClientRect();
@@ -1998,8 +2031,10 @@ function mostrarEnVisor() {
   img.className = p.fondo ? "con-fondo" : "";
   img.style.backgroundImage = p.fondo ? `url('${p.fondo}')` : "";
   aplicarZoom();          // al cambiar de hora se mantiene el zoom: se compara el mismo lugar
+  cargarDibujoVisor(p);
 }
 function abrirCarta(id) {
+  guardarDibujoYa();
   cartaVisor = id;
   Object.assign(zoom, { s: 1, x: 0, y: 0 });
   $("#c-dialogo").showModal();
@@ -2007,6 +2042,7 @@ function abrirCarta(id) {
 }
 function otraCarta(paso) {
   if (!cartasHora.length) return;
+  guardarDibujoYa();
   const i = cartasHora.findIndex((c) => c.id === cartaVisor);
   cartaVisor = cartasHora[(i + paso + cartasHora.length) % cartasHora.length].id;
   Object.assign(zoom, { s: 1, x: 0, y: 0 });
@@ -2017,6 +2053,7 @@ function iniciarVisor() {
   const vista = $("#c-vista");
   vista.addEventListener("wheel", (e) => { e.preventDefault(); zoomEn(e.deltaY < 0 ? 1.2 : 1 / 1.2, e.clientX, e.clientY); }, { passive: false });
   vista.addEventListener("dblclick", (e) => {
+    if (dib.herr !== "mover") return;
     if (zoom.s > 1) { zoom.s = 1; aplicarZoom(); } else zoomEn(3, e.clientX, e.clientY);
   });
   // Arrastrar con un dedo o el mouse; pellizcar con dos dedos.
@@ -2025,6 +2062,8 @@ function iniciarVisor() {
   vista.addEventListener("pointerdown", (e) => {
     vista.setPointerCapture(e.pointerId);
     punteros.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (punteros.size === 2) { dib.actual = null; pintarDibujoVisor(); }   // dos dedos: zoom, no dibujo
+    else if (dib.herr !== "mover" && punteros.size === 1) { empezarDibujo(e); return; }
     vista.classList.add("arrastrando");
   });
   vista.addEventListener("pointermove", (e) => {
@@ -2036,7 +2075,9 @@ function iniciarVisor() {
       const d = Math.hypot(a.x - b.x, a.y - b.y);
       if (pellizco) zoomEn(d / pellizco, (a.x + b.x) / 2, (a.y + b.y) / 2);
       pellizco = d;
-    } else if (zoom.s > 1) {
+    } else if (dib.actual) {
+      seguirDibujo(e);
+    } else if (dib.herr === "mover" && zoom.s > 1) {
       zoom.x += e.clientX - antes.x; zoom.y += e.clientY - antes.y;
       aplicarZoom();
     }
@@ -2044,7 +2085,7 @@ function iniciarVisor() {
   const soltar = (e) => {
     punteros.delete(e.pointerId);
     if (punteros.size < 2) pellizco = null;
-    if (!punteros.size) vista.classList.remove("arrastrando");
+    if (!punteros.size) { vista.classList.remove("arrastrando"); if (dib.actual) terminarDibujo(); }
   };
   vista.addEventListener("pointerup", soltar);
   vista.addEventListener("pointercancel", soltar);
@@ -2055,6 +2096,261 @@ function iniciarVisor() {
   $("#c-d-sig").addEventListener("click", () => otraCarta(1));
   $("#c-d-menos").addEventListener("click", () => moverCarta(-6));
   $("#c-d-mas").addEventListener("click", () => moverCarta(6));
+  iniciarHerramientas();
+}
+
+// ---------- Dibujo de análisis sobre las cartas ----------
+// El dibujo es VECTORIAL: una lista de elementos ("frente frío por estos
+// puntos", "B en tal lugar") en un lienzo de 1000 de ancho y el alto de la
+// carta. Se guarda en el servidor (una por carta y hora) y se pinta como SVG
+// encima de la imagen: nítido con cualquier zoom, y calza igual en la
+// miniatura de la placa que en el visor grande.
+let MODO_WEB = "completo";
+const DIB_ANCHO = 1000;
+const COLOR_FRENTE = { frio: "#1d4ed8", calido: "#dc2626", ocluido: "#7e22ce", estacionario: "#1d4ed8" };
+const PASO_SIMBOLOS = 36;     // cada cuánto va un triángulo o semicírculo
+const dib = { herr: "mover", dibujo: null, historia: [], actual: null, alto: 750, producto: null, ts: null,
+              temporizador: null, sucio: false };
+
+// Puntos cada `paso` a lo largo de la línea, con su dirección (tangente).
+function remuestrear(puntos, paso) {
+  const salida = [];
+  let objetivo = paso / 2, recorrido = 0;
+  for (let i = 1; i < puntos.length; i++) {
+    const [x0, y0] = puntos[i - 1], [x1, y1] = puntos[i];
+    const largo = Math.hypot(x1 - x0, y1 - y0);
+    if (!largo) continue;
+    const tx = (x1 - x0) / largo, ty = (y1 - y0) / largo;
+    while (objetivo <= recorrido + largo) {
+      const f = objetivo - recorrido;
+      salida.push({ x: x0 + tx * f, y: y0 + ty * f, tx, ty });
+      objetivo += paso;
+    }
+    recorrido += largo;
+  }
+  return salida;
+}
+const r1 = (v) => Math.round(v * 10) / 10;
+function triangulo(m, lado, color) {
+  // Los símbolos van a la IZQUIERDA del sentido en que se dibujó (lado = 1).
+  const b = 10, h = 14, nx = m.ty * lado, ny = -m.tx * lado;
+  const pts = [[m.x - m.tx * b, m.y - m.ty * b], [m.x + m.tx * b, m.y + m.ty * b], [m.x + nx * h, m.y + ny * h]];
+  return `<polygon points="${pts.map((p) => p.map(r1).join(",")).join(" ")}" fill="${color}"/>`;
+}
+function semicirculo(m, lado, color) {
+  const b = 10, nx = m.ty * lado, ny = -m.tx * lado, pts = [];
+  for (let k = 0; k <= 10; k++) {
+    const a = (Math.PI * k) / 10;
+    pts.push([m.x + b * (Math.cos(a) * m.tx + Math.sin(a) * nx), m.y + b * (Math.cos(a) * m.ty + Math.sin(a) * ny)]);
+  }
+  return `<polygon points="${pts.map((p) => p.map(r1).join(",")).join(" ")}" fill="${color}"/>`;
+}
+const caminoDe = (pts) => "M" + pts.map((p) => p.map(r1).join(",")).join(" L");
+const textoSVG = (x, y, texto, color, tam, peso = 700, ancla = "start") =>
+  `<text x="${r1(x)}" y="${r1(y)}" font-size="${tam}" font-weight="${peso}" font-family="system-ui, sans-serif" text-anchor="${ancla}"
+     dominant-baseline="central" fill="${color}" stroke="#fff" stroke-width="${tam / 7}" paint-order="stroke">${esc(texto)}</text>`;
+
+function svgElemento(e) {
+  if (e.tipo === "trazo" && e.puntos?.length > 1)
+    return `<path d="${caminoDe(e.puntos)}" fill="none" stroke="${esc(e.color || "#111827")}" stroke-width="${+e.ancho || 4}" stroke-linecap="round" stroke-linejoin="round"/>`;
+  if (e.tipo === "flecha" && e.puntos?.length === 2) {
+    const [[x0, y0], [x1, y1]] = e.puntos, l = Math.hypot(x1 - x0, y1 - y0) || 1, tx = (x1 - x0) / l, ty = (y1 - y0) / l;
+    const w = +e.ancho || 4, c = esc(e.color || "#111827"), largo = 12 + w * 2.5, medio = 6 + w * 1.5;
+    const punta = [[x1, y1], [x1 - tx * largo - ty * medio, y1 - ty * largo + tx * medio], [x1 - tx * largo + ty * medio, y1 - ty * largo - tx * medio]];
+    return `<path d="${caminoDe([[x0, y0], [x1 - tx * largo * 0.8, y1 - ty * largo * 0.8]])}" stroke="${c}" stroke-width="${w}" stroke-linecap="round"/>` +
+           `<polygon points="${punta.map((p) => p.map(r1).join(",")).join(" ")}" fill="${c}"/>`;
+  }
+  if (e.tipo === "centro")
+    return textoSVG(e.x, e.y, e.letra === "A" ? "A" : "B", e.letra === "A" ? "#1d4ed8" : "#dc2626", 46, 800, "middle");
+  if (e.tipo === "texto") return textoSVG(e.x, e.y, e.texto || "", esc(e.color || "#111827"), 24);
+  if (e.tipo === "frente" && e.puntos?.length > 1) {
+    const c = COLOR_FRENTE[e.clase] || "#111827", lado = e.lado === -1 ? -1 : 1, d = caminoDe(e.puntos);
+    const linea = e.clase === "estacionario"
+      ? `<path d="${d}" fill="none" stroke="#dc2626" stroke-width="4" stroke-linejoin="round"/>` +
+        `<path d="${d}" fill="none" stroke="#1d4ed8" stroke-width="4" stroke-dasharray="${PASO_SIMBOLOS} ${PASO_SIMBOLOS}" stroke-linejoin="round"/>`
+      : `<path d="${d}" fill="none" stroke="${c}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>`;
+    const marcas = remuestrear(e.puntos, PASO_SIMBOLOS).map((m, i) => {
+      if (e.clase === "frio") return triangulo(m, lado, c);
+      if (e.clase === "calido") return semicirculo(m, lado, c);
+      if (e.clase === "ocluido") return i % 2 ? semicirculo(m, lado, c) : triangulo(m, lado, c);
+      // Estacionario: triángulos azules de un lado, semicírculos rojos del otro.
+      return i % 2 ? semicirculo(m, -lado, "#dc2626") : triangulo(m, lado, "#1d4ed8");
+    }).join("");
+    return linea + marcas;
+  }
+  return "";
+}
+const contenidoDibujo = (d) => (d?.elementos || []).map(svgElemento).join("");
+// Para la placa: el dibujo encima de la miniatura.
+const svgDibujo = (d) => `<svg viewBox="0 0 ${d.ancho} ${d.alto}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">${contenidoDibujo(d)}</svg>`;
+
+// ----- en el visor grande -----
+function ubicarSVG() {
+  // El SVG ocupa exactamente el lugar de la imagen (sin el zoom, que se le aplica igual a los dos).
+  const img = $("#c-vista img"), svg = $("#c-svg");
+  Object.assign(svg.style, { left: img.offsetLeft + "px", top: img.offsetTop + "px", width: img.offsetWidth + "px", height: img.offsetHeight + "px" });
+}
+function pintarDibujoVisor() {
+  const svg = $("#c-svg");
+  svg.setAttribute("viewBox", `0 0 ${DIB_ANCHO} ${dib.alto}`);
+  svg.innerHTML = contenidoDibujo(dib.dibujo) + (dib.actual ? svgElemento(dib.actual) : "");
+}
+function cargarDibujoVisor(p) {
+  guardarDibujoYa();        // lo pendiente de la carta/hora anterior, antes de cambiar
+  dib.producto = p.id;
+  dib.ts = tsCarta().toISOString();
+  dib.dibujo = p.dibujo ? JSON.parse(JSON.stringify(p.dibujo)) : null;
+  dib.historia = [];
+  dib.actual = null;
+  $("#c-dib-estado").textContent = "";
+  const img = $("#c-vista img");
+  const listo = () => {
+    dib.alto = dib.dibujo?.alto || Math.round(DIB_ANCHO * img.naturalHeight / img.naturalWidth) || 750;
+    ubicarSVG();
+    pintarDibujoVisor();
+  };
+  if (img.complete && img.naturalWidth) listo(); else img.addEventListener("load", listo, { once: true });
+}
+function aLienzo(e) {
+  const r = $("#c-vista img").getBoundingClientRect();
+  return [r1((e.clientX - r.left) / r.width * DIB_ANCHO), r1((e.clientY - r.top) / r.height * dib.alto)];
+}
+function cambiarDibujo(cambio) {
+  dib.dibujo = dib.dibujo || { ancho: DIB_ANCHO, alto: dib.alto, elementos: [] };
+  dib.historia.push(JSON.stringify(dib.dibujo.elementos));
+  cambio(dib.dibujo.elementos);
+  pintarDibujoVisor();
+  programarGuardado();
+}
+// El elemento más cercano a donde se tocó (para borrar o dar vuelta).
+function elementoEn(punto, filtro = () => true) {
+  const r = $("#c-vista img").getBoundingClientRect();
+  const tolerancia = 14 * DIB_ANCHO / r.width;          // ~14 px de pantalla
+  let mejor = -1, dmin = tolerancia;
+  (dib.dibujo?.elementos || []).forEach((e, i) => {
+    if (!filtro(e)) return;
+    const pts = e.puntos || [[e.x, e.y]];
+    for (const [x, y] of pts) {
+      const d = Math.hypot(x - punto[0], y - punto[1]);
+      if (d <= dmin) { dmin = d; mejor = i; }
+    }
+  });
+  return mejor;
+}
+function empezarDibujo(e) {
+  const p = aLienzo(e), h = dib.herr;
+  if (h === "trazo") dib.actual = { tipo: "trazo", color: $("#c-color").value, ancho: +$("#c-grosor").value, puntos: [p] };
+  else if (["frio", "calido", "ocluido", "estacionario"].includes(h)) dib.actual = { tipo: "frente", clase: h, lado: 1, puntos: [p] };
+  else if (h === "flecha") dib.actual = { tipo: "flecha", color: $("#c-color").value, ancho: +$("#c-grosor").value, puntos: [p, p] };
+  else if (h === "A" || h === "B") cambiarDibujo((el) => el.push({ tipo: "centro", letra: h, x: p[0], y: p[1] }));
+  else if (h === "texto") {
+    const t = prompt("Texto:");
+    if (t && t.trim()) cambiarDibujo((el) => el.push({ tipo: "texto", texto: t.trim().slice(0, 200), color: $("#c-color").value, x: p[0], y: p[1] }));
+  } else if (h === "borrar") {
+    const i = elementoEn(p);
+    if (i >= 0) cambiarDibujo((el) => el.splice(i, 1));
+  } else if (h === "girar") {
+    const i = elementoEn(p, (x) => x.tipo === "frente");
+    if (i >= 0) cambiarDibujo((el) => { el[i].lado = el[i].lado === -1 ? 1 : -1; });
+  }
+  pintarDibujoVisor();
+}
+function seguirDibujo(e) {
+  const p = aLienzo(e), a = dib.actual;
+  if (a.tipo === "flecha") a.puntos[1] = p;
+  else {
+    const u = a.puntos[a.puntos.length - 1];
+    if (Math.hypot(p[0] - u[0], p[1] - u[1]) >= 3) a.puntos.push(p);   // menos puntos, línea más suave
+  }
+  pintarDibujoVisor();
+}
+function terminarDibujo() {
+  const a = dib.actual;
+  dib.actual = null;
+  const [p0, p1] = [a.puntos[0], a.puntos[a.puntos.length - 1]];
+  const largo = a.tipo === "flecha" ? Math.hypot(p1[0] - p0[0], p1[1] - p0[1]) : a.puntos.length;
+  if ((a.tipo === "flecha" && largo > 8) || (a.tipo !== "flecha" && largo > 1)) cambiarDibujo((el) => el.push(a));
+  else pintarDibujoVisor();
+}
+
+// ----- guardar en el servidor -----
+function programarGuardado() {
+  dib.sucio = true;
+  $("#c-dib-estado").textContent = "sin guardar…";
+  clearTimeout(dib.temporizador);
+  dib.temporizador = setTimeout(guardarDibujoYa, 800);
+}
+async function guardarDibujoYa() {
+  clearTimeout(dib.temporizador);
+  if (!dib.sucio || !dib.producto) return;
+  dib.sucio = false;
+  const { producto, ts } = dib, dibujo = dib.dibujo || { ancho: DIB_ANCHO, alto: dib.alto, elementos: [] };
+  $("#c-dib-estado").textContent = "guardando…";
+  try {
+    const r = await fetch(`/api/cartas/dibujo?producto=${encodeURIComponent(producto)}&ts=${encodeURIComponent(ts)}`,
+      { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(dibujo) });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.status);
+    const p = cartasHora.find((c) => c.id === producto);
+    if (p && tsCarta().toISOString() === ts) p.dibujo = dibujo.elementos.length ? JSON.parse(JSON.stringify(dibujo)) : null;
+    if (dib.producto === producto) $("#c-dib-estado").textContent = "guardado ✓";
+  } catch (err) {
+    dib.sucio = true;
+    $("#c-dib-estado").textContent = "no se pudo guardar: " + err.message;
+  }
+}
+
+// ----- descargar la carta con el dibujo -----
+const cargarImagen = (src) => new Promise((ok, mal) => { const i = new Image(); i.onload = () => ok(i); i.onerror = mal; i.src = src; });
+async function exportarPNG() {
+  const p = cartasHora.find((c) => c.id === cartaVisor), img = $("#c-vista img");
+  if (!p || !img.naturalWidth) return;
+  const w = img.naturalWidth, h = img.naturalHeight, lienzo = document.createElement("canvas");
+  lienzo.width = w; lienzo.height = h + 34;
+  const g = lienzo.getContext("2d");
+  g.fillStyle = "#fff"; g.fillRect(0, 0, w, h + 34);
+  if (p.fondo) g.drawImage(await cargarImagen(p.fondo), 0, 0, w, h);
+  g.drawImage(img, 0, 0, w, h);
+  if (dib.dibujo?.elementos.length) {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${DIB_ANCHO} ${dib.alto}" preserveAspectRatio="none">${contenidoDibujo(dib.dibujo)}</svg>`;
+    g.drawImage(await cargarImagen("data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg)), 0, 0, w, h);
+  }
+  // Abajo, qué carta es y de qué hora (para la placa o una presentación).
+  g.fillStyle = "#111827"; g.font = "600 16px system-ui, sans-serif"; g.textBaseline = "middle";
+  g.fillText(`${tituloCarta(p)} — ${$("#c-titulo").textContent}`, 10, h + 17);
+  lienzo.toBlob((b) => {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(b);
+    a.download = `${p.id}_${tsCarta().toISOString().slice(0, 13).replace(/[-T]/g, "")}_analisis.png`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  });
+}
+
+function elegirHerramienta(h) {
+  dib.herr = h;
+  document.querySelectorAll("#c-herr .herr").forEach((b) => b.classList.toggle("activa", b.dataset.herr === h));
+  $("#c-vista").classList.toggle("dibujando", h !== "mover");
+}
+function iniciarHerramientas() {
+  // En la copia pública los dibujos se ven, pero no se tocan.
+  if (MODO_WEB === "cartas") document.querySelectorAll("#c-herr .solo-dibujo").forEach((x) => (x.hidden = true));
+  document.querySelectorAll("#c-herr .herr").forEach((b) => b.addEventListener("click", () => elegirHerramienta(b.dataset.herr)));
+  $("#c-deshacer").addEventListener("click", deshacerDibujo);
+  $("#c-limpiar").addEventListener("click", () => {
+    if (dib.dibujo?.elementos.length && confirm("¿Borrar todo el dibujo de esta carta?")) cambiarDibujo((el) => el.splice(0));
+  });
+  $("#c-exportar").addEventListener("click", exportarPNG);
+  window.addEventListener("resize", () => { if ($("#c-dialogo").open) ubicarSVG(); });
+  document.addEventListener("keydown", (e) => {
+    if ($("#c-dialogo").open && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); deshacerDibujo(); }
+  });
+  $("#c-dialogo").addEventListener("close", () => { guardarDibujoYa(); elegirHerramienta("mover"); cargarCartas(); });
+}
+function deshacerDibujo() {
+  if (!dib.historia.length || !dib.dibujo) return;
+  dib.dibujo.elementos = JSON.parse(dib.historia.pop());
+  pintarDibujoVisor();
+  programarGuardado();
 }
 
 // ======================================================================
@@ -2134,9 +2430,8 @@ async function cargarEstado() {
 // Copia pública de las cartas (WEB_MODO=cartas): solo esa pestaña. El
 // servidor igual rechaza todo lo demás; esto es para que la página no lo pida.
 (async () => {
-  let modoWeb = "completo";
-  try { modoWeb = (await api("/api/modo")).modo; } catch (_) {}
-  if (modoWeb === "cartas") {
+  try { MODO_WEB = (await api("/api/modo")).modo; } catch (_) {}
+  if (MODO_WEB === "cartas") {
     document.querySelectorAll("nav button").forEach((b) => (b.hidden = b.dataset.tab !== "cartas"));
     $("header h1").textContent = "Cartas de diagnóstico";
     document.title = "Cartas de diagnóstico";

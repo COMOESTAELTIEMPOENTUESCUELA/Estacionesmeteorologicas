@@ -227,3 +227,33 @@ def test_modo_cartas_solo_expone_las_cartas(cliente, monkeypatch):
     assert all("pronosticador" not in (c["pronostico"] or {}) for c in dia["ciudades"])
     monkeypatch.setattr(web, "WEB_MODO", "completo")
     assert cliente.get("/api/estaciones").status_code == 200
+
+
+def test_dibujos_sobre_las_cartas(cliente, tmp_path, monkeypatch):
+    """Se guardan por carta y hora, vienen con /api/cartas, se validan, se
+    borran al quedar vacíos, y la copia pública no puede escribir."""
+    from meteo.web import app as web
+    cfg = tmp_path / "cartas.yaml"
+    cfg.write_text("productos:\n  - {id: b_rv, nombre: V, fuente: bentley, dominio: southamer, variable: rel_vort}\n")
+    monkeypatch.setattr(web, "CARTAS_CONFIG", str(cfg))
+    q = {"producto": "b_rv", "ts": "2026-10-12T12:00:00Z"}
+    d = {"ancho": 1000, "alto": 750, "elementos": [
+        {"tipo": "frente", "clase": "frio", "lado": 1, "puntos": [[100, 100], [300, 250]]},
+        {"tipo": "centro", "letra": "B", "x": 500, "y": 400}]}
+    try:
+        assert cliente.put("/api/cartas/dibujo", params=q, json=d).json() == {"ok": True, "elementos": 2}
+        assert cliente.get("/api/cartas/dibujo", params=q).json()["dibujo"]["elementos"][1]["letra"] == "B"
+        assert cliente.get("/api/cartas", params={"ts": "2026-10-12T12:00Z"}).json()["productos"][0]["dibujo"]["alto"] == 750
+        malo = {**d, "elementos": [{"tipo": "<script>"}]}
+        assert cliente.put("/api/cartas/dibujo", params=q, json=malo).status_code == 400
+        assert cliente.put("/api/cartas/dibujo", params={**q, "producto": "otra"}, json=d).status_code == 404
+        monkeypatch.setattr(web, "WEB_MODO", "cartas")
+        assert cliente.put("/api/cartas/dibujo", params=q, json=d).status_code == 405   # copia pública: solo mirar
+        assert cliente.get("/api/cartas/dibujo", params=q).json()["dibujo"] is not None  # pero se ve
+        monkeypatch.setattr(web, "WEB_MODO", "completo")
+        assert cliente.put("/api/cartas/dibujo", params=q, json={**d, "elementos": []}).json()["elementos"] == 0
+        assert cliente.get("/api/cartas/dibujo", params=q).json()["dibujo"] is None     # vacío = borrado
+    finally:
+        from meteo.web.app import pool_dibujos
+        with pool_dibujos.connection() as conn:
+            conn.execute("DELETE FROM carta_dibujo WHERE producto = 'b_rv'")
