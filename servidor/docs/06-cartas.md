@@ -105,8 +105,11 @@ docker compose exec ingesta python -m meteo.ingesta diagnostico-ogimet
   superpuesto en la placa (✏️). Deshacer con Ctrl+Z. "⬇ PNG" descarga la
   carta con el dibujo y el título. Es vectorial (SVG en un lienzo de 1000 de
   ancho): se ve nítido con cualquier zoom. Es la única escritura de la web,
-  y va por una conexión aparte; la copia pública muestra los dibujos pero
-  no deja modificarlos.
+  y va por una conexión aparte.
+  En la **copia pública** también se puede dibujar, pero cada uno lo suyo:
+  se guarda en SU navegador (localStorage), no en el servidor, que ahí no
+  acepta escrituras. Los dibujos oficiales se ven debajo, sin poder
+  tocarlos, y el PNG descargado lleva los dos.
 - **Animar** (visor grande): recorre la carta 1 a 7 días hacia atrás,
   precargando las imágenes; barra espaciadora para pausar, barra para ir a
   un cuadro. Al pausar, la página queda en esa hora.

@@ -1942,8 +1942,8 @@ async function cargarCartas() {
   const mostrar = placa ? deLaHora : r.productos;
   $("#c-grid").classList.toggle("placa", placa);
   $("#c-grid").innerHTML = mostrar.map((p) => `<figure class="carta">
-      <figcaption title="${esc(tituloCarta(p))}${p.dibujo ? " (con análisis dibujado)" : ""}">${p.dibujo ? "✏️ " : ""}<b>${esc(p.nivel || "")}</b> · ${esc(p.nombre)}</figcaption>
-      ${p.url ? `<div class="carta-img" data-grupo="${esc(grupoCarta(p))}">${imgCarta(p, ` loading="lazy" data-id="${esc(p.id)}"`, placa)}${p.dibujo ? svgDibujo(p.dibujo) : ""}<div class="cruz" hidden></div></div>`
+      <figcaption title="${esc(tituloCarta(p))}${dibujosDe(p, t).length ? " (con análisis dibujado)" : ""}">${dibujosDe(p, t).length ? "✏️ " : ""}<b>${esc(p.nivel || "")}</b> · ${esc(p.nombre)}</figcaption>
+      ${p.url ? `<div class="carta-img" data-grupo="${esc(grupoCarta(p))}">${imgCarta(p, ` loading="lazy" data-id="${esc(p.id)}"`, placa)}${dibujosDe(p, t).map(svgDibujo).join("")}<div class="cruz" hidden></div></div>`
         : !p.horas_utc.includes(t.getUTCHours())
           ? `<div class="falta chica">Se informa solo a las ${p.horas_utc.map((h) => String(h).padStart(2, "0")).join(", ")} UTC.
              <button class="boton c-ir-hora" data-hora="${p.horas_utc[0]}">Ver ${String(p.horas_utc[0]).padStart(2, "0")} UTC de este día</button></div>`
@@ -2279,6 +2279,23 @@ function svgElemento(e) {
   return "";
 }
 const contenidoDibujo = (d) => (d?.elementos || []).map(svgElemento).join("");
+
+// En la copia pública cada uno dibuja lo suyo y se le guarda EN SU NAVEGADOR
+// (no en el servidor: ahí nadie de afuera puede escribir). Los dibujos
+// "oficiales" del visualizador completo se ven debajo, sin poder tocarlos.
+const dibujoPropioLocal = () => MODO_WEB === "cartas";
+const claveLocal = (producto, ts) => `dibujo:${producto}:${new Date(ts).toISOString()}`;
+function leerDibujoLocal(producto, ts) {
+  try { return JSON.parse(localStorage.getItem(claveLocal(producto, ts)) || "null"); } catch (_) { return null; }
+}
+function escribirDibujoLocal(producto, ts, d) {
+  if (d?.elementos.length) localStorage.setItem(claveLocal(producto, ts), JSON.stringify(d));
+  else localStorage.removeItem(claveLocal(producto, ts));
+}
+// Lo que se ve de una carta: el oficial y, en la copia pública, el propio encima.
+function dibujosDe(p, ts) {
+  return [p.dibujo, dibujoPropioLocal() ? leerDibujoLocal(p.id, ts) : null].filter((d) => d?.elementos?.length);
+}
 // Para la placa: el dibujo encima de la miniatura.
 const svgDibujo = (d) => `<svg viewBox="0 0 ${d.ancho} ${d.alto}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">${contenidoDibujo(d)}</svg>`;
 
@@ -2323,19 +2340,25 @@ function aplicarSuperposicion() {
 function pintarDibujoVisor() {
   const svg = $("#c-svg");
   svg.setAttribute("viewBox", `0 0 ${DIB_ANCHO} ${dib.alto}`);
-  svg.innerHTML = contenidoDibujo(dib.dibujo) + (dib.actual ? svgElemento(dib.actual) : "");
+  svg.innerHTML = contenidoDibujo(dib.base) + contenidoDibujo(dib.dibujo) + (dib.actual ? svgElemento(dib.actual) : "");
 }
 function cargarDibujoVisor(p) {
   guardarDibujoYa();        // lo pendiente de la carta/hora anterior, antes de cambiar
   dib.producto = p.id;
   dib.ts = tsCarta().toISOString();
-  dib.dibujo = p.dibujo ? JSON.parse(JSON.stringify(p.dibujo)) : null;
+  if (dibujoPropioLocal()) {          // copia pública: el oficial abajo (fijo), el propio para editar
+    dib.base = p.dibujo || null;
+    dib.dibujo = leerDibujoLocal(p.id, dib.ts);
+  } else {
+    dib.base = null;
+    dib.dibujo = p.dibujo ? JSON.parse(JSON.stringify(p.dibujo)) : null;
+  }
   dib.historia = [];
   dib.actual = null;
-  $("#c-dib-estado").textContent = "";
+  $("#c-dib-estado").textContent = dibujoPropioLocal() ? "tus dibujos se guardan solo en este navegador" : "";
   const img = $("#c-vista img");
   const listo = () => {
-    dib.alto = dib.dibujo?.alto || Math.round(DIB_ANCHO * img.naturalHeight / img.naturalWidth) || 750;
+    dib.alto = dib.dibujo?.alto || dib.base?.alto || Math.round(DIB_ANCHO * img.naturalHeight / img.naturalWidth) || 750;
     ubicarSVG();
     pintarDibujoVisor();
   };
@@ -2415,6 +2438,15 @@ async function guardarDibujoYa() {
   if (!dib.sucio || !dib.producto) return;
   dib.sucio = false;
   const { producto, ts } = dib, dibujo = dib.dibujo || { ancho: DIB_ANCHO, alto: dib.alto, elementos: [] };
+  if (dibujoPropioLocal()) {
+    try {
+      escribirDibujoLocal(producto, ts, dibujo);
+      if (dib.producto === producto) $("#c-dib-estado").textContent = "guardado en este navegador ✓";
+    } catch (err) {
+      $("#c-dib-estado").textContent = "no se pudo guardar en este navegador";
+    }
+    return;
+  }
   $("#c-dib-estado").textContent = "guardando…";
   try {
     const r = await fetch(`/api/cartas/dibujo?producto=${encodeURIComponent(producto)}&ts=${encodeURIComponent(ts)}`,
@@ -2440,8 +2472,8 @@ async function exportarPNG() {
   g.fillStyle = "#fff"; g.fillRect(0, 0, w, h + 34);
   if (p.fondo) g.drawImage(await cargarImagen(p.fondo), 0, 0, w, h);
   g.drawImage(img, 0, 0, w, h);
-  if (dib.dibujo?.elementos.length) {
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${DIB_ANCHO} ${dib.alto}" preserveAspectRatio="none">${contenidoDibujo(dib.dibujo)}</svg>`;
+  if (dib.dibujo?.elementos.length || dib.base?.elementos.length) {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${DIB_ANCHO} ${dib.alto}" preserveAspectRatio="none">${contenidoDibujo(dib.base) + contenidoDibujo(dib.dibujo)}</svg>`;
     g.drawImage(await cargarImagen("data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg)), 0, 0, w, h);
   }
   // Abajo, qué carta es y de qué hora (para la placa o una presentación).
@@ -2462,8 +2494,8 @@ function elegirHerramienta(h) {
   $("#c-vista").classList.toggle("dibujando", h !== "mover");
 }
 function iniciarHerramientas() {
-  // En la copia pública los dibujos se ven, pero no se tocan.
-  if (MODO_WEB === "cartas") document.querySelectorAll("#c-herr .solo-dibujo").forEach((x) => (x.hidden = true));
+  // En la copia pública cada uno dibuja lo suyo (se guarda en su navegador).
+  if (dibujoPropioLocal()) $("#c-limpiar").title = "Borrar todo TU dibujo de esta carta (el del grupo no se toca)";
   document.querySelectorAll("#c-herr .herr").forEach((b) => b.addEventListener("click", () => elegirHerramienta(b.dataset.herr)));
   $("#c-deshacer").addEventListener("click", deshacerDibujo);
   $("#c-limpiar").addEventListener("click", () => {
@@ -2514,9 +2546,9 @@ function mostrarCuadro(i) {
   $("#c-dialogo-titulo").textContent = `${titulo.charAt(0).toUpperCase()}${titulo.slice(1)} · ${String(t.getUTCHours()).padStart(2, "0")} UTC — ${tituloCarta(c.p)}`;
   $("#c-anim-estado").textContent = `${i + 1}/${anim.cuadros.length}`;
   // El dibujo de esa hora, si tiene (solo para mirar mientras anima).
-  const svg = $("#c-svg"), d = c.p.dibujo;
-  svg.setAttribute("viewBox", `0 0 ${DIB_ANCHO} ${d?.alto || dib.alto}`);
-  svg.innerHTML = contenidoDibujo(d);
+  const svg = $("#c-svg"), ds = dibujosDe(c.p, c.ts);
+  svg.setAttribute("viewBox", `0 0 ${DIB_ANCHO} ${ds[0]?.alto || dib.alto}`);
+  svg.innerHTML = ds.map(contenidoDibujo).join("");
 }
 function animando() { return anim.reloj !== null; }
 async function alternarAnimacion() {
