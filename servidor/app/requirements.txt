@@ -18,6 +18,8 @@ h5py==3.12.1
 h5netcdf==1.4.1
 matplotlib==3.9.3
 cartopy==0.24.1
+# Miniaturas de las cartas (ya venía con matplotlib; se fija por usarla directo)
+pillow==11.0.0
 
 # Tests
 pytest==8.3.4

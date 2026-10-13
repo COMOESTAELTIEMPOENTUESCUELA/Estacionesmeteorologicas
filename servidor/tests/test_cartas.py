@@ -247,3 +247,36 @@ def test_ogimet_baja_el_fondo_una_vez(tmp_path, monkeypatch):
     assert fondos == ["https://www.ogimet.com/img/amersurs_bluem.png"]     # dos horas, un solo fondo
     assert archivo.fondo(tmp_path, "ogimet_amersurs").relative_to(tmp_path).as_posix() == "cartas/_fondos/ogimet_amersurs.png"
     assert "_fondos" not in str(archivo.disponibles(tmp_path, ["og_sg"]))
+
+
+def _png_pesado(ancho=1000, alto=750):
+    """Una carta "como las de Bentley": PNG con ruido, de más de 100 KB."""
+    import io
+    import random
+
+    from PIL import Image
+    random.seed(1)
+    im = Image.frombytes("RGB", (ancho, alto), bytes(random.getrandbits(8) for _ in range(ancho * alto * 3)))
+    buf = io.BytesIO()
+    im.save(buf, "PNG")
+    return buf.getvalue()
+
+
+def test_miniaturas(tmp_path):
+    """Las cartas pesadas tienen una miniatura liviana para la placa; las
+    livianas (Ogimet) no; y se completan las que falten."""
+    from PIL import Image
+    ts = datetime(2026, 10, 12, 12, tzinfo=UTC)
+    pesada = _png_pesado()
+    assert len(pesada) > archivo.MINIATURA_DESDE_BYTES
+    archivo.guardar(tmp_path, "bentley_rel_vort", ts, pesada)
+    m = archivo.ruta_miniatura(tmp_path, "bentley_rel_vort", ts)
+    assert m.relative_to(tmp_path).as_posix() == "cartas/_min/bentley_rel_vort/2026/10/bentley_rel_vort_2026101212.webp"
+    with Image.open(m) as im:
+        assert im.size == (640, 480)                       # mantiene la proporción
+    archivo.guardar(tmp_path, "ogimet_te", ts, PNG)          # liviana: sin miniatura
+    assert not archivo.ruta_miniatura(tmp_path, "ogimet_te", ts).exists()
+    assert archivo.disponibles(tmp_path, ["bentley_rel_vort"]) == {"2026-10-12T12:00:00Z": ["bentley_rel_vort"]}
+    m.unlink()                                               # archivada antes de que existieran
+    assert archivo.completar_miniaturas(tmp_path, ["bentley_rel_vort", "ogimet_te"]) == 1
+    assert archivo.completar_miniaturas(tmp_path, ["bentley_rel_vort", "ogimet_te"]) == 0

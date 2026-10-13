@@ -90,7 +90,9 @@ def _correr(cfg, raiz, sesion):
     ahora = datetime.now(timezone.utc) - OGIMET_MARGEN
     desde = ahora - timedelta(hours=OGIMET_HORAS_ATRAS)
     nuevas += _correr_ogimet(cfg, raiz, sesion, desde, ahora)
-    log.info("cartas: %d nuevas", nuevas)
+    # Las archivadas antes de que existieran las miniaturas (o si alguna falló).
+    mins = archivo.completar_miniaturas(raiz, [p["id"] for p in activos])
+    log.info("cartas: %d nuevas%s", nuevas, f", {mins} miniaturas completadas" if mins else "")
     return nuevas
 
 

@@ -165,6 +165,10 @@ def test_cartas_con_fondo(cliente, tmp_path, monkeypatch):
                    "  - {id: b_rv, nombre: V, fuente: bentley, dominio: southamer, variable: rel_vort}\n")
     monkeypatch.setattr(web, "CARTAS_CONFIG", str(cfg))
     monkeypatch.setattr(web, "ARCHIVO_DIR", str(tmp_path))
+    # La carpeta de /cartas-img se fija al arrancar la app: se apunta a la del test.
+    estaticos = next(r.app for r in web.app.routes if getattr(r, "path", "") == "/cartas-img")
+    monkeypatch.setattr(estaticos, "directory", str(tmp_path / "cartas"))
+    monkeypatch.setattr(estaticos, "all_directories", [str(tmp_path / "cartas")])
     png = b"\x89PNG\r\n\x1a\n" + b"0" * 50
     ts = datetime(2026, 10, 12, 12, tzinfo=timezone.utc)
     archivo.guardar(tmp_path, "og_te", ts, png)
@@ -173,6 +177,11 @@ def test_cartas_con_fondo(cliente, tmp_path, monkeypatch):
     assert p["og_te"]["url"] == "/cartas-img/og_te/2026/10/og_te_2026101212.png"
     assert p["og_te"]["fondo"] == "/cartas-img/_fondos/ogimet_amersurs.png"
     assert p["b_rv"]["fondo"] is None and p["b_rv"]["url"] is None
+    assert p["og_te"]["miniatura"] is None                         # liviana: va tal cual
+    img = cliente.get(p["og_te"]["url"])
+    assert img.status_code == 200 and "immutable" in img.headers["cache-control"]   # el navegador la guarda
+    assert "immutable" not in cliente.get(p["og_te"]["fondo"]).headers["cache-control"]
+    assert "cache-control" not in cliente.get("/api/estaciones").headers
 
 
 def test_verificacion_dia(cliente):

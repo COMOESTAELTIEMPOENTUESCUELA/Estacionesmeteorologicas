@@ -102,6 +102,19 @@ def permitido(ruta):
 
 
 @app.middleware("http")
+async def guardar_cartas_en_el_navegador(request, siguiente):
+    """Una carta archivada no cambia nunca: el navegador la puede guardar y no
+    volver a pedirla (sin esto, pregunta cada vez si cambió). El fondo de
+    Ogimet, un día, por si alguna vez se reemplaza."""
+    r = await siguiente(request)
+    ruta = request.url.path
+    if ruta.startswith("/cartas-img/") and r.status_code == 200:
+        r.headers["Cache-Control"] = ("public, max-age=86400" if ruta.startswith("/cartas-img/_fondos/")
+                                      else "public, max-age=31536000, immutable")
+    return r
+
+
+@app.middleware("http")
 async def solo_lo_permitido(request, siguiente):
     if not permitido(request.url.path):
         return Response("No disponible.", status_code=404)
@@ -632,6 +645,8 @@ def cartas(ts: datetime):
     for p in _cartas_productos():
         f = archivo.fondo(ARCHIVO_DIR, f"ogimet_{p['zona']}") if p["fuente"] == "ogimet" else None
         p["fondo"] = "/cartas-img/" + f.relative_to(raiz).as_posix() if f else None
+        m = archivo.ruta_miniatura(ARCHIVO_DIR, p["id"], ts)
+        p["miniatura"] = "/cartas-img/" + m.relative_to(raiz).as_posix() if m.exists() else None
         url = None
         for ext in ("png", "gif", "jpg"):
             f = archivo.ruta(ARCHIVO_DIR, p["id"], ts, ext)

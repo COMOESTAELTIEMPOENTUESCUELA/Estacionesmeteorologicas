@@ -140,6 +140,20 @@ docker compose exec ingesta python -m meteo.ingesta una cartas
 ls -R /srv/meteo/archivo/cartas | head
 ```
 
+## Velocidad: miniaturas y caché del navegador
+
+Las cartas salen por la SUBIDA de internet de la casa, que es lenta. Una
+hora completa pesa ~1 MB, casi todo de las 4 de Bentley (~200 KB c/u).
+
+- **Miniaturas**: al archivar una carta de más de 100 KB se guarda además
+  una versión de 640 px en WebP (`cartas/_min/...`), 5 a 10 veces más
+  liviana. La vista "placa" usa la miniatura; la completa se baja recién al
+  abrirla en grande. La tarea de cartas completa sola las que falten (ej.
+  las archivadas antes de que existiera esto).
+- **Caché**: una carta archivada no cambia nunca, así que el servidor le
+  dice al navegador que la guarde (`Cache-Control: immutable`): volver a
+  una hora ya vista es instantáneo.
+
 ## Espacio
 
 Unas 9 cartas por día y hora sinóptica × ~200 KB ≈ 6 MB por día, unos 2 GB
