@@ -257,3 +257,26 @@ def test_dibujos_sobre_las_cartas(cliente, tmp_path, monkeypatch):
         from meteo.web.app import pool_dibujos
         with pool_dibujos.connection() as conn:
             conn.execute("DELETE FROM carta_dibujo WHERE producto = 'b_rv'")
+
+
+def test_observaciones_de_la_hora_de_la_carta(cliente):
+    """SMN: el SYNOP de esa hora; EMA: el dato más cercano (±30 min) y la lluvia de las 6 h anteriores."""
+    from datetime import datetime, timedelta, timezone
+
+    from meteo.ingesta import db
+    from meteo.ingesta.base import Obs
+    t = datetime(2026, 9, 3, 12, tzinfo=timezone.utc)
+    conn = db.conectar(DSN)
+    db.guardar_observaciones(conn, [
+        Obs(t, "omm_87593", "temp", 12.0), Obs(t, "omm_87593", "td", 8.0), Obs(t, "omm_87593", "tmax", 19.5),
+        Obs(t - timedelta(hours=1), "omm_87593", "temp", 99.0),                      # otra hora: no va
+        Obs(t + timedelta(minutes=10), "bavio", "temp", 13.0), Obs(t - timedelta(minutes=25), "bavio", "temp", 50.0),
+        Obs(t - timedelta(hours=2), "bavio", "precip", 1.2), Obs(t - timedelta(hours=5), "bavio", "precip", 0.8),
+        Obs(t - timedelta(hours=7), "bavio", "precip", 9.0)], "test")                 # antes de las 6 h: no va
+    conn.close()
+    r = cliente.get("/api/cartas/observaciones", params={"ts": "2026-09-03T12:00:00Z"}).json()
+    [aero] = [f for f in r["smn"] if f["id"] == "omm_87593"]
+    assert (aero["temp"], aero["tmax"], aero["hum"]) == (12.0, 19.5, 77)
+    [bavio] = [f for f in r["emas"] if f["id"] == "bavio"]
+    assert bavio["temp"] == 13.0 and bavio["ts"] == "2026-09-03T12:10:00Z"           # el más cercano
+    assert abs(bavio["precip_6h"] - 2.0) < 1e-9

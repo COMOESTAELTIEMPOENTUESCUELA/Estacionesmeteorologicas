@@ -95,6 +95,30 @@ docker compose exec ingesta python -m meteo.ingesta diagnostico-ogimet
   cambian la hora *sin perder el zoom* (sirve para seguir un sistema sobre
   la misma zona) y **↑ ↓** pasan a la carta siguiente.
 
+## Herramientas de análisis
+
+- **Dibujar** (visor grande, barra "Dibujar"): frentes frío, cálido,
+  ocluido y estacionario con sus símbolos, centros A y B, texto, flechas y
+  lápiz. Los símbolos de un frente van a la izquierda del sentido en que se
+  dibujó; ⇄ los da vuelta. Se guarda solo en el servidor (tabla
+  `carta_dibujo`, una por carta y hora; la web la crea al arrancar) y se ve
+  superpuesto en la placa (✏️). Deshacer con Ctrl+Z. "⬇ PNG" descarga la
+  carta con el dibujo y el título. Es vectorial (SVG en un lienzo de 1000 de
+  ancho): se ve nítido con cualquier zoom. Es la única escritura de la web,
+  y va por una conexión aparte; la copia pública muestra los dibujos pero
+  no deja modificarlos.
+- **Animar** (visor grande): recorre la carta 1 a 7 días hacia atrás,
+  precargando las imágenes; barra espaciadora para pausar, barra para ir a
+  un cuadro. Al pausar, la página queda en esa hora.
+- **Cursor sincronizado** (placa): una cruz marca el mismo punto en las
+  cartas de la misma proyección (las de Bentley entre sí; las de Ogimet
+  entre sí).
+- **Superponer** (visor grande): otra carta del mismo grupo encima, con
+  transparencia.
+- **Observaciones de la hora**: debajo, el SYNOP de esa hora de cada
+  estación del SMN y, de cada EMA, el dato más cercano (±30 min) y la lluvia
+  de las 6 horas anteriores.
+
 ## Pronóstico del grupo para el día de la carta
 
 Debajo de las cartas está lo que el grupo pronosticó para ese día en las 6
