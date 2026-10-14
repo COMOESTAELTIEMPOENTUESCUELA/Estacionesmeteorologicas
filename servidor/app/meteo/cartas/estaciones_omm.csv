@@ -1,0 +1,827 @@
+# Nombres de las estaciones sinópticas de Sudamérica y la Antártida (bloques OMM 80-89),
+# para mostrar el nombre al tocar una estación en los mapas de Ogimet.
+# Fuente: Meteostat (github.com/meteostat/weather-stations, licencia CC BY 4.0);
+# las que no están ahí, de la tabla sfstns.tbl de GEMPAK/MetPy (nombres cortados a 16 letras).
+omm;nombre;pais
+80001;San Andres Isla / Sesquicentenario;CO
+80002;Providencia Isla / El Embrujo;CO
+80009;Santa Marta / Simon Bolivar;CO
+80022;Cartagena / Rafael Nunez;CO
+80028;Barranquilla / Ernestocortissoz;CO
+80035;Riohacha / Almirante Padilla;CO
+80036;Valledupar / Alfonso Lopez;CO
+80044;Corozal / Las Brujas;CO
+80062;Turbo/Gonzalo Me;CB
+80063;Monteria / Los Garzones;CO
+80074;El Banco/Las Flo;CB
+80077;Ocana;CO
+80084;Apartado / Los Cedros;CO
+80089;Otu / El Rhin;CO
+80091;Barrancabermeja / Yariguies;CO
+80094;Bucaramanga / Palonegro;CO
+80097;Cucuta / Camilo Daza;CO
+80099;Arauca / Santiago Perez;CO
+80110;Medellin / Olaya Herrera;CO
+80112;Rionegro / J. M. Cordova;CO
+80132;Tame / Tame;CO
+80139;Puerto Carreno / A. Guauquea;CO
+80143;Condoto;CO
+80144;Quibdo / El Carano;CO
+80149;Manizales / La Nubia;CO
+80175;Trinidad;CB
+80210;Pereira / Matecana;CO
+80211;Armenia / El Eden;CO
+80214;Ibague / Perales;CO
+80219;Girardot / Santiago Villa;CO
+80222;Bogota / Eldorado;CO
+80234;Villavicencio / Vanguardia;CO
+80241;Las Gaviotas;CO
+80252;Buenaventura;CO
+80259;Cali / Alfonso Bonillaaragon;CO
+80300;Guapi;CO
+80308;Popayan / Guillermo;CO
+80315;Neiva / Benito Salas;CO
+80318;San Vicente Del Caguan;CO
+80322;San Jose Del Guaviare;CO
+80336;Tumaco / La Florida;CO
+80342;Pasto / Antonio Narin;CO
+80346;Pitalito;CB
+80354;Florencia / Capitolio;CO
+80361;Mitu;CO
+80370;Ipiales / San Luis;CO
+80372;Puerto Asis;CO
+80385;Puerto Leguizam;CO
+80398;Leticia / Vasquez Cobo;CO
+80403;Coro;VE
+80405;La Orchila;VE
+80407;Maracaibo-La Chinita;VE
+80410;Barquisimeto;VE
+80412;Pto. Cabello;VE
+80413;Maracay-B. A. Sucre;VE
+80415;Caracas / Maiquetia Aerop. Intl. Simon Bolivar;VE
+80416;Caracas / La Carlota;VE
+80419;Barcelona;VE
+80420;Cumana;VE
+80421;Porlamar Aero-Puerto International Del Caribe;VE
+80422;Carupano;VE
+80423;Guiria;VE
+80425;Mene Grande;VE
+80426;Valera;VE
+80427;Acarigua;VE
+80428;Guanare;VE
+80431;San Juan De Los Morros;VE
+80432;Carrizal;VE
+80434;Valle De La Pascua;VE
+80435;Maturin;VE
+80437;El Vigia;VE
+80438;Merida;VE
+80440;Barinas;VE
+80442;Calabozo;VE
+80444;Ciudad Bolivar;VE
+80447;San Antonio Del Tachira;VE
+80448;Guasdualito;VE
+80450;San Fernando De Apure;VE
+80453;Tumeremo;VE
+80457;Puerto Ayacucho;VE
+80462;Santa Elena De Uairen;VE
+80472;Valencia;VE
+80475;Sto. Domingo;VE
+80476;La Canada;VE
+80478;Temblador;VE
+80479;Palmichal;VE
+81001;Georgetown;GY
+81002;Timehri Aero;GY
+81003;Georgetown/Ogle;GY
+81005;Kamarang;GY
+81006;Lethem;GY
+81010;Ebini;GY
+81058;New Amsterdam;GY
+81080;Kaieteur Falls;GY
+81100;Mabaruma;GY
+81200;Zorg En Hoop;SR
+81202;Nickerie;SR
+81209;Stoelmanseiland;SR
+81225;Zanderij;SR
+81250;Tafelberg/Rudi K;SR
+81251;Sipaliwini;SR
+81253;Coeroeni;SR
+81401;Saint-Laurent-Du-Maroni;GF
+81405;Cayenne / Rochambeau;GF
+81408;Saint Georges De L'Oyapock;GF
+81415;Maripasoula;GF
+81717;Preguicas / Mandacaru;BR
+81729;Manacapuru;BR
+81909;Campos Sales;BR
+82017;Oiapoque;BR
+82022;Boa Vista, Boa Vista Intl;BR
+82026;Tirios;BR
+82030;Amapa;BR
+82042;Caracarai;BR
+82068;Iauarete;BR
+82091;Monte Dourado;BR
+82098;Macapa;BR
+82099;Macapa-Aeroporto;BR
+82106;Sao Gabriel Da Cachoeira;BR
+82107;Sao Gabriel Cach;BR
+82111;Eduardo Gomes International;BR
+82113;Barcelos;BR
+82141;Soure;BR
+82143;Salinopolis;BR
+82145;Tracuateua Braganca;BR
+82181;Monte Alegre;BR
+82184;Porto De Moz;BR
+82193;Belem Aeroporto;BR
+82198;Turiacu;BR
+82212;Fonte Boa;BR
+82240;Parintins;BR
+82244;Santarem-Aeroporto;BR
+82246;Belterra;BR
+82280;Sao Luiz;BR
+82281;Sao Luiz Aeroporto;BR
+82287;Parnaiba;BR
+82288;Parnaiba Aeroporto;BR
+82317;Tefe;BR
+82332;Manaus Aeroporto;BR
+82335;Itacoatiara;BR
+82336;Itacoatiara;BR
+82353;Altamira;BR
+82361;Tucurui;BR
+82392;Sobral;BR
+82397;Fortaleza;BR
+82398;Fortaleza / pinto Martins;BR
+82400;Fernando De Noronha;BR
+82410;Benjamin Constant;BR
+82411;Tabatinga;BR
+82418;Carauari;BR
+82425;Coari;BR
+82444;Itaituba;BR
+82445;Itaituba;BR
+82460;Bacabal;BR
+82476;Caxias;BR
+82532;Manicore;BR
+82533;Manicore;BR
+82562;Maraba;BR
+82564;Imperatriz;BR
+82571;Barra Do Corda;BR
+82579;Teresina Aeroporto;BR
+82583;Crateus;BR
+82586;Quixeramobim;BR
+82591;Mocoro / 17 Rosado;BR
+82594;Macau;BR
+82599;Natal Aeroporto;BR
+82610;Eirunepe;BR
+82640;Jacareacanga;BR
+82678;Floriano;BR
+82683;Taua;BR
+82704;Cruzeiro Do Sul;BR
+82705;Cruzeiro Do Sul;BR
+82723;Labrea;BR
+82764;Maranhao / Carolina Aero;BR
+82765;Carolina;BR
+82780;Picos;BR
+82784;Barbalha;BR
+82789;Triunfo;BR
+82791;Patos;BR
+82795;Campina Grande;BR
+82798;Joao Pessoa;BR
+82807;Tarauaca;BR
+82808;Tarauaca;BR
+82816;Boca Do Acre / Boca do Acre;BR
+82824;Porto Velho Aeroporto;BR
+82861;Conceicao Do Araguaia;BR
+82863;Pedro Afonso;BR
+82879;S. Joao Do Piaui;BR
+82893;Garanhuns;BR
+82899;Recife Aeroporto;BR
+82900;Recife;BR
+82915;Rio Branco;BR
+82917;Rio Branco;BR
+82930;Cachimbo-In-Par;BR
+82965;Alta Floresta Aeroporto;BR
+82979;Remanso;BR
+82983;Petrolina;BR
+82984;Petrolina;BR
+82986;Paulo Afonso;BR
+82993;Maceio Aeroporto;BR
+83016;Guajara Mirim;BR
+83058;Sao Roque/S. Pau;BR
+83063;Porto Nacional Aeroporto;BR
+83064;Porto Nacional;BR
+83065;Palmas / Tomás;BR
+83088;Senar Do Bomfmi;BR
+83095;Aracaju Aeroporto;BR
+83096;Aracaju;BR
+83111;Rio / Jacarepagua;BR
+83117;Ilha Rasa / Ipanema;BR
+83156;Cristalandia / Santa Isabel do Morro;BR
+83179;Barra;BR
+83186;Jacobina;BR
+83192;Cipo;BR
+83208;Vilhena Aeroporto;BR
+83228;Peixe;BR
+83229;Salvador;BR
+83235;Taguatinga;BR
+83236;Barreiras;BR
+83242;Lencois;BR
+83248;Salvador Aeroporto;BR
+83264;Vera Gleba Celeste;BR
+83270;Canarana;BR
+83288;Bom Jesus Da Lapa;BR
+83309;Diamantino;BR
+83319;Xavantina;BR
+83332;Posse;BR
+83339;Caetite;BR
+83344;Vitoria Da Conquista;BR
+83349;Ilheus Aeroporto;BR
+83358;Poxoreo Poxoreu;BR
+83359;Barra Do Garcas;BR
+83362;Cuiaba Aeroporto;BR
+83368;Aragarcas;BR
+83374;Goias;BR
+83375;Gama;BR
+83378;Brasilia Aeroporto;BR
+83384;Arinos;BR
+83386;Januaria;BR
+83388;Monte Azul;BR
+83393;Pedra Azul;BR
+83398;Canavieiras;BR
+83405;Caceres;BR
+83419;Anapolis Braz-Afb;BR
+83423;Goiania;BR
+83424;Goiania Aeroporto;BR
+83437;Montes Claros;BR
+83442;Aracuai;BR
+83460;Porto Seguro (aero);BR
+83470;Rio Verde;BR
+83479;Paracatu;BR
+83483;Pirapora;BR
+83497;Caravelas;BR
+83498;Caravelas;BR
+83525;Uberlandia (aero) / Uberlândia;BR
+83526;Catalao;BR
+83531;Patos De Minas;BR
+83538;Diamantina;BR
+83543;Governador Valadares;BR
+83550;Sao Mateus;BR
+83552;Corumba;BR
+83554;Corumba;BR
+83565;Paranaiba;BR
+83566;Confis Intnl Aero;BR
+83571;Belo Horizonte;BR
+83574;Frutal;BR
+83576;Uberaba;BR
+83579;Araxa;BR
+83582;Bambui;BR
+83583;Belo Horizonte Aeroporto;BR
+83587;Belo Horizonte;BR
+83588;Lagoa Santa Aero;BR
+83592;Caratinga;BR
+83595;Aimores;BR
+83599;Moela;BR
+83612;Campo Grande Aeroporto;BR
+83617;Urubupunga;BR
+83618;Tres Lagoas;BR
+83623;Votuporanga;BR
+83630;Franca;BR
+83635;Divinopolis / Divinópolis;BR
+83649;Vitoria Aeroporto;BR
+83650;Trindade Ilha;BR
+83668;Ribeirao Preto;BR
+83671;Pirassununga;BR
+83674;Lins;BR
+83676;Catanduva;BR
+83681;Pocos De Caldas;BR
+83687;Lavras;BR
+83689;Barbacena;BR
+83692;Juiz De Fora;BR
+83695;Itaperuna;BR
+83698;Campos;BR
+83702;Ponta Pora;BR
+83703;Ponta Pora Intl;BR
+83704;Ivinhema;BR
+83708;Guaratingueta;BR
+83716;Presidente Prudente;BR
+83718;Cordeiro;BR
+83721;Campinas Aeroporto;BR
+83722;Bauru;BR
+83726;Sao Carlos;BR
+83738;Resende;BR
+83741;Rio De Janeiro-Santa Cruz Ab;BR
+83743;Rio De Janeiro;BR
+83746;Galeao;BR
+83748;Afonsos Aeroporto;BR
+83755;Rio De Janeiro Aeroporto;BR
+83759;S. P. Aldeia Aero;BR
+83766;Londrina;BR
+83767;Maringa;BR
+83768;Londrina Aeroporto;BR
+83779;Marte Civ / Mil;BR
+83780;Sao Paulo/Congonhas Aeroporto;BR
+83784;Taubate;BR
+83786;Ubatuba;BR
+83811;Ivai;BR
+83818;Santos Aeroporto;BR
+83827;Foz Do Iguacu Aeroporto;BR
+83829;Sao Jose Dos Cam;BR
+83836;Irati;BR
+83840;Curitiba Aeroporto;BR
+83842;Curitiba;BR
+83844;Paranagua;BR
+83881;Irai;BR
+83883;Chapeco;BR
+83887;Campos Novos;BR
+83891;Lages;BR
+83899;Florianopolis Aeroporto;BR
+83905;Joinville / Espinheiros;BR
+83907;Sao Luiz Gonzaga;BR
+83914;Passo Fundo;BR
+83919;Bom Jesus;BR
+83925;Santa Marta;BR
+83926;Navegantes (aero);BR
+83927;Uruguaiana;BR
+83928;Uruguaiana Aeroporto;BR
+83936;Santa Maria;BR
+83937;Santa Maria Aero-Porto;BR
+83942;Caxias Do Sul;BR
+83948;Torres;BR
+83952;Canoas;BR
+83953;Santana Do Livra;BR
+83964;Encruzilhada Do Sul;BR
+83967;Porto Alegre;BR
+83970;Mostardas;BR
+83971;Porto Alegre Aero-Porto;BR
+83980;Bage;BR
+83981;Bage Aeroporto;BR
+83985;Pelotas;BR
+83995;Rio Grande;BR
+83997;St. Vitoria Do Palmar;BR
+84001;Seymour Galapagos;EC
+84008;San Cristobal Galapagos;EC
+84010;San Cristobal Aeropuerto (galapagos) / San Cristóbal;EC
+84015;Chone / San Pablo / Peludo;EC
+84018;Esmeraldas-Tachina;EC
+84027;Tulcan / El Rosal;EC
+84036;San Gabriel;EC
+84043;Ibarra / Atahualpa;EC
+84045;Inguincho;EC
+84050;La Concordia;EC
+84056;Tomalon / Hacienda Tomalón Grande;EC
+84063;Lago Agrio;EC
+84069;Sto. Dgo. De Los Colorados;EC
+84071;Quito / Mariscal Sucre;EC
+84072;Inaquito / Hacienda Merizalde;EC
+84075;Limoncocha;EC
+84076;La Tola / Hacienda La Tola;EC
+84088;Izobamba-Santa Catalina;EC
+84099;Coca;EC
+84101;Bahia De Caraquez;EC
+84102;Chone;EC
+84105;Puerto Ila;EC
+84117;Manta;EC
+84123;Latacunga;EC
+84125;Taura (Eq-Afb);EC
+84131;Tiputini;EC
+84132;Nuevo Rocafuerte;EC
+84135;Porto Viejo-Granja;EC
+84137;Portoviejo-Aeropuerto;EC
+84140;Pichilingue;EC
+84142;Corazon;EC
+84143;Rumipamba / Hacienda Rumipamba de la Universidad;EC
+84147;Ambato / Chachoan;EC
+84149;Tena;EC
+84151;Unknown Station;EC
+84160;Ambato-Granja;EC
+84163;Pastaza / Rio Amazonas;EC
+84173;Unknown Station;EC
+84176;Riobamba / Chimborazo;EC
+84179;El Puyo;EC
+84200;Salinas / General Ulpiano Paez;EC
+84202;Milagro;EC
+84203;Guayaquil / Simon Bolivar;EC
+84204;Guayaquil-Inamhi;EC
+84217;Macas Aeropuerto / General Proaño;EC
+84226;Canar;EC
+84239;Cuenca / Mariscal Lamar;EC
+84248;Machala / General M. Serrano;EC
+84252;Santa Rosa;EC
+84265;Catamayo / Camilo Ponce Enriquez;EC
+84270;Loja / La Argelia;EC
+84279;Macara / J. M. Velasco I;EC
+84370;Tumbes;PE
+84377;Iquitos;PE
+84378;Morona;PE
+84390;Talara;PE
+84401;Piura;PE
+84416;Piura Grup;PE
+84425;Yurimaguas;PE
+84435;Moyobamba;PE
+84440;Rioja;PE
+84444;Chachapoyas;PE
+84452;Chiclayo;PE
+84455;Tarapoto;PE
+84472;Cajamarca;PE
+84474;Juanjui;PE
+84501;Trujillo;PE
+84515;Pucallpa;PE
+84531;Chimbote;PE
+84534;Tingo Maria;PE
+84542;Anta Huaraz;PE
+84564;Huanuco;PE
+84593;Atalaya;PE
+84628;Lima-Callao / Aerop. Internacional Jorgechavez;PE
+84629;Lima/Las Palmas;PE
+84658;Puerto Maldonado;PE
+84673;Ayacucho;PE
+84677;Quincemil;PE
+84686;Cuzco;PE
+84688;Andahuayla;PE
+84691;Pisco;PE
+84720;Nazca / Nasca / Majorito;PE
+84721;San Juan;PE
+84735;Juliaca;PE
+84752;Arequipa;PE
+84761;Mollendo / La Isla;PE
+84773;Ilo;PE
+84782;Tacna;PE
+85032;Unknown Station;MG
+85033;Guayaramerin;BO
+85041;Cobija;BO
+85043;Riberalta;BO
+85104;San Joaquin;BO
+85109;San Ramon;BO
+85114;Magdalena;BO
+85116;Baures;BO
+85123;Santa Ana;BO
+85139;Santa Rosa;BO
+85140;Reyes;BO
+85141;Rurrenabaque;BO
+85151;Apolo;BO
+85152;San Borja;BO
+85153;San Ignacio De Moxos;BO
+85154;Trinidad;BO
+85175;Ascencion De Guarayos;BO
+85195;San Javier;BO
+85196;Concepcion;BO
+85201;La Paz / Alto;BO
+85207;San Ignacio De Velasco;BO
+85210;San Matias;BO
+85223;Cochabamba;BO
+85230;Charana;BO
+85242;Oruro;BO
+85244;Viru-Viru;BO
+85245;Santa Cruz / El Trompillo;BO
+85247;San Jose De Chiquitos;BO
+85264;Vallegrande;BO
+85268;Robore;BO
+85283;Sucre;BO
+85284;Unknown Station;BO
+85289;Puerto Suarez;BO
+85293;Potosi;BO
+85312;Monteagudo;BO
+85315;Camiri;BO
+85332;Unknown Station;MZ
+85345;Villamontes;BO
+85364;Tarija;BO
+85365;Yacuiba;BO
+85394;Bermejo;BO
+85406;Arica;CL
+85418;Iquique / Diego Arac;CL
+85432;Calama;CL
+85442;Antofagasta;CL
+85452;Isla San Felix;CL
+85460;Chanaral;CL
+85467;Caldera Des Atac;CL
+85469;Isla De Pascua;CL
+85470;Copiapo;CL
+85486;Vallenar;CL
+85488;La Serena;CL
+85500;Coquimbo;CL
+85543;Quintero Santiago;CL
+85558;Punta Angeles;CL
+85562;El Belloto (Mil);CL
+85564;San Antonio;CL
+85574;Pudahuel;CL
+85577;Santiago Q. Normal;CL
+85579;Santiago / Ochagavía;CL
+85580;Santiago / La Reina;CL
+85581;El Bosque (Mil);CL
+85585;Isla Juan Fernandez;CL
+85586;Santo Domingo;CL
+85608;Rancagua / Yungay;CL
+85629;Curico;CL
+85648;Punta Carraza;CL
+85672;Chillan;CL
+85679;Isla Quiriquna;CL
+85680;Talcahuano;CL
+85682;Concepcion;CL
+85703;Los Angeles / El Arrayán;CL
+85732;Isla Mocha;CL
+85743;Temuco;CL
+85744;Temuco;CL
+85766;Valdivia;CL
+85782;Osorno;CL
+85799;Puerto Montt;CL
+85812;Ancud Faro Punta;CL
+85818;Ancud / Pudeto;CL
+85825;Castro/Gamboa;CL
+85830;Chalten / Chaiten / Chaitén;CL
+85831;Quellon;CL
+85832;Futaleufu / Futaleufú;CL
+85834;Isla Huafo;CL
+85836;Alto Palena;CL
+85862;Puerto Aysen;CL
+85864;Coyhaique;CL
+85874;Balmaceda;CL
+85886;Chile Chico;CL
+85889;Cabo Raper;CL
+85892;Cochrane;CL
+85896;Isla San Pedro;CL
+85907;Puerto Eden;CL
+85930;Isla Evangelista;CL
+85931;Punta Dungeness;CL
+85934;Punta Arenas;CL
+85935;Punta Arenas;CL
+85940;Sal Isl/Amilcar;CV
+85967;Puerto Williams;CL
+85968;Puerto Williams;CL
+85970;Isla Herschel;CL
+85972;Isla Diego Ramirez;CL
+86011;Base 5 " Gral A. Jara ";PY
+86017;Nueva Asuncion;PY
+86033;Bahia Negra;PY
+86065;Prats-Gil;PY
+86068;Mariscal Estigarribia;PY
+86086;Puerto Casado;PY
+86097;Pedro Juan Caballero;PY
+86128;Pozo Colorado / Delegación de Gobierno;PY
+86133;Loreto;PY
+86134;Concepcion;PY
+86170;Gral. Bruguez  / Colonia General Bruguez;PY
+86185;San Pedro / Antequera;PY
+86192;San Estanislao;PY
+86210;Saltos Del Guaira;PY
+86218;Asuncion / Aeropuerto;PY
+86221;Paraguari / Establecimiento La Norma;PY
+86233;Villarrica;PY
+86234;Cnel. Oviedo;PY
+86246;Aeropuerto Int. Guarani / Colonia Félix de Azara;PY
+86251;Quyquyho;PY
+86255;Pilar;PY
+86260;San Juan Bautista Misiones;PY
+86268;Caazapa;PY
+86285;Capitan Meza;PY
+86297;Encarnacion;PY
+86298;Unknown Station;PY
+86315;Bella Union;UY
+86330;Artigas;UY
+86350;Rivera;UY
+86360;Salto;UY
+86370;Tacuarembo;UY
+86430;Paysandu;UY
+86440;Melo;UY
+86450;Young;UY
+86460;Paso De Los Toros;UY
+86490;Mercedes;UY
+86500;Treinta Y Tres;UY
+86530;Durazno;UY
+86532;Unknown Station;UY
+86545;Florida;UY
+86550;San Jose;UY
+86560;Colonia;UY
+86565;Rocha;UY
+86575;Melilla;UY
+86580;Carrasco;UY
+86585;Prado;UY
+86586;Laguna Del Sauce / Pan de Azúcar;UY
+86595;Maldonado;UY
+86694;Guanambi;BR
+86698;Ipiau / Ipiaú;BR
+86955;Joacaba / Santa Clara;BR
+86980;Canela;BR
+87007;La Quiaca Observatorio;AR
+87016;Oran Aero;AR
+87022;Tartagal Aero;AR
+87046;Jujuy Aero;AR
+87047;Salta Aero;AR
+87065;Rivadavia;AR
+87071;Monte Quemado;AR
+87078;Las Lomitas;AR
+87097;Iguazu Aero;AR
+87121;Tucuman Aero;AR
+87129;Santiago Del Estero Aero;AR
+87148;Presidencia Roque Saenz Pena Aero / Presidencia Roque Sáenz Peña;AR
+87149;Presidencia Roque Saenz Pena Aero;AR
+87155;Resistencia Aero;AR
+87162;Formosa Aero;AR
+87166;Corrientes Aero;AR
+87178;Posadas Aero;AR
+87211;Tinogasta;AR
+87214;Chilecito;AR
+87217;La Rioja Aero;AR
+87222;Catamarca Aero;AR
+87244;Villa De Maria Del Rio Seco;AR
+87257;Ceres Aero;AR
+87270;Reconquista Aero;AR
+87286;Curuzu Cuatia Aero;AR
+87289;Paso De Los Libres Aero;AR
+87305;Jachal;AR
+87311;San Juan Aero;AR
+87320;Chamical Aero;AR
+87322;Chepes;AR
+87328;Villa Dolores Aero;AR
+87344;Cordoba Aero;AR
+87349;Pilar Observatorio;AR
+87371;Sauce Viejo Aero;AR
+87374;Parana Aero;AR
+87385;Villaguay Aero;AR
+87393;Monte Caseros Aero;AR
+87395;Concordia Aero;AR
+87405;Uspallata;AR
+87412;San Carlos;AR
+87416;San Martin;AR
+87418;Mendoza Aero;AR
+87436;San Luis Aero;AR
+87444;Santa Rosa De Co;AR
+87448;Villa Reynolds Aero;AR
+87453;Rio Cuarto Aero;AR
+87467;Marcos Juarez Aero;AR
+87480;Rosario Aero;AR
+87497;Gualeguaychu Aero;AR
+87506;Malargue Aero;AR
+87509;San Rafael Aero;AR
+87532;General Pico Aero;AR
+87534;Laboulaye;AR
+87544;Pehuajo Aero;AR
+87548;Junin Aero;AR
+87553;San Fernando Aero / Virreyes;AR
+87563;Las Flores Aero;AR
+87568;Don Torcuato Aero;AR
+87571;El Palomar Aero;AR
+87572;Mariano Moreno / San Miguel;AR
+87574;Moron / Rafael Castillo;AR
+87576;Ezeiza Aero;AR
+87582;Aeroparque Bs. As. Aero;AR
+87585;Buenos Aires Observatorio;AR
+87593;La Plata Aero;AR
+87596;Punta Indio B. A;AR
+87623;Santa Rosa Aero;AR
+87637;Coronel Suarez Aero;AR
+87639;San Carlos de Bolívar;AR
+87640;Bolivar Aero;AR
+87641;Azul Aero;AR
+87642;Azul Aero;AR
+87645;Tandil Aero;AR
+87648;Dolores Aero;AR
+87658;Santa Teresita;AR
+87663;Villa Gesell;AR
+87679;Pigue Aero;AR
+87688;Tres Arroyos;AR
+87692;Mar Del Plata Aero;AR
+87715;Neuquen Aero;AR
+87736;Rio Colorado;AR
+87750;Bahia Blanca Aero;AR
+87758;Necochea Aero;AR
+87761;Chapelco;AR
+87765;Bariloche Aero;AR
+87774;Maquinchao;AR
+87784;San Antonio Oeste Aero;AR
+87791;Viedma Aero;AR
+87800;El Bolson Aero;AR
+87803;Esquel Aero;AR
+87814;Paso De Indios;AR
+87823;P. Madryn Aero;AR
+87828;Trelew Aero;AR
+87852;Perito Moreno Aero;AR
+87860;Comodoro Rivadavia Aero;AR
+87880;Gobernador Gregores Aero;AR
+87896;Puerto Deseado Aero;AR
+87903;Lago Argentino Aero;AR
+87904;El Calafate Aero / Charles Fuhr;AR
+87909;San Julian Aero;AR
+87912;Santa Cruz Aero;AR
+87925;Rio Gallegos Aero;AR
+87934;Rio Grande B. A;AR
+87938;Ushuaia Aero;AR
+88870;Mount Byron;FK
+88878;Pebble Island;FK
+88881;Mount Kent;FK
+88883;Weddell Island;FK
+88889;Mount Pleasant Aero;FK
+88891;Stanley Aero;FK
+88894;Mount Alice;FK
+88897;Sea Lion Island;FK
+88900;Bird Island;FK
+88903;Grytviken, South Georgia;GE
+88963;Base Esperanza;AQ
+88968;Base Orcadas;AQ
+88986;South Thule Isl;FK
+89002;Neumayer;AQ
+89003;Halvfarryggen Ep11;AQ
+89004;Sanae Aws;AQ
+89009;Amundsen-Scott South Pole Station;AQ
+89011;Soerasen;AQ
+89013;Baldrick Aws;AQ
+89014;Nordenskiold Bas;AQ
+89016;Wasa Ep5;AQ
+89020;Brunt Aws;AQ
+89022;Halley;AQ
+89034;Base Belgrano Ii;AQ
+89047;Filchner;AQ
+89049;Ago-2;AQ
+89050;Bellingshausen;AQ
+89053;Base Jubany;AQ
+89054;Dinamet-Uruguay;AQ
+89055;Base Marambio Centro Met. Antartico;AQ
+89056;Centro Met. Antartico " Pdte. Eduardo Frei ";AQ
+89057;Base Arturo Prat;AQ
+89058;Great Wall;AQ
+89059;Base Bernardo O'Higgins;AQ
+89061;Palmer Station;AQ
+89062;Rothera Point;AQ
+89063;Vernadsky;AQ
+89064;Juan Carlos I;AQ
+89065;Fossil Bluff;AQ
+89066;Base San Martin;AQ
+89079;Criosfera 1;AQ
+89087;Thiel Mountains Aws;AQ
+89108;Henry;AQ
+89132;Russkaja;AQ
+89250;Isla Rey Jorge;AQ
+89251;King Sejong;AQ
+89253;Joinville Island;AQ
+89257;University of Wisconsin ID 8925 (Limbert Aws);AQ
+89262;University Wi Id 8926;AQ
+89266;University Wi Id 8902;AQ
+89269;University Wi Id 8912 Bonaparte Park Point;AQ
+89272;University Wi Id 8917 Ski-Hi;AQ
+89314;University Wi Id 21358 Theresa;AQ
+89324;University Wi Id 8903;AQ
+89327;University Wi Id 8981 Mount Siple;AQ
+89329;Univ. Wi (harry);AQ
+89332;University Wi Id 21356 Elizabeth;AQ
+89345;University of Wisconsin ID 8900 (Siple Dome);AQ
+89376;Gill;AQ
+89377;University Wi Id 8908;AQ
+89504;Troll;AQ
+89507;Kohnen Ep9;AQ
+89512;Novolazarevskaja;AQ
+89514;Maitri;AQ
+89528;Ago-3;AQ
+89532;Syowa;AQ
+89536;Plateau Stn B Ep;AQ
+89542;Molodeznaja;AQ
+89558;Pole Of Inaccess;AQ
+89564;Mawson;AQ
+89570;Davis (whoop Whoop);AQ
+89571;Davis;AQ
+89573;Zhongshan Weather Office;AQ
+89574;Progress;RU
+89575;Druzhnaya-4;AQ
+89577;Davis Lgb 46 Aws;AQ
+89578;Dome Plateau Eagle;AQ
+89586;Davis (Mt Brown);AQ
+89592;Mirnyj;AQ
+89598;Ago-4;AQ
+89601;Oazic Bangera;AQ
+89606;Vostok;AQ
+89610;Casey;AQ
+89611;Casey;AQ
+89614;Casey;AQ
+89615;Wilkins Runway East;AQ
+89625;Concordia;AQ
+89628;Ago-1;AQ
+89642;Dumont D'urville;AQ
+89646;Sitry Point;AQ
+89648;Mid Point;AQ
+89657;Leningradskaya (RUS);AQ
+89659;Priestley Glacier;AQ
+89661;Cape Phillips;AQ
+89662;Base Baia Terra Nova;AQ
+89664;McMurdo;AQ
+89666;Cape Ross;AQ
+89667;University Wi Id 8927;AQ
+89674;Williams Field;AQ
+89734;University Wi Id 8982 Dome Fuji;AQ
+89744;University Wi Id 8918 Relay Stat;AQ
+89767;Amery;AQ
+89768;Minna Bluff;US
+89769;Linda;US
+89776;Bharati;AQ
+89799;University Wi Id 8924 Nico;AQ
+89807;Casey;AQ
+89809;Casey Skiway South;AQ
+89811;Casey Law Dome Summit;AQ
+89815;Casey;AQ
+89817;Bunger Hills;AQ
+89828;University Wi Id 8904;AQ
+89832;University Wi Id 8912;AQ
+89834;University Wi Id 8916;AQ
+89859;Jang Bogo;AQ
+89864;University Wi Id 8905;AQ
+89865;University Wi Id 8913;AQ
+89866;University Wi Id 8906;AQ
+89868;University Wi Id 8924;AQ
+89869;University Wi Id 8915;AQ
+89872;University Wi Id 8907;AQ
+89873;University Wi Id 8900 Elaine;AQ
+89879;University Wi Id 8984 Possession Island;AQ

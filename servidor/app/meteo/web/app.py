@@ -692,6 +692,14 @@ def cartas(ts: datetime):
     return {"ts": ts, "productos": salida}
 
 
+@app.get("/api/cartas/estaciones-omm")
+def estaciones_omm():
+    """Nombre de cada estación sinóptica de Sudamérica, por número OMM (para
+    los mapas de Ogimet, que solo dan el número)."""
+    from ..cartas import ogimet
+    return ogimet.nombres_omm()
+
+
 @app.get("/api/cartas/observaciones")
 def observaciones_de_la_hora(ts: datetime):
     """Lo observado a la hora de la carta: el SYNOP de esa hora de cada

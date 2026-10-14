@@ -2274,12 +2274,14 @@ function iniciarVisor() {
 // Al bajar cada mapa se guardan sus "zonas clickeables" (como en la página de
 // Ogimet): número OMM, rectángulo en la imagen y el texto del cartel.
 const cacheAreas = new Map();
+let nombresOMM = null;   // {número OMM: nombre}, se pide una sola vez
 async function mostrarEstacion(e) {
   const caja = $("#c-estacion");
   caja.hidden = true;
   const p = cartasHora.find((c) => c.id === cartaVisor);
   if (!p?.areas || animando()) return;
   if (!cacheAreas.has(p.areas)) cacheAreas.set(p.areas, await api(p.areas).catch(() => []));
+  if (!nombresOMM) nombresOMM = await api("/api/cartas/estaciones-omm").catch(() => ({}));
   const img = $("#c-vista img"), r = img.getBoundingClientRect();
   const x = (e.clientX - r.left) / r.width * img.naturalWidth, y = (e.clientY - r.top) / r.height * img.naturalHeight;
   // La zona que contiene el punto; si no hay, la más cercana (a menos de 8 px de la imagen).
@@ -2292,7 +2294,7 @@ async function mostrarEstacion(e) {
   }
   if (!mejor) return;
   const nuestra = (ESTACIONES || []).find((s) => s.omm === mejor.omm);
-  caja.innerHTML = `<b>${esc(nuestra ? nuestra.nombre : "Estación")} · OMM ${esc(mejor.omm)}</b>\n${esc(mejor.texto)}\n` +
+  caja.innerHTML = `<b>${esc(nuestra?.nombre || nombresOMM[mejor.omm] || "Estación")} · OMM ${esc(mejor.omm)}</b>\n${esc(mejor.texto)}\n` +
     `<a href="${esc(mejor.enlace)}" target="_blank" rel="noopener">Ver sus SYNOP en Ogimet ↗</a>`;
   caja.hidden = false;
   caja.style.left = Math.min(e.clientX + 12, innerWidth - caja.offsetWidth - 8) + "px";

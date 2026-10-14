@@ -147,6 +147,11 @@ docker compose exec ingesta python -m meteo.ingesta diagnostico-ogimet
   Al bajar cada mapa se guardan sus zonas clickeables (las mismas de la
   página de Ogimet) en `cartas/_areas/`. Para los mapas archivados antes:
   `historico cartas --desde ... --hasta ...` vuelve a pedir solo las páginas.
+  El cartel de Ogimet trae solo el número OMM; el **nombre** sale de
+  `app/meteo/cartas/estaciones_omm.csv` (~820 estaciones de Sudamérica y la
+  Antártida, tomadas de Meteostat, licencia CC BY 4.0). Para las nuestras
+  (`estaciones.yaml`) se usa el nombre de ahí. Si falta alguna o el nombre
+  no gusta, se agrega o corrige una línea `omm;nombre;país` en ese archivo.
 - **Cursor sincronizado** (placa): una cruz marca el mismo punto en las
   cartas de la misma proyección (las de Bentley entre sí; las de Ogimet
   entre sí).

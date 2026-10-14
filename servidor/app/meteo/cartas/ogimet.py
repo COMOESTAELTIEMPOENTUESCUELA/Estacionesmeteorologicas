@@ -21,6 +21,8 @@ una vez por zona y el visualizador la pone debajo de cada mapa.
 import html as html_lib
 import re
 from datetime import datetime, timezone
+from functools import cache
+from pathlib import Path
 from urllib.parse import urljoin
 
 URL_PAGINA = "https://www.ogimet.com/cgi-bin/gsynop"
@@ -114,4 +116,17 @@ def areas(html):
                            "texto": _texto_cartel(texto),
                            "enlace": "https://www.ogimet.com/cgi-bin/" + href.lstrip("./")}
                           for href, omm, x1, y1, x2, y2, texto in _AREA.findall(cuerpo)]
+    return salida
+
+
+@cache
+def nombres_omm():
+    """{número OMM: "Nombre (país)"} de estaciones_omm.csv. El cartel de Ogimet
+    trae solo el número y la posición; el nombre sale de esta lista."""
+    salida = {}
+    for linea in Path(__file__).with_name("estaciones_omm.csv").read_text(encoding="utf-8").splitlines():
+        if linea.startswith("#") or ";" not in linea or linea.startswith("omm;"):
+            continue
+        omm, nombre, pais = linea.split(";")
+        salida[omm] = f"{nombre} ({pais})" if pais != "AR" else nombre
     return salida

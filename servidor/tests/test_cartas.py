@@ -406,6 +406,15 @@ def test_ogimet_zonas_clickeables():
     assert lp["enlace"].startswith("https://www.ogimet.com/cgi-bin/gsynres?ind=87593")
 
 
+
+def test_nombres_de_estaciones_omm():
+    """El cartel de Ogimet trae solo el número: el nombre sale de la lista."""
+    from meteo.cartas import ogimet
+    n = ogimet.nombres_omm()
+    assert n["87593"] == "La Plata Aero" and n["87576"] == "Ezeiza Aero"
+    assert n["86580"] == "Carrasco (UY)"            # de otro país, con el país
+    assert len(n) > 700 and all(k.isdigit() and len(k) == 5 for k in n)
+
 def test_ogimet_completa_zonas_sin_rebajar_la_imagen(tmp_path, monkeypatch):
     monkeypatch.setattr(descarga, "PAUSA_SEG", 0)
     monkeypatch.setattr(descarga, "PAUSA_OGIMET_SEG", 0)
