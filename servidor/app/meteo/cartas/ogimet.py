@@ -18,6 +18,7 @@ La geografía (costas, límites: base=bluem) la pone la página por debajo,
 como imagen de fondo aparte. Esa imagen no cambia de un día a otro: se baja
 una vez por zona y el visualizador la pone debajo de cada mapa.
 """
+import html as html_lib
 import re
 from datetime import datetime, timezone
 from urllib.parse import urljoin
@@ -88,3 +89,29 @@ def es_transparente(datos):
         return False
     tipo_color = datos[25]
     return tipo_color in (4, 6) or b"tRNS" in datos[:4096]
+
+
+# Zonas clickeables de cada mapa (como en la página de Ogimet: al pasar el
+# mouse por una estación aparece su información):
+#   <MAP name="g_Te"> <AREA HREF="./gsynres?ind=83004&..." COORDS="476,67,488,76"
+#       onMouseOver="return overlib('Lat: 23-39-00S Lon: ...<br> ...')"> ... </MAP>
+_MAPA = re.compile(r'<MAP\s+name="g_([A-Za-z0-9]+)"\s*>(.*?)</MAP>', re.I | re.S)
+_AREA = re.compile(r'<AREA\s+HREF="([^"]*?ind=(\d+)[^"]*)"\s+COORDS="(\d+),(\d+),(\d+),(\d+)"[^>]*?overlib\(\'(.*?)\'\s*[,)]',
+                   re.I | re.S)
+
+
+def _texto_cartel(t):
+    t = re.sub(r"<br\s*/?>", "\n", t, flags=re.I)
+    t = html_lib.unescape(re.sub(r"<[^>]+>", "", t))
+    return "\n".join(" ".join(linea.split()) for linea in t.splitlines() if linea.strip())
+
+
+def areas(html):
+    """HTML de la página -> {código: [{"omm", "caja": [x1, y1, x2, y2], "texto", "enlace"}]}."""
+    salida = {}
+    for codigo, cuerpo in _MAPA.findall(html):
+        salida[codigo] = [{"omm": omm, "caja": [int(x1), int(y1), int(x2), int(y2)],
+                           "texto": _texto_cartel(texto),
+                           "enlace": "https://www.ogimet.com/cgi-bin/" + href.lstrip("./")}
+                          for href, omm, x1, y1, x2, y2, texto in _AREA.findall(cuerpo)]
+    return salida

@@ -142,6 +142,11 @@ docker compose exec ingesta python -m meteo.ingesta diagnostico-ogimet
 - **Animar** (visor grande): recorre la carta 1 a 7 días hacia atrás,
   precargando las imágenes; barra espaciadora para pausar, barra para ir a
   un cuadro. Al pausar, la página queda en esa hora.
+- **Tocar una estación** (mapas de Ogimet, visor grande, con la manito):
+  muestra su nombre, número OMM, posición y valores, y un link a sus SYNOP.
+  Al bajar cada mapa se guardan sus zonas clickeables (las mismas de la
+  página de Ogimet) en `cartas/_areas/`. Para los mapas archivados antes:
+  `historico cartas --desde ... --hasta ...` vuelve a pedir solo las páginas.
 - **Cursor sincronizado** (placa): una cruz marca el mismo punto en las
   cartas de la misma proyección (las de Bentley entre sí; las de Ogimet
   entre sí).

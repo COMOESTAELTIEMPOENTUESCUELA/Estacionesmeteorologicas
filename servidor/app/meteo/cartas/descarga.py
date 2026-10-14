@@ -226,11 +226,14 @@ def _correr_ogimet(cfg, raiz, sesion, desde, hasta):
     for zona in sorted({p["zona"] for p in productos}):
         de_zona = [p for p in productos if p["zona"] == zona]
         for ts in horas_sinopticas(desde, hasta, horas):
-            faltan = [p for p in de_zona if ts.hour in horas_de(p) and not archivo.existe(raiz, p["id"], ts)]
+            # Falta la imagen, o sus zonas clickeables (las archivadas antes de que existieran).
+            faltan = [p for p in de_zona if ts.hour in horas_de(p)
+                      and (not archivo.existe(raiz, p["id"], ts) or not archivo.ruta_areas(raiz, p["id"], ts).exists())]
             if not faltan:
                 continue
             try:
                 imgs, html = _pedir_ogimet(sesion, zona, ts)
+                zonas = ogimet.areas(html)
             except NoDisponible as ex:
                 log.info("cartas: %s", ex)
                 time.sleep(PAUSA_OGIMET_SEG)
@@ -244,6 +247,11 @@ def _correr_ogimet(cfg, raiz, sesion, desde, hasta):
             except Exception as ex:
                 log.warning("cartas: fondo de Ogimet: %s", str(ex)[:150])
             for p in faltan:
+                if imgs.get(p["codigo"], {}).get("ts") == ts:
+                    # Aunque venga vacío: así no se vuelve a pedir la página por las zonas.
+                    archivo.guardar_areas(raiz, p["id"], ts, zonas.get(p["codigo"], []))
+                if archivo.existe(raiz, p["id"], ts):
+                    continue          # la imagen ya estaba: solo faltaban las zonas
                 img = imgs.get(p["codigo"])
                 if not img:
                     log.warning("cartas %s %s: la página no trae el mapa %s", p["id"], ts, p["codigo"])

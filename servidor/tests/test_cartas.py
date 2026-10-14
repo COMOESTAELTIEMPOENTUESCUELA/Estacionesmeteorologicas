@@ -380,3 +380,55 @@ def test_ogimet_se_pide_como_desde_su_pagina(tmp_path, monkeypatch):
     cfg = {"horas_utc": [12], "productos": [{"id": "og_sg", "fuente": "ogimet", "zona": "amersurs", "codigo": "Sg"}]}
     ts = datetime(2026, 10, 7, 12, tzinfo=UTC)
     assert descarga.correr_ogimet(cfg, tmp_path, Sesion(), ts, ts) == 1
+
+
+# Formato real de las zonas clickeables de Ogimet (el texto del cartel ocupa varias líneas).
+HTML_AREAS = """
+<MAP name="g_Te">
+<AREA HREF="./gsynres?ind=87593&ano=2026&mes=10&day=7&hora=12&min=0&ndays=30" COORDS="300,400,312,409" onMouseOver="return overlib('Lat: 34-58-00S Lon: 057-54-00W Alt: 23 m.<br>
+<b>La Plata Aero</b><br>T: 12.0 &deg;C')" onMouseOut="return nd();">
+<AREA HREF="./gsynres?ind=87576&ano=2026&mes=10&day=7&hora=12&min=0&ndays=30" COORDS="280,390,292,399" onMouseOver="return overlib('Lat: 34-49-00S Lon: 058-32-00W Alt: 20 m.<br>
+Ezeiza Aero')" onMouseOut="return nd();">
+</MAP>
+<MAP name="g_Td">
+<AREA HREF="./gsynres?ind=87593&ano=2026&mes=10&day=7&hora=12" COORDS="1,2,3,4" onMouseOver="return overlib('x')">
+</MAP>
+"""
+
+
+def test_ogimet_zonas_clickeables():
+    from meteo.cartas import ogimet
+    z = ogimet.areas(HTML_AREAS)
+    assert set(z) == {"Te", "Td"} and len(z["Te"]) == 2
+    lp = z["Te"][0]
+    assert lp["omm"] == "87593" and lp["caja"] == [300, 400, 312, 409]
+    assert lp["texto"] == "Lat: 34-58-00S Lon: 057-54-00W Alt: 23 m.\nLa Plata Aero\nT: 12.0 °C"
+    assert lp["enlace"].startswith("https://www.ogimet.com/cgi-bin/gsynres?ind=87593")
+
+
+def test_ogimet_completa_zonas_sin_rebajar_la_imagen(tmp_path, monkeypatch):
+    monkeypatch.setattr(descarga, "PAUSA_SEG", 0)
+    monkeypatch.setattr(descarga, "PAUSA_OGIMET_SEG", 0)
+    ts = datetime(2026, 10, 7, 12, tzinfo=UTC)
+    archivo.guardar(tmp_path, "og_te", ts, PNG)                        # archivada antes de las zonas
+    imagenes = []
+
+    class Resp:
+        def __init__(self, contenido=b"", texto=""):
+            self.content, self.text = contenido, texto
+        def raise_for_status(self):
+            pass
+
+    class Sesion:
+        def get(self, url, timeout, params=None, headers=None):
+            if params:
+                return Resp(texto=HTML_OGIMET.replace("202610121200", "202610071200") + HTML_AREAS)
+            imagenes.append(url)
+            return Resp(PNG)
+
+    cfg = {"horas_utc": [12], "productos": [{"id": "og_te", "fuente": "ogimet", "zona": "amersurs", "codigo": "Te"}]}
+    assert descarga.correr_ogimet(cfg, tmp_path, Sesion(), ts, ts) == 0     # nada nuevo de imágenes
+    assert imagenes == []
+    import json
+    zonas = json.loads(archivo.ruta_areas(tmp_path, "og_te", ts).read_text())
+    assert [z["omm"] for z in zonas] == ["87593", "87576"]

@@ -161,6 +161,10 @@ img.con-fondo { background-color: #fff !important; background-size: 100% 100%; b
 #c-herr .herr.activa { outline: 2px solid var(--acento); outline-offset: 1px; }
 #c-herr input[type="color"] { width: 32px; height: 28px; padding: 0; border: 1px solid var(--borde); border-radius: 6px; }
 .carta-img { position: relative; }
+.c-estacion { position: fixed; z-index: 20; max-width: 300px; background: var(--superficie); color: var(--tinta);
+  border: 1px solid var(--borde); border-radius: 8px; padding: 8px 10px; font-size: 13px; line-height: 1.35;
+  box-shadow: 0 4px 14px rgba(0,0,0,.25); white-space: pre-line; }
+.c-estacion b { font-size: 14px; }
 .cruz { position: absolute; width: 0; height: 0; pointer-events: none; z-index: 2; }
 .cruz::before, .cruz::after { content: ""; position: absolute; background: #e11d8f; box-shadow: 0 0 0 1px #fff; }
 .cruz::before { left: -16px; top: -1px; width: 32px; height: 2px; }
@@ -703,6 +707,7 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
           <select id="c-super-sel"><option value="">(nada)</option></select></label>
         <input type="range" id="c-super-op" min="10" max="90" value="50" title="Transparencia de la carta superpuesta" style="width:90px" hidden>
       </div>
+      <div id="c-estacion" class="c-estacion" hidden></div>
       <div id="c-vista"><img alt="" draggable="false"><img id="c-super" alt="" draggable="false" hidden><svg id="c-svg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none"></svg></div>
     </dialog>
   </section>
@@ -2109,6 +2114,7 @@ function zoomEn(factor, clientX, clientY) {
 }
 
 function mostrarEnVisor() {
+  $("#c-estacion").hidden = true;
   if (animando()) pararAnimacion(false);
   if (!anim.preparando) { $("#c-anim-pos").disabled = true; $("#c-anim-pos").max = 0; $("#c-anim-estado").textContent = ""; }
   const p = cartasHora.find((c) => c.id === cartaVisor);
@@ -2149,9 +2155,11 @@ function iniciarVisor() {
   // Arrastrar con un dedo o el mouse; pellizcar con dos dedos.
   const punteros = new Map();
   let pellizco = null;
+  let inicioToque = null;
   vista.addEventListener("pointerdown", (e) => {
     vista.setPointerCapture(e.pointerId);
     punteros.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    inicioToque = punteros.size === 1 ? { x: e.clientX, y: e.clientY } : null;
     if (punteros.size === 2) { dib.actual = null; pintarDibujoVisor(); }   // dos dedos: zoom, no dibujo
     else if (dib.herr !== "mover" && punteros.size === 1) { empezarDibujo(e); return; }
     vista.classList.add("arrastrando");
@@ -2173,6 +2181,10 @@ function iniciarVisor() {
     }
   });
   const soltar = (e) => {
+    // Un toque sin arrastrar, con la manito: ¿qué estación hay ahí? (mapas de Ogimet)
+    if (e.type === "pointerup" && inicioToque && dib.herr === "mover" && punteros.size === 1
+        && Math.hypot(e.clientX - inicioToque.x, e.clientY - inicioToque.y) < 5) mostrarEstacion(e);
+    inicioToque = null;
     punteros.delete(e.pointerId);
     if (punteros.size < 2) pellizco = null;
     if (!punteros.size) { vista.classList.remove("arrastrando"); if (dib.actual) terminarDibujo(); }
@@ -2195,6 +2207,35 @@ function iniciarVisor() {
     try { localStorage.setItem("cartas-cursor", $("#f-c-cursor").checked ? "si" : "no"); } catch (_) {}
     if (!$("#f-c-cursor").checked) document.querySelectorAll("#c-grid .cruz").forEach((c) => (c.hidden = true));
   });
+}
+
+// ---------- Mapas de Ogimet: tocar una estación para ver cuál es ----------
+// Al bajar cada mapa se guardan sus "zonas clickeables" (como en la página de
+// Ogimet): número OMM, rectángulo en la imagen y el texto del cartel.
+const cacheAreas = new Map();
+async function mostrarEstacion(e) {
+  const caja = $("#c-estacion");
+  caja.hidden = true;
+  const p = cartasHora.find((c) => c.id === cartaVisor);
+  if (!p?.areas || animando()) return;
+  if (!cacheAreas.has(p.areas)) cacheAreas.set(p.areas, await api(p.areas).catch(() => []));
+  const img = $("#c-vista img"), r = img.getBoundingClientRect();
+  const x = (e.clientX - r.left) / r.width * img.naturalWidth, y = (e.clientY - r.top) / r.height * img.naturalHeight;
+  // La zona que contiene el punto; si no hay, la más cercana (a menos de 8 px de la imagen).
+  let mejor = null, dmin = 8;
+  for (const a of cacheAreas.get(p.areas)) {
+    const [x1, y1, x2, y2] = a.caja;
+    const d = Math.hypot(Math.max(x1 - x, 0, x - x2), Math.max(y1 - y, 0, y - y2));
+    if (d < dmin || (d === 0 && dmin > 0)) { dmin = d; mejor = a; }
+    if (d === 0) break;
+  }
+  if (!mejor) return;
+  const nuestra = (ESTACIONES || []).find((s) => s.omm === mejor.omm);
+  caja.innerHTML = `<b>${esc(nuestra ? nuestra.nombre : "Estación")} · OMM ${esc(mejor.omm)}</b>\n${esc(mejor.texto)}\n` +
+    `<a href="${esc(mejor.enlace)}" target="_blank" rel="noopener">Ver sus SYNOP en Ogimet ↗</a>`;
+  caja.hidden = false;
+  caja.style.left = Math.min(e.clientX + 12, innerWidth - caja.offsetWidth - 8) + "px";
+  caja.style.top = Math.min(e.clientY + 12, innerHeight - caja.offsetHeight - 8) + "px";
 }
 
 // ---------- Dibujo de análisis sobre las cartas ----------

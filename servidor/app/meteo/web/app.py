@@ -680,6 +680,8 @@ def cartas(ts: datetime):
         p["fondo"] = "/cartas-img/" + f.relative_to(raiz).as_posix() if f else None
         m = archivo.ruta_miniatura(ARCHIVO_DIR, p["id"], ts)
         p["miniatura"] = "/cartas-img/" + m.relative_to(raiz).as_posix() if m.exists() else None
+        a = archivo.ruta_areas(ARCHIVO_DIR, p["id"], ts)
+        p["areas"] = "/cartas-img/" + a.relative_to(raiz).as_posix() if a.exists() else None
         url = None
         for ext in ("png", "gif", "jpg"):
             f = archivo.ruta(ARCHIVO_DIR, p["id"], ts, ext)

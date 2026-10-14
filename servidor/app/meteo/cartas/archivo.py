@@ -6,6 +6,8 @@ Archivo de cartas en disco:
     {ARCHIVO}/cartas/_fondos/<nombre>.png   (geografía de los mapas de Ogimet)
     {ARCHIVO}/cartas/_min/<producto>/<AAAA>/<MM>/<producto>_<AAAAMMDDHH>.webp
                                              (miniatura liviana para la vista "placa")
+    {ARCHIVO}/cartas/_areas/<producto>/<AAAA>/<MM>/<producto>_<AAAAMMDDHH>.json
+                                             (Ogimet: qué estación hay en cada lugar del mapa)
 
 Una carta por producto y hora (UTC). No hace falta base de datos: el nombre
 del archivo ya dice qué es, y el visualizador lista las carpetas.
@@ -122,6 +124,17 @@ def disponibles(raiz, productos, anio_mes=None):
                 continue
             salida.setdefault(ts.isoformat().replace("+00:00", "Z"), []).append(p)
     return dict(sorted(salida.items()))
+
+
+def ruta_areas(raiz, producto, ts):
+    """Zonas clickeables de un mapa de Ogimet (qué estación hay en cada lugar)."""
+    ts = ts.astimezone(timezone.utc)
+    return Path(raiz) / "cartas" / "_areas" / producto / f"{ts:%Y}" / f"{ts:%m}" / f"{producto}_{ts:%Y%m%d%H}.json"
+
+
+def guardar_areas(raiz, producto, ts, lista):
+    import json
+    _escribir(ruta_areas(raiz, producto, ts), json.dumps(lista, ensure_ascii=False).encode("utf-8"))
 
 
 def ruta_fondo(raiz, nombre, ext="png"):
