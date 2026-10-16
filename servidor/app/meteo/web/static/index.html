@@ -92,8 +92,6 @@ h2 { font-size: 15px; margin: 0 0 8px; }
 #sel-lluvia input { display: none; }
 #calor tr.g-cab td { font-weight: 650; padding-top: 12px; border-bottom: 2px solid var(--gcol); color: var(--tinta); }
 #calor td.franja { border-left: 4px solid var(--gcol); }
-#calor tr.g-prom td { font-style: italic; }
-#calor tr.g-prom td:first-child { color: var(--tinta-2); }
 .tipo-ll { font-size: 11px; padding: 0 6px; border-radius: 99px; border: 1px solid var(--gcol); color: var(--tinta-2); white-space: nowrap; }
 #selector-estaciones { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
 #selector-estaciones label { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px;
@@ -445,8 +443,7 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
       <div id="sel-lluvia"></div>
       <p class="ayuda">Día pluviométrico: lo que llovió entre las 9 hs del día anterior y las 9 hs de ese día.
         "–" = sin datos ese día (no es lo mismo que 0). * = día en curso (sigue sumando hasta mañana a las 9).
-        ⚠ = incluye lluvia sospechosa (pasá el mouse por la celda para ver cuánta).
-        El <b>promedio</b> de cada tipo es el de las estaciones elegidas que tienen dato ese día.</p>
+        ⚠ = incluye lluvia sospechosa (pasá el mouse por la celda para ver cuánta).</p>
       <div class="escala" id="escala"></div>
       <div id="calor"></div>
     </div>
@@ -2909,18 +2906,6 @@ function dibujarLluvia() {
     return `<tr><td class="franja" style="--gcol:${g.color}">${esc(o.nombre)}${conTipo ? ` <span class="tipo-ll" style="--gcol:${g.color}">${esc(g.nombre.split(" ")[0])}</span>` : ""}</td>
       <td class="tenue">${INSTR[o.instrumento] || esc(o.instrumento)}</td>${celdas}<td><b>${hay ? total.toFixed(1) : "–"}</b></td></tr>`;
   };
-  // Promedio del tipo: de las estaciones elegidas con dato ese día.
-  const promedio = (de, g) => {
-    let total = 0, hay = false;
-    const celdas = lista.map((d) => {
-      const vs = de.map((o) => o.dias[d]).filter((v) => v !== undefined);
-      if (!vs.length) return celda(undefined);
-      const m = vs.reduce((a, b) => a + b, 0) / vs.length;
-      total += m; hay = true;
-      return celda(+m.toFixed(1), `Promedio ${g.nombre} (${vs.length} con dato)`);
-    }).join("");
-    return `<tr class="g-prom"><td class="franja" style="--gcol:${g.color}">Promedio</td><td class="tenue">${de.length} estaciones</td>${celdas}<td><b>${hay ? total.toFixed(1) : "–"}</b></td></tr>`;
-  };
   const porNombre = (a, b) => a.nombre.localeCompare(b.nombre);
   let cuerpo;
   if ($("#f-lluvia-orden").value === "juntas") {
@@ -2930,7 +2915,7 @@ function dibujarLluvia() {
       const de = visibles.filter((o) => grupoLluvia(o.tipo) === g).sort(porNombre);
       if (!de.length) return "";
       return `<tr class="g-cab" style="--gcol:${g.color}"><td colspan="${lista.length + 3}">${esc(g.nombre)}</td></tr>` +
-        de.map((o) => fila(o, false)).join("") + (de.length > 1 ? promedio(de, g) : "");
+        de.map((o) => fila(o, false)).join("");
     }).join("");
   }
   $("#calor").innerHTML = `<table>${cab}${cuerpo}</table>`;
