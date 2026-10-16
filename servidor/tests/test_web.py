@@ -348,3 +348,13 @@ def test_bitacora_y_disponibilidad(cliente, monkeypatch):
                 conn.execute("DELETE FROM estacion_incidente WHERE id = %s", (i,))
             conn.execute("DELETE FROM observacion WHERE estacion_id = 'bavio' AND ts BETWEEN %s AND %s",
                          (t0 - timedelta(hours=2), t0 + timedelta(days=2)))
+
+
+def test_lluvia_por_fechas(cliente):
+    """La lluvia diaria se puede pedir de un período (para mirar un evento)."""
+    r = cliente.get("/api/lluvia", params={"desde": "2026-10-05", "hasta": "2026-10-10"})
+    assert r.status_code == 200
+    assert all("2026-10-05" <= f["dia"] <= "2026-10-10" for f in r.json())
+    assert cliente.get("/api/lluvia", params={"desde": "2025-01-01", "hasta": "2026-10-10"}).status_code == 400
+    csv = cliente.get("/api/lluvia", params={"desde": "2026-10-05", "hasta": "2026-10-10", "formato": "csv"})
+    assert "lluvia_diaria_2026-10-05_2026-10-10" in csv.headers["content-disposition"]

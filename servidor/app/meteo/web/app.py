@@ -325,16 +325,28 @@ def series(
 # Lluvia diaria (9 a 9), todas las fuentes
 # ---------------------------------------------------------------------------
 @app.get("/api/lluvia")
-def lluvia(dias: int = 14, formato: str = "json"):
-    dias = max(1, min(dias, 366))
-    filas = consultar("""
+def lluvia(dias: int = 14, desde: date | None = None, hasta: date | None = None, formato: str = "json"):
+    """Lluvia de cada día pluviométrico (9 a 9) de cada origen: los últimos
+    `dias`, o de `desde` a `hasta` (días pluviométricos, ambos incluidos)."""
+    if desde or hasta:
+        hasta = hasta or date.today()
+        desde = desde or hasta - timedelta(days=13)
+        if desde > hasta:
+            desde, hasta = hasta, desde
+        if (hasta - desde).days > 366:
+            raise HTTPException(400, "366 días como máximo")
+        filtro, params, nombre = "dia BETWEEN %s AND %s", (desde, hasta), f"lluvia_diaria_{desde}_{hasta}"
+    else:
+        dias = max(1, min(dias, 366))
+        filtro, params, nombre = "dia > dia_pluviometrico(now()) - %s", (dias,), f"lluvia_diaria_{dias}d"
+    filas = consultar(f"""
         SELECT dia, origen, nombre, tipo_origen, instrumento, lluvia_mm::float AS lluvia_mm,
                mm_sospechosos::float AS mm_sospechosos
         FROM lluvia_diaria_todas
-        WHERE dia > dia_pluviometrico(now()) - %s
-        ORDER BY dia, origen""", (dias,))
+        WHERE {filtro}
+        ORDER BY dia, origen""", params)
     if formato == "csv":
-        return _csv(filas, f"lluvia_diaria_{dias}d")
+        return _csv(filas, nombre)
     return _json(filas)
 
 

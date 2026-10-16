@@ -81,6 +81,20 @@ h2 { font-size: 15px; margin: 0 0 8px; }
 .leyenda-estado { display: flex; gap: 14px; flex-wrap: wrap; margin: 0 0 8px; }
 
 /* Series */
+/* Lluvia diaria: selector agrupado por tipo de instrumento */
+#sel-lluvia { display: flex; flex-direction: column; gap: 8px; margin: 4px 0 12px; }
+#sel-lluvia .grupo-ll { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding-left: 10px; border-left: 4px solid var(--gcol); }
+#sel-lluvia .grupo-ll > b { font-size: 13px; margin-right: 4px; }
+#sel-lluvia .grupo-ll .boton { padding: 1px 8px; font-size: 12px; }
+#sel-lluvia label { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border: 1px solid var(--borde);
+  border-radius: 99px; cursor: pointer; font-size: 12px; background: var(--superficie); color: var(--tinta-2); user-select: none; }
+#sel-lluvia label.activa { border-color: var(--gcol); color: var(--tinta); background: color-mix(in srgb, var(--gcol) 12%, var(--superficie)); }
+#sel-lluvia input { display: none; }
+#calor tr.g-cab td { font-weight: 650; padding-top: 12px; border-bottom: 2px solid var(--gcol); color: var(--tinta); }
+#calor td.franja { border-left: 4px solid var(--gcol); }
+#calor tr.g-prom td { font-style: italic; }
+#calor tr.g-prom td:first-child { color: var(--tinta-2); }
+.tipo-ll { font-size: 11px; padding: 0 6px; border-radius: 99px; border: 1px solid var(--gcol); color: var(--tinta-2); white-space: nowrap; }
 #selector-estaciones { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
 #selector-estaciones label { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px;
   border: 1px solid var(--borde); border-radius: 99px; cursor: pointer; font-size: 13px; background: var(--superficie); user-select: none; }
@@ -419,18 +433,20 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
   <section id="tab-lluvia" hidden>
     <div class="tarjeta">
       <div class="filtros">
-        <label>Período
-          <select id="f-lluvia-dias">
-            <option value="7">7 días</option>
-            <option value="14" selected>14 días</option>
-            <option value="31">31 días</option>
+        <span class="periodo" id="p-lluvia"></span>
+        <label>Mostrar
+          <select id="f-lluvia-orden">
+            <option value="grupos">Separadas por tipo</option>
+            <option value="juntas">Todas juntas (por nombre)</option>
           </select>
         </label>
         <a class="boton" id="f-lluvia-csv" href="#">Descargar CSV</a>
       </div>
+      <div id="sel-lluvia"></div>
       <p class="ayuda">Día pluviométrico: lo que llovió entre las 9 hs del día anterior y las 9 hs de ese día.
         "–" = sin datos ese día (no es lo mismo que 0). * = día en curso (sigue sumando hasta mañana a las 9).
-        ⚠ = incluye lluvia sospechosa (pasá el mouse por la celda para ver cuánta).</p>
+        ⚠ = incluye lluvia sospechosa (pasá el mouse por la celda para ver cuánta).
+        El <b>promedio</b> de cada tipo es el de las estaciones elegidas que tienen dato ese día.</p>
       <div class="escala" id="escala"></div>
       <div id="calor"></div>
     </div>
@@ -2789,54 +2805,136 @@ function iniciarAnimacion() {
 const NIVELES = [[0.1, 1], [1, 2], [5, 3], [10, 4], [20, 5], [40, 6], [80, 7]];
 function nivel(mm) { let n = 0; for (const [lim, l] of NIVELES) if (mm >= lim) n = l; return n; }
 
+// Tipos de origen de la lluvia, en el orden en que se muestran. El color
+// distingue el tipo (no la estación): así se ven juntas sin confundirse.
+const GRUPOS_LLUVIA = [
+  { id: "ema", nombre: "EMAs (automáticas)", color: "var(--s1)", tipos: ["ema"] },
+  { id: "smn", nombre: "SMN (sinópticas, pluviómetro de 9 a 9)", color: "var(--s3)", tipos: ["sinoptica"] },
+  { id: "conv", nombre: "Convencionales y pluviómetros", color: "var(--s4)", tipos: ["convencional", "pluviometro", "otra"] },
+  { id: "com", nombre: "Comunidad (reportes)", color: "var(--s7)", tipos: ["comunidad"] },
+];
+const grupoLluvia = (tipo) => GRUPOS_LLUVIA.find((g) => g.tipos.includes(tipo)) || GRUPOS_LLUVIA[2];
+let periodoLluvia = null;
+let ocultasLluvia = new Set();       // lo que el usuario apagó (se recuerda en este navegador)
+try { ocultasLluvia = new Set(JSON.parse(localStorage.getItem("lluvia-ocultas") || "[]")); } catch (_) {}
+const guardarOcultas = () => { try { localStorage.setItem("lluvia-ocultas", JSON.stringify([...ocultasLluvia])); } catch (_) {} };
+let origenesLluvia = new Map(), diasLluvia = [];
+
 async function cargarLluvia() {
-  const dias = $("#f-lluvia-dias").value;
-  $("#f-lluvia-csv").href = `/api/lluvia?dias=${dias}&formato=csv`;
-  const filas = await api(`/api/lluvia?dias=${dias}`);
-
-  $("#escala").innerHTML = "mm: " + [["0", 0], ["0,1", 1], ["1", 2], ["5", 3], ["10", 4], ["20", 5], ["40", 6], ["80+", 7]]
-    .map(([t, l]) => `<span class="c l${l}" style="${l ? "" : "border:1px solid var(--eje)"}"></span><span style="margin:0 8px 0 3px">${t}</span>`).join("");
-
-  const hoy = new Date();
-  const lista = [];
-  for (let i = dias - 1; i >= 0; i--) {
-    const d = new Date(hoy.getTime() - i * 86400e3 + 15 * 3600e3);  // corrido para caer en el día pluviométrico
-    lista.push(new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(d));
+  if (!periodoLluvia) {
+    periodoLluvia = controlPeriodo($("#p-lluvia"), { ultimos: [[7, "Últimos 7 días"], [14, "Últimos 14 días"],
+      [31, "Últimos 31 días"], [90, "Últimos 90 días"]], porDefecto: 14, maxDias: 366, alCambiar: cargarLluvia });
+    $("#f-lluvia-orden").addEventListener("change", dibujarLluvia);
   }
-  const origenes = new Map();
+  const per = periodoLluvia.rango();
+  if (per.error) return;
+  // Días pluviométricos del período: con "últimos N días", los N que terminan
+  // hoy; con fechas, de una a otra (el día D es de las 9 del D-1 a las 9 del D).
+  const diaAR = (t) => new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(t);
+  let q, d1, d2;
+  if (per.query.startsWith("dias=")) {
+    d2 = diaAR(new Date(Date.now() + 15 * 3600e3));         // corrido para caer en el día pluviométrico
+    d1 = sumarDias(d2, 1 - per.dias);
+    q = `dias=${per.dias}`;
+  } else {
+    d1 = diaAR(per.desde); d2 = diaAR(new Date(per.hasta - 1));
+    q = `desde=${d1}&hasta=${d2}`;
+  }
+  $("#f-lluvia-csv").href = `/api/lluvia?${q}&formato=csv`;
+  const filas = await api(`/api/lluvia?${q}`);
+  diasLluvia = [];
+  for (let d = d1; d <= d2; d = sumarDias(d, 1)) diasLluvia.push(d);
+
+  origenesLluvia = new Map();
   for (const f of filas) {
     // Los reportes de la comunidad: una fila por escuela + quien reporta.
     const esCom = f.tipo_origen === "comunidad";
     const clave = esCom ? `${f.origen}|${f.nombre}` : f.origen;
-    const nombre = esCom ? `Comunidad · ${f.origen.replace("comunidad:", "")}${f.nombre ? " (" + f.nombre + ")" : ""}` : f.nombre;
-    if (!origenes.has(clave)) origenes.set(clave, { nombre, tipo: f.tipo_origen, instrumento: f.instrumento, dias: {}, sosp: {} });
-    const o = origenes.get(clave);
+    const nombre = esCom ? `${f.origen.replace("comunidad:", "")}${f.nombre ? " (" + f.nombre + ")" : ""}` : f.nombre;
+    if (!origenesLluvia.has(clave)) origenesLluvia.set(clave, { clave, nombre, tipo: f.tipo_origen, instrumento: f.instrumento, dias: {}, sosp: {} });
+    const o = origenesLluvia.get(clave);
     o.dias[f.dia] = (o.dias[f.dia] || 0) + f.lluvia_mm;
     o.sosp[f.dia] = (o.sosp[f.dia] || 0) + (f.mm_sospechosos || 0);
   }
-  if (!origenes.size) { $("#calor").innerHTML = '<p class="tenue">Todavía no hay datos de lluvia en este período.</p>'; return; }
+  $("#escala").innerHTML = "mm: " + [["0", 0], ["0,1", 1], ["1", 2], ["5", 3], ["10", 4], ["20", 5], ["40", 6], ["80+", 7]]
+    .map(([t, l]) => `<span class="c l${l}" style="${l ? "" : "border:1px solid var(--eje)"}"></span><span style="margin:0 8px 0 3px">${t}</span>`).join("");
+  dibujarSelectorLluvia();
+  dibujarLluvia();
+}
 
+function dibujarSelectorLluvia() {
+  const todos = [...origenesLluvia.values()].sort((a, b) => a.nombre.localeCompare(b.nombre));
+  $("#sel-lluvia").innerHTML = GRUPOS_LLUVIA.map((g) => {
+    const de = todos.filter((o) => grupoLluvia(o.tipo) === g);
+    if (!de.length) return "";
+    const prendidas = de.filter((o) => !ocultasLluvia.has(o.clave)).length;
+    return `<div class="grupo-ll" style="--gcol:${g.color}" data-g="${g.id}">
+      <b>${esc(g.nombre)}</b>
+      <button class="boton" data-todas="${g.id}">${prendidas === de.length ? "Ninguna" : "Todas"}</button>
+      ${de.map((o) => `<label class="${ocultasLluvia.has(o.clave) ? "" : "activa"}" style="--gcol:${g.color}">
+        <input type="checkbox" data-clave="${esc(o.clave)}" ${ocultasLluvia.has(o.clave) ? "" : "checked"}>${esc(o.nombre)}</label>`).join("")}
+    </div>`;
+  }).join("");
+  document.querySelectorAll("#sel-lluvia input[data-clave]").forEach((cb) => cb.addEventListener("change", () => {
+    cb.checked ? ocultasLluvia.delete(cb.dataset.clave) : ocultasLluvia.add(cb.dataset.clave);
+    guardarOcultas(); dibujarSelectorLluvia(); dibujarLluvia();
+  }));
+  document.querySelectorAll("#sel-lluvia [data-todas]").forEach((b) => b.addEventListener("click", () => {
+    const g = GRUPOS_LLUVIA.find((x) => x.id === b.dataset.todas);
+    const de = todos.filter((o) => grupoLluvia(o.tipo) === g);
+    const apagar = b.textContent === "Ninguna";
+    de.forEach((o) => apagar ? ocultasLluvia.add(o.clave) : ocultasLluvia.delete(o.clave));
+    guardarOcultas(); dibujarSelectorLluvia(); dibujarLluvia();
+  }));
+}
+
+function dibujarLluvia() {
+  const lista = diasLluvia;
+  const visibles = [...origenesLluvia.values()].filter((o) => !ocultasLluvia.has(o.clave));
+  if (!origenesLluvia.size) { $("#calor").innerHTML = '<p class="tenue">Todavía no hay datos de lluvia en este período.</p>'; return; }
+  if (!visibles.length) { $("#calor").innerHTML = '<p class="tenue">Elegí al menos una estación arriba.</p>'; return; }
   const INSTR = { estacion_automatica: "EMA", pluviometro_convencional: "Pluviómetro conv.", pluviometro_casero: "Pluviómetro casero",
                   estimacion: "Estimación", sinoptica: "Sinóptica", sin_dato: "?" };
-  const ultimo = lista[lista.length - 1];
+  const hoyPluv = new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date(Date.now() + 15 * 3600e3));
+  const fmtD = (d) => `${d.slice(8)}/${d.slice(5, 7)}`;
   const cab = `<tr><th>Origen</th><th>Instrumento</th>${lista.map((d) =>
-    d === ultimo ? `<th class="en-curso" title="Día en curso: sigue sumando hasta las 9 hs">${d.slice(8)}/${d.slice(5, 7)}*</th>`
-                 : `<th>${d.slice(8)}/${d.slice(5, 7)}</th>`).join("")}<th>Total</th></tr>`;
-  const cuerpo = [...origenes.entries()].sort((a, b) => a[1].nombre.localeCompare(b[1].nombre)).map(([, o]) => {
-    let total = 0;
+    d === hoyPluv ? `<th class="en-curso" title="Día en curso: sigue sumando hasta las 9 hs">${fmtD(d)}*</th>` : `<th>${fmtD(d)}</th>`).join("")}<th>Total</th></tr>`;
+  const celda = (v, titulo, s = 0) => v === undefined || v === null
+    ? `<td class="v n0" title="sin datos">–</td>`
+    : `<td class="v l${nivel(v)} ${v === 0 ? "n0" : ""}" title="${esc(titulo)}: ${v.toFixed(1)} mm${s > 0 ? ` (${s.toFixed(1)} mm sospechosos: pulsos que la estación borró enseguida)` : ""}">${v === 0 ? "0" : v.toFixed(1)}${s > 0 ? " ⚠" : ""}</td>`;
+  const fila = (o, conTipo) => {
+    const g = grupoLluvia(o.tipo);
+    let total = 0, hay = false;
+    const celdas = lista.map((d) => { const v = o.dias[d]; if (v !== undefined) { total += v; hay = true; } return celda(v, `${o.nombre} · ${fmtD(d)}`, o.sosp[d] || 0); }).join("");
+    return `<tr><td class="franja" style="--gcol:${g.color}">${esc(o.nombre)}${conTipo ? ` <span class="tipo-ll" style="--gcol:${g.color}">${esc(g.nombre.split(" ")[0])}</span>` : ""}</td>
+      <td class="tenue">${INSTR[o.instrumento] || esc(o.instrumento)}</td>${celdas}<td><b>${hay ? total.toFixed(1) : "–"}</b></td></tr>`;
+  };
+  // Promedio del tipo: de las estaciones elegidas con dato ese día.
+  const promedio = (de, g) => {
+    let total = 0, hay = false;
     const celdas = lista.map((d) => {
-      const v = o.dias[d];
-      if (v === undefined) return `<td class="v n0" title="sin datos">–</td>`;
-      total += v;
-      const s = o.sosp[d] || 0;
-      const aviso = s > 0 ? ` (${s.toFixed(1)} mm sospechosos: pulsos que la estación borró enseguida)` : "";
-      return `<td class="v l${nivel(v)} ${v === 0 ? "n0" : ""}" title="${esc(o.nombre)} · ${d}: ${v} mm${aviso}">${v === 0 ? "0" : v.toFixed(1)}${s > 0 ? " ⚠" : ""}</td>`;
+      const vs = de.map((o) => o.dias[d]).filter((v) => v !== undefined);
+      if (!vs.length) return celda(undefined);
+      const m = vs.reduce((a, b) => a + b, 0) / vs.length;
+      total += m; hay = true;
+      return celda(+m.toFixed(1), `Promedio ${g.nombre} (${vs.length} con dato)`);
     }).join("");
-    return `<tr><td>${esc(o.nombre)}</td><td class="tenue">${INSTR[o.instrumento] || esc(o.instrumento)}</td>${celdas}<td><b>${total.toFixed(1)}</b></td></tr>`;
-  }).join("");
+    return `<tr class="g-prom"><td class="franja" style="--gcol:${g.color}">Promedio</td><td class="tenue">${de.length} estaciones</td>${celdas}<td><b>${hay ? total.toFixed(1) : "–"}</b></td></tr>`;
+  };
+  const porNombre = (a, b) => a.nombre.localeCompare(b.nombre);
+  let cuerpo;
+  if ($("#f-lluvia-orden").value === "juntas") {
+    cuerpo = visibles.sort(porNombre).map((o) => fila(o, true)).join("");
+  } else {
+    cuerpo = GRUPOS_LLUVIA.map((g) => {
+      const de = visibles.filter((o) => grupoLluvia(o.tipo) === g).sort(porNombre);
+      if (!de.length) return "";
+      return `<tr class="g-cab" style="--gcol:${g.color}"><td colspan="${lista.length + 3}">${esc(g.nombre)}</td></tr>` +
+        de.map((o) => fila(o, false)).join("") + (de.length > 1 ? promedio(de, g) : "");
+    }).join("");
+  }
   $("#calor").innerHTML = `<table>${cab}${cuerpo}</table>`;
 }
-$("#f-lluvia-dias").addEventListener("change", cargarLluvia);
 
 // ======================================================================
 // ESTADO
