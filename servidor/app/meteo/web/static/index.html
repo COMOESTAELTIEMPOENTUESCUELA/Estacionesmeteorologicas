@@ -1276,7 +1276,9 @@ function panel(canvas, datasets, { unidad, tipo = "line", xmin, xmax, min, max, 
       locale: "es-AR",
       interaction: { mode: "porSerie", intersect: false },
       scales: {
-        x: { type: "linear", min: xmin, max: xmax, grid: { color: grilla }, border: { color: css("--eje") },
+        // offset: false -> las barras no agregan margen a los costados: el eje de
+        // tiempo queda igual en todos los paneles, uno debajo del otro.
+        x: { type: "linear", min: xmin, max: xmax, offset: false, grid: { color: grilla, offset: false }, border: { color: css("--eje") },
              afterBuildTicks: marcasTiempo,
              ticks: { color: tenue, maxRotation: 0, autoSkip: false,
                       callback: function (v) {
@@ -1579,6 +1581,18 @@ async function cargarMeteograma() {
     (c) => panel(c, [{ label: "Lluvia", data: S.precip.map(([t, v]) => ({ x: Date.parse(t) - 1800e3, y: v })),
                        backgroundColor: css("--s1"), borderRadius: 2, barPercentage: 0.9, categoryPercentage: 1 }],
                  { unidad: "mm", tipo: "bar", min: 0, ...x })]);
+  // Acumulada desde el comienzo del período elegido: cada barra es la hora que
+  // TERMINA en t, así que la curva arranca en 0 una hora antes del primer dato.
+  if (S.precip) paneles.push([`Lluvia acumulada en el período · total ${totalLluvia.toLocaleString("es-AR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} mm`, "mm",
+    (c) => {
+      let acum = 0;
+      const pts = [{ x: Date.parse(S.precip[0][0]) - 3600e3, y: 0 },
+                   ...S.precip.map(([t, v]) => ({ x: Date.parse(t), y: +(acum += v).toFixed(1) }))];
+      return panel(c, [{ label: "Acumulada", data: pts, borderColor: css("--s1"), borderWidth: 2,
+                         backgroundColor: css("--s1") + "2e", fill: "origin",   // "2e": el mismo color, transparente
+                         pointRadius: 0, pointHoverRadius: 4, tension: 0 }],
+                   { unidad: "mm", min: 0, ...x });
+    }]);
   if (S.viento_vel || S.racha) paneles.push(["Viento", "km/h",
     (c) => panel(c, [S.viento_vel && serieLinea("Velocidad", S.viento_vel.map(([t, v]) => [t, +(v * 3.6).toFixed(1)]), 1),
                      S.racha && serieLinea("Ráfaga", S.racha.map(([t, v]) => [t, +(v * 3.6).toFixed(1)]), 2)].filter(Boolean),
