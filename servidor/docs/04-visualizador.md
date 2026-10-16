@@ -29,7 +29,7 @@ distinta, por eso cada red tiene su vista:
 | *Período (EMAs y SMN)* | Tres modos: **los últimos N días** (como siempre); **un día** (00 a 24 hs de Argentina, con ◀ ▶ para pasar de día); o un **período** desde/hasta, para mirar un evento (hasta 60 días en las EMAs y 31 en el SMN). El CSV y el link a Ogimet siguen al período elegido. |
 | **Comparar** | Una variable, hasta 8 estaciones de cualquier red, de 24 h a 1 año. Cortes de datos visibles, lluvia acumulada, tabla y CSV. |
 | **Lluvia diaria** | Tabla de 9 a 9 de todas las fuentes, incluidos los reportes de la comunidad con su instrumento. "–" = sin datos (no es lo mismo que 0); ⚠ = incluye lluvia sospechosa. |
-| **Estado de la red** | Última corrida de cada tarea de ingesta y sus errores. |
+| **Estado de la red** | Última corrida de cada tarea de ingesta y sus errores. **Cortes y mantenimiento de las EMAs**: % de datos recibidos, cortes detectados solos y la bitácora donde se anota la causa (internet, luz, mantenimiento…), con las horas perdidas por cada una. |
 
 ## Cómo está hecho
 

@@ -36,8 +36,24 @@ variable ──┐                       estacion ─── instrumento (histori
                  (ts, estacion, variable, valor, qc)
 
 reporte_comunidad (con instrumento + período)     pronostico_emision ── pronostico_dia
-evento (eventos significativos)                    ingesta_log (bitácora)
+evento (eventos significativos)                    ingesta_log (bitácora de la ingesta)
+verif_observado (lo observado, para verificar)     carta_dibujo (dibujos sobre las cartas)
+estacion ── estacion_incidente (fallas y mantenimiento de cada estación)
 ```
+
+**Dónde vive.** La base es un Postgres dentro del contenedor `db`, pero sus
+archivos están en el disco de la PC, en la carpeta `DB_DIR` del `.env`
+(`/srv/meteo/db`): por eso no se pierde nada al reconstruir los contenedores.
+No se editan a mano; se entra con
+`docker compose exec db psql -U meteo -d meteo` (salir con `\q`; `\dt` lista
+las tablas, `\d estacion_incidente` muestra una).
+
+**Dónde está definida.** En dos lugares:
+
+| Archivos | Qué crean | Cuándo se aplican |
+|---|---|---|
+| `db/init/01..04-*.sql` | Las tablas de datos y las vistas | Solos la primera vez que se crea la base; después, a mano (ver abajo) |
+| `app/meteo/web/dibujos.sql`, `incidentes.sql` | Lo que escribe la página (dibujos, bitácora) | Solos, cada vez que arranca la web (`CREATE ... IF NOT EXISTS`: si ya existe no hace nada) |
 
 **Formato largo.** En vez de una tabla con columnas `temp, hum, presion...`,
 hay una fila por cada valor:
@@ -93,6 +109,22 @@ docker compose exec -T db psql -U meteo -d meteo < db/init/04-verificacion.sql
 
 Son seguros de repetir: el 02 y el 03 solo recrean vistas (que no guardan
 datos) y el 04 crea su tabla solo si no existe.
+
+### Bitácora de las estaciones (fallas y mantenimiento)
+
+Tabla `estacion_incidente`, una fila por cosa anotada: estación (o vacía =
+toda la red), **causa** (`internet`, `energia`, `equipo`, `sensor`,
+`plataforma`, `servidor`, `clima`, `vandalismo`, `desconocida`;
+mantenimiento: `mantenimiento`, `calibracion`, `traslado`; `otra`), desde,
+hasta (vacío = sigue), qué pasó con los datos mientras tanto (`sin_datos`,
+`dudosos`, `normales`), descripción y quién lo anotó.
+
+Los **cortes no se anotan**: se calculan solos con los datos (un hueco de más
+de 1 hora entre dos datos seguidos). Lo que se anota es la **causa**; la página
+cruza las dos cosas y cuenta las horas sin datos de cada motivo. Si la causa
+cubre el corte salvo unos minutos en los bordes (menos de 30), esos minutos se
+le suman a la misma causa. Se carga y se mira en **Estado de la red**; la API:
+`/api/estaciones/disponibilidad?dias=30` y `/api/incidentes?formato=csv`.
 
 ### Metadatos
 

@@ -255,8 +255,8 @@ def test_dibujos_sobre_las_cartas(cliente, tmp_path, monkeypatch):
         assert cliente.put("/api/cartas/dibujo", params=q, json={**d, "elementos": []}).json()["elementos"] == 0
         assert cliente.get("/api/cartas/dibujo", params=q).json()["dibujo"] is None     # vacío = borrado
     finally:
-        from meteo.web.app import pool_dibujos
-        with pool_dibujos.connection() as conn:
+        from meteo.web.app import pool_escritura
+        with pool_escritura.connection() as conn:
             conn.execute("DELETE FROM carta_dibujo WHERE producto = 'b_rv'")
 
 
@@ -277,3 +277,74 @@ def test_observaciones_de_la_hora_de_la_carta(cliente):
     [aero] = [f for f in r["smn"] if f["id"] == "omm_87593"]
     assert (aero["temp"], aero["tmax"], aero["hum"]) == (12.0, 19.5, 77)
     assert set(r) == {"ts", "smn"} and not any(f["id"] == "bavio" for f in r["smn"])
+
+
+def test_cortes_de_una_estacion():
+    """Huecos -> cortes: recorta al período, agrega el corte que sigue abierto
+    y no cuenta como caída el tiempo antes de que la estación existiera."""
+    from datetime import datetime, timedelta, timezone
+
+    from meteo.web.app import _restar, cortes_de_estacion
+    t = lambda h: datetime(2026, 8, 1, tzinfo=timezone.utc) + timedelta(hours=h)
+    u = timedelta(hours=1)
+    inicio, c = cortes_de_estacion([(t(-5), t(3)), (t(10), t(16))], t(-20), t(40), True, t(0), t(48), u)
+    assert inicio == t(0) and c == [(t(0), t(3), False), (t(10), t(16), False), (t(40), t(48), True)]
+    inicio, c = cortes_de_estacion([], t(5), t(48), False, t(0), t(48), u)   # empezó a las 5: no estaba caída
+    assert inicio == t(5) and c == []
+    assert cortes_de_estacion([], None, None, True, t(0), t(48), u) == (t(0), [(t(0), t(48), True)])
+    assert cortes_de_estacion([], None, None, False, t(0), t(48), u) == (None, [])
+    quedan, sacado = _restar([(t(0), t(10))], t(2), t(4))
+    assert quedan == [(t(0), t(2)), (t(4), t(10))] and sacado == timedelta(hours=2)
+
+
+def test_bitacora_y_disponibilidad(cliente, monkeypatch):
+    """Se anota la causa de un corte y la disponibilidad la usa para explicar
+    las horas perdidas; la copia pública no puede escribir ni ver la bitácora."""
+    from datetime import datetime, timedelta, timezone
+
+    from meteo.ingesta import db
+    from meteo.ingesta.base import Obs
+    from meteo.web import app as web
+    t0 = datetime(2026, 8, 1, 3, tzinfo=timezone.utc)          # 00 hora argentina
+    obs = [Obs(t0 + timedelta(minutes=10 * i), "bavio", "temp", 15.0) for i in range(-6, 6 * 48)
+           if not 60 <= i < 96]                                  # hueco: de 12:50 a 19:00 UTC
+    conn = db.conectar(DSN)
+    db.guardar_observaciones(conn, obs, "test")
+    conn.close()
+    rango = {"desde": "2026-08-01T03:00:00Z", "hasta": "2026-08-03T03:00:00Z"}
+    nuevo = {"estacion_id": "bavio", "causa": "internet", "desde": "2026-08-01T10:00:00-03:00",
+             "hasta": "2026-08-01T14:00:00-03:00", "descripcion": "Se cortó el WiFi de la escuela"}
+    ids = []
+    try:
+        assert cliente.post("/api/incidentes", json={**nuevo, "causa": "nada"}).status_code == 400
+        assert cliente.post("/api/incidentes", json={**nuevo, "hasta": "2026-08-01T09:00:00-03:00"}).status_code == 400
+        r = cliente.post("/api/incidentes", json=nuevo).json()
+        ids.append(r["id"])
+        d = cliente.get("/api/estaciones/disponibilidad", params=rango).json()
+        [b] = [e for e in d["estaciones"] if e["id"] == "bavio"]
+        assert b["cortes"] == 1 and b["horas_sin_datos"] == 6.2           # de 12:50 a 19:00 UTC
+        assert b["por_causa"] == {"internet": 4.0} and b["horas_sin_explicar"] == 2.2
+        assert 85 < b["disponibilidad"] < 88
+        assert b["lista_cortes"][0]["causas"] == [{"id": r["id"], "causa": "internet"}]
+        # Se corrige: duró hasta que volvió. Los 10 min antes del inicio
+        # anotado (el último dato fue 12:50 UTC) se le suman a la misma causa.
+        assert cliente.put(f"/api/incidentes/{r['id']}", json={**nuevo, "desde": "2026-08-01T10:00:00-03:00",
+                                                                 "hasta": "2026-08-01T16:00:00-03:00"}).json()["ok"]
+        d = cliente.get("/api/estaciones/disponibilidad", params=rango).json()
+        [b] = [e for e in d["estaciones"] if e["id"] == "bavio"]
+        assert b["horas_sin_explicar"] == 0 and b["por_causa"] == {"internet": 6.2}
+        lista = cliente.get("/api/incidentes", params=rango).json()
+        assert [i["descripcion"] for i in lista] == ["Se cortó el WiFi de la escuela"]
+        monkeypatch.setattr(web, "WEB_MODO", "cartas")
+        assert cliente.post("/api/incidentes", json=nuevo).status_code == 404     # ahí ni existe
+        assert cliente.get("/api/incidentes", params=rango).status_code == 404
+        monkeypatch.setattr(web, "WEB_MODO", "completo")
+        assert cliente.delete(f"/api/incidentes/{r['id']}").json()["ok"]
+        assert cliente.delete(f"/api/incidentes/{r['id']}").status_code == 404
+        ids.clear()
+    finally:
+        with web.pool_escritura.connection() as conn:
+            for i in ids:
+                conn.execute("DELETE FROM estacion_incidente WHERE id = %s", (i,))
+            conn.execute("DELETE FROM observacion WHERE estacion_id = 'bavio' AND ts BETWEEN %s AND %s",
+                         (t0 - timedelta(hours=2), t0 + timedelta(days=2)))

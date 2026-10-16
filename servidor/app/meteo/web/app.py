@@ -54,30 +54,33 @@ pool = ConnectionPool(
             "row_factory": dict_row},
 )
 
-# La ÚNICA escritura de la web: los dibujos de análisis sobre las cartas.
-# Va por una conexión aparte, para que todo lo demás siga en solo lectura.
+# Lo ÚNICO que la web escribe: los dibujos de análisis sobre las cartas y la
+# bitácora de las estaciones (fallas y mantenimiento). Va por una conexión
+# aparte, para que todo lo demás siga en solo lectura.
 # En la copia pública (modo cartas) no existe: ahí no se escribe nada.
-pool_dibujos = None if os.environ.get("WEB_MODO", "completo") == "cartas" else ConnectionPool(
+pool_escritura = None if os.environ.get("WEB_MODO", "completo") == "cartas" else ConnectionPool(
     DSN, min_size=0, max_size=2, open=False,
     kwargs={"options": "-c statement_timeout=10000", "row_factory": dict_row},
 )
-SQL_DIBUJOS = (Path(__file__).parent / "dibujos.sql")
+# Tablas que crea la propia web al arrancar (si no existen).
+TABLAS_PROPIAS = [Path(__file__).parent / "dibujos.sql", Path(__file__).parent / "incidentes.sql"]
 
 
 @asynccontextmanager
 async def ciclo_de_vida(_app):
     pool.open()   # al arrancar
-    if pool_dibujos:
-        pool_dibujos.open()
-        try:
-            with pool_dibujos.connection() as conn:
-                conn.execute(SQL_DIBUJOS.read_text(encoding="utf-8"))
-        except Exception as ex:      # sin la tabla, la web anda igual (sin dibujos)
-            logging.getLogger(__name__).warning("tabla de dibujos: %s", ex)
+    if pool_escritura:
+        pool_escritura.open()
+        for sql in TABLAS_PROPIAS:
+            try:
+                with pool_escritura.connection() as conn:
+                    conn.execute(sql.read_text(encoding="utf-8"))
+            except Exception as ex:      # sin la tabla, la web anda igual (sin esa parte)
+                logging.getLogger(__name__).warning("tabla de %s: %s", sql.stem, ex)
     yield
     pool.close()  # al apagar
-    if pool_dibujos:
-        pool_dibujos.close()
+    if pool_escritura:
+        pool_escritura.close()
 
 
 app = FastAPI(title="Servidor meteorológico", docs_url="/api/docs", redoc_url=None, lifespan=ciclo_de_vida)
@@ -423,9 +426,10 @@ def meteograma(estacion_id: str, dias: float = 2, desde: datetime | None = None,
 
 @app.get("/api/emas/resumen")
 def resumen_emas():
-    """Hoy en cada EMA: último dato, máxima y mínima del día civil y lluvia
-    desde las 9 (día pluviométrico en curso)."""
-    return _json(consultar(f"""
+    """Hoy en cada EMA: último dato, máxima y mínima del día civil, lluvia
+    desde las 9 (día pluviométrico en curso) y, si hay, lo anotado en la
+    bitácora que está pasando ahora (ej. "corte de internet")."""
+    filas = _json(consultar(f"""
         WITH hoy AS (
             SELECT (date_trunc('day', now() AT TIME ZONE '{TZ_AR}') AT TIME ZONE '{TZ_AR}') AS inicio
         )
@@ -443,6 +447,22 @@ def resumen_emas():
         WHERE e.tipo = 'ema' AND e.activa
         GROUP BY e.id, e.nombre, e.localidad
         ORDER BY e.nombre"""))
+    abiertos = _incidentes_abiertos()
+    for f in filas:
+        f["incidente"] = abiertos.get(f["id"]) or abiertos.get(None)
+    return filas
+
+
+def _incidentes_abiertos():
+    """Lo anotado en la bitácora que está pasando ahora: {estacion_id: {...}}."""
+    try:
+        filas = consultar("""
+            SELECT DISTINCT ON (estacion_id) id, estacion_id, causa, desde, hasta, descripcion
+            FROM estacion_incidente WHERE desde <= now() AND coalesce(hasta, 'infinity') > now()
+            ORDER BY estacion_id, desde DESC""")
+    except Exception:          # si la tabla todavía no existe
+        return {}
+    return {f["estacion_id"]: {k: _iso(v) for k, v in f.items()} for f in filas}
 
 
 # ---------------------------------------------------------------------------
@@ -764,13 +784,13 @@ def leer_dibujo(producto: str, ts: datetime):
 def guardar_dibujo(request: Request, producto: str, ts: datetime, dibujo: dict = Body(...)):
     """Guarda (o, si quedó vacío, borra) el dibujo de una carta. Solo en el
     visualizador completo: en la copia pública no existe la conexión de escritura."""
-    if pool_dibujos is None:
+    if pool_escritura is None:
         raise HTTPException(405, "acá no se puede dibujar")
     _producto_valido(producto)
     ts = (ts if ts.tzinfo else ts.replace(tzinfo=timezone.utc)).astimezone(timezone.utc)
     d = _validar_dibujo(dibujo)
     autor = _usuario(request.headers.get("authorization", ""))
-    with pool_dibujos.connection() as conn:
+    with pool_escritura.connection() as conn:
         if not d["elementos"]:
             conn.execute("DELETE FROM carta_dibujo WHERE producto = %s AND ts = %s", (producto, ts))
         else:
@@ -780,6 +800,258 @@ def guardar_dibujo(request: Request, producto: str, ts: datetime, dibujo: dict =
                 SET dibujo = EXCLUDED.dibujo, autor = EXCLUDED.autor, actualizado = now()""",
                          (producto, ts, Jsonb(d), autor))
     return {"ok": True, "elementos": len(d["elementos"])}
+
+
+# ---------------------------------------------------------------------------
+# Bitácora de las estaciones: cortes, fallas y mantenimiento
+# ---------------------------------------------------------------------------
+# Los CORTES (huecos en los datos) se calculan solos a partir de las
+# observaciones. La CAUSA no se puede adivinar: se anota a mano en la tabla
+# estacion_incidente, y después se cruza con los cortes para saber cuántas
+# horas se perdieron por cada motivo.
+CAUSAS = {
+    # Fallas
+    "internet": "Corte de internet / WiFi",
+    "energia": "Corte de luz / batería",
+    "equipo": "Falla del equipo (placa, consola, datalogger)",
+    "sensor": "Falla de un sensor",
+    "plataforma": "Falla de la plataforma (ThingSpeak, Wunderground, Facultad)",
+    "servidor": "Falla de nuestro servidor",
+    "clima": "Daño por tormenta, viento, rayo",
+    "vandalismo": "Robo o vandalismo",
+    "desconocida": "No se sabe",
+    # Mantenimiento (planificado)
+    "mantenimiento": "Mantenimiento / limpieza",
+    "calibracion": "Calibración o cambio de sensor",
+    "traslado": "Traslado o reinstalación",
+    "otra": "Otra",
+}
+TOLERANCIA = timedelta(minutes=30)   # restos menores de un corte con causa: se le suman
+MANTENIMIENTO = {"mantenimiento", "calibracion", "traslado"}
+DATOS_DURANTE = {"sin_datos": "Sin datos", "dudosos": "Datos dudosos", "normales": "Datos normales"}
+
+
+def _utc(t):
+    return (t if t.tzinfo else t.replace(tzinfo=timezone.utc)).astimezone(timezone.utc)
+
+
+def _escritura():
+    if pool_escritura is None:
+        raise HTTPException(405, "acá no se puede modificar nada")
+    return pool_escritura
+
+
+def _validar_incidente(d):
+    if not isinstance(d, dict):
+        raise HTTPException(400, "se esperaba un objeto")
+    if d.get("causa") not in CAUSAS:
+        raise HTTPException(400, f"causa desconocida: {d.get('causa')}")
+    datos = d.get("datos") or "sin_datos"
+    if datos not in DATOS_DURANTE:
+        raise HTTPException(400, f"datos: {', '.join(DATOS_DURANTE)}")
+    try:
+        desde = _utc(datetime.fromisoformat(str(d["desde"]).replace("Z", "+00:00")))
+        hasta = _utc(datetime.fromisoformat(str(d["hasta"]).replace("Z", "+00:00"))) if d.get("hasta") else None
+    except (KeyError, ValueError):
+        raise HTTPException(400, "desde/hasta: fecha y hora inválidas")
+    if hasta and hasta <= desde:
+        raise HTTPException(400, "«hasta» tiene que ser posterior a «desde»")
+    estacion = d.get("estacion_id") or None
+    if estacion and not consultar("SELECT 1 FROM estacion WHERE id = %s", (estacion,)):
+        raise HTTPException(400, f"estación desconocida: {estacion}")
+    texto = (d.get("descripcion") or "").strip()[:2000] or None
+    return {"estacion_id": estacion, "causa": d["causa"], "desde": desde, "hasta": hasta,
+            "datos": datos, "descripcion": texto}
+
+
+@app.get("/api/incidentes/causas")
+def causas_de_incidentes():
+    return {"causas": CAUSAS, "mantenimiento": sorted(MANTENIMIENTO), "datos": DATOS_DURANTE}
+
+
+def _incidentes(desde, hasta, estacion=None):
+    return consultar("""
+        SELECT i.id, i.estacion_id, coalesce(e.nombre, 'Toda la red') AS estacion, i.causa, i.desde, i.hasta,
+               i.datos, i.descripcion, i.autor, i.actualizado
+        FROM estacion_incidente i LEFT JOIN estacion e ON e.id = i.estacion_id
+        WHERE i.desde < %s AND coalesce(i.hasta, 'infinity') > %s
+          AND (%s::text IS NULL OR i.estacion_id = %s OR i.estacion_id IS NULL)
+        ORDER BY i.desde DESC""", (hasta, desde, estacion, estacion))
+
+
+@app.get("/api/incidentes")
+def listar_incidentes(dias: float = 30, desde: datetime | None = None, hasta: datetime | None = None,
+                      estacion: str | None = None, formato: str = "json"):
+    """Lo anotado en la bitácora que cae (aunque sea en parte) en el período."""
+    desde, hasta = _rango(dias, desde, hasta, 3660)
+    filas = _incidentes(desde, hasta, estacion)
+    if formato == "csv":
+        return _csv(filas, "bitacora_estaciones")
+    return _json(filas)
+
+
+@app.post("/api/incidentes")
+def crear_incidente(request: Request, incidente: dict = Body(...)):
+    d = _validar_incidente(incidente)
+    autor = _usuario(request.headers.get("authorization", ""))
+    with _escritura().connection() as conn:
+        fila = conn.execute("""
+            INSERT INTO estacion_incidente (estacion_id, causa, desde, hasta, datos, descripcion, autor)
+            VALUES (%(estacion_id)s, %(causa)s, %(desde)s, %(hasta)s, %(datos)s, %(descripcion)s, %(autor)s)
+            RETURNING id""", {**d, "autor": autor}).fetchone()
+    return {"ok": True, "id": fila["id"]}
+
+
+@app.put("/api/incidentes/{incidente_id}")
+def editar_incidente(request: Request, incidente_id: int, incidente: dict = Body(...)):
+    d = _validar_incidente(incidente)
+    autor = _usuario(request.headers.get("authorization", ""))
+    with _escritura().connection() as conn:
+        n = conn.execute("""
+            UPDATE estacion_incidente SET estacion_id = %(estacion_id)s, causa = %(causa)s, desde = %(desde)s,
+                   hasta = %(hasta)s, datos = %(datos)s, descripcion = %(descripcion)s,
+                   autor = coalesce(%(autor)s, autor), actualizado = now()
+            WHERE id = %(id)s""", {**d, "autor": autor, "id": incidente_id}).rowcount
+    if not n:
+        raise HTTPException(404, "no existe")
+    return {"ok": True, "id": incidente_id}
+
+
+@app.delete("/api/incidentes/{incidente_id}")
+def borrar_incidente(incidente_id: int):
+    with _escritura().connection() as conn:
+        n = conn.execute("DELETE FROM estacion_incidente WHERE id = %s", (incidente_id,)).rowcount
+    if not n:
+        raise HTTPException(404, "no existe")
+    return {"ok": True}
+
+
+def _restar(tramos, a, b):
+    """Saca el intervalo [a, b) de una lista de tramos [(inicio, fin)]: devuelve
+    (lo que queda, cuánto se sacó)."""
+    quedan, sacado = [], timedelta(0)
+    for x, y in tramos:
+        if b <= x or a >= y:
+            quedan.append((x, y))
+            continue
+        sacado += min(y, b) - max(x, a)
+        if x < a:
+            quedan.append((x, a))
+        if b < y:
+            quedan.append((b, y))
+    return quedan, sacado
+
+
+def cortes_de_estacion(huecos, primero, ultimo, hay_previos, desde, hasta, umbral):
+    """Arma los cortes de UNA estación en [desde, hasta).
+
+    huecos: [(último dato antes del hueco, primer dato después)] más largos que
+    el umbral. primero/ultimo: primer y último dato de la ventana consultada.
+    hay_previos: si la estación tenía datos antes de la ventana (si no, el
+    período "empieza" cuando empezó la estación: antes no estaba caída, no existía).
+    Devuelve (inicio efectivo del período, [(inicio, fin, sigue)])."""
+    if primero is None:
+        return (desde, [(desde, hasta, True)]) if hay_previos else (None, [])
+    inicio = desde
+    cortes = []
+    if primero > desde:
+        if hay_previos:
+            if primero - desde > umbral:
+                cortes.append((desde, primero, False))
+        else:
+            inicio = primero
+    for a, b in huecos:
+        a, b = max(a, inicio), min(b, hasta)
+        if b > a:
+            cortes.append((a, b, False))
+    if hasta - ultimo > umbral:
+        cortes.append((max(ultimo, inicio), hasta, True))
+    return inicio, cortes
+
+
+@app.get("/api/estaciones/disponibilidad")
+def disponibilidad(dias: float = 30, desde: datetime | None = None, hasta: datetime | None = None,
+                   umbral_min: int = 60, tipo: str = "ema"):
+    """Cuánto tiempo estuvo cada estación sin mandar datos, cada corte, y
+    cuántas horas se explican por cada causa anotada en la bitácora.
+
+    Un "corte" es un hueco de más de `umbral_min` minutos entre dos datos
+    seguidos (de cualquier variable). Lo que no tiene una causa anotada que lo
+    cubra queda como "sin_explicar"."""
+    desde, hasta = _rango(dias, desde, hasta, 400)
+    hasta = min(hasta, datetime.now(timezone.utc))
+    umbral = timedelta(minutes=max(15, min(umbral_min, 24 * 60)))
+    mirar_desde = desde - timedelta(days=30)   # para saber si ya venía caída
+    est = consultar("SELECT id, nombre FROM estacion WHERE tipo = %s AND activa ORDER BY nombre", (tipo,))
+    ids = [e["id"] for e in est]
+    huecos = consultar("""
+        WITH t AS (
+            SELECT DISTINCT estacion_id, ts FROM observacion
+            WHERE estacion_id = ANY(%s) AND ts >= %s AND ts < %s AND qc <> 4
+        )
+        SELECT estacion_id, antes, despues FROM (
+            SELECT estacion_id, lag(ts) OVER (PARTITION BY estacion_id ORDER BY ts) AS antes, ts AS despues FROM t
+        ) l WHERE despues - antes > %s AND despues > %s
+        ORDER BY 1, 2""", (ids, mirar_desde, hasta, umbral, desde))
+    bordes = {f["estacion_id"]: f for f in consultar("""
+        SELECT estacion_id, min(ts) AS primero, max(ts) AS ultimo FROM observacion
+        WHERE estacion_id = ANY(%s) AND ts >= %s AND ts < %s AND qc <> 4 GROUP BY 1""", (ids, mirar_desde, hasta))}
+    incidentes = _incidentes(desde, hasta)
+    ahora = datetime.now(timezone.utc)
+
+    salida, totales = [], {}
+    for e in est:
+        b = bordes.get(e["id"], {})
+        primero = b.get("primero")
+        previos = True
+        if primero is None or primero > desde:     # ¿estaba caída desde antes, o recién empezó?
+            previos = bool(consultar("SELECT 1 FROM observacion WHERE estacion_id = %s AND ts < %s LIMIT 1",
+                                     (e["id"], mirar_desde)))
+        inicio, cortes = cortes_de_estacion(
+            [(h["antes"], h["despues"]) for h in huecos if h["estacion_id"] == e["id"]],
+            primero, b.get("ultimo"), previos, desde, hasta, umbral)
+        if inicio is None:
+            continue    # todavía no mandó nunca nada
+        propios = sorted((i for i in incidentes if i["estacion_id"] in (e["id"], None)), key=lambda i: i["desde"])
+        por_causa, sin_explicar, lista = {}, timedelta(0), []
+        for a, z, sigue in cortes:
+            tramos = [(a, z)]
+            causas = []
+            for i in propios:
+                tramos, h = _restar(tramos, i["desde"], i["hasta"] or ahora)
+                if h:
+                    por_causa[i["causa"]] = por_causa.get(i["causa"], timedelta(0)) + h
+                    causas.append({"id": i["id"], "causa": i["causa"]})
+            resto = sum((y - x for x, y in tramos), timedelta(0))
+            if causas and resto and all(y - x < TOLERANCIA for x, y in tramos):
+                # La causa cubre el corte salvo unos minutos en los bordes (se
+                # anotó "a las 8" y el último dato fue 7:50): es de esa causa.
+                principal = causas[0]["causa"]
+                por_causa[principal] += resto
+                resto = timedelta(0)
+            sin_explicar += resto
+            lista.append({"desde": _iso(a), "hasta": _iso(z), "sigue": sigue,
+                          "horas": round((z - a) / timedelta(hours=1), 1), "causas": causas,
+                          "horas_sin_explicar": round(resto / timedelta(hours=1), 1)})
+        perdido = sum((z - a for a, z, _ in cortes), timedelta(0))
+        periodo = hasta - inicio
+        h = lambda t: round(t / timedelta(hours=1), 1)
+        for c, t in por_causa.items():
+            totales[c] = totales.get(c, timedelta(0)) + t
+        if sin_explicar:
+            totales["sin_explicar"] = totales.get("sin_explicar", timedelta(0)) + sin_explicar
+        salida.append({
+            "id": e["id"], "nombre": e["nombre"], "desde": _iso(inicio),
+            "horas_periodo": h(periodo), "horas_sin_datos": h(perdido),
+            "disponibilidad": round(100 * (1 - perdido / periodo), 1) if periodo else None,
+            "cortes": len(cortes), "por_causa": {c: h(t) for c, t in por_causa.items()},
+            "horas_sin_explicar": h(sin_explicar),
+            "mantenimientos": sum(1 for i in propios if i["causa"] in MANTENIMIENTO and i["estacion_id"] == e["id"]),
+            "lista_cortes": lista[::-1][:200],
+        })
+    return {"desde": _iso(desde), "hasta": _iso(hasta), "umbral_min": int(umbral / timedelta(minutes=1)),
+            "estaciones": salida,
+            "por_causa": {c: round(t / timedelta(hours=1), 1) for c, t in sorted(totales.items(), key=lambda x: -x[1])}}
 
 
 @app.exception_handler(Exception)

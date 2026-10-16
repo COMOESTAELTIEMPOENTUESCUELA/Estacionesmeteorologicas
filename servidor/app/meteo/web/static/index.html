@@ -108,6 +108,29 @@ th { color: var(--tinta-2); font-weight: 600; font-size: 12px; position: sticky;
 .escala span.c { width: 34px; height: 14px; border-radius: 3px; display: inline-block; }
 
 /* Estado */
+/* Bitácora de las estaciones */
+.boton.primario { background: var(--acento); border-color: var(--acento); color: #fff; }
+.boton.primario:hover { background: var(--acento); filter: brightness(1.08); }
+.boton.chico { padding: 2px 8px; font-size: 12px; }
+td.nw { white-space: nowrap; }
+.disp { display: flex; align-items: center; gap: 8px; min-width: 150px; }
+.disp .barra-d { flex: 1; height: 8px; border-radius: 99px; background: color-mix(in srgb, var(--caida) 30%, transparent); overflow: hidden; }
+.disp .barra-d i { display: block; height: 100%; background: var(--ok); }
+.chip.c-falla { border-color: color-mix(in srgb, var(--caida) 55%, transparent); background: color-mix(in srgb, var(--caida) 12%, transparent); color: var(--tinta); }
+.chip.c-mant { border-color: color-mix(in srgb, var(--acento) 55%, transparent); background: color-mix(in srgb, var(--acento) 12%, transparent); color: var(--tinta); }
+.chip.c-nada { border-color: color-mix(in srgb, var(--demora) 70%, transparent); background: color-mix(in srgb, var(--demora) 16%, transparent); color: var(--tinta); }
+.causas-total { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 12px; }
+.causas-total .chip { font-size: 13px; padding: 3px 10px; }
+#d-inc { width: min(520px, 94vw); border: 1px solid var(--borde); border-radius: 12px; background: var(--superficie); color: var(--tinta); padding: 18px; }
+#d-inc::backdrop { background: rgba(0,0,0,.45); }
+#d-inc form { display: flex; flex-direction: column; gap: 10px; }
+#d-inc label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--tinta-2); }
+#d-inc label.marca { flex-direction: row; align-items: center; gap: 6px; }
+#d-inc input, #d-inc select, #d-inc textarea { font: inherit; color: var(--tinta); background: var(--superficie); border: 1px solid var(--eje); border-radius: 8px; padding: 6px 8px; }
+#d-inc .fila-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 480px) { #d-inc .fila-2 { grid-template-columns: 1fr; } }
+#d-inc .acciones { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+.d-inc-err { color: var(--caida); margin: 0; font-size: 13px; }
 .cifras { display: flex; gap: 32px; flex-wrap: wrap; margin-bottom: 16px; }
 .cifra b { display: block; font-size: 26px; font-weight: 650; }
 .cifra span { color: var(--tinta-2); font-size: 12px; }
@@ -770,6 +793,44 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
       <h2>Última corrida de cada tarea de ingesta</h2>
       <div class="tabla-scroll" style="max-height:none"><table id="tabla-estado"></table></div>
     </div>
+    <div class="tarjeta" style="margin-top:16px">
+      <h2>Cortes y mantenimiento de las EMAs</h2>
+      <p class="ayuda">Un <b>corte</b> es un hueco de más de 1 hora sin datos: se detecta solo. La <b>causa</b>
+        (internet, luz, mantenimiento…) la anotás en la bitácora, y con eso se cuentan las horas perdidas por cada motivo.
+        Lo que no tiene causa anotada queda como <i>sin explicar</i>.</p>
+      <div class="filtros">
+        <span class="periodo" id="p-bit"></span>
+        <label>Estación <select id="f-bit-est"><option value="">Todas</option></select></label>
+        <button class="boton primario" id="b-bit-nuevo">+ Anotar falla o mantenimiento</button>
+        <a class="boton" id="b-bit-csv" href="api/incidentes?formato=csv">Bitácora en CSV</a>
+      </div>
+      <div class="causas-total" id="bit-causas"></div>
+      <div class="tabla-scroll" style="max-height:none"><table id="tabla-disp"></table></div>
+      <h2 style="margin-top:18px">Cortes detectados</h2>
+      <div class="tabla-scroll"><table id="tabla-cortes"></table></div>
+      <h2 style="margin-top:18px">Bitácora</h2>
+      <div class="tabla-scroll"><table id="tabla-bitacora"></table></div>
+    </div>
+    <dialog id="d-inc">
+      <form id="f-inc">
+        <h2 id="d-inc-tit">Anotar en la bitácora</h2>
+        <label>Estación <select name="estacion_id"></select></label>
+        <label>Causa <select name="causa"></select></label>
+        <div class="fila-2">
+          <label>Desde <input type="datetime-local" name="desde" required></label>
+          <label>Hasta <input type="datetime-local" name="hasta"></label>
+        </div>
+        <label class="marca"><input type="checkbox" name="sigue"> Todavía sigue (sin fecha de fin)</label>
+        <label>Mientras tanto, los datos… <select name="datos"></select></label>
+        <label>Descripción <textarea name="descripcion" rows="3" maxlength="2000"
+          placeholder="Ej.: se cortó el internet de la escuela; lo repusieron el lunes a la mañana"></textarea></label>
+        <p class="d-inc-err" id="d-inc-err" hidden></p>
+        <div class="acciones">
+          <button type="button" class="boton" id="d-inc-cancelar">Cancelar</button>
+          <button type="submit" class="boton primario">Guardar</button>
+        </div>
+      </form>
+    </dialog>
   </section>
 </main>
 
@@ -874,7 +935,7 @@ function abrir(tab) {
   document.querySelectorAll("nav button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
   document.querySelectorAll("main > section").forEach((s) => (s.hidden = s.id !== `tab-${tab}`));
   if (tab === "mapa" && mapa) setTimeout(() => mapa.invalidateSize(), 50);
-  if (!cargadas[tab]) { cargadas[tab] = true; ({ emas: iniciarEmas, smn: iniciarSmn, series: iniciarSeries, lluvia: cargarLluvia, verif: iniciarVerif, cartas: iniciarCartas, estado: cargarEstado }[tab] || (() => {}))(); }
+  if (!cargadas[tab]) { cargadas[tab] = true; ({ emas: iniciarEmas, smn: iniciarSmn, series: iniciarSeries, lluvia: cargarLluvia, verif: iniciarVerif, cartas: iniciarCartas, estado: () => { cargarEstado(); iniciarBitacora().catch((e) => { $("#tabla-disp").innerHTML = `<tr><td>Error: ${esc(e.message)}</td></tr>`; }); } }[tab] || (() => {}))(); }
 }
 document.querySelectorAll("nav button").forEach((b) => b.addEventListener("click", () => abrir(b.dataset.tab)));
 
@@ -1466,12 +1527,15 @@ async function iniciarEmas() {
 
 async function cargarResumenEmas() {
   const filas = await api("/api/emas/resumen");
+  await causasInc().catch(() => {});
   $("#tabla-emas").innerHTML = `<tr><th>Estación</th><th>Estado</th><th class="num">Temp. (°C)</th><th class="num">Máx. hoy</th>
     <th class="num">Mín. hoy</th><th class="num">Humedad (%)</th><th class="num">Lluvia desde las 9 (mm)</th></tr>` +
     filas.map((f) => {
       const st = estadoDe({ ultimo: f.ultimo, tipo: "ema" });
-      return `<tr class="fila-click ${f.id === emaElegida ? "fila-activa" : ""}" data-id="${esc(f.id)}">
-        <td>${esc(f.nombre)}</td><td><span class="estado ${st.clase}"><i>${st.icono}</i>${esc(st.texto)}</span></td>
+      const inc = f.incidente ? ` ${chipCausa(f.incidente.causa)}` : "";
+      return `<tr class="fila-click ${f.id === emaElegida ? "fila-activa" : ""}" data-id="${esc(f.id)}"
+          title="${esc(f.incidente?.descripcion || "")}">
+        <td>${esc(f.nombre)}</td><td><span class="estado ${st.clase}"><i>${st.icono}</i>${esc(st.texto)}</span>${inc}</td>
         <td class="num"><b>${num(f.temp)}</b></td><td class="num">${num(f.tmax_hoy)}</td><td class="num">${num(f.tmin_hoy)}</td>
         <td class="num">${num(f.hum, 0)}</td><td class="num">${num(f.lluvia_desde_9)}</td></tr>`;
     }).join("");
@@ -1495,6 +1559,12 @@ async function cargarMeteograma() {
     `${est.nombre || id} · ${per.etiqueta} · ${d.paso === "crudo" ? "cada dato tal cual llegó" : "promedios horarios"}` +
     (S.precip ? ` · lluvia total del período: ${totalLluvia.toFixed(1)} mm` : "") +
     (Object.keys(S).length ? "" : " · sin datos en el período");
+  api(`/api/incidentes?estacion=${encodeURIComponent(id)}&${per.query}`).then(async (bit) => {
+    if (!bit.length || $("#f-ema").value !== id) return;
+    await causasInc();
+    $("#nota-meteograma").textContent += " · Bitácora: " + bit.map((i) =>
+      `${textoCausa(i.causa)} (${fmtHora.format(new Date(i.desde))} – ${i.hasta ? fmtHora.format(new Date(i.hasta)) : "sigue"})`).join("; ");
+  }).catch(() => {});
 
   // Qué paneles mostrar: solo los de variables que la estación mide.
   const paneles = [];
@@ -2770,6 +2840,147 @@ async function cargarEstado() {
       <td>${t.ok ? '<span class="estado ok"><i>✓</i>OK</span>' : '<span class="estado caida"><i>✕</i>Falló</span>'}</td>
       <td>${fmtHora.format(new Date(t.inicio))}</td><td>${t.filas ?? "–"}</td><td>${t.fallas_24h}</td>
       <td class="tenue">${esc(t.mensaje || "")}</td></tr>`).join("");
+}
+
+// ======================================================================
+// Bitácora de las estaciones: cortes (detectados solos) y su causa (anotada)
+// ======================================================================
+let INC = null;          // {causas: {id: texto}, mantenimiento: [...], datos: {...}}
+let periodoBit = null;
+const incEditando = { id: null };
+
+async function causasInc() {
+  if (!INC) INC = await api("/api/incidentes/causas");
+  return INC;
+}
+const claseCausa = (c) => c === "sin_explicar" ? "c-nada" : INC?.mantenimiento.includes(c) ? "c-mant" : "c-falla";
+const textoCausa = (c) => c === "sin_explicar" ? "Sin explicar" : (INC?.causas[c] || c).replace(/ \(.*\)$/, "");
+const chipCausa = (c, extra = "") => `<span class="chip ${claseCausa(c)}" title="${esc(INC?.causas[c] || "")}">${esc(textoCausa(c))}${extra}</span>`;
+const horas = (h) => h >= 48 ? `${(h / 24).toLocaleString("es-AR", { maximumFractionDigits: 1 })} días` : `${h.toLocaleString("es-AR")} h`;
+// "2026-10-13T11:00:00Z" <-> "2026-10-13T08:00" (lo que usa <input type=datetime-local>, en hora argentina)
+const aLocalAR = (iso) => new Date(Date.parse(iso) - 3 * 3600e3).toISOString().slice(0, 16);
+const deLocalAR = (v) => v ? `${v}:00-03:00` : null;
+
+async function iniciarBitacora() {
+  await causasInc();
+  periodoBit = controlPeriodo($("#p-bit"), { ultimos: [[7, "Últimos 7 días"], [30, "Últimos 30 días"],
+    [90, "Últimos 3 meses"], [365, "Último año"]], porDefecto: 30, maxDias: 400, alCambiar: cargarBitacora });
+  const emas = (ESTACIONES || []).filter((e) => e.tipo === "ema");
+  $("#f-bit-est").innerHTML += emas.map((e) => `<option value="${esc(e.id)}">${esc(e.nombre)}</option>`).join("");
+  $("#f-bit-est").addEventListener("change", cargarBitacora);
+  const f = $("#f-inc");
+  f.estacion_id.innerHTML = `<option value="">Toda la red (ej. se cayó el servidor)</option>` +
+    emas.map((e) => `<option value="${esc(e.id)}">${esc(e.nombre)}</option>`).join("");
+  const grupo = (titulo, ids) => `<optgroup label="${titulo}">${ids.map((c) =>
+    `<option value="${c}">${esc(INC.causas[c])}</option>`).join("")}</optgroup>`;
+  const ids = Object.keys(INC.causas);
+  f.causa.innerHTML = grupo("Falla", ids.filter((c) => !INC.mantenimiento.includes(c))) +
+                      grupo("Mantenimiento", ids.filter((c) => INC.mantenimiento.includes(c)));
+  f.datos.innerHTML = Object.entries(INC.datos).map(([k, t]) => `<option value="${k}">${t}</option>`).join("");
+  f.sigue.addEventListener("change", () => { f.hasta.disabled = f.sigue.checked; });
+  // Mantenimiento: lo normal es que los datos sigan (quizás dudosos); falla: que no haya.
+  f.causa.addEventListener("change", () => { if (!incEditando.id) f.datos.value = INC.mantenimiento.includes(f.causa.value) ? "dudosos" : "sin_datos"; });
+  $("#b-bit-nuevo").addEventListener("click", () => abrirIncidente({ estacion_id: $("#f-bit-est").value }));
+  $("#d-inc-cancelar").addEventListener("click", () => $("#d-inc").close());
+  f.addEventListener("submit", guardarIncidente);
+  cargarBitacora();
+}
+
+function abrirIncidente(inc = {}) {
+  const f = $("#f-inc");
+  incEditando.id = inc.id || null;
+  $("#d-inc-tit").textContent = inc.id ? "Editar lo anotado" : "Anotar en la bitácora";
+  f.estacion_id.value = inc.estacion_id || "";
+  f.causa.value = inc.causa || "internet";
+  f.desde.value = inc.desde ? aLocalAR(inc.desde) : aLocalAR(new Date().toISOString());
+  f.hasta.value = inc.hasta ? aLocalAR(inc.hasta) : "";
+  f.sigue.checked = !!inc.id && !inc.hasta || !!inc.sigue;
+  f.hasta.disabled = f.sigue.checked;
+  f.datos.value = inc.datos || (INC.mantenimiento.includes(f.causa.value) ? "dudosos" : "sin_datos");
+  f.descripcion.value = inc.descripcion || "";
+  $("#d-inc-err").hidden = true;
+  $("#d-inc").showModal();
+}
+
+async function guardarIncidente(ev) {
+  ev.preventDefault();
+  const f = $("#f-inc");
+  const cuerpo = { estacion_id: f.estacion_id.value || null, causa: f.causa.value, datos: f.datos.value,
+                   desde: deLocalAR(f.desde.value), hasta: f.sigue.checked ? null : deLocalAR(f.hasta.value),
+                   descripcion: f.descripcion.value };
+  const err = $("#d-inc-err");
+  if (!f.sigue.checked && !f.hasta.value) { err.textContent = "Poné hasta cuándo, o marcá «Todavía sigue»."; err.hidden = false; return; }
+  const url = incEditando.id ? `/api/incidentes/${incEditando.id}` : "/api/incidentes";
+  const r = await fetch(url, { method: incEditando.id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpo) });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) { err.textContent = d.detail || d.error || "No se pudo guardar"; err.hidden = false; return; }
+  $("#d-inc").close();
+  cargarBitacora();
+  if (cargadas.emas) cargarResumenEmas();
+}
+
+async function borrarIncidente(id) {
+  if (!confirm("¿Borrar esto de la bitácora?")) return;
+  await fetch(`/api/incidentes/${id}`, { method: "DELETE" });
+  cargarBitacora();
+}
+
+let bitacoraActual = [];
+async function cargarBitacora() {
+  const per = periodoBit.rango();
+  if (per.error) return;
+  const est = $("#f-bit-est").value;
+  $("#b-bit-csv").href = `api/incidentes?formato=csv&${per.query}`;
+  $("#tabla-disp").innerHTML = `<tr><td class="tenue">Calculando…</td></tr>`;
+  const [d, bit] = await Promise.all([api(`/api/estaciones/disponibilidad?${per.query}`),
+                                      api(`/api/incidentes?${per.query}${est ? `&estacion=${encodeURIComponent(est)}` : ""}`)]);
+  bitacoraActual = bit;
+  const filas = d.estaciones.filter((e) => !est || e.id === est);
+  // Total del período: horas perdidas por cada causa, en toda la red.
+  const total = est ? (filas[0] ? { ...filas[0].por_causa, ...(filas[0].horas_sin_explicar ? { sin_explicar: filas[0].horas_sin_explicar } : {}) } : {}) : d.por_causa;
+  $("#bit-causas").innerHTML = Object.keys(total).length
+    ? `<span class="tenue" style="align-self:center;font-size:13px">Horas sin datos por causa:</span>` +
+      Object.entries(total).sort((a, b) => b[1] - a[1]).map(([c, h]) => chipCausa(c, ` · ${horas(h)}`)).join("")
+    : `<span class="tenue" style="font-size:13px">Ningún corte en el período.</span>`;
+  $("#tabla-disp").innerHTML = `<tr><th>Estación</th><th>Datos recibidos</th><th class="num">Horas sin datos</th>
+      <th class="num">Cortes</th><th>Por causa</th><th class="num">Mantenimientos</th></tr>` +
+    filas.map((e) => `<tr>
+      <td>${esc(e.nombre)}</td>
+      <td><div class="disp"><div class="barra-d"><i style="width:${e.disponibilidad ?? 0}%"></i></div>
+        <b>${(e.disponibilidad ?? 0).toLocaleString("es-AR")} %</b></div></td>
+      <td class="num">${e.horas_sin_datos ? horas(e.horas_sin_datos) : "–"}</td>
+      <td class="num">${e.cortes || "–"}</td>
+      <td>${[...Object.entries(e.por_causa), ...(e.horas_sin_explicar ? [["sin_explicar", e.horas_sin_explicar]] : [])]
+              .map(([c, h]) => chipCausa(c, ` · ${horas(h)}`)).join(" ") || '<span class="tenue">–</span>'}</td>
+      <td class="num">${e.mantenimientos || "–"}</td></tr>`).join("");
+  // Cortes, del más nuevo al más viejo.
+  const cortes = filas.flatMap((e) => e.lista_cortes.map((c) => ({ ...c, estacion_id: e.id, nombre: e.nombre })))
+    .sort((a, b) => Date.parse(b.desde) - Date.parse(a.desde));
+  $("#tabla-cortes").innerHTML = cortes.length ? `<tr><th>Estación</th><th>Desde</th><th>Hasta</th><th class="num">Duración</th><th>Causa</th><th></th></tr>` +
+    cortes.map((c, i) => `<tr>
+      <td>${esc(c.nombre)}</td><td class="nw">${fmtHora.format(new Date(c.desde))}</td>
+      <td class="nw">${c.sigue ? "<b>sigue</b>" : fmtHora.format(new Date(c.hasta))}</td>
+      <td class="num">${horas(c.horas)}</td>
+      <td>${[...new Set(c.causas.map((x) => x.causa))].map((x) => chipCausa(x)).join(" ")}
+          ${c.horas_sin_explicar ? chipCausa("sin_explicar", c.causas.length ? ` · ${horas(c.horas_sin_explicar)}` : "") : ""}</td>
+      <td>${c.horas_sin_explicar ? `<button class="boton chico" data-corte="${i}">Anotar causa</button>` : ""}</td></tr>`).join("")
+    : `<tr><td class="tenue">Ningún corte de más de ${d.umbral_min} minutos en el período.</td></tr>`;
+  document.querySelectorAll("#tabla-cortes [data-corte]").forEach((b) => b.addEventListener("click", () => {
+    const c = cortes[Number(b.dataset.corte)];
+    abrirIncidente({ estacion_id: c.estacion_id, desde: c.desde, hasta: c.sigue ? null : c.hasta, sigue: c.sigue });
+  }));
+  $("#tabla-bitacora").innerHTML = bit.length ? `<tr><th>Estación</th><th>Causa</th><th>Desde</th><th>Hasta</th><th>Datos</th><th>Descripción</th><th></th></tr>` +
+    bit.map((i) => `<tr>
+      <td>${esc(i.estacion)}</td><td>${chipCausa(i.causa)}</td>
+      <td class="nw">${fmtHora.format(new Date(i.desde))}</td><td class="nw">${i.hasta ? fmtHora.format(new Date(i.hasta)) : "<b>sigue</b>"}</td>
+      <td class="nw">${esc(INC.datos[i.datos] || i.datos)}</td>
+      <td>${esc(i.descripcion || "")}${i.autor ? ` <span class="tenue">(${esc(i.autor)})</span>` : ""}</td>
+      <td style="white-space:nowrap"><button class="boton chico" data-editar="${i.id}">Editar</button>
+          <button class="boton chico" data-borrar="${i.id}">Borrar</button></td></tr>`).join("")
+    : `<tr><td class="tenue">Nada anotado en el período.</td></tr>`;
+  document.querySelectorAll("#tabla-bitacora [data-editar]").forEach((b) => b.addEventListener("click", () =>
+    abrirIncidente(bitacoraActual.find((i) => i.id === Number(b.dataset.editar)))));
+  document.querySelectorAll("#tabla-bitacora [data-borrar]").forEach((b) => b.addEventListener("click", () => borrarIncidente(b.dataset.borrar)));
 }
 
 // ======================================================================
