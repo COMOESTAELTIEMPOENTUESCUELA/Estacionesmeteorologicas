@@ -179,6 +179,12 @@
     <div id="contenedor-mapa-red" class="relative w-full h-[65vh] lg:h-[78vh] transition-all duration-700 ease-in-out">
         <div id="mapa-expandido" class="absolute inset-0 z-0 bg-slate-200"></div>
 
+        <!-- Se muestra un instante cuando se scrollea sobre el mapa sin Ctrl/⌘, para
+             avisar que el zoom con la rueda necesita esa tecla (ver inicializarMapaGrande). -->
+        <div id="hint-ctrl-zoom" class="absolute inset-0 z-[520] flex items-center justify-center pointer-events-none opacity-0 transition-opacity duration-200">
+            <span class="bg-slate-900/80 text-white text-xs lg:text-sm font-black px-4 py-2.5 rounded-2xl shadow-xl">Mantené Ctrl (⌘ en Mac) + rueda para hacer zoom</span>
+        </div>
+
         <div id="selector-variable-mapa" class="absolute top-3 left-1/2 -translate-x-1/2 z-[500] flex flex-wrap justify-center gap-2 px-14 max-w-full"></div>
 
         <button id="btn-agrandar-mapa" class="absolute top-3 right-3 z-[500] bg-white/90 backdrop-blur hover:bg-white text-blue-700 px-3 py-2 rounded-xl shadow-md border-2 border-white transition hidden items-center gap-2 font-black text-xs" title="Ver mapa completo">
@@ -1738,13 +1744,40 @@
             if (el) seleccionarEscuela(p, el.btn, el.marker);
         }
 
+        // Muestra brevemente el cartel de "mantené Ctrl + rueda" cuando se scrollea
+        // sobre el mapa sin la tecla apretada (ver inicializarMapaGrande).
+        let timeoutHintCtrlZoom = null;
+        function mostrarHintCtrlZoom() {
+            const hint = document.getElementById('hint-ctrl-zoom');
+            hint.classList.remove('opacity-0');
+            hint.classList.add('opacity-100');
+            clearTimeout(timeoutHintCtrlZoom);
+            timeoutHintCtrlZoom = setTimeout(() => {
+                hint.classList.remove('opacity-100');
+                hint.classList.add('opacity-0');
+            }, 900);
+        }
+
         function inicializarMapaGrande() {
-            // scrollWheelZoom: false porque si no, al scrollear la página hacia arriba
-            // con el mapa a la vista, la rueda del mouse hace zoom en el mapa en vez de
-            // mover la página, dejándolo "cortado" a mitad de pantalla. El zoom sigue
-            // disponible con los botones +/- (o con los dedos en celular).
+            // scrollWheelZoom se maneja a mano (ver más abajo) en vez de dejárselo a
+            // Leaflet: si no, al scrollear la página hacia arriba con el mapa a la
+            // vista, la rueda hacía zoom en el mapa en vez de mover la página,
+            // dejándolo "cortado" a mitad de pantalla. Con Ctrl/⌘ apretado sí hace
+            // zoom (como los mapas incrustados de Google); sin esa tecla, se deja
+            // scrollear la página normalmente y se avisa con un cartel breve.
             mapaExpandido = L.map('mapa-expandido', { zoomControl: true, scrollWheelZoom: false }).setView([-35.10, -57.75], 9);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(mapaExpandido);
+
+            mapaExpandido.getContainer().addEventListener('wheel', (e) => {
+                if (!e.ctrlKey && !e.metaKey) {
+                    mostrarHintCtrlZoom();
+                    return;
+                }
+                e.preventDefault();
+                const punto = mapaExpandido.mouseEventToContainerPoint(e);
+                const nuevoZoom = mapaExpandido.getZoom() + (e.deltaY < 0 ? 1 : -1);
+                mapaExpandido.setZoomAround(punto, nuevoZoom);
+            }, { passive: false });
 
             const estacionesObservatorio = puntos.filter(p => p.grupoObservatorio);
             const estacionesSueltas = puntos.filter(p => !p.grupoObservatorio);
