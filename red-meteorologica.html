@@ -190,8 +190,8 @@
             <i data-lucide="chevron-right" class="w-5 h-5"></i>
             <span class="text-[10px] font-black uppercase tracking-wider [writing-mode:vertical-rl] rotate-180">Elegí una escuela</span>
         </button>
-        <div id="fondo-solapa" class="absolute inset-0 bg-slate-900/40 z-[640] hidden"></div>
-        <div id="solapa-escuelas" class="absolute top-0 left-0 h-full w-[86vw] sm:w-[380px] max-w-full bg-white shadow-2xl z-[650] -translate-x-full transition-transform duration-300 ease-out flex flex-col">
+        <div id="fondo-solapa" class="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px] z-[640] hidden"></div>
+        <div id="solapa-escuelas" class="absolute top-3 bottom-3 left-0 w-[86vw] sm:w-[360px] max-w-full bg-white shadow-2xl rounded-r-[1.5rem] border-y-4 border-r-4 border-white z-[650] -translate-x-full transition-transform duration-300 ease-out flex flex-col overflow-hidden">
             <div class="p-4 border-b-2 border-slate-100 flex justify-between items-center shrink-0">
                 <h2 class="text-xs font-black text-slate-500 uppercase tracking-wider flex items-center gap-2">
                     <i data-lucide="hand-pointing" class="w-4 h-4 text-blue-500 animate-bounce"></i> ¡Elegí una escuela!
@@ -1739,7 +1739,11 @@
         }
 
         function inicializarMapaGrande() {
-            mapaExpandido = L.map('mapa-expandido', { zoomControl: true }).setView([-35.10, -57.75], 9);
+            // scrollWheelZoom: false porque si no, al scrollear la página hacia arriba
+            // con el mapa a la vista, la rueda del mouse hace zoom en el mapa en vez de
+            // mover la página, dejándolo "cortado" a mitad de pantalla. El zoom sigue
+            // disponible con los botones +/- (o con los dedos en celular).
+            mapaExpandido = L.map('mapa-expandido', { zoomControl: true, scrollWheelZoom: false }).setView([-35.10, -57.75], 9);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(mapaExpandido);
 
             const estacionesObservatorio = puntos.filter(p => p.grupoObservatorio);
