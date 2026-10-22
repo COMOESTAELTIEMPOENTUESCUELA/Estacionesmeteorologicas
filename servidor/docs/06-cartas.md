@@ -56,10 +56,11 @@ página de error), no se guarda.
 
 ### Satélite (NOAA STAR)
 
-Infrarrojo (canal 13) y GeoColor del GOES-19 para el sector "ssa" (sur de
-Sudamérica), 1800x1080, ya coloreadas por NOAA (gratis). Solo a las horas
-de las cartas: ~8 imágenes por día, unos 6–8 MB de internet y ~2,5 GB por
-año de disco. NOAA guarda cada imagen con su fecha en el nombre
+Infrarrojo (canal 13), GeoColor, vapor de agua de niveles altos (canal 8,
+6,2 µm) y Air Mass (RGB de masas de aire) del GOES-19 para el sector "ssa"
+(sur de Sudamérica), 1800x1080, ya coloreadas por NOAA (gratis). Solo a las
+horas de las cartas: ~16 imágenes por día, unos 12–16 MB de internet y ~5 GB
+por año de disco. NOAA guarda cada imagen con su fecha en el nombre
 (`AAAADDDHHMM_GOES19-ABI-ssa-13-1800x1080.jpg`, con DDD = día del año) unos
 pocos días: la tarea lee la lista de la carpeta y elige la más cercana a
 cada hora sinóptica (±10 min), mirando 48 horas hacia atrás.

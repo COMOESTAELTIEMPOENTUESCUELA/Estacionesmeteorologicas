@@ -301,6 +301,12 @@ def test_star_elige_la_imagen_de_la_hora():
     assert star.elegir(d, datetime(2026, 10, 13, 6, tzinfo=UTC)) is None                       # no hay cerca
     assert star.url_carpeta({"sector": "ssa", "banda": "GEOCOLOR"}) == \
         "https://cdn.star.nesdis.noaa.gov/GOES19/ABI/SECTOR/ssa/GEOCOLOR/"
+    # Vapor de agua (08) y Air Mass: mismo formato de nombre (cada uno en su carpeta).
+    wv = star.imagenes('<a href="20262951200_GOES19-ABI-ssa-08-1800x1080.jpg">')
+    am = star.imagenes('<a href="20262951200_GOES19-ABI-ssa-AirMass-1800x1080.jpg"> '
+                       '<a href="20262951200_GOES19-ABI-ssa-AirMass-900x540.jpg">')
+    assert list(wv.values()) == ["20262951200_GOES19-ABI-ssa-08-1800x1080.jpg"]
+    assert list(am.values()) == ["20262951200_GOES19-ABI-ssa-AirMass-1800x1080.jpg"]
 
 
 def test_star_descarga_solo_las_horas_de_las_cartas(tmp_path, monkeypatch):

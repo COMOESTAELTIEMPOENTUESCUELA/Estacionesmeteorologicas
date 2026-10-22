@@ -52,6 +52,23 @@ productos:
     fuente: star
     sector: ssa
     banda: GEOCOLOR
+  - id: satelite_wv08
+    nombre: "Vapor de agua, niveles altos (canal 8, 6,2 µm)"
+    nivel: "Satélite GOES-19"
+    fuente: star
+    sector: ssa
+    banda: "08"
+  # Air Mass: combinación de canales (RGB) que distingue masas de aire por
+  # temperatura y humedad: rojo/naranja = aire seco de capas altas (intrusión
+  # estratosférica, cerca de ciclones y corrientes en chorro), verde = masa
+  # cálida y húmeda tropical, azul/violeta = aire frío polar, blanco = nubes
+  # altas y gruesas. Muy útil para ubicar vaguadas y frentes.
+  - id: satelite_airmass
+    nombre: "Air Mass (RGB de masas de aire)"
+    nivel: "Satélite GOES-19"
+    fuente: star
+    sector: ssa
+    banda: AirMass
 
   # --- Ogimet: mapas de observaciones de superficie ----------------------
   # https://www.ogimet.com/cgi-bin/gsynop?zona=amersurs&... : una consulta
