@@ -307,6 +307,11 @@ def test_star_elige_la_imagen_de_la_hora():
                        '<a href="20262951200_GOES19-ABI-ssa-AirMass-900x540.jpg">')
     assert list(wv.values()) == ["20262951200_GOES19-ABI-ssa-08-1800x1080.jpg"]
     assert list(am.values()) == ["20262951200_GOES19-ABI-ssa-AirMass-1800x1080.jpg"]
+    # Rayos: carpeta del GLM, y "GLM" en el nombre en vez de "ABI".
+    glm = star.imagenes('<a href="20262951200_GOES19-GLM-ssa-EXTENT3-1800x1080.jpg">')
+    assert list(glm.values()) == ["20262951200_GOES19-GLM-ssa-EXTENT3-1800x1080.jpg"]
+    assert star.url_carpeta({"instrumento": "GLM", "sector": "ssa", "banda": "EXTENT3"}) == \
+        "https://cdn.star.nesdis.noaa.gov/GOES19/GLM/SECTOR/ssa/EXTENT3/"
 
 
 def test_star_descarga_solo_las_horas_de_las_cartas(tmp_path, monkeypatch):

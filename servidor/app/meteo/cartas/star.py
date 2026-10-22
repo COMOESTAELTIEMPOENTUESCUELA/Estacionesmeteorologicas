@@ -12,18 +12,25 @@ y minuto, en UTC):
 
 Para tener la de una hora sinóptica exacta (y no "la última que había cuando
 se corrió la tarea") se lee la lista y se elige la más cercana a esa hora.
+Los rayos (GLM, el detector de relámpagos) están en la carpeta del otro
+instrumento, con el mismo formato de nombre:
+
+    https://cdn.star.nesdis.noaa.gov/GOES19/GLM/SECTOR/ssa/EXTENT3/
+    20262951200_GOES19-GLM-ssa-EXTENT3-1800x1080.jpg
+
 Gratis: NOAA publica estos datos abiertos.
 """
 import re
 from datetime import datetime, timedelta, timezone
 
-BASE = "https://cdn.star.nesdis.noaa.gov/{satelite}/ABI/SECTOR/{sector}/{banda}/"
-_ARCHIVO = re.compile(r'(\d{4})(\d{3})(\d{2})(\d{2})_(GOES\d+)-ABI-([a-z]+)-([A-Za-z0-9]+)-(\d+x\d+)\.jpg')
+BASE = "https://cdn.star.nesdis.noaa.gov/{satelite}/{instrumento}/SECTOR/{sector}/{banda}/"
+_ARCHIVO = re.compile(r'(\d{4})(\d{3})(\d{2})(\d{2})_(GOES\d+)-(?:ABI|GLM)-([a-z]+)-([A-Za-z0-9]+)-(\d+x\d+)\.jpg')
 TOLERANCIA = timedelta(minutes=10)
 
 
 def url_carpeta(p):
-    return BASE.format(satelite=p.get("satelite", "GOES19"), sector=p["sector"], banda=p["banda"])
+    return BASE.format(satelite=p.get("satelite", "GOES19"), instrumento=p.get("instrumento", "ABI"),
+                       sector=p["sector"], banda=p["banda"])
 
 
 def imagenes(html, tamano="1800x1080"):

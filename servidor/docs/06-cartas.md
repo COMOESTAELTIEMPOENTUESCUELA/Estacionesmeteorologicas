@@ -56,11 +56,12 @@ página de error), no se guarda.
 
 ### Satélite (NOAA STAR)
 
-Infrarrojo (canal 13), GeoColor, vapor de agua de niveles altos (canal 8,
-6,2 µm) y Air Mass (RGB de masas de aire) del GOES-19 para el sector "ssa"
-(sur de Sudamérica), 1800x1080, ya coloreadas por NOAA (gratis). Solo a las
-horas de las cartas: ~16 imágenes por día, unos 12–16 MB de internet y ~5 GB
-por año de disco. NOAA guarda cada imagen con su fecha en el nombre
+Infrarrojo (canal 13), GeoColor, vapor de agua en tres alturas (canales 8, 9
+y 10: 6,2, 6,9 y 7,3 µm), Air Mass (RGB de masas de aire) y rayos (GLM sobre
+GeoColor) del GOES-19 para el sector "ssa" (sur de Sudamérica), 1800x1080, ya
+coloreadas por NOAA (gratis). Solo a las horas de las cartas: ~28 imágenes por
+día, unos 24 MB de internet y ~8,5 GB por año de disco. Los rayos están en la
+carpeta del instrumento GLM (`instrumento: GLM` en `config/cartas.yaml`). NOAA guarda cada imagen con su fecha en el nombre
 (`AAAADDDHHMM_GOES19-ABI-ssa-13-1800x1080.jpg`, con DDD = día del año) unos
 pocos días: la tarea lee la lista de la carpeta y elige la más cercana a
 cada hora sinóptica (±10 min), mirando 48 horas hacia atrás.
