@@ -66,6 +66,38 @@ carpeta del instrumento GLM (`instrumento: GLM` en `config/cartas.yaml`). NOAA g
 pocos días: la tarea lee la lista de la carpeta y elige la más cercana a
 cada hora sinóptica (±10 min), mirando 48 horas hacia atrás.
 
+### Rayos propios (GLM sobre infrarrojo, solo con tormenta)
+
+Además de la imagen de rayos de NOAA (todo el sur de Sudamérica), el servidor
+arma un mapa propio de **Buenos Aires, Uruguay y el sur del Litoral**
+(`satelite_rayos_bsas`): los destellos que vio el GLM en los **60 minutos
+previos** a la hora de la carta, coloreados por antigüedad (amarillo = recién,
+violeta = hace una hora), sobre el canal 13 en grises, con las ciudades del
+grupo marcadas. Salen de los datos crudos del GLM (`GLM-L2-LCFA`, un archivo
+cada 20 s) y del canal 13 (solo el pedazo de la región), del bucket público de
+NOAA. Código: `app/meteo/cartas/rayos.py`.
+
+**Solo cuando hay tormenta.** Cada mapa baja ~180 archivos (30–90 MB), así que
+se arma únicamente si alguna estación sinóptica de la región informó tormenta
+en el SYNOP (tiempo presente ww 13, 17, 29 o 91–99) entre una hora antes y una
+hora después de la hora de la carta. Se revisa en cada vuelta las últimas 48 h,
+porque el SYNOP puede llegar tarde. Ojo: hoy las sinópticas que se reciben son
+solo las del SMN en Buenos Aires; una tormenta en Uruguay o Entre Ríos que no
+llegue a ninguna de ellas no dispara el mapa (se pueden sumar estaciones de
+allá en `estaciones.yaml`).
+
+Junto a cada mapa se guarda la lista de destellos de la región en
+`cartas/_rayos/<producto>/AAAA/MM/*.csv` (hora UTC, lat, lon, energía), para
+contarlos o analizarlos después. Ocupa ~0,5 MB por mapa: unos pocos MB al año.
+
+**Eventos pasados, a pedido.** NOAA guarda el GLM para siempre: el mapa de
+cualquier fecha se puede armar después, aunque no haya habido SYNOP de
+tormenta, con `--forzar`:
+
+```bash
+docker compose exec ingesta python -m meteo.ingesta historico cartas --desde 2026-10-20 --hasta 2026-10-21 --forzar
+```
+
 NOAA guarda unos 10 días (probado el 14/10/2026: había desde el 3/10). Para
 rellenar un período dentro de eso (ej. para analizar un evento):
 

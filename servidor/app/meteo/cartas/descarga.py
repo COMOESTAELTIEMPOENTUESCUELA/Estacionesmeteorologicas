@@ -51,12 +51,14 @@ def una_sola_descarga(raiz):
             fcntl.flock(f, fcntl.LOCK_UN)
 
 
-def correr(cfg, raiz, sesion):
+def correr(cfg, raiz, sesion, tormenta=None):
+    """tormenta(desde, hasta, region) -> lista de informes de tormenta (SYNOP):
+    la da la ingesta, que tiene la base. Sin eso, no se arman los mapas de rayos."""
     with una_sola_descarga(raiz):
-        return _correr(cfg, raiz, sesion)
+        return _correr(cfg, raiz, sesion, tormenta)
 
 
-def _correr(cfg, raiz, sesion):
+def _correr(cfg, raiz, sesion, tormenta=None):
     horas = tuple(cfg.get("horas_utc", (0, 6, 12, 18)))
     activos = [p for p in cfg["productos"] if p.get("activo", True)]
     nuevas = 0
@@ -69,6 +71,9 @@ def _correr(cfg, raiz, sesion):
                 nuevas += _correr_star(p, raiz, sesion, tuple(p.get("horas_utc", horas)))
             except Exception as ex:
                 log.warning("cartas %s: %s", p["id"], str(ex)[:150])
+            continue
+        if p["fuente"] == "glm":
+            nuevas += _correr_rayos(p, raiz, sesion, tuple(p.get("horas_utc", horas)), tormenta)
             continue
         if p["fuente"] != "bentley":
             log.info("cartas %s: fuente %s todavía no implementada", p["id"], p["fuente"])
@@ -136,6 +141,45 @@ def _correr_star(p, raiz, sesion, horas_utc, desde=None, hasta=None):
     return nuevas
 
 
+RAYOS_HORAS_ATRAS = 48                 # el SYNOP con la tormenta puede llegar tarde
+RAYOS_DEMORA = timedelta(minutes=20)   # NOAA publica el GLM y el canal 13 con unos minutos de atraso
+
+
+def _correr_rayos(p, raiz, sesion, horas_utc, tormenta, desde=None, hasta=None, forzar=False):
+    """Mapa de rayos (GLM sobre infrarrojo) de cada hora de carta en la que
+    el SYNOP de alguna estación de la región informó tormenta. Con forzar,
+    de todas las horas del período (para dibujar un evento a pedido)."""
+    from . import rayos
+    if tormenta is None and not forzar:
+        return 0
+    ultimo = datetime.now(timezone.utc) - RAYOS_DEMORA
+    hasta = min(hasta or ultimo, ultimo)
+    desde = desde or hasta - timedelta(hours=RAYOS_HORAS_ATRAS)
+    region = tuple(p["region"])
+    minutos = int(p.get("minutos", 60))
+    nuevas = 0
+    for ts in horas_sinopticas(desde, hasta, horas_utc):
+        if archivo.existe(raiz, p["id"], ts):
+            continue
+        # La tormenta de los 60 min previos aparece en el SYNOP de esa hora o
+        # en el de la hora siguiente (ww 29 / 91-94: "en la hora anterior").
+        informes = tormenta(ts - timedelta(minutes=minutos), ts + timedelta(hours=1), region) if tormenta else []
+        if not informes and not forzar:
+            continue
+        try:
+            lista = rayos.destellos(ts - timedelta(minutes=minutos), ts, region, sesion)
+            rec = rayos.infrarrojo(ts, region, sesion)
+            png = rayos.dibujar(rec, lista, ts, minutos, region, p.get("titulo_region", ""),
+                                p.get("puntos", []), ", ".join(informes[:3]))
+            archivo.guardar(raiz, p["id"], ts, png)
+            rayos.guardar_destellos(raiz, p["id"], ts, lista)
+            nuevas += 1
+            log.info("cartas %s %s: %d destellos (%s)", p["id"], ts, len(lista), ", ".join(informes[:3]) or "a pedido")
+        except Exception as ex:
+            log.warning("cartas %s %s: %s", p["id"], ts, str(ex)[:200])
+    return nuevas
+
+
 def horas_sinopticas(desde, hasta, horas_utc):
     t = desde.astimezone(timezone.utc).replace(minute=0, second=0, microsecond=0)
     while t <= hasta:
@@ -200,11 +244,13 @@ def correr_ogimet(cfg, raiz, sesion, desde, hasta):
         return _correr_ogimet(cfg, raiz, sesion, desde, hasta)
 
 
-def correr_historico(cfg, raiz, sesion, desde, hasta):
+def correr_historico(cfg, raiz, sesion, desde, hasta, tormenta=None, forzar=False):
     """Rellenar un período: satélite (NOAA guarda unos 10 días) y mapas de
     Ogimet (los genera para fechas pasadas; si responde vacío para una hora,
     se saltea y se sigue). Bentley se completa solo en la vuelta normal (su
-    página tiene 14 días). Devuelve {producto: nuevas}."""
+    página tiene 14 días). Los rayos (GLM): de las horas con tormenta en el
+    SYNOP, o de todas con forzar (NOAA guarda el GLM para siempre).
+    Devuelve {producto: nuevas}."""
     horas = tuple(cfg.get("horas_utc", (0, 6, 12, 18)))
     salida = {}
     with una_sola_descarga(raiz):
@@ -214,6 +260,9 @@ def correr_historico(cfg, raiz, sesion, desde, hasta):
                     salida[p["id"]] = _correr_star(p, raiz, sesion, tuple(p.get("horas_utc", horas)), desde, hasta)
                 except Exception as ex:
                     log.warning("cartas %s: %s", p["id"], str(ex)[:150])
+            if p.get("activo", True) and p["fuente"] == "glm":
+                salida[p["id"]] = _correr_rayos(p, raiz, sesion, tuple(p.get("horas_utc", horas)),
+                                                tormenta, desde, hasta, forzar)
         # Ojo: una consulta "pesada" cada 20 s por IP. Con el servicio corriendo
         # a la vez se cruzan; por eso una_sola_descarga() bloquea la otra.
         salida["ogimet"] = _correr_ogimet(cfg, raiz, sesion, desde, hasta)

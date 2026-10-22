@@ -2100,7 +2100,9 @@ async function cargarCartas() {
         : !p.horas_utc.includes(t.getUTCHours())
           ? `<div class="falta chica">Se informa solo a las ${p.horas_utc.map((h) => String(h).padStart(2, "0")).join(", ")} UTC.
              <button class="boton c-ir-hora" data-hora="${p.horas_utc[0]}">Ver ${String(p.horas_utc[0]).padStart(2, "0")} UTC de este día</button></div>`
-          : '<div class="falta">No archivada para esta hora</div>'}
+          : p.solo_con_tormenta
+            ? '<div class="falta chica">Sin tormentas informadas en la región a esta hora (solo se arma cuando algún SYNOP informa tormenta)</div>'
+            : '<div class="falta">No archivada para esta hora</div>'}
     </figure>`).join("");
   document.querySelectorAll("#c-grid .c-ir-hora").forEach((b) => b.addEventListener("click", () => {
     $("#f-c-hora").value = b.dataset.hora; cargarCartas();

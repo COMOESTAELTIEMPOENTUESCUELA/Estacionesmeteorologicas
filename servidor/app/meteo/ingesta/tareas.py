@@ -125,12 +125,26 @@ class Ingesta:
     def _cartas(self, descarga, cfg, raiz, desde, hasta):
         with db.registrar_tarea(self.conn, "cartas") as reg:
             if desde:
-                r = descarga.correr_historico(cfg, raiz, self.sesion, desde, hasta)
+                r = descarga.correr_historico(cfg, raiz, self.sesion, desde, hasta,
+                                              tormenta=self.hubo_tormenta, forzar=getattr(self, "forzar_rayos", False))
                 log.info("cartas (histórico %s a %s): %s nuevas. Lo que NOAA ya borró "
                          "(guarda ~10 días) no se puede recuperar así.", desde, hasta, r)
                 reg["filas"] = sum(r.values())
             else:
-                reg["filas"] = descarga.correr(cfg, raiz, self.sesion)
+                reg["filas"] = descarga.correr(cfg, raiz, self.sesion, tormenta=self.hubo_tormenta)
+
+    def hubo_tormenta(self, desde, hasta, region):
+        """Estaciones sinópticas de la región que informaron tormenta (tiempo
+        presente) entre desde y hasta: ["La Plata Aero 95 (18 UTC)", ...]."""
+        from ..cartas.rayos import WW_TORMENTA
+        lon0, lon1, lat0, lat1 = region
+        with self.conn.cursor() as cur:
+            cur.execute("""
+                SELECT e.nombre, o.ts, o.valor FROM observacion o JOIN estacion e ON e.id = o.estacion_id
+                WHERE o.variable = 'ww' AND o.valor = ANY(%s) AND o.ts > %s AND o.ts <= %s
+                  AND e.lon BETWEEN %s AND %s AND e.lat BETWEEN %s AND %s
+                ORDER BY o.ts""", ([float(w) for w in WW_TORMENTA], desde, hasta, lon0, lon1, lat0, lat1))
+            return [f"{n} {int(v)} ({t.astimezone(timezone.utc):%H} UTC)" for n, t, v in cur.fetchall()]
 
     def correr(self, tarea, desde=None, hasta=None, ids=None, incluir_inactivas=False):
         hasta = hasta or datetime.now(timezone.utc)

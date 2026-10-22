@@ -81,6 +81,30 @@ productos:
     fuente: star
     sector: ssa
     banda: AirMass
+  # Rayos: mapa PROPIO con los destellos crudos del GLM de los 60 min previos
+  # a la hora de la carta, sobre el canal 13 en grises, recortado a la región.
+  # Solo se arma si alguna estación sinóptica de la región informó tormenta en
+  # el SYNOP (ww 13, 17, 29, 91-99) cerca de esa hora: baja ~180 archivos
+  # (unos 30-90 MB) por mapa, así que no se hace "por las dudas". NOAA guarda
+  # el GLM para siempre: un evento pasado se puede dibujar a pedido con
+  #   historico cartas --desde ... --hasta ... --forzar
+  - id: satelite_rayos_bsas
+    nombre: "Rayos (GLM, 60 min previos) sobre infrarrojo · Buenos Aires y Uruguay"
+    nivel: "Satélite GOES-19"
+    fuente: glm
+    solo_con_tormenta: true
+    minutos: 60
+    region: [-64.0, -53.0, -41.3, -30.0]     # lon mín, lon máx, lat mín, lat máx
+    titulo_region: "Buenos Aires, Uruguay y sur del Litoral"
+    puntos:
+      - {etiqueta: La Plata, lat: -34.92, lon: -57.95}
+      - {etiqueta: Buenos Aires, lat: -34.60, lon: -58.38, dx: -1.5, dy: 0.1}
+      - {etiqueta: Junín, lat: -34.58, lon: -60.95}
+      - {etiqueta: Tandil, lat: -37.32, lon: -59.13}
+      - {etiqueta: Mar del Plata, lat: -38.00, lon: -57.55}
+      - {etiqueta: Bahía Blanca, lat: -38.72, lon: -62.27}
+      - {etiqueta: Montevideo, lat: -34.90, lon: -56.16}
+      - {etiqueta: Rosario, lat: -32.95, lon: -60.65}
   # Rayos: densidad de destellos del GLM (detector de relámpagos del GOES)
   # sobre el GeoColor. Es otro instrumento: otra carpeta en NOAA.
   - id: satelite_glm

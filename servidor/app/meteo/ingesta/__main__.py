@@ -12,7 +12,7 @@ Uso (dentro del contenedor, o con DATABASE_URL apuntando a la base):
         Rellena el pasado. ThingSpeak y Wunderground guardan historia (con
         límites); Ogimet tiene años; la Davis solo los últimos días.
 
-    python -m meteo.ingesta historico cartas --desde 2026-10-06 --hasta 2026-10-14
+    python -m meteo.ingesta historico cartas --desde 2026-10-06 --hasta 2026-10-14 [--forzar]
         Rellena las cartas de un período: el satélite (NOAA guarda ~10 días)
         y los mapas de Ogimet (una consulta cada 21 s: ~1,5 min por día).
 
@@ -83,6 +83,8 @@ def main():
     ap.add_argument("--mover-dias", type=int, default=0)
     ap.add_argument("--publicado-el", type=lambda s: datetime.strptime(s, "%Y-%m-%d").date().isoformat())
     ap.add_argument("--motivo", default="")
+    ap.add_argument("--forzar", action="store_true",
+                    help="historico cartas: armar los mapas de rayos aunque ningún SYNOP haya informado tormenta")
     args = ap.parse_intermixed_args()   # permite "importar-hoja --config x.yaml -"
 
     logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"),
@@ -91,6 +93,7 @@ def main():
     conn = db.conectar()
     db.sincronizar_estaciones(conn, cfg["estaciones"])
     ing = Ingesta(cfg, conn)
+    ing.forzar_rayos = args.forzar
     ids = set(args.estaciones.split(",")) if args.estaciones else None
 
     if args.comando == "diagnostico-ogimet":

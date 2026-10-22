@@ -54,11 +54,19 @@ def _cmap_vapor():
     return cmap, Normalize(vmin=tmin, vmax=tmax, clip=True), "Temperatura de brillo (°C)"
 
 
-PALETAS = {"ir_realzada": _cmap_ir, "vapor": _cmap_vapor}
+def _cmap_ir_gris():
+    # Infrarrojo en grises, frío = blanco (la convención de las imágenes IR):
+    # de fondo para dibujar encima algo en colores (por ejemplo, rayos).
+    return plt.get_cmap("gray_r"), Normalize(vmin=-80.0, vmax=40.0, clip=True), "Temperatura de brillo (°C)"
 
 
-def dibujar(rec, ruta_png, region, paleta, titulo_region="", puntos=(), dpi=110):
-    """rec: Recorte de procesar.recortar(). region: (lon_min, lon_max, lat_min, lat_max)."""
+PALETAS = {"ir_realzada": _cmap_ir, "vapor": _cmap_vapor, "ir_gris": _cmap_ir_gris}
+
+
+def dibujar(rec, ruta_png, region, paleta, titulo_region="", puntos=(), dpi=110, extra=None, titulo=None, pie=None):
+    """rec: Recorte de procesar.recortar(). region: (lon_min, lon_max, lat_min, lat_max).
+    extra(fig, ax): para dibujar algo encima antes de guardar (ej. rayos).
+    ruta_png puede ser una ruta o un archivo en memoria (io.BytesIO)."""
     # Latitud y longitud de cada píxel, con las mismas fórmulas del recorte
     # (verificadas contra pyproj en los tests). Así dibujamos cada píxel en su
     # lugar real, sin depender de la reproyección interna de cartopy.
@@ -81,7 +89,7 @@ def dibujar(rec, ruta_png, region, paleta, titulo_region="", puntos=(), dpi=110)
     im = ax.pcolormesh(lon, lat, np.ma.masked_invalid(valores), cmap=cmap, norm=norm,
                        shading="nearest", transform=ccrs.PlateCarree(), rasterized=True)
 
-    color_linea = "#ffd400" if paleta == "visible" else "#202020"
+    color_linea = "#ffd400" if paleta in ("visible", "ir_gris") else "#202020"
     ax.add_feature(cfeature.COASTLINE.with_scale("10m"), edgecolor=color_linea, linewidth=0.7)
     ax.add_feature(cfeature.BORDERS.with_scale("10m"), edgecolor=color_linea, linewidth=0.7)
     provincias = cfeature.NaturalEarthFeature("cultural", "admin_1_states_provinces_lines", "10m", facecolor="none")
@@ -101,14 +109,16 @@ def dibujar(rec, ruta_png, region, paleta, titulo_region="", puntos=(), dpi=110)
 
     nombre, onda = BANDAS.get(rec.banda, ("", 0))
     local = rec.inicio + HORA_ARGENTINA
-    fig.text(0.02, 0.965, f"GOES-19 · Banda {rec.banda} ({onda} µm) · {nombre}", fontsize=11, weight="bold")
+    fig.text(0.02, 0.965, titulo or f"GOES-19 · Banda {rec.banda} ({onda} µm) · {nombre}", fontsize=11, weight="bold")
     fig.text(0.02, 0.945, f"{rec.inicio:%d/%m/%Y %H:%M} UTC  ({local:%H:%M} hora Argentina)  ·  {titulo_region}",
              fontsize=8.5)
     cax = fig.add_axes([0.1, 0.055, 0.8, 0.018])
     cb = fig.colorbar(im, cax=cax, orientation="horizontal")
     cb.set_label(etiqueta, fontsize=7.5)
     cb.ax.tick_params(labelsize=7)
-    fig.text(0.98, 0.01, "Datos: NOAA/NESDIS (GOES-19 ABI L2 CMIP) · Procesado localmente",
+    fig.text(0.98, 0.01, pie or "Datos: NOAA/NESDIS (GOES-19 ABI L2 CMIP) · Procesado localmente",
              fontsize=6, ha="right", color="#555555")
-    fig.savefig(ruta_png, dpi=dpi)
+    if extra:
+        extra(fig, ax)
+    fig.savefig(ruta_png, dpi=dpi, format="png")
     plt.close(fig)
