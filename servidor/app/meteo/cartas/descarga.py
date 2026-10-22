@@ -176,7 +176,10 @@ def _pedir_ogimet(sesion, zona, ts):
                            headers=ogimet.ENCABEZADOS)
             r.raise_for_status()
             if not r.text.strip():
-                raise NoDisponible(f"Ogimet ya no tiene los mapas de {ts:%d/%m %H} UTC (solo guarda el último día)")
+                # Respuesta vacía: el mapa de esa hora todavía no está armado (tarda
+                # un rato después de la hora), o faltó el Referer. No es un error:
+                # la tarea de cada hora lo vuelve a pedir.
+                raise NoDisponible(f"Ogimet todavía no tiene los mapas de {ts:%d/%m %H} UTC (se reintenta más tarde)")
             imgs = ogimet.imagenes(r.text)
             if not imgs:
                 aviso = "límite de consultas" if "quota" in r.text.lower() else "página sin mapas"
