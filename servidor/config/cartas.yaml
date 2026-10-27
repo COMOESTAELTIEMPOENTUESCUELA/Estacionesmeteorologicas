@@ -40,37 +40,36 @@ productos:
     dominio: sudamerica
     carta: vorticidad_500
 
-  # --- Página de Alicia Bentley (GFS, análisis): YA NO SE DESCARGA ---------
-  # Reemplazada por las cartas propias de arriba. `descargar: false`: lo ya
-  # archivado (desde el 7/10/2026) se sigue viendo, pero no se baja nada nuevo.
+  # --- Página de Alicia Bentley (GFS, análisis): respaldo y comparación ----
+  # https://www.atmos.albany.edu/student/abentley/realtime/standard.php?domain=southamer&variable=VARIABLE
+  # Se siguen bajando junto con las propias: para comparar y por si una de las
+  # dos falla (si la página se cae, lo demás se baja igual). La página muestra
+  # 14 días: al volver de una caída, recupera lo que faltó. Para dejar de
+  # bajarlas sin perder lo archivado: `descargar: false` en las cuatro.
   - id: bentley_mslp_jet
     nombre: "Presión, espesor 1000/500 hPa y corriente en chorro"
     nivel: "Superficie y 1000/500 hPa (Bentley)"
     fuente: bentley
     dominio: southamer
     variable: mslp_jet
-    descargar: false
   - id: bentley_850_thetae
     nombre: "Temperatura potencial equivalente"
     nivel: "850 hPa (Bentley)"
     fuente: bentley
     dominio: southamer
     variable: 850_thetae
-    descargar: false
   - id: bentley_ivt_conv
     nombre: "Transporte integrado de vapor (IVT) y convergencia"
     nivel: "700 hPa (Bentley)"
     fuente: bentley
     dominio: southamer
     variable: IVT_conv
-    descargar: false
   - id: bentley_rel_vort
     nombre: "Vorticidad relativa"
     nivel: "500 hPa (Bentley)"
     fuente: bentley
     dominio: southamer
     variable: rel_vort
-    descargar: false
 
   # --- Satélite GOES-19 (NOAA STAR, gratis) --------------------------------
   # Sector "ssa" (sur de Sudamérica), 1800x1080. Solo a las horas de las

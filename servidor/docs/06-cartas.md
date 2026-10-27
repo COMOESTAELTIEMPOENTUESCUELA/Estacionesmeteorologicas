@@ -14,7 +14,7 @@ Configurado en `config/cartas.yaml`:
 | θe, altura y viento (`gfs_thetae_850`) | 850 hPa | **Propia**, análisis GFS |
 | Transporte integrado de vapor (IVT) y presión (`gfs_ivt`) | 1000-300 hPa | **Propia**, análisis GFS |
 | Vorticidad relativa, altura y viento (`gfs_vorticidad_500`) | 500 hPa | **Propia**, análisis GFS |
-| (Archivo) las 4 de Alicia Bentley, del 7/10 al 27/10/2026 | | Ya no se descargan |
+| Las mismas 4 de Alicia Bentley (respaldo y comparación) | | Página de Bentley, GFS |
 | Tiempo presente (observaciones, código `Sg`) | Superficie | Ogimet |
 | Temperatura (observaciones, código `Te`) | Superficie | Ogimet |
 | Precipitación acumulada (observaciones, código `R4`), solo 12 UTC | Superficie | Ogimet |
@@ -29,9 +29,9 @@ muestran un aviso con un botón para ir a las 12 UTC del mismo día.
 
 ## Cartas propias con el análisis del GFS
 
-Desde el 27/10/2026 las cartas de diagnóstico las dibuja el servidor, en vez
-de bajarlas de la página de Alicia Bentley (que se caía y no dependía de
-nosotros). Código: `app/meteo/cartas/gfs.py` (datos) y `diagnostico.py`
+Desde el 27/10/2026 las cartas de diagnóstico también las dibuja el propio
+servidor, para no depender solo de la página de Alicia Bentley (que se cayó
+unos días). Las de Bentley se siguen bajando, como respaldo y para comparar. Código: `app/meteo/cartas/gfs.py` (datos) y `diagnostico.py`
 (cuentas y dibujo).
 
 **Los datos.** El análisis del GFS (hora 0 de cada corrida, 0,5°) está en el
@@ -67,11 +67,11 @@ docker compose exec ingesta python -m meteo.ingesta historico cartas --desde 202
 CAPE...): agregar las variables a `PEDIDOS`, el cálculo y el dibujo en
 `diagnostico.dibujar`, y la entrada en `cartas.yaml` con `carta: <nombre>`.
 
-## Bentley (archivo, ya no se descarga)
+## Bentley (respaldo)
 
-Las cartas de Bentley del 7/10 al 27/10/2026 se siguen viendo
-(`descargar: false` en el YAML: se muestran donde hay algo archivado). Así
-funcionaba su descarga:
+Si en algún momento se deja de bajarlas, `descargar: false` en las cuatro:
+lo archivado se sigue viendo (solo donde hay imagen) y no se pide nada nuevo.
+Así funciona su descarga:
 
 1. Lee la página de Bentley (`standard.php`): ahí están la corrida que muestra
    (`String(2026101206`) y el número del cuadro inicial (`startFrame = 57`).
