@@ -60,7 +60,8 @@ def correr(cfg, raiz, sesion, tormenta=None):
 
 def _correr(cfg, raiz, sesion, tormenta=None):
     horas = tuple(cfg.get("horas_utc", (0, 6, 12, 18)))
-    activos = [p for p in cfg["productos"] if p.get("activo", True)]
+    # descargar: false -> se muestra lo archivado, pero no se baja más (ej. Bentley).
+    activos = [p for p in cfg["productos"] if p.get("activo", True) and p.get("descargar", True)]
     nuevas = 0
     corridas = {}
     errores = []        # una fuente caída no frena a las otras: se informa al final
@@ -76,6 +77,8 @@ def _correr(cfg, raiz, sesion, tormenta=None):
         if p["fuente"] == "glm":
             nuevas += _correr_rayos(p, raiz, sesion, tuple(p.get("horas_utc", horas)), tormenta)
             continue
+        if p["fuente"] == "gfs":
+            continue      # se dibujan abajo, todas juntas (un solo análisis para las cuatro)
         if p["fuente"] != "bentley":
             log.info("cartas %s: fuente %s todavía no implementada", p["id"], p["fuente"])
             continue
@@ -109,6 +112,13 @@ def _correr(cfg, raiz, sesion, tormenta=None):
             except Exception as ex:
                 log.warning("cartas %s %s: %s", p["id"], valida, str(ex)[:150])
             time.sleep(PAUSA_SEG)
+    gfs_p = [p for p in activos if p["fuente"] == "gfs"]
+    if gfs_p:
+        try:
+            nuevas += _correr_gfs(gfs_p, raiz, sesion, horas)
+        except Exception as ex:
+            errores.append(f"cartas GFS: {str(ex)[:150]}")
+            log.warning("cartas: %s", errores[-1])
     ahora = datetime.now(timezone.utc) - OGIMET_MARGEN
     desde = ahora - timedelta(hours=OGIMET_HORAS_ATRAS)
     nuevas += _correr_ogimet(cfg, raiz, sesion, desde, ahora)
@@ -151,6 +161,35 @@ def _correr_star(p, raiz, sesion, horas_utc, desde=None, hasta=None):
         except Exception as ex:
             log.warning("cartas %s %s: %s", p["id"], ts, str(ex)[:150])
         time.sleep(PAUSA_SEG)
+    return nuevas
+
+
+GFS_HORAS_ATRAS = 48      # el análisis sale ~4 h después de la hora; si la PC estuvo apagada, se recupera
+
+
+def _correr_gfs(productos, raiz, sesion, horas, desde=None, hasta=None):
+    """Cartas de diagnóstico propias (análisis del GFS, ver diagnostico.py):
+    un solo análisis por hora dibuja las cuatro. NOAA guarda los análisis
+    desde 2021: con desde/hasta se pueden dibujar eventos viejos."""
+    from . import diagnostico, gfs
+    hasta = hasta or datetime.now(timezone.utc)
+    desde = desde or hasta - timedelta(hours=GFS_HORAS_ATRAS)
+    region = tuple(productos[0].get("region", (-95, -25, -60, 5)))
+    nuevas = 0
+    for ts in horas_sinopticas(desde, hasta, horas):
+        faltan = [p for p in productos if not archivo.existe(raiz, p["id"], ts)]
+        if not faltan:
+            continue
+        try:
+            campos = gfs.bajar(ts, diagnostico.PEDIDOS, region, sesion)
+        except FileNotFoundError as ex:
+            log.info("cartas: %s", ex)
+            continue
+        dibujos = diagnostico.dibujar(campos, ts, region)
+        for p in faltan:
+            archivo.guardar(raiz, p["id"], ts, dibujos[p["carta"]])
+            nuevas += 1
+        log.info("cartas GFS %s: %d dibujadas", ts, len(faltan))
     return nuevas
 
 
@@ -268,14 +307,21 @@ def correr_historico(cfg, raiz, sesion, desde, hasta, tormenta=None, forzar=Fals
     salida = {}
     with una_sola_descarga(raiz):
         for p in cfg["productos"]:
-            if p.get("activo", True) and p["fuente"] == "star":
+            if p.get("activo", True) and p.get("descargar", True) and p["fuente"] == "star":
                 try:
                     salida[p["id"]] = _correr_star(p, raiz, sesion, tuple(p.get("horas_utc", horas)), desde, hasta)
                 except Exception as ex:
                     log.warning("cartas %s: %s", p["id"], str(ex)[:150])
-            if p.get("activo", True) and p["fuente"] == "glm":
+            if p.get("activo", True) and p.get("descargar", True) and p["fuente"] == "glm":
                 salida[p["id"]] = _correr_rayos(p, raiz, sesion, tuple(p.get("horas_utc", horas)),
                                                 tormenta, desde, hasta, forzar)
+        gfs_p = [p for p in cfg["productos"] if p.get("activo", True) and p.get("descargar", True)
+                 and p["fuente"] == "gfs"]
+        if gfs_p:
+            try:
+                salida["gfs"] = _correr_gfs(gfs_p, raiz, sesion, horas, desde, hasta)
+            except Exception as ex:
+                log.warning("cartas GFS: %s", str(ex)[:150])
         # Ojo: una consulta "pesada" cada 20 s por IP. Con el servicio corriendo
         # a la vez se cruzan; por eso una_sola_descarga() bloquea la otra.
         salida["ogimet"] = _correr_ogimet(cfg, raiz, sesion, desde, hasta)

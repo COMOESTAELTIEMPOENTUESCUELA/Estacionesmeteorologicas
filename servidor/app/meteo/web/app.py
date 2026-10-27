@@ -684,7 +684,7 @@ def _cartas_productos():
         return []
     horas = cfg.get("horas_utc", [0, 6, 12, 18])
     return [{**{k: p.get(k) for k in ("id", "nombre", "nivel", "fuente", "zona", "dominio", "solo_con_tormenta")},
-             "horas_utc": p.get("horas_utc", horas)}
+             "horas_utc": p.get("horas_utc", horas), "solo_archivo": p.get("descargar", True) is False}
             for p in cfg.get("productos", []) if p.get("activo", True)]
 
 

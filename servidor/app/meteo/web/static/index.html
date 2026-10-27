@@ -708,8 +708,9 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
       <p class="ayuda" id="c-nota"></p>
       <div class="cartas-grid" id="c-grid"></div>
       <p class="ayuda" style="margin-top:12px">Cartas de diagnóstico (análisis, no pronóstico) que el servidor archiva solo, cada hora.
-        Fuentes: <a href="https://www.atmos.albany.edu/student/abentley/realtime.html" target="_blank" rel="noopener">Alicia Bentley (GFS)</a>
-        y <a href="https://www.ogimet.com/" target="_blank" rel="noopener">Ogimet</a> (observaciones; la precipitación de 24 h y las temperaturas extremas se informan a las 12 UTC).
+        Fuentes: diagnóstico propio con el análisis del GFS de NOAA (hasta el 27/10/2026, de
+        <a href="https://www.atmos.albany.edu/student/abentley/realtime.html" target="_blank" rel="noopener">Alicia Bentley</a>),
+        satélite GOES-19 (NOAA) y <a href="https://www.ogimet.com/" target="_blank" rel="noopener">Ogimet</a> (observaciones; la precipitación de 24 h y las temperaturas extremas se informan a las 12 UTC).
         Flechas ← → del teclado: 6 horas antes o después. Tocá una carta para verla en grande:
         ahí se hace zoom con la rueda del mouse (o pellizcando en el celular), se mueve arrastrando,
         doble clic acerca o vuelve, y ← → cambian la hora sin perder el zoom (↑ ↓ cambian de carta).</p>
@@ -2092,7 +2093,8 @@ async function cargarCartas() {
     : `${cartasHora.length} de ${deLaHora.length} cartas para esta hora (en Argentina: ${fmtHora.format(t)} hs). Archivo: del ${claves[0].slice(0, 10)} al ${claves[claves.length - 1].slice(0, 10)}.`
       + (placa && otras.length ? ` ${otras.map((p) => p.nombre.replace(/ \(observaciones\)/, "")).join(", ")}: solo a las 12 UTC.` : "");
   // En la placa no se ocupa lugar con las cartas que no corresponden a esta hora.
-  const mostrar = placa ? deLaHora : r.productos;
+  // Las que ya no se bajan (ej. Bentley) aparecen solo donde hay algo archivado.
+  const mostrar = (placa ? deLaHora : r.productos).filter((p) => p.url || !p.solo_archivo);
   $("#c-grid").classList.toggle("placa", placa);
   $("#c-grid").innerHTML = mostrar.map((p) => `<figure class="carta">
       <figcaption title="${esc(tituloCarta(p))}${dibujosDe(p, t).length ? " (con análisis dibujado)" : ""}">${dibujosDe(p, t).length ? "✏️ " : ""}<b>${esc(p.nivel || "")}</b> · ${esc(p.nombre)}</figcaption>

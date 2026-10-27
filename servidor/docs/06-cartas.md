@@ -10,10 +10,11 @@ Configurado en `config/cartas.yaml`:
 
 | Producto | Nivel | Fuente |
 |---|---|---|
-| Presión, espesor 1000/500 hPa y corriente en chorro (`mslp_jet`) | Superficie y 1000/500 hPa | Alicia Bentley, GFS |
-| Temperatura potencial equivalente (`850_thetae`) | 850 hPa | Alicia Bentley, GFS |
-| Transporte integrado de vapor y convergencia (`IVT_conv`) | 700 hPa | Alicia Bentley, GFS |
-| Vorticidad relativa (`rel_vort`) | 500 hPa | Alicia Bentley, GFS |
+| Presión, espesor 1000/500 hPa y chorro en 250 hPa (`gfs_presion_chorro`) | Superficie, 1000/500 y 250 hPa | **Propia**, análisis GFS |
+| θe, altura y viento (`gfs_thetae_850`) | 850 hPa | **Propia**, análisis GFS |
+| Transporte integrado de vapor (IVT) y presión (`gfs_ivt`) | 1000-300 hPa | **Propia**, análisis GFS |
+| Vorticidad relativa, altura y viento (`gfs_vorticidad_500`) | 500 hPa | **Propia**, análisis GFS |
+| (Archivo) las 4 de Alicia Bentley, del 7/10 al 27/10/2026 | | Ya no se descargan |
 | Tiempo presente (observaciones, código `Sg`) | Superficie | Ogimet |
 | Temperatura (observaciones, código `Te`) | Superficie | Ogimet |
 | Precipitación acumulada (observaciones, código `R4`), solo 12 UTC | Superficie | Ogimet |
@@ -26,9 +27,51 @@ precipitación de 24 h y las temperaturas extremas se informan a las 12 UTC,
 así que esos mapas solo se guardan a esa hora. En la pestaña, a otra hora,
 muestran un aviso con un botón para ir a las 12 UTC del mismo día.
 
-## Cómo funciona
+## Cartas propias con el análisis del GFS
 
-La tarea `cartas` del servicio de ingesta corre cada hora:
+Desde el 27/10/2026 las cartas de diagnóstico las dibuja el servidor, en vez
+de bajarlas de la página de Alicia Bentley (que se caía y no dependía de
+nosotros). Código: `app/meteo/cartas/gfs.py` (datos) y `diagnostico.py`
+(cuentas y dibujo).
+
+**Los datos.** El análisis del GFS (hora 0 de cada corrida, 0,5°) está en el
+bucket público de NOAA en Amazon, **desde 2021**:
+`https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.AAAAMMDD/HH/atmos/gfs.tHHz.pgrb2.0p50.f000`.
+El archivo pesa ~120 MB, pero al lado hay un índice (`.idx`) que dice en qué
+byte empieza cada variable: se piden solo las ~63 que se usan (encabezado
+HTTP `Range`), **~16 MB por hora sinóptica**. Se decodifican con `eccodes`
+(la librería del ECMWF para GRIB2). El análisis sale ~4 h después de la hora.
+
+**Las cuentas** (paso a paso en `diagnostico.py`):
+- θe con la fórmula de Bolton (1980), a partir de temperatura y humedad relativa.
+- IVT = (1/g) ∫ q·V dp entre 1000 y 300 hPa (17 niveles); los niveles bajo el
+  suelo (la cordillera) no cuentan.
+- Vorticidad relativa = absoluta (la da el GFS) − f. En el hemisferio sur la
+  ciclónica es **negativa**: va en rojo.
+- La vorticidad, la presión y el espesor se suavizan levemente (filtro de 9
+  puntos), como en las cartas operativas: a 0,5° tienen "ruido" de grilla.
+
+**El dibujo.** Proyección cónica conforme de Lambert, región configurable
+(`region` en `cartas.yaml`, hoy de 95°O a 25°O y de 60°S a 5°N). Las cuatro
+comparten exactamente el mismo marco: funcionan el cursor sincronizado y
+"superponer" entre ellas.
+
+**Eventos viejos.** Como NOAA guarda los análisis desde 2021, cualquier
+evento se puede dibujar después:
+
+```bash
+docker compose exec ingesta python -m meteo.ingesta historico cartas --desde 2024-04-01 --hasta 2024-04-05
+```
+
+**Para sumar otra carta** (advección térmica, espesor, agua precipitable,
+CAPE...): agregar las variables a `PEDIDOS`, el cálculo y el dibujo en
+`diagnostico.dibujar`, y la entrada en `cartas.yaml` con `carta: <nombre>`.
+
+## Bentley (archivo, ya no se descarga)
+
+Las cartas de Bentley del 7/10 al 27/10/2026 se siguen viendo
+(`descargar: false` en el YAML: se muestran donde hay algo archivado). Así
+funcionaba su descarga:
 
 1. Lee la página de Bentley (`standard.php`): ahí están la corrida que muestra
    (`String(2026101206`) y el número del cuadro inicial (`startFrame = 57`).
@@ -187,7 +230,7 @@ docker compose exec ingesta python -m meteo.ingesta diagnostico-ogimet
   (`estaciones.yaml`) se usa el nombre de ahí. Si falta alguna o el nombre
   no gusta, se agrega o corrige una línea `omm;nombre;país` en ese archivo.
 - **Cursor sincronizado** (placa): una cruz marca el mismo punto en las
-  cartas de la misma proyección (las de Bentley entre sí; las de Ogimet
+  cartas de la misma proyección (las propias del GFS entre sí; las de Ogimet
   entre sí).
 - **Superponer** (visor grande): otra carta del mismo grupo encima, con
   transparencia.

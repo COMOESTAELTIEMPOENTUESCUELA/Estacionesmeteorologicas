@@ -8,34 +8,69 @@
 horas_utc: [0, 6, 12, 18]
 
 productos:
-  # --- Página de Alicia Bentley (GFS, análisis) -------------------------
-  # https://www.atmos.albany.edu/student/abentley/realtime/standard.php?domain=southamer&variable=VARIABLE
-  # La página muestra los últimos 14 días de análisis: el servidor los va
-  # guardando, así que el archivo empieza 14 días antes de activarlo.
+  # --- Cartas propias: análisis del GFS dibujado en el servidor -----------
+  # Reemplazan a las de Bentley (mismos cuatro campos). Ver
+  # app/meteo/cartas/diagnostico.py. Bajan ~16 MB por hora sinóptica (solo las
+  # variables necesarias) del bucket público de NOAA, que guarda los análisis
+  # desde 2021: `historico cartas --desde ... --hasta ...` dibuja eventos viejos.
+  # Las cuatro comparten región (la de la primera) y el mismo marco.
+  - id: gfs_presion_chorro
+    nombre: "Presión, espesor 1000/500 hPa y corriente en chorro (250 hPa)"
+    nivel: "Diagnóstico GFS"
+    fuente: gfs
+    dominio: sudamerica
+    carta: presion_chorro
+    region: [-95, -25, -60, 5]          # lon mín, lon máx, lat mín, lat máx
+  - id: gfs_thetae_850
+    nombre: "Temperatura potencial equivalente, altura y viento (850 hPa)"
+    nivel: "Diagnóstico GFS"
+    fuente: gfs
+    dominio: sudamerica
+    carta: thetae_850
+  - id: gfs_ivt
+    nombre: "Transporte integrado de vapor (IVT) y presión"
+    nivel: "Diagnóstico GFS"
+    fuente: gfs
+    dominio: sudamerica
+    carta: ivt
+  - id: gfs_vorticidad_500
+    nombre: "Vorticidad relativa, altura y viento (500 hPa)"
+    nivel: "Diagnóstico GFS"
+    fuente: gfs
+    dominio: sudamerica
+    carta: vorticidad_500
+
+  # --- Página de Alicia Bentley (GFS, análisis): YA NO SE DESCARGA ---------
+  # Reemplazada por las cartas propias de arriba. `descargar: false`: lo ya
+  # archivado (desde el 7/10/2026) se sigue viendo, pero no se baja nada nuevo.
   - id: bentley_mslp_jet
     nombre: "Presión, espesor 1000/500 hPa y corriente en chorro"
-    nivel: "Superficie y 1000/500 hPa"
+    nivel: "Superficie y 1000/500 hPa (Bentley)"
     fuente: bentley
     dominio: southamer
     variable: mslp_jet
+    descargar: false
   - id: bentley_850_thetae
     nombre: "Temperatura potencial equivalente"
-    nivel: "850 hPa"
+    nivel: "850 hPa (Bentley)"
     fuente: bentley
     dominio: southamer
     variable: 850_thetae
+    descargar: false
   - id: bentley_ivt_conv
     nombre: "Transporte integrado de vapor (IVT) y convergencia"
-    nivel: "700 hPa"
+    nivel: "700 hPa (Bentley)"
     fuente: bentley
     dominio: southamer
     variable: IVT_conv
+    descargar: false
   - id: bentley_rel_vort
     nombre: "Vorticidad relativa"
-    nivel: "500 hPa"
+    nivel: "500 hPa (Bentley)"
     fuente: bentley
     dominio: southamer
     variable: rel_vort
+    descargar: false
 
   # --- Satélite GOES-19 (NOAA STAR, gratis) --------------------------------
   # Sector "ssa" (sur de Sudamérica), 1800x1080. Solo a las horas de las
