@@ -63,6 +63,7 @@ def _correr(cfg, raiz, sesion, tormenta=None):
     activos = [p for p in cfg["productos"] if p.get("activo", True)]
     nuevas = 0
     corridas = {}
+    errores = []        # una fuente caída no frena a las otras: se informa al final
     for p in activos:
         if p["fuente"] == "ogimet":
             continue      # se baja abajo, todas juntas (una página trae todos los mapas)
@@ -79,10 +80,19 @@ def _correr(cfg, raiz, sesion, tormenta=None):
             log.info("cartas %s: fuente %s todavía no implementada", p["id"], p["fuente"])
             continue
         if p["dominio"] not in corridas:
-            r = sesion.get(bentley.url_pagina(p["dominio"], p["variable"]), timeout=60)
-            r.raise_for_status()
-            corridas[p["dominio"]] = bentley.leer_corrida(r.text)
+            try:
+                r = sesion.get(bentley.url_pagina(p["dominio"], p["variable"]), timeout=60)
+                r.raise_for_status()
+                corridas[p["dominio"]] = bentley.leer_corrida(r.text)
+            except Exception as ex:
+                # Se intenta una sola vez por vuelta (no una por carta: cada
+                # intento fallido puede tardar un minuto en rendirse).
+                corridas[p["dominio"]] = None
+                errores.append(f"Bentley ({p['dominio']}) no respondió: {str(ex)[:120]}")
+                log.warning("cartas: %s", errores[-1])
         corrida = corridas[p["dominio"]]
+        if corrida is None:
+            continue
         for n, valida in bentley.cuadros_analisis(corrida, tuple(p.get("horas_utc", horas))):
             if archivo.existe(raiz, p["id"], valida):
                 continue
@@ -105,6 +115,9 @@ def _correr(cfg, raiz, sesion, tormenta=None):
     # Las archivadas antes de que existieran las miniaturas (o si alguna falló).
     mins = archivo.completar_miniaturas(raiz, [p["id"] for p in activos])
     log.info("cartas: %d nuevas%s", nuevas, f", {mins} miniaturas completadas" if mins else "")
+    if errores:
+        # Lo demás ya se bajó; esto deja la falla a la vista en "Estado de la red".
+        raise RuntimeError(f"{nuevas} cartas nuevas, pero: " + "; ".join(errores))
     return nuevas
 
 

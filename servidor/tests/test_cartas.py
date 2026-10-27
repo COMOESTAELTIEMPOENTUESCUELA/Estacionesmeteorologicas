@@ -452,3 +452,26 @@ def test_ogimet_completa_zonas_sin_rebajar_la_imagen(tmp_path, monkeypatch):
     import json
     zonas = json.loads(archivo.ruta_areas(tmp_path, "og_te", ts).read_text())
     assert [z["omm"] for z in zonas] == ["87593", "87576"]
+
+
+def test_bentley_caido_no_frena_al_resto(tmp_path, monkeypatch):
+    """Si la página de Bentley no responde, el satélite y Ogimet se bajan igual
+    (y la falla queda informada al final, para verla en Estado de la red)."""
+    import pytest
+    from meteo.cartas import descarga
+    llamadas = {"bentley": 0}
+    monkeypatch.setattr(descarga, "_correr_star", lambda *a, **k: 2)
+    monkeypatch.setattr(descarga, "_correr_ogimet", lambda *a, **k: 3)
+
+    class Sesion:
+        def get(self, url, **k):
+            llamadas["bentley"] += 1
+            raise TimeoutError("Connection to www.atmos.albany.edu timed out")
+
+    cfg = {"productos": [
+        {"id": "b1", "fuente": "bentley", "dominio": "southamer", "variable": "mslp_jet"},
+        {"id": "b2", "fuente": "bentley", "dominio": "southamer", "variable": "rel_vort"},
+        {"id": "s1", "fuente": "star", "sector": "ssa", "banda": "13"}]}
+    with pytest.raises(RuntimeError, match=r"5 cartas nuevas, pero: Bentley \(southamer\) no respondió"):
+        descarga.correr(cfg, tmp_path, Sesion())
+    assert llamadas["bentley"] == 1          # un solo intento por vuelta, no uno por carta
