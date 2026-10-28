@@ -280,6 +280,9 @@ img.con-fondo { background-color: #fff !important; background-size: 100% 100%; b
 .err.e-mal { background: color-mix(in srgb, var(--caida) 30%, transparent); }
 #cp-tabla td, #cp-tabla th { white-space: nowrap; }
 #cp-tabla .detalle td { white-space: normal; background: var(--plano); font-size: 13px; }
+.cp-graf { margin-top: 10px; min-width: 260px; }
+.cp-graf-tit { font-weight: 600; margin: 4px 0 0; }
+.cp-panel { height: 130px; }
 #c-dialogo::backdrop { background: rgba(0, 0, 0, .6); }
 .ogimet { font-size: 11px; white-space: nowrap; color: var(--acento); }
 .nivel { font-size: 11px; white-space: nowrap; color: var(--tinta-2); }
@@ -2202,6 +2205,50 @@ function detallePeriodos(f) {
     <p class="tenue" style="margin:4px 0">${esc(quien)}</p>`;
 }
 
+// Gráfico de lo observado (SYNOP) en la estación del SMN de una ciudad, el
+// día del pronóstico (00 a 24 hs), con la mínima y máxima pronosticadas.
+let cpDatos = [];
+async function graficoSynopCiudad(filaDetalle, dia) {
+  const cont = filaDetalle.querySelector(".cp-graf");
+  if (!cont || cont.dataset.cargado === dia) return;
+  cont.dataset.cargado = dia;
+  const est = cont.dataset.est, c = cpDatos[Number(cont.dataset.i)] || {}, f = c.pronostico;
+  cont.innerHTML = '<p class="tenue">Cargando lo observado…</p>';
+  let d;
+  try { d = await api(`/api/cartas/synop?estacion=${encodeURIComponent(est)}&fecha=${dia}`); }
+  catch (err) { cont.innerHTML = `<p class="tenue">No se pudo cargar: ${esc(err.message)}</p>`; return; }
+  const F = d.filas;
+  if (!F.length) { cont.innerHTML = `<p class="tenue">Sin SYNOP de ${esc(est.replace("omm_", ""))} ese día.</p>`; return; }
+  const x = { xmin: Date.parse(d.desde), xmax: Date.parse(d.hasta) };
+  const serie = (k, fn = (v) => v) => F.filter((o) => o[k] !== null && o[k] !== undefined).map((o) => [o.ts, fn(o[k])]);
+  // La mínima y la máxima pronosticadas, como líneas punteadas de todo el día.
+  const pron = (el, etiqueta, slot) => {
+    const v = f && f[el] && f[el].pron;
+    return v === null || v === undefined ? null : { label: etiqueta, data: [{ x: x.xmin, y: v }, { x: x.xmax, y: v }],
+      borderColor: css(`--s${slot}`), borderDash: [5, 4], borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 0 };
+  };
+  const lluvia = serie("precip_6h").length ? ["precip_6h", "Lluvia en 6 h"] : serie("precip_3h").length ? ["precip_3h", "Lluvia en 3 h"]
+    : serie("precip_1h").length ? ["precip_1h", "Lluvia en 1 h"] : null;
+  const paneles = [
+    ["Temperatura y rocío", "°C · punteado: mínima y máxima pronosticadas", (cv) => panel(cv,
+      [serieLinea("Temperatura", serie("temp"), 2), serieLinea("Rocío", serie("td"), 1),
+       pron("tmin_urbana", "Mín. pronosticada", 1), pron("tmax_urbana", "Máx. pronosticada", 8)].filter(Boolean), { unidad: "°C", ...x })],
+    ["Presión a nivel del mar", "hPa", (cv) => { const ds = [serieLinea("Presión", serie("pnm"), 7)];
+      return panel(cv, ds, { unidad: "hPa", rango: rangoAjustado(ds), ticksY: { callback: (v) => String(Math.round(v)) }, ...x }); }],
+    ["Viento", "km/h", (cv) => panel(cv,
+      [serieLinea("Velocidad", serie("viento_vel", (v) => +(v * 3.6).toFixed(1)), 1)], { unidad: "km/h", min: 0, ...x })],
+    ["Dirección del viento", "de dónde viene", (cv) => panel(cv, [serieLinea("Dirección", serie("viento_dir"), 4, { soloPuntos: true })],
+      { unidad: "°", min: 0, max: 360, ticksY: { stepSize: 90, callback: (v) => ({ 0: "N", 90: "E", 180: "S", 270: "O", 360: "N" }[v] ?? v) }, ...x })],
+  ];
+  if (lluvia) paneles.push([lluvia[1], "mm (cada barra: el período que termina a esa hora)", (cv) => panel(cv,
+    [{ label: lluvia[1], data: serie(lluvia[0]).map(([t, v]) => ({ x: Date.parse(t), y: v })), backgroundColor: css("--s1"), borderRadius: 2, barThickness: 10 }],
+    { unidad: "mm", tipo: "bar", min: 0, ...x })]);
+  cont.innerHTML = `<p class="cp-graf-tit">Lo observado en ${esc(c.ciudad || "")} · estación SMN ${esc(est.replace("omm_", ""))} (SYNOP, hora argentina)</p>` +
+    paneles.map(([t, u], j) => `<div class="panel-titulo">${esc(t)}${u ? ` <span class="tenue">(${esc(u)})</span>` : ""}</div>
+      <div class="panel cp-panel"><canvas data-j="${j}"></canvas></div>`).join("");
+  paneles.forEach(([, , dibujar], j) => dibujar(cont.querySelector(`canvas[data-j="${j}"]`)));
+}
+
 async function cargarPronoDia() {
   const t = tsCarta();
   const dia = new Date(t.getTime() - 3 * 3600e3).toISOString().slice(0, 10);   // día argentino
@@ -2221,14 +2268,21 @@ async function cargarPronoDia() {
       const f = c.pronostico;
       // Link a los SYNOP de ese día en Ogimet, para controlar lo observado a mano.
       const og = c.synop && c.synop.length ? `<br>${linksOgimet(c.synop, dia)}` : "";
-      if (!f) return `<tr><th>${esc(c.ciudad)}${og}</th><td colspan="4" class="tenue">sin pronóstico</td></tr>`;
+      // Al tocar la ciudad: el detalle por períodos y el gráfico de lo que
+      // midió su estación del SMN ese día (de los SYNOP).
+      const est = (c.synop || [])[0] || "";
+      const graf = est ? `<div class="cp-graf" data-est="${esc(est)}" data-i="${i}"></div>` : "";
+      if (!f) return `<tr class="fila-click" data-i="${i}"><th>${esc(c.ciudad)}${og}</th><td colspan="4" class="tenue">sin pronóstico</td></tr>
+        <tr class="detalle" data-de="${i}" hidden><td colspan="5">${graf || '<span class="tenue">Sin estación sinóptica asociada.</span>'}</td></tr>`;
       return `<tr class="fila-click" data-i="${i}"><th>${esc(c.ciudad)}${og}</th><td>${celdaTemp(f.tmin_urbana)}</td><td>${celdaTemp(f.tmax_urbana)}</td>
         <td>${celdaPP(f.pp)}</td><td>${celdaViento(f)}</td></tr>
-        <tr class="detalle" data-de="${i}" hidden><td colspan="5">${detallePeriodos(f)}</td></tr>`;
+        <tr class="detalle" data-de="${i}" hidden><td colspan="5">${detallePeriodos(f)}${graf}</td></tr>`;
     }).join("");
+  cpDatos = r.ciudades;
   document.querySelectorAll("#cp-tabla .fila-click").forEach((tr) => tr.addEventListener("click", (e) => {
     if (e.target.closest("a")) return;          // el link a Ogimet no abre ni cierra el detalle
     const d = $(`#cp-tabla tr[data-de="${tr.dataset.i}"]`); d.hidden = !d.hidden;
+    if (!d.hidden) graficoSynopCiudad(d, dia);
   }));
   // Mapa de la provincia con una etiqueta por ciudad.
   if (!cpMapa) {
@@ -2243,7 +2297,8 @@ async function cargarPronoDia() {
     const html = `<div class="cp-punto"></div><div class="cp-etq"><b>${esc(c.ciudad)}</b><br>${f ? `${tx("tmin_urbana")} / ${tx("tmax_urbana")} °C${f.pp && f.pp.pron ? " ☂" : ""}` : '<span class="tenue">sin pron.</span>'}</div>`;
     L.marker(c.coord, { icon: L.divIcon({ className: "", html, iconSize: [0, 0], iconAnchor: [0, 0] }) })
       .addTo(cpCapa).on("click", () => {
-        const d = $(`#cp-tabla tr[data-de="${r.ciudades.indexOf(c)}"]`); if (d) d.hidden = false;
+        const d = $(`#cp-tabla tr[data-de="${r.ciudades.indexOf(c)}"]`);
+        if (d) { d.hidden = false; graficoSynopCiudad(d, dia); d.scrollIntoView({ block: "nearest", behavior: "smooth" }); }
       });
   });
   setTimeout(() => cpMapa.invalidateSize(), 0);

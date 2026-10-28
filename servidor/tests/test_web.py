@@ -358,3 +358,29 @@ def test_lluvia_por_fechas(cliente):
     assert cliente.get("/api/lluvia", params={"desde": "2025-01-01", "hasta": "2026-10-10"}).status_code == 400
     csv = cliente.get("/api/lluvia", params={"desde": "2026-10-05", "hasta": "2026-10-10", "formato": "csv"})
     assert "lluvia_diaria_2026-10-05_2026-10-10" in csv.headers["content-disposition"]
+
+
+def test_synop_del_dia_para_el_grafico_de_cartas(cliente, monkeypatch):
+    """Lo observado por una sinóptica en un día argentino (00 a 24 hs). Está en
+    la copia pública, así que no entrega EMAs."""
+    from datetime import datetime, timedelta, timezone
+
+    from meteo.ingesta import db
+    from meteo.ingesta.base import Obs
+    from meteo.web import app as web
+    t0 = datetime(2026, 9, 5, 3, tzinfo=timezone.utc)                        # 00 hs del 5/9 en Argentina
+    conn = db.conectar(DSN)
+    db.guardar_observaciones(conn, [Obs(t0 + timedelta(hours=h), "omm_87593", "temp", 10.0 + h) for h in range(0, 24, 3)]
+                             + [Obs(t0 - timedelta(hours=1), "omm_87593", "temp", 99.0)], "test")   # del día anterior: no va
+    conn.close()
+    try:
+        monkeypatch.setattr(web, "WEB_MODO", "cartas")
+        d = cliente.get("/api/cartas/synop", params={"estacion": "omm_87593", "fecha": "2026-09-05"}).json()
+        assert [f["temp"] for f in d["filas"]] == [10.0 + h for h in range(0, 24, 3)]   # en orden, sin el 99
+        assert d["desde"] == "2026-09-05T03:00:00Z" and "mensaje" not in d["filas"][0]
+        assert cliente.get("/api/cartas/synop", params={"estacion": "bavio", "fecha": "2026-09-05"}).status_code == 404
+    finally:
+        monkeypatch.setattr(web, "WEB_MODO", "completo")
+        with web.pool_escritura.connection() as conn:
+            conn.execute("DELETE FROM observacion WHERE estacion_id = 'omm_87593' AND ts BETWEEN %s AND %s",
+                         (t0 - timedelta(hours=2), t0 + timedelta(days=1)))

@@ -250,6 +250,12 @@ pestaña Verificación (`/api/verificacion/dia?fecha=AAAA-MM-DD&plazo=0`).
   fue ajustando el pronóstico a medida que se acercaba el evento.
 - Tocando una ciudad se ve el pronóstico por período (mañana, tarde, noche),
   la suburbana de La Plata, quién lo hizo y cuándo se publicó.
+- Debajo, **gráficos de lo observado ese día** (00 a 24 hs) en la estación
+  sinóptica del SMN de la ciudad, con los SYNOP: temperatura y rocío (con la
+  mínima y la máxima pronosticadas como líneas punteadas), presión, viento
+  (velocidad y dirección) y lluvia por períodos. Salen de
+  `/api/cartas/synop?estacion=omm_87593&fecha=AAAA-MM-DD`, que está también
+  en la copia pública y por eso solo entrega estaciones sinópticas, nunca EMAs.
 
 ## Compartir solo las cartas (copia pública)
 

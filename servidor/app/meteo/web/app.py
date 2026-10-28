@@ -625,6 +625,23 @@ CIUDADES_SYNOP = {
 }
 
 
+@app.get("/api/cartas/synop")
+def synop_del_dia(estacion: str, fecha: date):
+    """Lo que midió una estación SINÓPTICA del SMN durante un día argentino
+    (00 a 24 hs), para el gráfico del panel del pronóstico en Cartas. Está
+    también en la copia pública: por eso solo entrega estaciones sinópticas
+    (datos públicos del SMN), nunca las EMAs."""
+    if not consultar("SELECT 1 FROM estacion WHERE id = %s AND tipo = 'sinoptica'", (estacion,)):
+        raise HTTPException(404, "estación sinóptica desconocida")
+    desde = datetime(fecha.year, fecha.month, fecha.day, 3, tzinfo=timezone.utc)   # 00 hs argentina
+    # De 00 a 24 hs inclusive (la consulta toma el período "desde exclusive").
+    filas = observaciones_sinoptica(estacion, desde=desde - timedelta(seconds=1), hasta=desde + timedelta(days=1))
+    for f in filas:
+        f.pop("mensaje", None)
+    return {"estacion": estacion, "desde": _iso(desde), "hasta": _iso(desde + timedelta(days=1)),
+            "filas": list(reversed(filas))}
+
+
 @app.get("/api/modo")
 def modo():
     """"completo" (el visualizador privado) o "cartas" (la copia pública)."""
