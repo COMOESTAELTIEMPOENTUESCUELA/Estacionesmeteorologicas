@@ -27,7 +27,12 @@ precipitación de 24 h y las temperaturas extremas se informan a las 12 UTC,
 así que esos mapas solo se guardan a esa hora. En la pestaña, a otra hora,
 muestran un aviso con un botón para ir a las 12 UTC del mismo día.
 
-## Cartas propias con el análisis del GFS
+## Cartas propias con el análisis del GFS (en pausa)
+
+> **En pausa desde el 28/10/2026:** las cuatro tienen `descargar: false` en
+> `config/cartas.yaml`, así que no se dibujan ni se baja nada del GFS (lo ya
+> dibujado se sigue viendo). Las cartas de diagnóstico son las de Bentley.
+> Para retomarlas, quitar esas líneas. El código sigue en el repositorio.
 
 Desde el 27/10/2026 las cartas de diagnóstico también las dibuja el propio
 servidor, para no depender solo de la página de Alicia Bentley (que se cayó
