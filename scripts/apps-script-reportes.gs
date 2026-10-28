@@ -9,6 +9,10 @@
 // los reportes publicados antes (pestaña "Historico") + los "Aprobado" de
 // "Pendientes". Al cambiar el Estado, se anota quién lo revisó y cuándo.
 //
+// OJO: el sitio y el servidor leen la pestaña por su IDENTIFICADOR (gid=0),
+// no por su nombre (en esta planilla se llama "Se muestra en página"). El
+// script la busca por ese identificador.
+//
 // Instalación (o actualización):
 // 1. Abrí tu Google Sheet → Extensiones → Apps Script.
 // 2. Reemplazá el contenido de Code.gs por este archivo completo y guardá.
@@ -22,7 +26,7 @@
 //    Implementar (así la URL no cambia).
 
 var PENDIENTES_SHEET_NAME = 'Pendientes';
-var REPORTES_SHEET_NAME = 'Reportes';        // la que lee el sitio (gid 0): no cambiarle el nombre
+var GID_SITIO = 0;                           // la pestaña que lee el sitio (por identificador, no por nombre)
 var HISTORICO_SHEET_NAME = 'Historico';      // lo publicado a mano antes de la revisión con Estado
 var FOTOS_FOLDER_NAME = 'Reportes Comunidad - Fotos';
 var ESTADOS = ['Pendiente', 'Aprobado', 'Dudoso', 'Rechazado'];
@@ -117,22 +121,13 @@ function configurarRevision() {
   pend.setConditionalFormatRules(reglas);
   pend.setFrozenRows(1);
 
-  // 2) Historico + fórmula en Reportes
-  var rep = ss.getSheetByName(REPORTES_SHEET_NAME);
-  if (rep && !ss.getSheetByName(HISTORICO_SHEET_NAME)) {
+  // 2) Historico + fórmula en la pestaña que lee el sitio
+  var sitio = hojaDelSitio_();
+  if (sitio && !ss.getSheetByName(HISTORICO_SHEET_NAME)) {
     var hist = ss.insertSheet(HISTORICO_SHEET_NAME);
-    var valores = rep.getDataRange().getValues();
-    hist.getRange(1, 1, valores.length, valores[0].length).setValues(valores);
-    // Que tenga las 12 columnas publicadas (si "Reportes" tenía menos, quedan vacías).
-    if (hist.getLastColumn() < 12) {
-      hist.getRange(1, 1, 1, 12).setValues([ENCABEZADOS.slice(0, 12)]);
-    }
-    rep.clear();
-    // Historico (sin filas vacías) y debajo los "Aprobado". Si todavía no hay
-    // ninguno aprobado, el FILTER da error y queda solo el Historico.
-    var historico = 'FILTER(' + HISTORICO_SHEET_NAME + '!A1:L, ' + HISTORICO_SHEET_NAME + '!A1:A<>"")';
-    var aprobados = 'FILTER(' + PENDIENTES_SHEET_NAME + '!A2:L, ' + PENDIENTES_SHEET_NAME + '!M2:M="Aprobado")';
-    rep.getRange('A1').setFormula('=IFERROR({' + historico + '; ' + aprobados + '}, ' + historico + ')');
+    copiarValores_(sitio, hist);
+    sitio.clear();
+    ponerFormula_(sitio);
   }
 
   // 3) Disparador: anota quién revisó y cuándo (uno solo, aunque se ejecute de nuevo)
@@ -140,6 +135,55 @@ function configurarRevision() {
     if (t.getHandlerFunction() === 'alEditar') ScriptApp.deleteTrigger(t);
   });
   ScriptApp.newTrigger('alEditar').forSpreadsheet(ss).onEdit().create();
+}
+
+// La pestaña que leen el sitio y el servidor (gid=0), se llame como se llame.
+function hojaDelSitio_() {
+  return SpreadsheetApp.getActiveSpreadsheet().getSheets().filter(function(h) {
+    return h.getSheetId() === GID_SITIO;
+  })[0];
+}
+
+function copiarValores_(origen, destino) {
+  var valores = origen.getDataRange().getValues();
+  destino.clear();
+  destino.getRange(1, 1, valores.length, valores[0].length).setValues(valores);
+  // Que tenga las 12 columnas publicadas (si el origen tenía menos, quedan vacías).
+  if (destino.getLastColumn() < 12) {
+    destino.getRange(1, 1, 1, 12).setValues([ENCABEZADOS.slice(0, 12)]);
+  }
+}
+
+// Historico (sin filas vacías) y debajo los "Aprobado". Si todavía no hay
+// ninguno aprobado, el FILTER da error y queda solo el Historico.
+function ponerFormula_(hoja) {
+  var historico = 'FILTER(' + HISTORICO_SHEET_NAME + '!A1:L, ' + HISTORICO_SHEET_NAME + '!A1:A<>"")';
+  var aprobados = 'FILTER(' + PENDIENTES_SHEET_NAME + '!A2:L, ' + PENDIENTES_SHEET_NAME + '!M2:M="Aprobado")';
+  hoja.getRange('A1').setFormula('=IFERROR({' + historico + '; ' + aprobados + '}, ' + historico + ')');
+}
+
+// ARREGLO (una sola vez, 30/10/2026): la primera versión de configurarRevision
+// buscaba la pestaña "Reportes" por nombre, pero el sitio lee la de gid=0
+// ("Se muestra en página"). Esto deja todo como tenía que quedar:
+// 1. "Reportes" recupera su contenido original (que había quedado en "Historico").
+// 2. "Historico" pasa a tener lo que hoy muestra el sitio.
+// 3. La pestaña del sitio queda con la fórmula (Historico + Aprobado).
+function corregirHojaDelSitio() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sitio = hojaDelSitio_();
+  var rep = ss.getSheetByName('Reportes');
+  var hist = ss.getSheetByName(HISTORICO_SHEET_NAME);
+  if (!sitio || !hist) throw new Error('No encuentro la pestaña del sitio (gid 0) o "Historico".');
+  if (String(sitio.getRange('A1').getFormula()).indexOf('Historico') !== -1) {
+    throw new Error('La pestaña del sitio ya tiene la fórmula: no hay nada que corregir.');
+  }
+  if (rep && rep.getSheetId() !== GID_SITIO) {
+    rep.clear();
+    copiarValores_(hist, rep);          // 1) Reportes vuelve a como estaba
+  }
+  copiarValores_(sitio, hist);          // 2) Historico = lo que muestra el sitio
+  sitio.clear();
+  ponerFormula_(sitio);                 // 3) la fórmula, en la pestaña del sitio
 }
 
 // Al cambiar el Estado de un reporte: quién lo cambió y cuándo.
