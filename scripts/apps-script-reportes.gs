@@ -162,7 +162,7 @@ function ponerFormula_(hoja) {
   hoja.getRange('A1').setFormula('=IFERROR({' + historico + '; ' + aprobados + '}, ' + historico + ')');
 }
 
-// ARREGLO (una sola vez, 30/10/2026): la primera versión de configurarRevision
+// ARREGLO (una sola vez, 28/10/2026): la primera versión de configurarRevision
 // buscaba la pestaña "Reportes" por nombre, pero el sitio lee la de gid=0
 // ("Se muestra en página"). Esto deja todo como tenía que quedar:
 // 1. "Reportes" recupera su contenido original (que había quedado en "Historico").
