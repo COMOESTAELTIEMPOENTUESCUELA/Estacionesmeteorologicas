@@ -1,6 +1,9 @@
 # =====================================================================
-# Pronósticos publicados con la fecha equivocada (ver ingesta/correcciones.py)
+# Correcciones a mano de pronósticos (ver ingesta/correcciones.py)
 # =====================================================================
+# Dos tipos: FECHA equivocada ("mover_dias") y VALOR mal tipeado ("valores").
+#
+# --- Fecha equivocada ---
 # Cada una: la emisión de esa ciudad, guardada con "fecha_guardada", de
 # esa persona (y esa hora escrita, si la tiene) se corre "mover_dias".
 # "huella" (opcional) la identifica sin dudas: conviene ponerla cuando la
@@ -35,3 +38,11 @@ correcciones:
   - {ciudad: Bahía Blanca, fecha_guardada: 2026-10-13, publicado_por: Micaela, hora_emision: "08:30:00",
      huella: 27937321730276a2df4c3bcbd36b0c9e,
      mover_dias: -1, publicado_el: 2026-10-12, motivo: "guardado 12/10 08:45 con 'para mañana' tildado"}
+
+  # --- Valor mal tipeado ---
+  # "dia" es el día pronosticado que tiene el error; "valores" puede tener
+  # temp_min, temp_max, temp_min_suburbana, temp_max_suburbana. OJO: editar
+  # la hoja "Pronosticos" a mano NO alcanza (el portal y el servidor leen la
+  # columna json_completo, no las columnas sueltas): se corrige acá.
+  - {ciudad: Mar del Plata, fecha_guardada: 2026-10-28, publicado_por: Mate, dia: 2026-10-28,
+     valores: {temp_min: 4}, motivo: "tipeó 14 en vez de 4 (avisado el 29/10)"}

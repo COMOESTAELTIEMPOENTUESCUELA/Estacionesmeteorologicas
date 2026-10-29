@@ -218,6 +218,37 @@ def test_correccion_de_fecha_de_un_pronostico(conn):
         conn.commit()
 
 
+def test_correccion_de_un_valor_mal_tipeado(conn):
+    """Mínima 14 en vez de 4: se corrige en el lugar (JSON y pronostico_dia),
+    queda anotado qué había, y no se repite ni se duplica."""
+    from meteo.ingesta import correcciones
+    from meteo.ingesta.fuentes import pronosticos
+    p = {"city": "Ciudad Test", "forecast_date": "2026-10-28", "publicado_por": "Mate",
+         "daily_forecasts": [{"date": "2026-10-28", "temp_min": "14", "temp_max": 17},
+                             {"date": "2026-10-29", "temp_min": 12, "temp_max": 19}]}
+    assert pronosticos.guardar(conn, [p]) == 1
+    c = [{"ciudad": "Ciudad Test", "fecha_guardada": "2026-10-28", "publicado_por": "Mate", "dia": "2026-10-28",
+          "valores": {"temp_min": 4}, "motivo": "tipeó 14"}]
+    try:
+        assert correcciones.aplicar(conn, c) == ["Ciudad Test 2026-10-28 (Mate), día 2026-10-28: corregido {'temp_min': 4}"]
+        assert correcciones.aplicar(conn, c) == ["Ciudad Test 2026-10-28 (Mate), día 2026-10-28: ya estaba corregido"]
+        assert pronosticos.guardar(conn, [p]) == 0                 # la versión equivocada no vuelve a entrar
+        with conn.cursor() as cur:
+            cur.execute("""SELECT d.fecha::text, d.temp_min FROM pronostico_dia d JOIN pronostico_emision e
+                           ON e.id = d.emision_id WHERE e.ciudad = 'Ciudad Test' ORDER BY d.fecha""")
+            assert cur.fetchall() == [("2026-10-28", 4), ("2026-10-29", 12)]
+            cur.execute("SELECT contenido FROM pronostico_emision WHERE ciudad = 'Ciudad Test'")
+            cont = cur.fetchone()[0]
+            assert cont["daily_forecasts"][0]["temp_min"] == 4
+            assert cont["correccion_valores"] == [{"dia": "2026-10-28", "antes": {"temp_min": "14"},
+                                                   "despues": {"temp_min": 4}, "motivo": "tipeó 14"}]
+        assert "no sé corregir" in correcciones.aplicar(conn, [{**c[0], "valores": {"lluvia": 1}}])[0]
+    finally:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM pronostico_emision WHERE ciudad = 'Ciudad Test'")
+        conn.commit()
+
+
 def test_importar_hoja_pronosticos_completa(conn, tmp_path, monkeypatch):
     """Hoja "Pronosticos": no duplica lo capturado, corrige lo anotado, avisa
     lo sospechoso, reemplaza lo resumido y no guarda la clave del equipo."""
