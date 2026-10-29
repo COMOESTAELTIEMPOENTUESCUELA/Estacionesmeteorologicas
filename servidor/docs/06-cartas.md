@@ -75,9 +75,20 @@ CAPE...): agregar las variables a `PEDIDOS`, el cálculo y el dibujo en
 
 ## Pronóstico GFS (dibujado en el servidor, formato Bentley)
 
-En Cartas, la tarjeta **"Pronóstico GFS"** muestra las 4 cartas del plazo
-elegido (◀ ▶ de a 6 h, o "Animar"), de +0 a +192 h, con la hora válida en
-hora argentina y UTC. Desde el 29/10/2026 se **dibujan en el servidor** con
+En Cartas, la tarjeta **"Pronóstico GFS"** muestra las cartas del plazo
+elegido, de +0 a +192 h, con la hora válida en hora argentina y UTC.
+
+- **Vistas:** las 4 juntas · una carta grande · 2 cartas lado a lado (mismo
+  plazo) · la misma carta en 2 plazos (12, 24 o 48 h antes o después). La
+  vista elegida se recuerda en el navegador.
+- **Días:** botones por día ("vie 30") que llevan a las 9 hs (12 UTC) de ese día.
+- **Cursor sincronizado** (el mismo casillero que el de las cartas de
+  análisis): las 4 tienen el mismo marco, así que la cruz marca el mismo
+  lugar en las otras cartas o en el otro plazo.
+- **Teclado** (con el mouse sobre la tarjeta, o después de tocarla; si no,
+  las flechas siguen moviendo las cartas de análisis): ← → 6 h ·
+  Shift+← → 24 h · Inicio / Fin · Espacio animar · 1–4 elegir carta ·
+  ↑ ↓ cambiar carta · V cambiar vista. Animación lenta, normal o rápida. Desde el 29/10/2026 se **dibujan en el servidor** con
 los datos del GFS de NOAA y el mismo formato que las de Alicia Bentley
 (`app/meteo/cartas/estilo_bentley.py`): misma región (Mercator, 122,5°O a
 12°E, 67°S a 12°N), mismos campos, intervalos y colores (leídos píxel por

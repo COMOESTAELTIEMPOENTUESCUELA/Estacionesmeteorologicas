@@ -201,6 +201,22 @@ img.con-fondo { background-color: #fff !important; background-size: 100% 100%; b
   border: 1px solid var(--borde); border-radius: 8px; padding: 8px 10px; font-size: 13px; line-height: 1.35;
   box-shadow: 0 4px 14px rgba(0,0,0,.25); white-space: pre-line; }
 .c-estacion b { font-size: 14px; }
+/* Pronóstico GFS */
+#cpr:focus { outline: none; }
+#cpr.activa { box-shadow: 0 0 0 2px var(--ins-amarillo, #f5c518); }
+.cpr-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.cpr-grid.una { grid-template-columns: minmax(0, 1fr); max-width: 1160px; margin: 0 auto; }
+@media (max-width: 720px) { .cpr-grid { grid-template-columns: minmax(0, 1fr); } }
+/* Lugar reservado con la proporción de las cartas (1160 x 912): al cambiar de
+   plazo no se achica la tarjeta mientras carga (el mouse no "se sale"). */
+.cpr-grid .carta img { aspect-ratio: 1160 / 912; object-fit: contain; }
+.cpr-grid .carta figcaption { font-size: 12.5px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cpr-dias { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.cpr-dias button { font: inherit; font-size: 12.5px; padding: 3px 9px; border-radius: 99px; border: 1px solid var(--borde);
+  background: var(--superficie); color: var(--tinta-2); cursor: pointer; }
+.cpr-dias button.actual { background: var(--tinta-2); color: var(--superficie); border-color: var(--tinta-2); }
+.cpr-teclas kbd { font-family: inherit; font-size: 11px; padding: 0 4px; border: 1px solid var(--borde); border-bottom-width: 2px; border-radius: 4px; }
+#cpr:not(.activa) .cpr-teclas { opacity: .55; }
 .cruz { position: absolute; width: 0; height: 0; pointer-events: none; z-index: 2; }
 .cruz::before, .cruz::after { content: ""; position: absolute; background: #e11d8f; box-shadow: 0 0 0 1px #fff; }
 .cruz::before { left: -16px; top: -1px; width: 32px; height: 2px; }
@@ -717,17 +733,46 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
         ahí se hace zoom con la rueda del mouse (o pellizcando en el celular), se mueve arrastrando,
         doble clic acerca o vuelve, y ← → cambian la hora sin perder el zoom (↑ ↓ cambian de carta).</p>
     </div>
-    <div class="tarjeta" id="cpr" style="margin-top:16px" hidden>
+    <div class="tarjeta" id="cpr" style="margin-top:16px" hidden tabindex="-1">
       <div class="filtros">
         <h2 style="margin:0; font-size:18px; flex:1 1 280px">Pronóstico GFS <span class="tenue" style="font-weight:400">(última corrida, con el formato de las cartas de Bentley)</span></h2>
-        <button class="boton" id="cpr-ant" title="6 horas antes">◀ 6 h</button>
-        <input type="range" id="cpr-plazo" min="0" max="0" step="1" value="0" style="flex:1 1 220px">
-        <button class="boton" id="cpr-sig" title="6 horas después">6 h ▶</button>
-        <button class="boton" id="cpr-anim">▶ Animar</button>
+        <label class="en-linea">Vista
+          <select id="cpr-vista">
+            <option value="cuatro">Las 4 juntas</option>
+            <option value="una">Una carta grande</option>
+            <option value="dos-cartas">Comparar 2 cartas</option>
+            <option value="dos-plazos">Comparar 2 plazos</option>
+          </select>
+        </label>
+        <label class="en-linea" id="cpr-l-a">Carta <select id="cpr-a"></select></label>
+        <label class="en-linea" id="cpr-l-b">y <select id="cpr-b"></select></label>
+        <label class="en-linea" id="cpr-l-delta">contra
+          <select id="cpr-delta">
+            <option value="-24">24 h antes</option>
+            <option value="-12">12 h antes</option>
+            <option value="12">12 h después</option>
+            <option value="24" selected>24 h después</option>
+            <option value="48">48 h después</option>
+          </select>
+        </label>
       </div>
+      <div class="filtros" style="margin-top:6px">
+        <button class="boton" id="cpr-ant" title="6 horas antes (←)">◀ 6 h</button>
+        <input type="range" id="cpr-plazo" min="0" max="0" step="1" value="0" style="flex:1 1 220px" list="cpr-marcas">
+        <datalist id="cpr-marcas"></datalist>
+        <button class="boton" id="cpr-sig" title="6 horas después (→)">6 h ▶</button>
+        <button class="boton" id="cpr-anim" title="Animar (barra espaciadora)">▶ Animar</button>
+        <select id="cpr-vel" title="Velocidad de la animación">
+          <option value="1200">lenta</option><option value="700" selected>normal</option><option value="350">rápida</option>
+        </select>
+      </div>
+      <div class="cpr-dias" id="cpr-dias"></div>
       <h3 id="cpr-titulo" style="margin:6px 0 2px; font-size:16px"></h3>
       <p class="ayuda" id="cpr-nota"></p>
-      <div class="cartas-grid placa" id="cpr-grid"></div>
+      <p class="ayuda cpr-teclas" id="cpr-teclas">⌨ Con el mouse sobre esta tarjeta (o después de tocarla): <kbd>←</kbd> <kbd>→</kbd> 6 h ·
+        <kbd>Shift</kbd>+<kbd>←</kbd> <kbd>→</kbd> 24 h · <kbd>Inicio</kbd> <kbd>Fin</kbd> · <kbd>Espacio</kbd> animar ·
+        <kbd>1</kbd>–<kbd>4</kbd> elegir carta · <kbd>↑</kbd> <kbd>↓</kbd> cambiar carta · <kbd>V</kbd> cambiar vista</p>
+      <div class="cartas-grid cpr-grid" id="cpr-grid"></div>
     </div>
     <div class="tarjeta" id="cp" style="margin-top:16px">
       <div class="filtros">
@@ -2032,13 +2077,20 @@ function moverCarta(horas) {
 }
 
 // ---------- Pronóstico GFS (última corrida, dibujado en el servidor) ----------
-const cpr = { productos: [], plazos: [], i: 0, reloj: null };
+// Vistas: las 4 juntas, una grande, 2 cartas lado a lado (mismo plazo) o la
+// misma carta en 2 plazos. Las 4 cartas tienen el mismo marco (proyección y
+// recorte): un punto de la imagen es el mismo lugar en todas, así que el
+// cursor sincronizado sirve para comparar entre cartas y entre plazos.
+const cpr = { productos: [], plazos: [], i: 0, reloj: null, vista: "cuatro", a: 0, b: 1, activa: false, encima: false, fijada: false };
 const fmtSemanaAR = new Intl.DateTimeFormat("es-AR", { timeZone: TZ, weekday: "long" });
+const fmtSemanaCortaAR = new Intl.DateTimeFormat("es-AR", { timeZone: TZ, weekday: "short", day: "numeric" });
 const fmtHH_AR = new Intl.DateTimeFormat("es-AR", { timeZone: TZ, hour: "2-digit", hourCycle: "h23" });
 // "jueves 29/10, 21 hs" (hora argentina)
 const fmtValida = (d) => `${fmtSemanaAR.format(d)} ${fmtDia.format(d)}, ${fmtHH_AR.format(d)} hs`;
 // La corrida se nombra en UTC (la del 29/10 00 UTC es el 28 a las 21 hs en Argentina).
 const fmtCorrida = (d) => `${String(d.getUTCDate()).padStart(2, "0")}/${String(d.getUTCMonth() + 1).padStart(2, "0")} a las ${String(d.getUTCHours()).padStart(2, "0")} UTC`;
+const VISTAS_GFS = ["cuatro", "una", "dos-cartas", "dos-plazos"];
+
 async function cargarPronosticoGFS() {
   let d;
   try { d = await api("/api/cartas/pronostico"); } catch (_) { return; }
@@ -2046,47 +2098,177 @@ async function cargarPronosticoGFS() {
   $("#cpr").hidden = !cpr.productos.length;
   if (!cpr.productos.length) return;
   cpr.plazos = [...new Set(cpr.productos.flatMap((p) => p.cuadros.map((c) => c.plazo_h)))].sort((a, b) => a - b);
-  const ini = new Date(cpr.productos[0].inicio);
-  $("#cpr-nota").textContent = `Corrida del GFS del ${fmtCorrida(ini)} · ` +
+  cpr.inicio = new Date(cpr.productos[0].inicio);
+  $("#cpr-nota").textContent = `Corrida del GFS del ${fmtCorrida(cpr.inicio)} · ` +
     `${cpr.plazos.length} plazos, hasta +${cpr.plazos[cpr.plazos.length - 1]} h` +
     (cpr.productos.some((p) => p.cuadros.length < p.esperados) ? " (el resto todavía no está publicado: se completa solo)" : "") +
     ". Se actualiza solo con cada corrida nueva del GFS (cada 6 h, ~5 h después de su hora de inicio)." +
     " Es un pronóstico del modelo, no un análisis: sirve como guía.";
+  const opciones = cpr.productos.map((p, k) => `<option value="${k}">${k + 1}. ${esc(p.nivel ? p.nivel + " · " : "")}${esc(p.nombre)}</option>`).join("");
+  $("#cpr-a").innerHTML = opciones;
+  $("#cpr-b").innerHTML = opciones;
+  cpr.a = Math.min(cpr.a, cpr.productos.length - 1);
+  cpr.b = Math.min(cpr.b, cpr.productos.length - 1);
   const r = $("#cpr-plazo");
   r.max = cpr.plazos.length - 1;
+  // Marcas en la barra: una por día (00 UTC).
+  $("#cpr-marcas").innerHTML = cpr.plazos.map((p, k) => (new Date(+cpr.inicio + p * 3600e3).getUTCHours() === 0 ? `<option value="${k}">` : "")).join("");
   cpr.i = Math.min(cpr.i, cpr.plazos.length - 1);
-  // Precargar todas las imágenes, para que la animación sea fluida.
+  // Atajos por día: llevan a las 12 UTC (9 hs) de ese día, o lo más cerca que haya.
+  const dias = [];
+  cpr.plazos.forEach((p, k) => {
+    const v = new Date(+cpr.inicio + p * 3600e3);
+    const clave = fmtDia.format(v);
+    let dia = dias.find((x) => x.clave === clave);
+    if (!dia) dias.push(dia = { clave, etiqueta: fmtSemanaCortaAR.format(v), ks: [] });
+    dia.ks.push(k);
+  });
+  cpr.dias = dias.map((x) => ({ ...x, k: x.ks.reduce((m, k) => {
+    const h = (cpr.inicio.getUTCHours() + cpr.plazos[k]) % 24;
+    return Math.abs(h - 12) < Math.abs((cpr.inicio.getUTCHours() + cpr.plazos[m]) % 24 - 12) ? k : m;
+  }, x.ks[0]) }));
+  $("#cpr-dias").innerHTML = cpr.dias.map((x, j) => `<button type="button" data-k="${x.k}" title="Ir al ${esc(x.etiqueta)} a las ${fmtHH_AR.format(new Date(+cpr.inicio + cpr.plazos[x.k] * 3600e3))} hs">${esc(x.etiqueta)}</button>`).join("");
+  // Precargar todas las imágenes, para que la animación y el teclado sean fluidos.
   cpr.productos.forEach((p) => p.cuadros.forEach((c) => { const im = new Image(); im.src = c.url; }));
   mostrarPlazoGFS();
 }
+
+function cuadroGFS(k, plazo) {
+  return cpr.productos[k].cuadros.find((x) => x.plazo_h === plazo);
+}
+const validaGFS = (plazo) => new Date(+cpr.inicio + plazo * 3600e3);
+const textoPlazo = (plazo) => { const v = validaGFS(plazo); return `+${plazo} h · ${fmtValida(v)} (${String(v.getUTCHours()).padStart(2, "0")} UTC)`; };
+
+function figuraGFS(k, plazo, titulo) {
+  const p = cpr.productos[k], c = cuadroGFS(k, plazo);
+  return `<figure class="carta"><figcaption title="${esc(titulo)}">${titulo}</figcaption>
+    ${c ? `<div class="carta-img" data-grupo="gfs"><a href="${esc(c.url)}" target="_blank" rel="noopener" title="Abrir en grande (pestaña nueva)"><img src="${esc(c.url)}" alt="${esc(p.nombre)}"></a><div class="cruz" hidden></div></div>`
+        : '<div class="falta chica">Sin este plazo</div>'}</figure>`;
+}
+
 function mostrarPlazoGFS() {
+  if (!cpr.plazos.length) return;
   const plazo = cpr.plazos[cpr.i];
   $("#cpr-plazo").value = cpr.i;
-  const c0 = cpr.productos.map((p) => p.cuadros.find((c) => c.plazo_h === plazo)).find(Boolean);
-  const valida = c0 ? new Date(c0.valida) : null;
-  $("#cpr-titulo").textContent = valida
-    ? `+${plazo} h · válido el ${fmtValida(valida)} (${String(valida.getUTCHours()).padStart(2, "0")} UTC)` : "";
-  $("#cpr-grid").innerHTML = cpr.productos.map((p) => {
-    const c = p.cuadros.find((x) => x.plazo_h === plazo);
-    return `<figure class="carta"><figcaption><b>${esc(p.nivel || "")}</b> · ${esc(p.nombre)}</figcaption>
-      ${c ? `<a href="${esc(c.url)}" target="_blank" rel="noopener" title="Abrir en grande"><img src="${esc(c.url)}" alt="${esc(p.nombre)}"></a>`
-          : '<div class="falta chica">Sin este plazo</div>'}</figure>`;
-  }).join("");
+  const v = cpr.vista;
+  $("#cpr-l-a").hidden = v === "cuatro";
+  $("#cpr-l-b").hidden = v !== "dos-cartas";
+  $("#cpr-l-delta").hidden = v !== "dos-plazos";
+  $("#cpr-a").value = cpr.a;
+  $("#cpr-b").value = cpr.b;
+  $("#cpr-titulo").textContent = textoPlazo(plazo);
+  const nombre = (k) => `<b>${esc(cpr.productos[k].nivel || "")}</b> · ${esc(cpr.productos[k].nombre)}`;
+  let html;
+  if (v === "una") html = figuraGFS(cpr.a, plazo, nombre(cpr.a));
+  else if (v === "dos-cartas") html = figuraGFS(cpr.a, plazo, nombre(cpr.a)) + figuraGFS(cpr.b, plazo, nombre(cpr.b));
+  else if (v === "dos-plazos") {
+    const otro = plazo + Number($("#cpr-delta").value);
+    const izq = Math.min(plazo, otro), der = Math.max(plazo, otro);
+    html = [izq, der].map((pl) => figuraGFS(cpr.a, pl, `${pl === plazo ? "▶ " : ""}${esc(textoPlazo(pl))}`)).join("");
+    $("#cpr-titulo").textContent = `${cpr.productos[cpr.a].nombre}: +${izq} h contra +${der} h`;
+  } else html = cpr.productos.map((p, k) => figuraGFS(k, plazo, nombre(k))).join("");
+  $("#cpr-grid").className = `cartas-grid cpr-grid${v === "una" ? " una" : ""}`;
+  $("#cpr-grid").innerHTML = html;
+  document.querySelectorAll("#cpr-dias button").forEach((b) => b.classList.toggle("actual", fmtDia.format(validaGFS(cpr.plazos[Number(b.dataset.k)])) === fmtDia.format(validaGFS(plazo))));
+  try { localStorage.setItem("gfs-vista", JSON.stringify({ vista: cpr.vista, a: cpr.a, b: cpr.b, delta: $("#cpr-delta").value })); } catch (_) {}
 }
-function moverPlazoGFS(n) {
+
+function moverPlazoGFS(n, ciclico = true) {
   if (!cpr.plazos.length) return;
-  cpr.i = (cpr.i + n + cpr.plazos.length) % cpr.plazos.length;
+  const m = cpr.plazos.length;
+  cpr.i = ciclico ? (cpr.i + n + m) % m : Math.max(0, Math.min(m - 1, cpr.i + n));
   mostrarPlazoGFS();
 }
+// Salto en horas (±24 h): el plazo más cercano a esa hora.
+function saltarHorasGFS(h) {
+  const meta = cpr.plazos[cpr.i] + h;
+  let mejor = cpr.i;
+  cpr.plazos.forEach((p, k) => { if (Math.abs(p - meta) < Math.abs(cpr.plazos[mejor] - meta)) mejor = k; });
+  cpr.i = mejor;
+  mostrarPlazoGFS();
+}
+function animarGFS() {
+  if (cpr.reloj) { clearInterval(cpr.reloj); cpr.reloj = null; $("#cpr-anim").textContent = "▶ Animar"; return; }
+  $("#cpr-anim").textContent = "⏸ Pausar";
+  cpr.reloj = setInterval(() => moverPlazoGFS(1), Number($("#cpr-vel").value));
+}
+function elegirCartaGFS(k) {
+  if (k < 0 || k >= cpr.productos.length) return;
+  if (cpr.vista === "cuatro") cpr.vista = "una";
+  cpr.a = k;
+  $("#cpr-vista").value = cpr.vista;
+  mostrarPlazoGFS();
+}
+
+// El teclado maneja el pronóstico si el mouse está sobre la tarjeta o si fue
+// lo último que se tocó; si no, sigue manejando las cartas de análisis.
+function activarTecladoGFS() {
+  cpr.activa = cpr.encima || cpr.fijada;
+  $("#cpr").classList.toggle("activa", cpr.activa);
+}
+function teclaGFS(e) {
+  if (!cpr.activa || $("#tab-cartas").hidden || $("#cpr").hidden || $("#c-dialogo").open) return false;
+  const el = document.activeElement;
+  if (["SELECT", "TEXTAREA"].includes(el.tagName) || (el.tagName === "INPUT" && el.type !== "range")) return false;
+  const k = e.key;
+  if (k === "ArrowLeft" || k === "ArrowRight") {
+    const s = k === "ArrowLeft" ? -1 : 1;
+    if (e.shiftKey) saltarHorasGFS(24 * s); else moverPlazoGFS(s, false);
+  } else if (k === "Home") { cpr.i = 0; mostrarPlazoGFS(); }
+  else if (k === "End") { cpr.i = cpr.plazos.length - 1; mostrarPlazoGFS(); }
+  else if (k === " ") animarGFS();
+  else if (/^[1-9]$/.test(k)) elegirCartaGFS(Number(k) - 1);
+  else if (k === "ArrowUp" || k === "ArrowDown") {
+    if (cpr.vista === "cuatro") return false;
+    const n = cpr.productos.length;
+    cpr.a = (cpr.a + (k === "ArrowUp" ? -1 : 1) + n) % n;
+    if (cpr.vista === "dos-cartas" && cpr.a === cpr.b) cpr.a = (cpr.a + (k === "ArrowUp" ? -1 : 1) + n) % n;
+    mostrarPlazoGFS();
+  } else if (k === "v" || k === "V") {
+    cpr.vista = VISTAS_GFS[(VISTAS_GFS.indexOf(cpr.vista) + 1) % VISTAS_GFS.length];
+    $("#cpr-vista").value = cpr.vista;
+    mostrarPlazoGFS();
+  } else return false;
+  e.preventDefault();
+  return true;
+}
+
 function iniciarPronosticoGFS() {
+  try {
+    const g = JSON.parse(localStorage.getItem("gfs-vista") || "null");
+    if (g && VISTAS_GFS.includes(g.vista)) { cpr.vista = g.vista; cpr.a = g.a | 0; cpr.b = g.b | 0; $("#cpr-delta").value = g.delta || "24"; }
+  } catch (_) {}
+  $("#cpr-vista").value = cpr.vista;
   $("#cpr-ant").addEventListener("click", () => moverPlazoGFS(-1));
   $("#cpr-sig").addEventListener("click", () => moverPlazoGFS(1));
   $("#cpr-plazo").addEventListener("input", (e) => { cpr.i = Number(e.target.value); mostrarPlazoGFS(); });
-  $("#cpr-anim").addEventListener("click", () => {
-    if (cpr.reloj) { clearInterval(cpr.reloj); cpr.reloj = null; $("#cpr-anim").textContent = "▶ Animar"; return; }
-    $("#cpr-anim").textContent = "⏸ Pausar";
-    cpr.reloj = setInterval(() => moverPlazoGFS(1), 700);
+  $("#cpr-anim").addEventListener("click", animarGFS);
+  $("#cpr-vel").addEventListener("change", () => { if (cpr.reloj) { animarGFS(); animarGFS(); } });
+  $("#cpr-vista").addEventListener("change", (e) => { cpr.vista = e.target.value; mostrarPlazoGFS(); });
+  $("#cpr-a").addEventListener("change", (e) => { cpr.a = Number(e.target.value); mostrarPlazoGFS(); });
+  $("#cpr-b").addEventListener("change", (e) => { cpr.b = Number(e.target.value); mostrarPlazoGFS(); });
+  $("#cpr-delta").addEventListener("change", mostrarPlazoGFS);
+  $("#cpr-dias").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-k]");
+    if (b) { cpr.i = Number(b.dataset.k); mostrarPlazoGFS(); }
   });
+  // Teclado: el mouse sobre la tarjeta, o tocarla, la activa; tocar fuera, la desactiva.
+  $("#cpr").addEventListener("mouseenter", () => { cpr.encima = true; activarTecladoGFS(); });
+  $("#cpr").addEventListener("mouseleave", () => { cpr.encima = false; activarTecladoGFS(); });
+  document.addEventListener("pointerdown", (e) => { cpr.fijada = !!e.target.closest("#cpr"); activarTecladoGFS(); });
+  // Cursor sincronizado entre las cartas del pronóstico (mismo marco en todas).
+  $("#cpr-grid").addEventListener("mousemove", (e) => {
+    const img = e.target.closest(".carta-img img");
+    document.querySelectorAll("#cpr-grid .cruz").forEach((c) => (c.hidden = true));
+    if (!img || !$("#f-c-cursor").checked) return;
+    const r = img.getBoundingClientRect(), fx = (e.clientX - r.left) / r.width, fy = (e.clientY - r.top) / r.height;
+    document.querySelectorAll("#cpr-grid .carta-img").forEach((c) => {
+      if (c.contains(img)) return;
+      const cruz = c.querySelector(".cruz");
+      cruz.hidden = false; cruz.style.left = fx * 100 + "%"; cruz.style.top = fy * 100 + "%";
+    });
+  });
+  $("#cpr-grid").addEventListener("mouseleave", () => document.querySelectorAll("#cpr-grid .cruz").forEach((c) => (c.hidden = true)));
   cargarPronosticoGFS();
 }
 
@@ -2115,6 +2297,7 @@ async function iniciarCartas() {
   iniciarVisor();
   $("#f-cp-plazo").addEventListener("change", cargarPronoDia);
   document.addEventListener("keydown", (e) => {
+    if (teclaGFS(e)) return;            // el teclado lo está usando el pronóstico GFS
     if ($("#tab-cartas").hidden || ["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement.tagName)) return;
     if (e.key === "ArrowLeft") { e.preventDefault(); moverCarta(-6); }
     if (e.key === "ArrowRight") { e.preventDefault(); moverCarta(6); }
