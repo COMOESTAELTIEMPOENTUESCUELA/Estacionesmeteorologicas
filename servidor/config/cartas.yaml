@@ -77,9 +77,14 @@ productos:
     fuente: gfs_pronostico
     carta: 500_vort
 
-  # El +0 h (análisis) de cada corrida del pronóstico de arriba se ARCHIVA
-  # para siempre, como las demás cartas de cada hora (~1 GB por año): mismo
-  # formato que el pronóstico, para compararlo con lo que pasó.
+  # --- Cartas de diagnóstico propias: ANÁLISIS del GFS (formato Bentley) ---
+  # El análisis (+0 h) de cada hora sinóptica, dibujado en el servidor con el
+  # mismo formato que el pronóstico de arriba, y archivado para siempre como
+  # las demás cartas de cada hora (~1 GB por año). Son análisis de verdad:
+  # "Forecast hour: 0" en el título. En cada vuelta se dibujan las horas de
+  # las últimas 48 h que falten (~15 MB de NOAA y ~20 s cada una); NOAA
+  # guarda los análisis desde 2021, así que se pueden dibujar eventos viejos:
+  #   python -m meteo.ingesta historico cartas --desde 2026-10-01 --hasta 2026-10-29
   - id: gfs_ana_mslp_jet
     nombre: "Presión, espesor 1000/500 hPa y corriente en chorro"
     nivel: "Superficie y 1000/500 hPa (GFS)"

@@ -223,3 +223,19 @@ def test_historial_de_corridas(tmp_path):
     archivos = list(pronostico.carpeta(tmp_path, "g").glob("*.png"))
     assert len(archivos) == len(todas) == 32                          # 8 días x 4 corridas, una imagen por corrida
     assert todas[0]["marco"] == {"caja": [0, 0, 1, 1]}
+
+
+def test_analisis_propio_formato_bentley(tmp_path, monkeypatch):
+    """Las cartas de análisis propias (fuente gfs_analisis) se dibujan con el
+    formato del pronóstico (estilo_bentley, plazo 0), una por hora sinóptica."""
+    from meteo.cartas import descarga, estilo_bentley as eb, gfs
+    vistos = []
+    monkeypatch.setattr(gfs, "bajar", lambda ts, pedidos, region, sesion: (vistos.append((pedidos, region)) or {"ts": ts}))
+    png = b"\x89PNG\r\n\x1a\n" + b"0" * 100
+    plazos = []
+    monkeypatch.setattr(eb, "dibujar", lambda campos, ts, plazo: (plazos.append(plazo) or {k: png for k in eb.CARTAS}))
+    productos = [{"id": f"ana_{k}", "fuente": "gfs_analisis", "carta": k} for k in eb.CARTAS]
+    desde, hasta = datetime(2026, 10, 26, tzinfo=UTC), datetime(2026, 10, 26, 12, tzinfo=UTC)
+    assert descarga._correr_gfs(productos, tmp_path, None, (0, 6, 12, 18), desde, hasta) == 12
+    assert vistos[0] == (eb.PEDIDOS, eb.REGION) and set(plazos) == {0}
+    assert descarga.archivo.existe(tmp_path, "ana_500_vort", datetime(2026, 10, 26, 6, tzinfo=UTC))
