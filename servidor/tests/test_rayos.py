@@ -117,6 +117,10 @@ def test_disparador_tormenta_en_el_synop():
         region = (-64.0, -53.0, -41.3, -30.0)
         informes = Ingesta.hubo_tormenta(ing, t - timedelta(hours=1), t + timedelta(hours=1), region)
         assert informes == ["La Plata Aero 95 (18 UTC)"]
+        # No deja la transacción abierta: después las cartas tardan ~25 min y la
+        # base cortaría la conexión (idle_in_transaction_session_timeout).
+        from psycopg.pq import TransactionStatus
+        assert conn.info.transaction_status == TransactionStatus.IDLE
         assert Ingesta.hubo_tormenta(ing, t - timedelta(hours=1), t + timedelta(hours=1), (-70, -65, -50, -45)) == []
     finally:
         conn.execute("DELETE FROM observacion WHERE variable = 'ww' AND ts BETWEEN %s AND %s",

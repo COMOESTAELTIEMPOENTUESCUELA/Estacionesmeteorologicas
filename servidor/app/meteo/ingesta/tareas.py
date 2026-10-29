@@ -144,7 +144,12 @@ class Ingesta:
                 WHERE o.variable = 'ww' AND o.valor = ANY(%s) AND o.ts > %s AND o.ts <= %s
                   AND e.lon BETWEEN %s AND %s AND e.lat BETWEEN %s AND %s
                 ORDER BY o.ts""", ([float(w) for w in WW_TORMENTA], desde, hasta, lon0, lon1, lat0, lat1))
-            return [f"{n} {int(v)} ({t.astimezone(timezone.utc):%H} UTC)" for n, t, v in cur.fetchall()]
+            filas = cur.fetchall()
+        # Cerrar la transacción que abrió la consulta: después vienen las cartas
+        # (el pronóstico GFS tarda ~25 min) y la base corta una sesión que queda
+        # más de 10 min "en transacción" sin hacer nada (idle_in_transaction).
+        self.conn.rollback()
+        return [f"{n} {int(v)} ({t.astimezone(timezone.utc):%H} UTC)" for n, t, v in filas]
 
     def correr(self, tarea, desde=None, hasta=None, ids=None, incluir_inactivas=False):
         hasta = hasta or datetime.now(timezone.utc)
