@@ -67,14 +67,15 @@ def url_imagen(dominio, variable, n):
     return f"{BASE}images/{dominio}/{variable}/{variable}_{n}.png"
 
 
-def es_de_esta_corrida(cabeceras, inicio):
+def es_de_esta_corrida(cabeceras, inicio, sin_fecha=True):
     """Last-Modified de la imagen >= inicio de la corrida (las imágenes se
-    generan horas después del inicio). Sin esa cabecera no se puede
-    comprobar: se acepta."""
+    generan horas después del inicio). Sin esa cabecera (o ilegible) no se
+    puede comprobar: devuelve sin_fecha (los pronósticos piden False: un
+    cuadro que no existe puede venir como una imagen vieja cualquiera)."""
     lm = cabeceras.get("Last-Modified")
     if not lm:
-        return True
+        return sin_fecha
     try:
         return parsedate_to_datetime(lm) >= inicio
     except (TypeError, ValueError):
-        return True
+        return sin_fecha

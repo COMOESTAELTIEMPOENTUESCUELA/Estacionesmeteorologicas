@@ -188,6 +188,21 @@ def _pedir_con_reintentos(sesion, url):
             time.sleep(espera)
 
 
+def _tiene_repetidas(carpeta, guardado):
+    """¿Hay dos plazos guardados con exactamente la misma imagen?"""
+    import hashlib
+    huellas = set()
+    for c in guardado["cuadros"]:
+        try:
+            h = hashlib.md5((carpeta / c["archivo"]).read_bytes()).hexdigest()
+        except FileNotFoundError:
+            continue
+        if h in huellas:
+            return True
+        huellas.add(h)
+    return False
+
+
 MIN_PLAZOS_CORRIDA_NUEVA = 8     # +48 h: una corrida nueva más corta que esto no reemplaza a la anterior
 
 
@@ -200,11 +215,19 @@ def _correr_pronostico_bentley(p, corrida, raiz, sesion):
     cuadros todavía son de la corrida anterior: Bentley no terminó, o esa
     corrida no llega a 8 días), se guardan los que hay y en cada vuelta se
     intenta completar el resto SIN volver a bajar lo que ya se tiene.
+    Si dos plazos traen exactamente la misma imagen, no son pronósticos de
+    verdad (el 29/10/2026 la página devolvió para los 31 cuadros una imagen
+    vieja del 20/10): esos se descartan y se corta ahí.
     Devuelve cuántas imágenes nuevas bajó."""
+    import hashlib
     import shutil
     from . import pronostico
     cuadros = bentley.cuadros_pronostico(corrida)
     guardado = pronostico.leer(raiz, p["id"])
+    if guardado and _tiene_repetidas(pronostico.carpeta(raiz, p["id"]), guardado):
+        log.warning("cartas %s: el pronóstico guardado tiene imágenes repetidas; se borra", p["id"])
+        shutil.rmtree(pronostico.carpeta(raiz, p["id"]), ignore_errors=True)
+        guardado = None
     misma = bool(guardado) and datetime.fromisoformat(guardado["inicio"]) == corrida["inicio"]
     ya = {}
     if misma:
@@ -212,21 +235,34 @@ def _correr_pronostico_bentley(p, corrida, raiz, sesion):
             return 0                          # completa: nada que hacer
         ya = {c["plazo_h"]: c["archivo"] for c in guardado["cuadros"]}
     tmp = pronostico.empezar(raiz, p["id"])
-    guardados, nuevos = [], 0
+    guardados, nuevos, huellas = [], 0, {}
     try:
         for n, valida, plazo in cuadros:
             nom = pronostico.nombre(p["id"], corrida["inicio"], plazo)
             if plazo in ya:                   # de esta misma corrida, ya bajado
                 shutil.copy2(pronostico.carpeta(raiz, p["id"]) / ya[plazo], tmp / nom)
+                huellas.setdefault(hashlib.md5((tmp / nom).read_bytes()).hexdigest(), plazo)
                 guardados.append((plazo, valida, nom))
                 continue
             r = _pedir_con_reintentos(sesion, bentley.url_imagen(p["dominio"], p["variable"], n))
-            if not bentley.es_de_esta_corrida(r.headers, corrida["inicio"]):
+            if not bentley.es_de_esta_corrida(r.headers, corrida["inicio"], sin_fecha=False):
                 log.info("cartas %s: corrida %s publicada hasta +%d h; el resto se intenta en la próxima vuelta",
                          p["id"], corrida["inicio"], plazo - 6)
                 break
             if archivo.tipo_imagen(r.content) != "png":
                 raise ValueError(f"el cuadro {n} no es una imagen")
+            huella = hashlib.md5(r.content).hexdigest()
+            if huella in huellas:
+                # Repetida: ni esta ni la anterior igual son de verdad.
+                repetido = huellas[huella]
+                log.warning("cartas %s: el plazo +%d h es la misma imagen que +%d h; se descartan desde +%d h",
+                            p["id"], plazo, repetido, repetido)
+                for pl, _, nm in [g for g in guardados if g[0] >= repetido]:
+                    (tmp / nm).unlink(missing_ok=True)
+                guardados = [g for g in guardados if g[0] < repetido]
+                nuevos = min(nuevos, len(guardados))
+                break
+            huellas[huella] = plazo
             (tmp / nom).write_bytes(r.content)
             guardados.append((plazo, valida, nom))
             nuevos += 1

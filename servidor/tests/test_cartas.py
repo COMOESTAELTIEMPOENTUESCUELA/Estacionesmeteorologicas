@@ -69,7 +69,7 @@ def test_descarga_completa_y_no_repite(tmp_path, monkeypatch):
             pedidos.append(url)
             if "standard.php" in url:
                 return Resp(texto=HTML)
-            return Resp(PNG, cab={"Last-Modified": "Mon, 12 Oct 2026 10:00:00 GMT"})
+            return Resp(PNG + url.encode(), cab={"Last-Modified": "Mon, 12 Oct 2026 10:00:00 GMT"})
 
     cfg = {"horas_utc": [12], "productos": [
         {"id": "b_vort", "fuente": "bentley", "dominio": "southamer", "variable": "rel_vort"},
@@ -491,8 +491,8 @@ def test_pronostico_bentley_ultima_corrida(tmp_path, monkeypatch):
     pedidos = []
 
     class Resp:
-        def __init__(self, cab):
-            self.content, self.headers = PNG, cab
+        def __init__(self, url, cab):
+            self.content, self.headers = PNG + url.encode(), cab     # cada cuadro, una imagen distinta
         def raise_for_status(self):
             pass
 
@@ -501,7 +501,7 @@ def test_pronostico_bentley_ultima_corrida(tmp_path, monkeypatch):
             self.lm = lm
         def get(self, url, timeout):
             pedidos.append(url)
-            return Resp({"Last-Modified": self.lm})
+            return Resp(url, {"Last-Modified": self.lm})
 
     p = {"id": "b_vort", "dominio": "southamer", "variable": "rel_vort"}
     assert descarga._correr_pronostico_bentley(p, c, tmp_path, Sesion("Mon, 12 Oct 2026 10:00:00 GMT")) == 32
@@ -531,7 +531,9 @@ def test_pronostico_reintenta_una_imagen_cortada(tmp_path, monkeypatch):
     fallas = {"n": 0}
 
     class Resp:
-        content, headers = PNG, {"Last-Modified": "Mon, 12 Oct 2026 10:00:00 GMT"}
+        headers = {"Last-Modified": "Mon, 12 Oct 2026 10:00:00 GMT"}
+        def __init__(self, url):
+            self.content = PNG + url.encode()
         def raise_for_status(self):
             pass
 
@@ -540,7 +542,7 @@ def test_pronostico_reintenta_una_imagen_cortada(tmp_path, monkeypatch):
             if url.endswith("_60.png") and fallas["n"] < 2:
                 fallas["n"] += 1
                 raise ConnectionError("Remote end closed connection without response")
-            return Resp()
+            return Resp(url)
 
     p = {"id": "b_vort", "dominio": "southamer", "variable": "rel_vort"}
     assert descarga._correr_pronostico_bentley(p, c, tmp_path, Sesion()) == 32
@@ -562,7 +564,7 @@ def test_pronostico_corrida_publicada_a_medias(tmp_path, monkeypatch):
             n = int(url.rsplit("_", 1)[1].split(".")[0])
             pedidos.append(n)
             lm = "Mon, 12 Oct 2026 10:00:00 GMT" if n <= self.hasta else "Mon, 12 Oct 2026 01:00:00 GMT"
-            return type("R", (), {"content": PNG, "headers": {"Last-Modified": lm},
+            return type("R", (), {"content": PNG + url.encode(), "headers": {"Last-Modified": lm},
                                   "raise_for_status": lambda self: None})()
 
     p = {"id": "b_vort", "dominio": "southamer", "variable": "rel_vort"}
@@ -579,3 +581,45 @@ def test_pronostico_corrida_publicada_a_medias(tmp_path, monkeypatch):
     assert min(pedidos) == 78 and len(pronostico.leer(tmp_path, "b_vort")["cuadros"]) == 32
     pedidos.clear()
     assert descarga._correr_pronostico_bentley(p, c, tmp_path, Sesion(89)) == 0 and not pedidos   # completa
+
+
+def test_pronostico_descarta_imagenes_repetidas(tmp_path, monkeypatch):
+    """29/10/2026: para los cuadros de pronóstico la página devolvió siempre la
+    MISMA imagen vieja (de otra corrida) y se guardó 31 veces. Ahora: una
+    imagen repetida no es un pronóstico (se descarta), un cuadro sin fecha de
+    modificación tampoco, y una tanda repetida ya guardada se borra."""
+    import json
+    from meteo.cartas import pronostico
+    monkeypatch.setattr(descarga, "PAUSA_SEG", 0)
+    c = bentley.leer_corrida(HTML)
+    lm = {"Last-Modified": "Mon, 12 Oct 2026 10:00:00 GMT"}
+
+    def sesion(contenido, cab):
+        class S:
+            def get(self, url, timeout):
+                return type("R", (), {"content": contenido(url), "headers": cab,
+                                      "raise_for_status": lambda self: None})()
+        return S()
+
+    p = {"id": "b_vort", "dominio": "southamer", "variable": "rel_vort"}
+    # Siempre la misma imagen: nada se guarda.
+    assert descarga._correr_pronostico_bentley(p, c, tmp_path, sesion(lambda u: PNG, lm)) == 0
+    assert pronostico.leer(tmp_path, "b_vort") is None
+    # Distintas hasta el cuadro 69 (+72 h) y después la misma: quedan +6..+66 h.
+    distinta = lambda u: PNG + (u.encode() if int(u.rsplit("_", 1)[1].split(".")[0]) < 69 else b"vieja")
+    assert descarga._correr_pronostico_bentley(p, c, tmp_path, sesion(distinta, lm)) == 11
+    assert [x["plazo_h"] for x in pronostico.leer(tmp_path, "b_vort")["cuadros"]][-1] == 66
+    # Sin Last-Modified no se puede saber de qué corrida es: no se acepta.
+    import shutil
+    shutil.rmtree(pronostico.carpeta(tmp_path, "b_vort"))
+    assert descarga._correr_pronostico_bentley(p, c, tmp_path, sesion(lambda u: PNG + u.encode(), {})) == 0
+    # Una tanda repetida que ya estaba guardada (la del 29/10) se borra.
+    car = pronostico.carpeta(tmp_path, "b_vort")
+    car.mkdir(parents=True)
+    cuadros = [{"plazo_h": pl, "valida": v.isoformat(), "archivo": f"x{pl}.png"}
+               for _, v, pl in bentley.cuadros_pronostico(c)[:31]]
+    for q in cuadros:
+        (car / q["archivo"]).write_bytes(PNG)
+    (car / "corrida.json").write_text(json.dumps({"inicio": c["inicio"].isoformat(), "esperados": 32, "cuadros": cuadros}))
+    assert descarga._correr_pronostico_bentley(p, c, tmp_path, sesion(lambda u: PNG, lm)) == 0
+    assert not car.exists()
