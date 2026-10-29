@@ -521,3 +521,27 @@ def test_pronostico_bentley_ultima_corrida(tmp_path, monkeypatch):
     assert descarga._correr_pronostico_bentley(p, nueva, tmp_path, Sesion("Mon, 12 Oct 2026 16:00:00 GMT")) == 32
     archivos = sorted(f.name for f in pronostico.carpeta(tmp_path, "b_vort").iterdir())
     assert len(archivos) == 33 and all("2026101212" in a for a in archivos if a.endswith(".png"))
+
+
+def test_pronostico_reintenta_una_imagen_cortada(tmp_path, monkeypatch):
+    """Un corte suelto del servidor no tira abajo la corrida: se reintenta."""
+    monkeypatch.setattr(descarga, "PAUSA_SEG", 0)
+    monkeypatch.setattr(descarga, "REINTENTOS_SEG", (0, 0))
+    c = bentley.leer_corrida(HTML)
+    fallas = {"n": 0}
+
+    class Resp:
+        content, headers = PNG, {"Last-Modified": "Mon, 12 Oct 2026 10:00:00 GMT"}
+        def raise_for_status(self):
+            pass
+
+    class Sesion:
+        def get(self, url, timeout):
+            if url.endswith("_60.png") and fallas["n"] < 2:
+                fallas["n"] += 1
+                raise ConnectionError("Remote end closed connection without response")
+            return Resp()
+
+    p = {"id": "b_vort", "dominio": "southamer", "variable": "rel_vort"}
+    assert descarga._correr_pronostico_bentley(p, c, tmp_path, Sesion()) == 32
+    assert fallas["n"] == 2

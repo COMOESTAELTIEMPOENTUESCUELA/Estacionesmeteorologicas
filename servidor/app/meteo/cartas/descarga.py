@@ -170,6 +170,24 @@ def _correr_star(p, raiz, sesion, horas_utc, desde=None, hasta=None):
     return nuevas
 
 
+REINTENTOS_SEG = (5, 15)    # esperas antes de volver a pedir una imagen que falló
+
+
+def _pedir_con_reintentos(sesion, url):
+    """GET que reintenta si se corta la conexión o el servidor responde con
+    error (el de Bentley a veces corta alguna en medio de una tanda de 128)."""
+    for espera in (*REINTENTOS_SEG, None):
+        try:
+            r = sesion.get(url, timeout=60)
+            r.raise_for_status()
+            return r
+        except Exception as ex:
+            if espera is None:
+                raise
+            log.info("cartas: %s falló (%s); reintento en %d s", url.rsplit("/", 1)[-1], str(ex)[:80], espera)
+            time.sleep(espera)
+
+
 def _correr_pronostico_bentley(p, corrida, raiz, sesion):
     """Todos los plazos del pronóstico de la última corrida de Bentley. Si ya
     está guardada esa corrida, no hace nada. Se baja completa a una carpeta
@@ -181,8 +199,7 @@ def _correr_pronostico_bentley(p, corrida, raiz, sesion):
     guardados = []
     try:
         for n, valida, plazo in bentley.cuadros_pronostico(corrida):
-            r = sesion.get(bentley.url_imagen(p["dominio"], p["variable"], n), timeout=60)
-            r.raise_for_status()
+            r = _pedir_con_reintentos(sesion, bentley.url_imagen(p["dominio"], p["variable"], n))
             if not bentley.es_de_esta_corrida(r.headers, corrida["inicio"]):
                 # La página ya anuncia la corrida nueva pero las imágenes todavía
                 # son de la anterior: se reintenta entera en la próxima vuelta.
