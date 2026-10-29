@@ -4,6 +4,7 @@ Lo ya guardado no se vuelve a pedir; entre imagen e imagen se espera un poco
 para no cargar los servidores ajenos.
 """
 import fcntl
+import hashlib
 import logging
 import time
 from contextlib import contextmanager
@@ -96,7 +97,9 @@ def _correr(cfg, raiz, sesion, tormenta=None):
         corrida = corridas[p["dominio"]]
         if corrida is None:
             continue
-        for n, valida in bentley.cuadros_analisis(corrida, tuple(p.get("horas_utc", horas))):
+        cuadros = bentley.cuadros_analisis(corrida, tuple(p.get("horas_utc", horas)))
+        vistas = set()        # huellas de lo bajado en esta vuelta
+        for n, valida in cuadros:
             if archivo.existe(raiz, p["id"], valida):
                 continue
             url = bentley.url_imagen(p["dominio"], p["variable"], n)
@@ -107,6 +110,14 @@ def _correr(cfg, raiz, sesion, tormenta=None):
                     log.info("cartas %s: la página ya dice corrida %s pero las imágenes son anteriores; "
                              "se reintenta en la próxima vuelta", p["id"], corrida["inicio"])
                     break
+                # 28/10/2026: la página copió una imagen vieja en TODOS los
+                # cuadros. Una carta idéntica a otra no es de esa hora.
+                huella = hashlib.md5(r.content).hexdigest()
+                if huella in vistas or _igual_a_otra_hora(raiz, p["id"], valida, huella):
+                    log.warning("cartas %s %s: la página trae una imagen repetida; no se guarda", p["id"], valida)
+                    vistas.add(huella)
+                    continue
+                vistas.add(huella)
                 archivo.guardar(raiz, p["id"], valida, r.content)
                 nuevas += 1
             except Exception as ex:
@@ -188,9 +199,21 @@ def _pedir_con_reintentos(sesion, url):
             time.sleep(espera)
 
 
+def _igual_a_otra_hora(raiz, producto, ts, huella, horas=(6, 12, 18, 24)):
+    """¿La carta archivada de alguna de las horas anteriores (o siguientes)
+    es exactamente esta imagen?"""
+    for h in horas:
+        for otra in (ts - timedelta(hours=h), ts + timedelta(hours=h)):
+            base = archivo.ruta(raiz, producto, otra)
+            for ext in ("png", "gif", "jpg"):
+                f = base.with_suffix(f".{ext}")
+                if f.exists() and hashlib.md5(f.read_bytes()).hexdigest() == huella:
+                    return True
+    return False
+
+
 def _tiene_repetidas(carpeta, guardado):
     """¿Hay dos plazos guardados con exactamente la misma imagen?"""
-    import hashlib
     huellas = set()
     for c in guardado["cuadros"]:
         try:
@@ -219,7 +242,6 @@ def _correr_pronostico_bentley(p, corrida, raiz, sesion):
     verdad (el 29/10/2026 la página devolvió para los 31 cuadros una imagen
     vieja del 20/10): esos se descartan y se corta ahí.
     Devuelve cuántas imágenes nuevas bajó."""
-    import hashlib
     import shutil
     from . import pronostico
     cuadros = bentley.cuadros_pronostico(corrida)

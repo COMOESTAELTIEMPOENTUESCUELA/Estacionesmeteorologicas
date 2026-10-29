@@ -623,3 +623,25 @@ def test_pronostico_descarta_imagenes_repetidas(tmp_path, monkeypatch):
     (car / "corrida.json").write_text(json.dumps({"inicio": c["inicio"].isoformat(), "esperados": 32, "cuadros": cuadros}))
     assert descarga._correr_pronostico_bentley(p, c, tmp_path, sesion(lambda u: PNG, lm)) == 0
     assert not car.exists()
+
+
+def test_analisis_repetido_no_se_archiva(tmp_path, monkeypatch):
+    """28/10/2026: la página copió la misma imagen vieja en todos los cuadros
+    (también en el del análisis). Una carta idéntica a la de otra hora, o a
+    otra bajada en la misma vuelta, no se guarda."""
+    monkeypatch.setattr(descarga, "PAUSA_SEG", 0)
+    vieja = PNG + b"vieja"
+    archivo.guardar(tmp_path, "b_vort", datetime(2026, 10, 11, 12, tzinfo=UTC), vieja)
+
+    class Sesion:
+        def get(self, url, timeout):
+            texto = HTML if "standard.php" in url else ""
+            return type("R", (), {"content": vieja, "text": texto,
+                                  "headers": {"Last-Modified": "Mon, 12 Oct 2026 10:00:00 GMT"},
+                                  "raise_for_status": lambda self: None})()
+
+    cfg = {"horas_utc": [12], "productos": [
+        {"id": "b_vort", "fuente": "bentley", "dominio": "southamer", "variable": "rel_vort", "pronostico": False},
+        {"id": "ogimet", "fuente": "ogimet", "activo": False}]}
+    assert descarga.correr(cfg, tmp_path, Sesion()) == 0
+    assert not archivo.existe(tmp_path, "b_vort", datetime(2026, 10, 10, 12, tzinfo=UTC))
