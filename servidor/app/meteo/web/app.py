@@ -742,6 +742,24 @@ def cartas(ts: datetime):
     return {"ts": ts, "productos": salida}
 
 
+@app.get("/api/cartas/pronostico")
+def cartas_pronostico():
+    """Pronóstico del GFS (cartas de Bentley) de la última corrida guardada:
+    por carta, la corrida y la imagen de cada plazo."""
+    from ..cartas import pronostico
+    salida = []
+    for p in _cartas_productos():
+        if p["fuente"] != "bentley" or p["solo_archivo"]:
+            continue
+        d = pronostico.leer(ARCHIVO_DIR, p["id"])
+        if not d:
+            continue
+        base = f"/cartas-img/{pronostico.CARPETA}/{p['id']}/"
+        salida.append({"id": p["id"], "nombre": p["nombre"], "nivel": p["nivel"], "inicio": d["inicio"],
+                       "cuadros": [{**c, "url": base + c["archivo"]} for c in d["cuadros"]]})
+    return {"productos": salida}
+
+
 @app.get("/api/cartas/estaciones-omm")
 def estaciones_omm():
     """Nombre de cada estación sinóptica de Sudamérica, por número OMM (para

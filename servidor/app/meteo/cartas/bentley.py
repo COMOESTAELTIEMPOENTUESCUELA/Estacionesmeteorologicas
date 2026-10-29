@@ -10,8 +10,8 @@ Cómo se sabe la fecha de cada cuadro (de functions_gfs.js de la página):
 
 La corrida ("String(2026101206") y startFrame (57) están en el HTML. Los
 cuadros 1 a startFrame son ANÁLISIS (los 14 días anteriores y el de la
-corrida); los siguientes, pronósticos. Solo se guardan los análisis, que
-son las cartas de diagnóstico.
+corrida); los siguientes, pronósticos (~8 días). Los análisis se archivan;
+del pronóstico se guarda solo la última corrida (ver pronostico.py).
 
 Cuidado: cuando sale una corrida nueva, TODOS los cuadros se renumeran. Si
 se baja justo mientras la página se actualiza, una imagen todavía de la
@@ -46,6 +46,16 @@ def cuadros_analisis(corrida, horas_utc=(0, 6, 12, 18)):
         valida = corrida["inicio"] + timedelta(hours=6 * (n - corrida["start"]))
         if valida.hour in horas_utc:
             salida.append((n, valida))
+    return salida
+
+
+def cuadros_pronostico(corrida):
+    """[(número de cuadro, hora válida, plazo en horas)] de los PRONÓSTICOS de
+    la corrida: los cuadros después de startFrame, hasta maxFrame (~8 días)."""
+    salida = []
+    for n in range(corrida["start"] + 1, corrida["max"] + 1):
+        plazo = 6 * (n - corrida["start"])
+        salida.append((n, corrida["inicio"] + timedelta(hours=plazo), plazo))
     return salida
 
 

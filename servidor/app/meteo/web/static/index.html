@@ -717,6 +717,18 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
         ahí se hace zoom con la rueda del mouse (o pellizcando en el celular), se mueve arrastrando,
         doble clic acerca o vuelve, y ← → cambian la hora sin perder el zoom (↑ ↓ cambian de carta).</p>
     </div>
+    <div class="tarjeta" id="cpr" style="margin-top:16px" hidden>
+      <div class="filtros">
+        <h2 style="margin:0; font-size:18px; flex:1 1 280px">Pronóstico GFS <span class="tenue" style="font-weight:400">(cartas de Alicia Bentley, última corrida)</span></h2>
+        <button class="boton" id="cpr-ant" title="6 horas antes">◀ 6 h</button>
+        <input type="range" id="cpr-plazo" min="0" max="0" step="1" value="0" style="flex:1 1 220px">
+        <button class="boton" id="cpr-sig" title="6 horas después">6 h ▶</button>
+        <button class="boton" id="cpr-anim">▶ Animar</button>
+      </div>
+      <h3 id="cpr-titulo" style="margin:6px 0 2px; font-size:16px"></h3>
+      <p class="ayuda" id="cpr-nota"></p>
+      <div class="cartas-grid placa" id="cpr-grid"></div>
+    </div>
     <div class="tarjeta" id="cp" style="margin-top:16px">
       <div class="filtros">
         <h2 style="margin:0; font-size:18px; flex:1 1 280px" id="cp-titulo">Pronóstico del grupo</h2>
@@ -2019,7 +2031,65 @@ function moverCarta(horas) {
   cargarCartas();
 }
 
+// ---------- Pronóstico GFS (cartas de Bentley, última corrida) ----------
+const cpr = { productos: [], plazos: [], i: 0, reloj: null };
+const fmtSemanaAR = new Intl.DateTimeFormat("es-AR", { timeZone: TZ, weekday: "long" });
+const fmtHH_AR = new Intl.DateTimeFormat("es-AR", { timeZone: TZ, hour: "2-digit", hourCycle: "h23" });
+// "jueves 29/10, 21 hs" (hora argentina)
+const fmtValida = (d) => `${fmtSemanaAR.format(d)} ${fmtDia.format(d)}, ${fmtHH_AR.format(d)} hs`;
+// La corrida se nombra en UTC (la del 29/10 00 UTC es el 28 a las 21 hs en Argentina).
+const fmtCorrida = (d) => `${String(d.getUTCDate()).padStart(2, "0")}/${String(d.getUTCMonth() + 1).padStart(2, "0")} a las ${String(d.getUTCHours()).padStart(2, "0")} UTC`;
+async function cargarPronosticoGFS() {
+  let d;
+  try { d = await api("/api/cartas/pronostico"); } catch (_) { return; }
+  cpr.productos = d.productos.filter((p) => p.cuadros.length);
+  $("#cpr").hidden = !cpr.productos.length;
+  if (!cpr.productos.length) return;
+  cpr.plazos = [...new Set(cpr.productos.flatMap((p) => p.cuadros.map((c) => c.plazo_h)))].sort((a, b) => a - b);
+  const ini = new Date(cpr.productos[0].inicio);
+  $("#cpr-nota").textContent = `Corrida del GFS del ${fmtCorrida(ini)} · ` +
+    `${cpr.plazos.length} plazos, hasta +${cpr.plazos[cpr.plazos.length - 1]} h. Se actualiza solo cuando la página de Bentley publica una corrida nueva.` +
+    " Es un pronóstico del modelo, no un análisis: sirve como guía.";
+  const r = $("#cpr-plazo");
+  r.max = cpr.plazos.length - 1;
+  cpr.i = Math.min(cpr.i, cpr.plazos.length - 1);
+  // Precargar todas las imágenes, para que la animación sea fluida.
+  cpr.productos.forEach((p) => p.cuadros.forEach((c) => { const im = new Image(); im.src = c.url; }));
+  mostrarPlazoGFS();
+}
+function mostrarPlazoGFS() {
+  const plazo = cpr.plazos[cpr.i];
+  $("#cpr-plazo").value = cpr.i;
+  const c0 = cpr.productos.map((p) => p.cuadros.find((c) => c.plazo_h === plazo)).find(Boolean);
+  const valida = c0 ? new Date(c0.valida) : null;
+  $("#cpr-titulo").textContent = valida
+    ? `+${plazo} h · válido el ${fmtValida(valida)} (${String(valida.getUTCHours()).padStart(2, "0")} UTC)` : "";
+  $("#cpr-grid").innerHTML = cpr.productos.map((p) => {
+    const c = p.cuadros.find((x) => x.plazo_h === plazo);
+    return `<figure class="carta"><figcaption><b>${esc(p.nivel || "")}</b> · ${esc(p.nombre)}</figcaption>
+      ${c ? `<a href="${esc(c.url)}" target="_blank" rel="noopener" title="Abrir en grande"><img src="${esc(c.url)}" alt="${esc(p.nombre)}"></a>`
+          : '<div class="falta chica">Sin este plazo</div>'}</figure>`;
+  }).join("");
+}
+function moverPlazoGFS(n) {
+  if (!cpr.plazos.length) return;
+  cpr.i = (cpr.i + n + cpr.plazos.length) % cpr.plazos.length;
+  mostrarPlazoGFS();
+}
+function iniciarPronosticoGFS() {
+  $("#cpr-ant").addEventListener("click", () => moverPlazoGFS(-1));
+  $("#cpr-sig").addEventListener("click", () => moverPlazoGFS(1));
+  $("#cpr-plazo").addEventListener("input", (e) => { cpr.i = Number(e.target.value); mostrarPlazoGFS(); });
+  $("#cpr-anim").addEventListener("click", () => {
+    if (cpr.reloj) { clearInterval(cpr.reloj); cpr.reloj = null; $("#cpr-anim").textContent = "▶ Animar"; return; }
+    $("#cpr-anim").textContent = "⏸ Pausar";
+    cpr.reloj = setInterval(() => moverPlazoGFS(1), 700);
+  });
+  cargarPronosticoGFS();
+}
+
 async function iniciarCartas() {
+  iniciarPronosticoGFS();
   cartasDisp = await api("/api/cartas/disponibles");
   const claves = Object.keys(cartasDisp);
   ponerTsCarta(claves.length ? new Date(claves[claves.length - 1]) : new Date(Math.floor(Date.now() / 21600e3) * 21600e3));

@@ -475,3 +475,49 @@ def test_bentley_caido_no_frena_al_resto(tmp_path, monkeypatch):
     with pytest.raises(RuntimeError, match=r"5 cartas nuevas, pero: Bentley \(southamer\) no respondió"):
         descarga.correr(cfg, tmp_path, Sesion())
     assert llamadas["bentley"] == 1          # un solo intento por vuelta, no uno por carta
+
+
+def test_pronostico_bentley_ultima_corrida(tmp_path, monkeypatch):
+    """Todos los plazos de la última corrida; una corrida nueva reemplaza a la
+    anterior, y si sus imágenes todavía no están publicadas, queda la vieja."""
+    from meteo.cartas import pronostico
+    monkeypatch.setattr(descarga, "PAUSA_SEG", 0)
+    c = bentley.leer_corrida(HTML)
+    cuadros = bentley.cuadros_pronostico(c)
+    assert len(cuadros) == 32                                          # 58..89: 8 días cada 6 h
+    assert cuadros[0] == (58, datetime(2026, 10, 12, 12, tzinfo=UTC), 6)
+    assert cuadros[-1] == (89, datetime(2026, 10, 20, 6, tzinfo=UTC), 192)
+
+    pedidos = []
+
+    class Resp:
+        def __init__(self, cab):
+            self.content, self.headers = PNG, cab
+        def raise_for_status(self):
+            pass
+
+    class Sesion:
+        def __init__(self, lm):
+            self.lm = lm
+        def get(self, url, timeout):
+            pedidos.append(url)
+            return Resp({"Last-Modified": self.lm})
+
+    p = {"id": "b_vort", "dominio": "southamer", "variable": "rel_vort"}
+    assert descarga._correr_pronostico_bentley(p, c, tmp_path, Sesion("Mon, 12 Oct 2026 10:00:00 GMT")) == 32
+    d = pronostico.leer(tmp_path, "b_vort")
+    assert d["inicio"] == "2026-10-12T06:00:00+00:00" and len(d["cuadros"]) == 32
+    assert d["cuadros"][3] == {"plazo_h": 24, "valida": "2026-10-13T06:00:00+00:00", "archivo": "b_vort_2026101206_f024.png"}
+    assert (pronostico.carpeta(tmp_path, "b_vort") / "b_vort_2026101206_f024.png").exists()
+    pedidos.clear()
+    assert descarga._correr_pronostico_bentley(p, c, tmp_path, Sesion("x")) == 0 and not pedidos   # ya está
+
+    nueva = {**c, "inicio": datetime(2026, 10, 12, 12, tzinfo=UTC)}
+    # La página ya anuncia la de las 12 pero las imágenes son todavía las de las 06: queda la vieja.
+    assert descarga._correr_pronostico_bentley(p, nueva, tmp_path, Sesion("Mon, 12 Oct 2026 10:00:00 GMT")) == 0
+    assert pronostico.leer(tmp_path, "b_vort")["inicio"] == "2026-10-12T06:00:00+00:00"
+    assert not pronostico.carpeta(tmp_path, "b_vort").with_name("b_vort.nueva").exists()
+    # Ya publicadas: reemplaza a la anterior (y borra sus imágenes).
+    assert descarga._correr_pronostico_bentley(p, nueva, tmp_path, Sesion("Mon, 12 Oct 2026 16:00:00 GMT")) == 32
+    archivos = sorted(f.name for f in pronostico.carpeta(tmp_path, "b_vort").iterdir())
+    assert len(archivos) == 33 and all("2026101212" in a for a in archivos if a.endswith(".png"))

@@ -72,6 +72,26 @@ docker compose exec ingesta python -m meteo.ingesta historico cartas --desde 202
 CAPE...): agregar las variables a `PEDIDOS`, el cálculo y el dibujo en
 `diagnostico.dibujar`, y la entrada en `cartas.yaml` con `carta: <nombre>`.
 
+## Pronóstico GFS (cartas de Bentley, última corrida)
+
+La página de Bentley, además de los análisis, muestra el **pronóstico de la
+última corrida del GFS**: cada 6 h, hasta ~8 días (cuadros después de
+`startFrame`, hasta `maxFrame`). El servidor lo baja en la vuelta de cada hora
+cuando aparece una corrida nueva, y en Cartas se ve en la tarjeta
+**"Pronóstico GFS"**: las 4 cartas del plazo elegido (◀ ▶ de a 6 h, o
+"Animar"), con la hora válida en hora argentina y UTC.
+
+- Se guarda **solo la última corrida**, en `cartas/_pronostico/<carta>/`
+  (`corrida.json` + una imagen por plazo, con la corrida en el nombre).
+  ~25 MB fijos: no crece.
+- La corrida nueva se baja completa a una carpeta aparte y recién al terminar
+  reemplaza a la anterior: nunca queda un pronóstico a medias. Si la página ya
+  anuncia la corrida nueva pero sus imágenes todavía son de la anterior
+  (`Last-Modified`), se espera a la vuelta siguiente.
+- Descarga: ~25 MB por corrida (128 imágenes, una por segundo).
+- Para no bajar el pronóstico de una carta: `pronostico: false` en el YAML.
+- Está también en la copia pública (`/api/cartas/pronostico`).
+
 ## Bentley (respaldo)
 
 Si en algún momento se deja de bajarlas, `descargar: false` en las cuatro:

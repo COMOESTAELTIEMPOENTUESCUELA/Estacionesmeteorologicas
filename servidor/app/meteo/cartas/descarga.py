@@ -112,6 +112,12 @@ def _correr(cfg, raiz, sesion, tormenta=None):
             except Exception as ex:
                 log.warning("cartas %s %s: %s", p["id"], valida, str(ex)[:150])
             time.sleep(PAUSA_SEG)
+        if p.get("pronostico", True):
+            try:
+                _correr_pronostico_bentley(p, corrida, raiz, sesion)
+            except Exception as ex:
+                errores.append(f"pronóstico {p['id']}: {str(ex)[:120]}")
+                log.warning("cartas: %s", errores[-1])
     gfs_p = [p for p in activos if p["fuente"] == "gfs"]
     if gfs_p:
         try:
@@ -162,6 +168,39 @@ def _correr_star(p, raiz, sesion, horas_utc, desde=None, hasta=None):
             log.warning("cartas %s %s: %s", p["id"], ts, str(ex)[:150])
         time.sleep(PAUSA_SEG)
     return nuevas
+
+
+def _correr_pronostico_bentley(p, corrida, raiz, sesion):
+    """Todos los plazos del pronóstico de la última corrida de Bentley. Si ya
+    está guardada esa corrida, no hace nada. Se baja completa a una carpeta
+    aparte y recién al final reemplaza a la anterior. Devuelve cuántos bajó."""
+    from . import pronostico
+    if pronostico.corrida_guardada(raiz, p["id"]) == corrida["inicio"]:
+        return 0
+    tmp = pronostico.empezar(raiz, p["id"])
+    guardados = []
+    try:
+        for n, valida, plazo in bentley.cuadros_pronostico(corrida):
+            r = sesion.get(bentley.url_imagen(p["dominio"], p["variable"], n), timeout=60)
+            r.raise_for_status()
+            if not bentley.es_de_esta_corrida(r.headers, corrida["inicio"]):
+                # La página ya anuncia la corrida nueva pero las imágenes todavía
+                # son de la anterior: se reintenta entera en la próxima vuelta.
+                log.info("cartas %s: pronóstico de %s todavía no publicado; se reintenta", p["id"], corrida["inicio"])
+                pronostico.descartar(tmp)
+                return 0
+            if archivo.tipo_imagen(r.content) != "png":
+                raise ValueError(f"el cuadro {n} no es una imagen")
+            nom = pronostico.nombre(p["id"], corrida["inicio"], plazo)
+            (tmp / nom).write_bytes(r.content)
+            guardados.append((plazo, valida, nom))
+            time.sleep(PAUSA_SEG)
+    except Exception:
+        pronostico.descartar(tmp)
+        raise
+    pronostico.publicar(raiz, p["id"], tmp, corrida["inicio"], guardados)
+    log.info("cartas %s: pronóstico de la corrida %s (%d plazos)", p["id"], corrida["inicio"], len(guardados))
+    return len(guardados)
 
 
 GFS_HORAS_ATRAS = 48      # el análisis sale ~4 h después de la hora; si la PC estuvo apagada, se recupera
