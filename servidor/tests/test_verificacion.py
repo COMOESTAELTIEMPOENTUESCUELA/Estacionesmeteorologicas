@@ -52,6 +52,25 @@ def test_extremo_synop_se_descarta_si_puede_ser_de_la_noche_anterior():
     assert r["tmin"] == 7.0 and r["fuente"]["tmin"] == "lecturas"
 
 
+def test_minima_de_la_madrugada_siguiente_no_cuenta_para_hoy():
+    # Bahía Blanca, 25/10/2026 (SYNOP reales de Ogimet, horas UTC). La mínima
+    # de 1,3 del parte de las 12 UTC del 26 (00 a 12 UTC) fue a la madrugada
+    # del 26 (1,4 a las 08 UTC): no es del 25 aunque sea apenas más baja que
+    # esa lectura. La del 25 (día civil) es 5,6, a las 23 hs.
+    dia = date(2026, 10, 25)
+    utc = lambda d, h: datetime(2026, 10, d, h, tzinfo=timezone.utc)
+    t25 = {0: 9.2, 1: 9.8, 2: 9.8, 3: 9.2, 4: 9.1, 5: 8.9, 6: 8.8, 7: 8.3, 8: 8.4, 9: 8.2, 10: 8.4, 11: 8.6,
+           12: 9.2, 13: 9.4, 14: 10.6, 15: 11.0, 16: 10.4, 17: 11.1, 18: 11.6, 19: 11.8, 20: 12.0, 21: 12.1,
+           22: 11.6, 23: 9.7}
+    t26 = {0: 7.6, 1: 6.7, 2: 5.6, 3: 4.7, 4: 4.1, 5: 3.2, 6: 3.2, 7: 2.5, 8: 1.4, 9: 1.7, 10: 3.4, 11: 8.1, 12: 10.8}
+    lecturas = [(utc(25, h), v) for h, v in t25.items()] + [(utc(26, h), v) for h, v in t26.items()]
+    extremos = [(utc(25, 12), "tmin", 8.2), (utc(26, 0), "tmin", 7.6), (utc(26, 12), "tmin", 1.3)]
+    r = ob.temperaturas(lecturas, extremos, dia)
+    assert (r["tmin"], r["tmin_hora"]) == (5.6, 23)
+    # Y para el 26 sí cuenta (cae casi toda dentro del día).
+    assert ob.temperaturas(lecturas, extremos, date(2026, 10, 26))["tmin"] == 1.3
+
+
 def test_maxima_synop_de_las_00utc_esta_toda_dentro_del_dia():
     lecturas = horarias({h: 15.0 for h in range(24)})
     tmax = (datetime(2026, 10, 14, 0, tzinfo=timezone.utc), "tmax", 17.2)    # 09 a 21 hs

@@ -93,9 +93,15 @@ def temperaturas(lecturas, extremos, dia):
 
     Las lecturas horarias pueden perderse el extremo real (que ocurre entre
     dos horas), por eso se suman los extremos del SYNOP. Pero el de las
-    12 UTC cubre de 21 a 09 hs: arranca 3 horas ANTES del día. Se usa solo si
-    es más extremo que todas las lecturas de esas 3 horas de afuera (o sea,
-    si seguro ocurrió dentro del día); si no, se descarta.
+    12 UTC cubre de 21 a 09 hs: arranca 3 horas ANTES del día (y el de las
+    12 UTC del día siguiente tiene 3 horas DENTRO del día). Se usa solo si
+    ocurrió dentro del día: la lectura más extrema de su período tiene que
+    estar dentro del día, y el valor tiene que ser más extremo que todas las
+    lecturas de las horas de afuera. Lo primero hace falta porque el extremo
+    real casi siempre queda ENTRE dos lecturas: que el grupo sea un poco más
+    bajo que la lectura más fría de afuera no prueba nada (Bahía Blanca,
+    25/10/2026: mínima de 1,3 a la madrugada del 26 contra 1,4 a las 05 hs,
+    se contaba como mínima del 25, que a las 23 hs tenía 5,6).
     Si de esas horas de afuera no hay lecturas (estaciones que no reportan
     de noche), no se puede comprobar: se usa si la mayor parte de su período
     cae dentro del día (el de las 12 UTC del mismo día sí, 9 de 12 horas;
@@ -124,9 +130,14 @@ def temperaturas(lecturas, extremos, dia):
         if horas_afuera:
             if len({t.replace(minute=0) for t, _ in afuera}) >= 0.6 * horas_afuera:
                 # Hay lecturas de la parte de afuera: se comprueba.
-                if tipo == "tmin" and not valor < min(v for _, v in afuera) - 0.05:
+                adentro = [v for t, v in del_dia if desde <= t <= ts]
+                if not adentro:
                     continue
-                if tipo == "tmax" and not valor > max(v for _, v in afuera) + 0.05:
+                if tipo == "tmin" and not (valor < min(v for _, v in afuera) - 0.05
+                                           and min(adentro) <= min(v for _, v in afuera)):
+                    continue
+                if tipo == "tmax" and not (valor > max(v for _, v in afuera) + 0.05
+                                           and max(adentro) >= max(v for _, v in afuera)):
                     continue
             elif horas_afuera > HORAS_EXTREMO / 2:
                 continue   # sin lecturas para comprobar y casi todo afuera
