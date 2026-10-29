@@ -398,7 +398,8 @@ def test_api_pronostico_gfs(cliente, tmp_path, monkeypatch):
                    "  - {id: g_ivt, nombre: IVT, nivel: '700 hPa', fuente: gfs_pronostico, carta: ivt}\n")
     monkeypatch.setattr(web, "CARTAS_CONFIG", str(cfg))
     monkeypatch.setattr(web, "ARCHIVO_DIR", str(tmp_path))
-    assert cliente.get("/api/cartas/pronostico").json() == {"productos": []}
+    vacio = cliente.get("/api/cartas/pronostico").json()
+    assert vacio["productos"] == [] and vacio["ciudades"]["La Plata"] == {"lat": -34.92, "lon": -57.95}
     ini = datetime(2026, 10, 12, 6, tzinfo=timezone.utc)
     for pid in ("b_vort", "b_viejo", "b_sin", "g_ivt"):
         tmp = pronostico.empezar(tmp_path, pid)
@@ -410,3 +411,9 @@ def test_api_pronostico_gfs(cliente, tmp_path, monkeypatch):
     # Las del pronóstico propio no aparecen entre las cartas archivadas por hora.
     assert "g_ivt" not in [p["id"] for p in web._cartas_productos()]
     assert d[0]["cuadros"][0]["url"] == "/cartas-img/_pronostico/b_vort/a.png" and d[0]["nivel"] == "500 hPa"
+    g = d[1]
+    assert g["plantilla"] == "/cartas-img/_pronostico/g_ivt/g_ivt_{corrida}_f{plazo}.png"
+    assert g["corridas"] == [{"inicio": "2026-10-12T06:00:00+00:00", "plazos": [6]}]
+    assert cliente.get("/api/cartas/pronostico?corrida=2026101206").json()["productos"][1]["id"] == "g_ivt"
+    assert cliente.get("/api/cartas/pronostico?corrida=2026101200").json()["productos"] == []
+    assert cliente.get("/api/cartas/pronostico?corrida=xx").status_code == 400

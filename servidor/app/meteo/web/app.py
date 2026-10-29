@@ -747,24 +747,36 @@ def cartas(ts: datetime):
 
 
 @app.get("/api/cartas/pronostico")
-def cartas_pronostico():
-    """Pronóstico del GFS de la última corrida guardada (las cartas dibujadas
-    en el servidor y, si están activadas, las de la página de Bentley): por
-    carta, la corrida y la imagen de cada plazo."""
+def cartas_pronostico(corrida: str | None = None):
+    """Pronóstico del GFS (las cartas dibujadas en el servidor y, si están
+    activadas, las de la página de Bentley): por carta, la corrida y la imagen
+    de cada plazo. corrida=AAAAMMDDHH pide una del historial (si no, la última).
+    Además: las corridas guardadas ("corridas", con sus plazos), la plantilla
+    de la dirección de cada imagen (para armar las de otras corridas), el marco
+    del mapa (para ubicar puntos) y las ciudades del pronóstico del grupo."""
     from ..cartas import pronostico
+    if corrida and not (len(corrida) == 10 and corrida.isdigit()):
+        raise HTTPException(400, "corrida: AAAAMMDDHH")
     salida = []
     for p in _cartas_productos(con_pronosticos=True):
         if not (p["fuente"] == "gfs_pronostico"
                 or (p["fuente"] == "bentley" and p["pronostico"] and not p["solo_archivo"])):
             continue
-        d = pronostico.leer(ARCHIVO_DIR, p["id"])
+        todas = pronostico.corridas(ARCHIVO_DIR, p["id"])
+        if not todas:
+            continue
+        d = next((x for x in todas if datetime.fromisoformat(x["inicio"]).strftime("%Y%m%d%H") == corrida), None) if corrida else todas[0]
         if not d:
             continue
         base = f"/cartas-img/{pronostico.CARPETA}/{p['id']}/"
         salida.append({"id": p["id"], "nombre": p["nombre"], "nivel": p["nivel"], "inicio": d["inicio"],
-                       "esperados": d.get("esperados", len(d["cuadros"])),
+                       "esperados": d.get("esperados", len(d["cuadros"])), "marco": d.get("marco"),
+                       "plantilla": base + pronostico.nombre(p["id"], datetime(2000, 1, 1), 0)
+                                    .replace("2000010100", "{corrida}").replace("f000", "f{plazo}"),
+                       "corridas": [{"inicio": x["inicio"], "plazos": [c["plazo_h"] for c in x["cuadros"]]} for x in todas],
                        "cuadros": [{**c, "url": base + c["archivo"]} for c in d["cuadros"]]})
-    return {"productos": salida}
+    ciudades = {c: {"lat": la, "lon": lo} for c, (la, lo) in CIUDADES_COORD.items()}
+    return {"productos": salida, "ciudades": ciudades}
 
 
 @app.get("/api/cartas/estaciones-omm")

@@ -149,10 +149,54 @@ def _barbas(ax, lon, lat, u, v, cada=9):
 
 
 def _png(fig):
+    """PNG con paleta de 256 colores: estas cartas tienen pocos colores (las
+    escalas tienen 10 a 22) y pesa ~3 veces menos (~180 KB en vez de ~580)
+    sin que se note la diferencia."""
+    from PIL import Image
     buf = io.BytesIO()
     fig.savefig(buf, format="png")
     plt.close(fig)
-    return buf.getvalue()
+    img = Image.open(io.BytesIO(buf.getvalue())).convert("RGB")
+    salida = io.BytesIO()
+    img.quantize(256, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE).save(salida, "PNG", optimize=True)
+    return salida.getvalue()
+
+
+# Latitudes de la tabla del marco (ver marco()).
+LATS_TABLA = np.arange(-80, 84.01, 0.5)
+
+
+def marco():
+    """Dónde está el mapa dentro de la imagen y qué cubre, para que la página
+    pueda poner puntos (ciudades) o decir la posición del cursor:
+        caja: [izquierda, arriba, derecha, abajo] en fracción de la imagen
+        x, y: límites del mapa en metros de la proyección
+        mx:   metros por grado de longitud (la x es lineal)
+        lat, my: tabla latitud -> y (metros), cada 0,5°. La y NO es la
+              fórmula de libro de la Mercator: cartopy convierte la latitud
+              antes de proyectar (~0,6 % de diferencia, 2 píxeles). Con la
+              tabla, sacada de cartopy, coincide con lo dibujado."""
+    from datetime import datetime, timezone
+    fig, ax = _marco("", datetime(2026, 1, 1, tzinfo=timezone.utc), 0)
+    fig.canvas.draw()                  # recién al dibujar se ajusta la caja a la proporción del mapa
+    b = ax.get_position()
+    puntos = ax.projection.transform_points(PC, np.zeros_like(LATS_TABLA), LATS_TABLA)
+    mx = ax.projection.transform_point(1, 0, PC)[0]
+    salida = {"caja": [round(b.x0, 6), round(1 - b.y1, 6), round(b.x1, 6), round(1 - b.y0, 6)],
+              "x": [float(v) for v in ax.get_xlim()], "y": [float(v) for v in ax.get_ylim()],
+              "mx": float(mx), "lat": [float(v) for v in LATS_TABLA], "my": [round(float(v), 1) for v in puntos[:, 1]]}
+    plt.close(fig)
+    return salida
+
+
+def a_imagen(m, lon, lat):
+    """(lon, lat) -> (fracción x, fracción y desde arriba) de la imagen, con el
+    marco m (la misma cuenta que hace la página en JavaScript)."""
+    x, y = lon * m["mx"], np.interp(lat, m["lat"], m["my"])
+    (x0, x1), (y0, y1) = m["x"], m["y"]
+    c = m["caja"]
+    return (c[0] + (x - x0) / (x1 - x0) * (c[2] - c[0]),
+            c[3] - (y - y0) / (y1 - y0) * (c[3] - c[1]))
 
 
 TRAZOS = (0, (5, 3))

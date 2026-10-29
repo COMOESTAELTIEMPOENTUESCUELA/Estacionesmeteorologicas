@@ -137,9 +137,13 @@ def test_pronostico_gfs_todos_los_plazos_de_la_ultima_corrida(tmp_path, monkeypa
     png = b"\x89PNG\r\n\x1a\n" + b"0" * 100
     monkeypatch.setattr(gfs, "bajar", bajar)
     monkeypatch.setattr(eb, "dibujar", lambda campos, inicio, plazo: {k: png + bytes([plazo]) for k in eb.CARTAS})
+    monkeypatch.setattr(eb, "marco", lambda: {"caja": [0.1, 0.05, 0.9, 0.85], "x": [0, 1], "y": [0, 1]})
     productos = [{"id": f"pro_{k}", "fuente": "gfs_pronostico", "carta": k} for k in eb.CARTAS]
+    analisis = [{"id": "ana_ivt", "fuente": "gfs_analisis", "carta": "ivt"}]
     ahora = datetime(2026, 10, 29, 16, 30, tzinfo=UTC)
-    assert descarga._correr_pronostico_gfs(productos, tmp_path, Sesion(), ahora) == 33 * 4
+    assert descarga._correr_pronostico_gfs(productos, tmp_path, Sesion(), ahora, analisis=analisis) == 33 * 4
+    # El +0 h queda archivado para siempre como carta de análisis de esa hora.
+    assert descarga.archivo.existe(tmp_path, "ana_ivt", datetime(2026, 10, 29, 6, tzinfo=UTC))
     d = pronostico.leer(tmp_path, "pro_ivt")
     assert d["inicio"] == "2026-10-29T06:00:00+00:00" and len(d["cuadros"]) == 33
     assert d["cuadros"][-1]["plazo_h"] == 192 and d["cuadros"][-1]["valida"] == "2026-11-06T06:00:00+00:00"
@@ -154,8 +158,11 @@ def test_pronostico_gfs_todos_los_plazos_de_la_ultima_corrida(tmp_path, monkeypa
     assert pronostico.leer(tmp_path, "pro_ivt")["inicio"] == "2026-10-29T06:00:00+00:00"
     falla["plazo"] = None
     assert descarga._correr_pronostico_gfs(productos, tmp_path, Sesion(), ahora) == 33 * 4
-    archivos = sorted(f.name for f in pronostico.carpeta(tmp_path, "pro_ivt").iterdir())
-    assert len(archivos) == 34 and all("2026102912" in a for a in archivos if a.endswith(".png"))
+    # La nueva es la última; la anterior queda en el historial (8 días).
+    assert [d["inicio"][:13] for d in pronostico.corridas(tmp_path, "pro_ivt")] == ["2026-10-29T12", "2026-10-29T06"]
+    assert pronostico.leer(tmp_path, "pro_ivt")["marco"]["caja"] == [0.1, 0.05, 0.9, 0.85]
+    archivos = [f.name for f in pronostico.carpeta(tmp_path, "pro_ivt").glob("*.png")]
+    assert len(archivos) == 66
 
 
 def test_estilo_bentley_dibuja_las_cuatro():
@@ -176,3 +183,43 @@ def test_estilo_bentley_dibuja_las_cuatro():
         campos[(var, nivel)] = Campo(lat, lon, np.asarray(v, float))
     out = eb.dibujar(campos, datetime(2026, 10, 29, 6, tzinfo=UTC), 48)
     assert set(out) == set(eb.CARTAS) and all(png[:4] == b"\x89PNG" for png in out.values())
+
+
+def test_marco_ubica_las_ciudades_donde_las_pone_cartopy():
+    """La cuenta de a_imagen (la misma que hace la página en JavaScript para
+    los puntos de las ciudades) coincide con la proyección de las cartas."""
+    import cartopy.crs as ccrs
+    import matplotlib.pyplot as plt
+    from meteo.cartas import estilo_bentley as eb
+    m = eb.marco()
+    fig, ax = eb._marco("", datetime(2026, 1, 1, tzinfo=UTC), 0)
+    fig.canvas.draw()
+    for lon, lat in [(-57.95, -34.92), (-62.27, -38.72), (-120, 10), (0, -60)]:
+        x, y = ax.projection.transform_point(lon, lat, ccrs.PlateCarree())
+        px, py = ax.transData.transform((x, y))
+        esperado = (px / fig.bbox.width, 1 - py / fig.bbox.height)
+        fx, fy = eb.a_imagen(m, lon, lat)
+        assert abs(fx - esperado[0]) < 1e-4 and abs(fy - esperado[1]) < 1e-4, (lon, lat)
+    plt.close(fig)
+
+
+def test_historial_de_corridas(tmp_path):
+    """Con conservar: las corridas de los últimos días quedan (sus imágenes y
+    su corrida.json en corridas/); las más viejas se borran."""
+    from meteo.cartas import pronostico
+    def publicar(ini, ahora):
+        tmp = pronostico.empezar(tmp_path, "g")
+        nom = pronostico.nombre("g", ini, 6)
+        (tmp / nom).write_bytes(b"x")
+        pronostico.publicar(tmp_path, "g", tmp, ini, [(6, ini + timedelta(hours=6), nom)],
+                            conservar=timedelta(days=8), ahora=ahora, extra={"marco": {"caja": [0, 0, 1, 1]}})
+    base = datetime(2026, 10, 1, tzinfo=UTC)
+    for h in range(0, 24 * 10, 6):                                  # 10 días de corridas
+        publicar(base + timedelta(hours=h), base + timedelta(hours=h + 5))
+    todas = pronostico.corridas(tmp_path, "g")
+    inicios = [datetime.fromisoformat(d["inicio"]) for d in todas]
+    assert inicios[0] == base + timedelta(hours=234) and inicios == sorted(inicios, reverse=True)
+    assert min(inicios) >= base + timedelta(hours=239) - timedelta(days=8)   # lo de más de 8 días, borrado
+    archivos = list(pronostico.carpeta(tmp_path, "g").glob("*.png"))
+    assert len(archivos) == len(todas) == 32                          # 8 días x 4 corridas, una imagen por corrida
+    assert todas[0]["marco"] == {"caja": [0, 0, 1, 1]}

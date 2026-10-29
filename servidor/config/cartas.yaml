@@ -50,8 +50,9 @@ productos:
   # --- Pronóstico del GFS dibujado en el servidor (formato Bentley) --------
   # Todos los plazos (+0 a +192 h, cada 6 h) de la ÚLTIMA corrida del GFS,
   # con el mismo formato y colores que las cartas de Alicia Bentley. Se ven en
-  # la tarjeta "Pronóstico GFS" de la pestaña Cartas. No se archivan: cada
-  # corrida reemplaza a la anterior (~80 MB fijos en disco). Bajan ~15 MB por
+  # la tarjeta "Pronóstico GFS" de la pestaña Cartas. Se guardan las corridas
+  # de los últimos 8 días (para compararlas entre sí y con lo que pasó) y se
+  # borran solas las más viejas: ~800 MB fijos en disco. Bajan ~15 MB por
   # plazo de NOAA (~500 MB por corrida, 4 corridas por día) y tardan ~15-25 min
   # en dibujarse. Ver app/meteo/cartas/estilo_bentley.py.
   # Para apagarlas: `activo: false` en las cuatro.
@@ -74,6 +75,30 @@ productos:
     nombre: "Vorticidad, temperatura y ascenso"
     nivel: "500 hPa"
     fuente: gfs_pronostico
+    carta: 500_vort
+
+  # El +0 h (análisis) de cada corrida del pronóstico de arriba se ARCHIVA
+  # para siempre, como las demás cartas de cada hora (~1 GB por año): mismo
+  # formato que el pronóstico, para compararlo con lo que pasó.
+  - id: gfs_ana_mslp_jet
+    nombre: "Presión, espesor 1000/500 hPa y corriente en chorro"
+    nivel: "Superficie y 1000/500 hPa (GFS)"
+    fuente: gfs_analisis
+    carta: mslp_jet
+  - id: gfs_ana_850_thetae
+    nombre: "Temperatura potencial equivalente"
+    nivel: "850 hPa (GFS)"
+    fuente: gfs_analisis
+    carta: 850_thetae
+  - id: gfs_ana_ivt
+    nombre: "Transporte integrado de vapor (IVT)"
+    nivel: "700 hPa (GFS)"
+    fuente: gfs_analisis
+    carta: ivt
+  - id: gfs_ana_500_vort
+    nombre: "Vorticidad, temperatura y ascenso"
+    nivel: "500 hPa (GFS)"
+    fuente: gfs_analisis
     carta: 500_vort
 
   # --- Página de Alicia Bentley (GFS, análisis): respaldo y comparación ----

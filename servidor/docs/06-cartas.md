@@ -79,8 +79,22 @@ En Cartas, la tarjeta **"Pronóstico GFS"** muestra las cartas del plazo
 elegido, de +0 a +192 h, con la hora válida en hora argentina y UTC.
 
 - **Vistas:** las 4 juntas · una carta grande · 2 cartas lado a lado (mismo
-  plazo) · la misma carta en 2 plazos (12, 24 o 48 h antes o después). La
-  vista elegida se recuerda en el navegador.
+  plazo) · la misma carta en 2 plazos (12, 24 o 48 h antes o después) ·
+  **consistencia entre corridas** (la misma hora pronosticada por las últimas
+  4 corridas: si el modelo "va y viene", hay que confiar menos) ·
+  **pronóstico contra lo que pasó** (el análisis de una hora al lado de lo que
+  pronosticaba la corrida de 1 a 7 días antes; la barra recorre las horas con
+  análisis). La vista elegida se recuerda en el navegador.
+- **Corrida:** se puede elegir cualquiera de las guardadas (8 días).
+- **Zoom** igual en todas las cartas a la vez: Ctrl + rueda (o la rueda sola
+  si ya está acercada), doble clic (Shift + doble clic aleja), botones ＋ － ⟲,
+  teclas + − 0; arrastrar para moverse. Se mantiene al cambiar de plazo.
+- **Ciudades** del pronóstico del grupo como puntos (casillero "Ciudades" o
+  tecla C); los nombres aparecen al acercar. Debajo de las cartas, la
+  latitud y longitud del cursor. Los puntos se ubican con el "marco" que el
+  servidor guarda en cada corrida (`marco` en corrida.json: dónde está el
+  mapa en la imagen y una tabla latitud -> y de la proyección, sacada de
+  cartopy para que coincida exactamente con lo dibujado).
 - **Días:** botones por día ("vie 30") que llevan a las 9 hs (12 UTC) de ese día.
 - **Cursor sincronizado** (el mismo casillero que el de las cartas de
   análisis): las 4 tienen el mismo marco, así que la cruz marca el mismo
@@ -111,11 +125,17 @@ Dibujándolo acá no dependemos de que su página ande.
   nueva que la guardada, se dibujan los 33 plazos: ~15 MB de NOAA y ~15-20 s
   por plazo, unos **15-25 minutos por corrida**, al final de la vuelta (no
   demora el resto). Cuatro corridas por día: ~2 GB por día de internet.
-- **Solo la última corrida**, en `cartas/_pronostico/<carta>/` (`corrida.json`
-  + una imagen por plazo, con la corrida en el nombre): ~80 MB fijos, no
-  crece. La nueva se arma en una carpeta aparte y reemplaza a la anterior al
-  terminar: nunca se ve a medias. Si algo falla en el medio, queda la
-  anterior y se reintenta en la vuelta siguiente.
+- **Las corridas de los últimos 8 días**, en `cartas/_pronostico/<carta>/`:
+  `corrida.json` (la última), `corridas/AAAAMMDDHH.json` (las anteriores) y
+  una imagen por plazo y corrida (con la corrida en el nombre). Las más viejas
+  se borran solas: **~800 MB fijos**, no crece. Las imágenes van con paleta de
+  256 colores: ~180 KB cada una en vez de ~580 (no se nota la diferencia). La
+  nueva se arma en una carpeta aparte y reemplaza a la anterior al terminar:
+  nunca se ve a medias. Si algo falla en el medio, queda la anterior y se
+  reintenta en la vuelta siguiente.
+- **El +0 h (análisis) de cada corrida se archiva para siempre** como carta
+  de análisis de esa hora (`gfs_ana_*` en el YAML, ~1 GB por año): se ve en
+  las cartas de cada hora, al lado de las de Bentley.
 - Cada plazo que falla se reintenta a los 5 y 15 segundos.
 - Para apagarlo: `activo: false` en las cuatro `gfs_pro_*` del YAML.
 - Está también en la copia pública (`/api/cartas/pronostico`).

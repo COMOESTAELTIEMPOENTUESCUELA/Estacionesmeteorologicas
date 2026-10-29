@@ -78,7 +78,7 @@ def _correr(cfg, raiz, sesion, tormenta=None):
         if p["fuente"] == "glm":
             nuevas += _correr_rayos(p, raiz, sesion, tuple(p.get("horas_utc", horas)), tormenta)
             continue
-        if p["fuente"] in ("gfs", "gfs_pronostico"):
+        if p["fuente"] in ("gfs", "gfs_pronostico", "gfs_analisis"):
             continue      # se dibujan abajo, todas juntas (un solo archivo del GFS para las cuatro)
         if p["fuente"] != "bentley":
             log.info("cartas %s: fuente %s todavía no implementada", p["id"], p["fuente"])
@@ -146,7 +146,7 @@ def _correr(cfg, raiz, sesion, tormenta=None):
     prono = [p for p in activos if p["fuente"] == "gfs_pronostico"]
     if prono:
         try:
-            _correr_pronostico_gfs(prono, raiz, sesion)
+            _correr_pronostico_gfs(prono, raiz, sesion, analisis=[p for p in activos if p["fuente"] == "gfs_analisis"])
         except Exception as ex:
             errores.append(f"pronóstico GFS: {str(ex)[:150]}")
             log.warning("cartas: %s", errores[-1])
@@ -325,11 +325,17 @@ def _ultima_corrida_gfs(sesion, plazo_final, ahora=None):
     return None
 
 
-def _correr_pronostico_gfs(productos, raiz, sesion, ahora=None):
+GFS_PRONO_CONSERVAR = timedelta(days=8, hours=6)   # el +192 h de la corrida más vieja ya pasó: se puede comparar con lo que pasó
+
+
+def _correr_pronostico_gfs(productos, raiz, sesion, ahora=None, analisis=()):
     """Pronóstico del GFS dibujado en el servidor con el formato de las cartas
     de Bentley (estilo_bentley.py): todos los plazos de la última corrida.
-    Como el de Bentley, se guarda SOLO la última corrida (pronostico.py): la
-    nueva se arma aparte y reemplaza a la anterior al terminar.
+    La nueva se arma aparte y reemplaza a la anterior al terminar; las de los
+    últimos 8 días quedan en el historial (pronostico.py), para comparar
+    corridas entre sí y el pronóstico con lo que pasó.
+    analisis: productos (fuente gfs_analisis) donde se ARCHIVA para siempre el
+    +0 h de cada corrida, como las cartas de análisis de cada hora.
     Devuelve cuántas imágenes dibujó."""
     from . import estilo_bentley as eb, gfs, pronostico
     inicio = _ultima_corrida_gfs(sesion, eb.PLAZOS[-1], ahora)
@@ -355,6 +361,10 @@ def _correr_pronostico_gfs(productos, raiz, sesion, ahora=None):
                     log.info("cartas: GFS +%d h falló (%s); reintento en %d s", plazo, str(ex)[:80], espera)
                     time.sleep(espera)
             imagenes = eb.dibujar(campos, inicio, plazo)
+            if plazo == 0:
+                for p in analisis:
+                    if p.get("carta") in imagenes and not archivo.existe(raiz, p["id"], inicio):
+                        archivo.guardar(raiz, p["id"], inicio, imagenes[p["carta"]])
             for p in productos:
                 nom = pronostico.nombre(p["id"], inicio, plazo)
                 (tmps[p["id"]] / nom).write_bytes(imagenes[p["carta"]])
@@ -363,8 +373,10 @@ def _correr_pronostico_gfs(productos, raiz, sesion, ahora=None):
         for t in tmps.values():
             pronostico.descartar(t)        # queda la corrida anterior; se reintenta en la próxima vuelta
         raise
+    extra = {"marco": eb.marco()}
     for p in productos:
-        pronostico.publicar(raiz, p["id"], tmps[p["id"]], inicio, cuadros[p["id"]])
+        pronostico.publicar(raiz, p["id"], tmps[p["id"]], inicio, cuadros[p["id"]],
+                            conservar=GFS_PRONO_CONSERVAR, ahora=ahora, extra=extra)
     log.info("cartas: pronóstico GFS de la corrida %s listo (%d plazos)", inicio, len(eb.PLAZOS))
     return len(eb.PLAZOS) * len(productos)
 

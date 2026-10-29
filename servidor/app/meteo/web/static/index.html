@@ -211,6 +211,24 @@ img.con-fondo { background-color: #fff !important; background-size: 100% 100%; b
    plazo no se achica la tarjeta mientras carga (el mouse no "se sale"). */
 .cpr-grid .carta img { aspect-ratio: 1160 / 912; object-fit: contain; }
 .cpr-grid .carta figcaption { font-size: 12.5px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cpr-grid .carta-img { overflow: hidden; border-radius: 6px; }
+.cpr-grid .cpr-lienzo { position: relative; transform-origin: 0 0; --inv: 1; }
+.cpr-grid.con-zoom .cpr-lienzo { cursor: grab; }
+.cpr-grid.moviendo .cpr-lienzo { cursor: grabbing; }
+.cpr-grid .cpr-lienzo img { cursor: crosshair; -webkit-user-drag: none; user-select: none; }
+.cpr-grid .cruz { transform: scale(var(--inv)); }
+.cpr-punto { position: absolute; width: 0; height: 0; pointer-events: none; z-index: 2; transform: scale(var(--inv)); }
+.cpr-punto::before { content: ""; position: absolute; left: -5px; top: -5px; width: 10px; height: 10px; border-radius: 50%;
+  background: #fff; border: 2.5px solid #111; box-sizing: border-box; }
+.cpr-punto span { position: absolute; left: 7px; top: -9px; font: 600 12px/1 system-ui, sans-serif; color: #111; white-space: nowrap;
+  text-shadow: 0 0 2px #fff, 0 0 2px #fff, 0 0 3px #fff, 0 0 4px #fff; }
+.cpr-grid:not(.puntos) .cpr-punto { display: none; }
+/* Con la carta entera las ciudades quedan muy juntas: solo el punto (más chico);
+   los nombres aparecen al acercar (zoom x2 o más). */
+.cpr-grid:not(.nombres) .cpr-punto span { display: none; }
+.cpr-grid:not(.nombres) .cpr-punto::before { left: -3.5px; top: -3.5px; width: 7px; height: 7px; border-width: 2px; }
+.cpr-zoom { display: inline-flex; gap: 2px; }
+.cpr-pos { min-height: 1.2em; font-variant-numeric: tabular-nums; }
 .cpr-dias { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
 .cpr-dias button { font: inherit; font-size: 12.5px; padding: 3px 9px; border-radius: 99px; border: 1px solid var(--borde);
   background: var(--superficie); color: var(--tinta-2); cursor: pointer; }
@@ -735,13 +753,16 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
     </div>
     <div class="tarjeta" id="cpr" style="margin-top:16px" hidden tabindex="-1">
       <div class="filtros">
-        <h2 style="margin:0; font-size:18px; flex:1 1 280px">Pronóstico GFS <span class="tenue" style="font-weight:400">(última corrida, con el formato de las cartas de Bentley)</span></h2>
+        <h2 style="margin:0; font-size:18px; flex:1 1 280px">Pronóstico GFS <span class="tenue" style="font-weight:400">(con el formato de las cartas de Bentley)</span></h2>
+        <label class="en-linea">Corrida <select id="cpr-corrida"></select></label>
         <label class="en-linea">Vista
           <select id="cpr-vista">
             <option value="cuatro">Las 4 juntas</option>
             <option value="una">Una carta grande</option>
             <option value="dos-cartas">Comparar 2 cartas</option>
             <option value="dos-plazos">Comparar 2 plazos</option>
+            <option value="corridas">Consistencia entre corridas</option>
+            <option value="verif">Pronóstico contra lo que pasó</option>
           </select>
         </label>
         <label class="en-linea" id="cpr-l-a">Carta <select id="cpr-a"></select></label>
@@ -755,6 +776,13 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
             <option value="48">48 h después</option>
           </select>
         </label>
+        <label class="en-linea" id="cpr-l-antic">contra el pronóstico hecho
+          <select id="cpr-antic">
+            <option value="24">24 h antes</option><option value="48" selected>48 h antes</option>
+            <option value="72">72 h antes</option><option value="96">4 días antes</option>
+            <option value="120">5 días antes</option><option value="168">7 días antes</option>
+          </select>
+        </label>
       </div>
       <div class="filtros" style="margin-top:6px">
         <button class="boton" id="cpr-ant" title="6 horas antes (←)">◀ 6 h</button>
@@ -765,14 +793,22 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
         <select id="cpr-vel" title="Velocidad de la animación">
           <option value="1200">lenta</option><option value="700" selected>normal</option><option value="350">rápida</option>
         </select>
+        <span class="cpr-zoom">
+          <button class="boton" id="cpr-zmas" title="Acercar (+, Ctrl + rueda o doble clic)">＋</button>
+          <button class="boton" id="cpr-zmenos" title="Alejar (−)">－</button>
+          <button class="boton" id="cpr-z0" title="Ver la carta entera (0)">⟲</button>
+        </span>
+        <label class="en-linea" title="Puntos en las ciudades del pronóstico del grupo (tecla C)"><input type="checkbox" id="cpr-ciudades" checked> Ciudades</label>
       </div>
       <div class="cpr-dias" id="cpr-dias"></div>
       <h3 id="cpr-titulo" style="margin:6px 0 2px; font-size:16px"></h3>
       <p class="ayuda" id="cpr-nota"></p>
       <p class="ayuda cpr-teclas" id="cpr-teclas">⌨ Con el mouse sobre esta tarjeta (o después de tocarla): <kbd>←</kbd> <kbd>→</kbd> 6 h ·
         <kbd>Shift</kbd>+<kbd>←</kbd> <kbd>→</kbd> 24 h · <kbd>Inicio</kbd> <kbd>Fin</kbd> · <kbd>Espacio</kbd> animar ·
-        <kbd>1</kbd>–<kbd>4</kbd> elegir carta · <kbd>↑</kbd> <kbd>↓</kbd> cambiar carta · <kbd>V</kbd> cambiar vista</p>
+        <kbd>1</kbd>–<kbd>4</kbd> elegir carta · <kbd>↑</kbd> <kbd>↓</kbd> cambiar carta · <kbd>V</kbd> vista ·
+        <kbd>+</kbd> <kbd>−</kbd> <kbd>0</kbd> zoom (o <kbd>Ctrl</kbd> + rueda, doble clic; arrastrar para mover) · <kbd>C</kbd> ciudades</p>
       <div class="cartas-grid cpr-grid" id="cpr-grid"></div>
+      <p class="ayuda cpr-pos" id="cpr-pos">&nbsp;</p>
     </div>
     <div class="tarjeta" id="cp" style="margin-top:16px">
       <div class="filtros">
@@ -2077,11 +2113,14 @@ function moverCarta(horas) {
 }
 
 // ---------- Pronóstico GFS (última corrida, dibujado en el servidor) ----------
-// Vistas: las 4 juntas, una grande, 2 cartas lado a lado (mismo plazo) o la
-// misma carta en 2 plazos. Las 4 cartas tienen el mismo marco (proyección y
-// recorte): un punto de la imagen es el mismo lugar en todas, así que el
-// cursor sincronizado sirve para comparar entre cartas y entre plazos.
-const cpr = { productos: [], plazos: [], i: 0, reloj: null, vista: "cuatro", a: 0, b: 1, activa: false, encima: false, fijada: false };
+// Vistas: las 4 juntas, una grande, 2 cartas lado a lado (mismo plazo), la
+// misma carta en 2 plazos, la misma hora en varias corridas (consistencia) y
+// el pronóstico contra el análisis de esa hora (lo que pasó). Las 4 cartas
+// tienen el mismo marco (proyección y recorte): un punto de la imagen es el
+// mismo lugar en todas, así que el cursor, el zoom y los puntos de las
+// ciudades valen para todas a la vez.
+const cpr = { productos: [], plazos: [], i: 0, reloj: null, vista: "cuatro", a: 0, b: 1, activa: false, encima: false,
+  fijada: false, corrida: null, zoom: { s: 1, x: 0, y: 0 }, iv: null };
 const fmtSemanaAR = new Intl.DateTimeFormat("es-AR", { timeZone: TZ, weekday: "long" });
 const fmtSemanaCortaAR = new Intl.DateTimeFormat("es-AR", { timeZone: TZ, weekday: "short", day: "numeric" });
 const fmtHH_AR = new Intl.DateTimeFormat("es-AR", { timeZone: TZ, hour: "2-digit", hourCycle: "h23" });
@@ -2089,104 +2128,196 @@ const fmtHH_AR = new Intl.DateTimeFormat("es-AR", { timeZone: TZ, hour: "2-digit
 const fmtValida = (d) => `${fmtSemanaAR.format(d)} ${fmtDia.format(d)}, ${fmtHH_AR.format(d)} hs`;
 // La corrida se nombra en UTC (la del 29/10 00 UTC es el 28 a las 21 hs en Argentina).
 const fmtCorrida = (d) => `${String(d.getUTCDate()).padStart(2, "0")}/${String(d.getUTCMonth() + 1).padStart(2, "0")} a las ${String(d.getUTCHours()).padStart(2, "0")} UTC`;
-const VISTAS_GFS = ["cuatro", "una", "dos-cartas", "dos-plazos"];
+const claveCorrida = (d) => d.toISOString().slice(0, 13).replace(/[-T]/g, "");    // AAAAMMDDHH
+const VISTAS_GFS = ["cuatro", "una", "dos-cartas", "dos-plazos", "corridas", "verif"];
 
-async function cargarPronosticoGFS() {
+async function cargarPronosticoGFS(corrida = null) {
   let d;
-  try { d = await api("/api/cartas/pronostico"); } catch (_) { return; }
+  try { d = await api("/api/cartas/pronostico" + (corrida ? `?corrida=${corrida}` : "")); } catch (_) { return; }
+  const plazoAntes = cpr.plazos[cpr.i];
   cpr.productos = d.productos.filter((p) => p.cuadros.length);
+  cpr.ciudades = d.ciudades || {};
   $("#cpr").hidden = !cpr.productos.length;
   if (!cpr.productos.length) return;
+  cpr.corrida = corrida;
   cpr.plazos = [...new Set(cpr.productos.flatMap((p) => p.cuadros.map((c) => c.plazo_h)))].sort((a, b) => a - b);
   cpr.inicio = new Date(cpr.productos[0].inicio);
-  $("#cpr-nota").textContent = `Corrida del GFS del ${fmtCorrida(cpr.inicio)} · ` +
+  cpr.marco = cpr.productos[0].marco;
+  // Corridas guardadas (las de todas las cartas son las mismas): la última primero.
+  cpr.corridas = (cpr.productos[0].corridas || []).map((c) => ({ inicio: new Date(c.inicio), plazos: new Set(c.plazos) }));
+  $("#cpr-corrida").innerHTML = cpr.corridas.map((c, k) =>
+    `<option value="${k ? claveCorrida(c.inicio) : ""}">${k ? "" : "Última: "}${fmtCorrida(c.inicio)}</option>`).join("");
+  $("#cpr-corrida").value = corrida || "";
+  // Horas con análisis (+0 h de alguna corrida guardada), para "contra lo que pasó".
+  cpr.analisis = cpr.corridas.filter((c) => c.plazos.has(0)).map((c) => c.inicio).sort((a, b) => a - b);
+  if (cpr.iv === null || cpr.iv >= cpr.analisis.length) cpr.iv = cpr.analisis.length - 1;
+  const ultima = cpr.corridas[0]?.inicio;
+  $("#cpr-nota").textContent = `Corrida del GFS del ${fmtCorrida(cpr.inicio)}${corrida ? " (una anterior)" : ""} · ` +
     `${cpr.plazos.length} plazos, hasta +${cpr.plazos[cpr.plazos.length - 1]} h` +
     (cpr.productos.some((p) => p.cuadros.length < p.esperados) ? " (el resto todavía no está publicado: se completa solo)" : "") +
-    ". Se actualiza solo con cada corrida nueva del GFS (cada 6 h, ~5 h después de su hora de inicio)." +
-    " Es un pronóstico del modelo, no un análisis: sirve como guía.";
+    `. Hay ${cpr.corridas.length} corridas guardadas (las de los últimos 8 días)` + (ultima ? `; la última es la del ${fmtCorrida(ultima)}` : "") +
+    ". Se actualiza solo con cada corrida nueva del GFS (cada 6 h, ~5 h después de su hora de inicio). Es un pronóstico del modelo: sirve como guía.";
   const opciones = cpr.productos.map((p, k) => `<option value="${k}">${k + 1}. ${esc(p.nivel ? p.nivel + " · " : "")}${esc(p.nombre)}</option>`).join("");
   $("#cpr-a").innerHTML = opciones;
   $("#cpr-b").innerHTML = opciones;
   cpr.a = Math.min(cpr.a, cpr.productos.length - 1);
   cpr.b = Math.min(cpr.b, cpr.productos.length - 1);
-  const r = $("#cpr-plazo");
-  r.max = cpr.plazos.length - 1;
-  // Marcas en la barra: una por día (00 UTC).
-  $("#cpr-marcas").innerHTML = cpr.plazos.map((p, k) => (new Date(+cpr.inicio + p * 3600e3).getUTCHours() === 0 ? `<option value="${k}">` : "")).join("");
-  cpr.i = Math.min(cpr.i, cpr.plazos.length - 1);
+  $("#cpr-plazo").max = cpr.plazos.length - 1;
+  $("#cpr-marcas").innerHTML = cpr.plazos.map((p, k) => (validaGFS(p).getUTCHours() === 0 ? `<option value="${k}">` : "")).join("");
+  const k = plazoAntes === undefined ? -1 : cpr.plazos.indexOf(plazoAntes);
+  cpr.i = k >= 0 ? k : Math.min(cpr.i, cpr.plazos.length - 1);
   // Atajos por día: llevan a las 12 UTC (9 hs) de ese día, o lo más cerca que haya.
   const dias = [];
   cpr.plazos.forEach((p, k) => {
-    const v = new Date(+cpr.inicio + p * 3600e3);
-    const clave = fmtDia.format(v);
+    const v = validaGFS(p), clave = fmtDia.format(v);
     let dia = dias.find((x) => x.clave === clave);
     if (!dia) dias.push(dia = { clave, etiqueta: fmtSemanaCortaAR.format(v), ks: [] });
     dia.ks.push(k);
   });
-  cpr.dias = dias.map((x) => ({ ...x, k: x.ks.reduce((m, k) => {
-    const h = (cpr.inicio.getUTCHours() + cpr.plazos[k]) % 24;
-    return Math.abs(h - 12) < Math.abs((cpr.inicio.getUTCHours() + cpr.plazos[m]) % 24 - 12) ? k : m;
-  }, x.ks[0]) }));
-  $("#cpr-dias").innerHTML = cpr.dias.map((x, j) => `<button type="button" data-k="${x.k}" title="Ir al ${esc(x.etiqueta)} a las ${fmtHH_AR.format(new Date(+cpr.inicio + cpr.plazos[x.k] * 3600e3))} hs">${esc(x.etiqueta)}</button>`).join("");
-  // Precargar todas las imágenes, para que la animación y el teclado sean fluidos.
+  const a12 = (k) => Math.abs(validaGFS(cpr.plazos[k]).getUTCHours() - 12);
+  cpr.dias = dias.map((x) => ({ ...x, k: x.ks.reduce((m, k) => (a12(k) < a12(m) ? k : m), x.ks[0]) }));
+  $("#cpr-dias").innerHTML = cpr.dias.map((x) => `<button type="button" data-k="${x.k}">${esc(x.etiqueta)}</button>`).join("");
+  // Precargar las imágenes de la corrida, para que la animación y el teclado sean fluidos.
   cpr.productos.forEach((p) => p.cuadros.forEach((c) => { const im = new Image(); im.src = c.url; }));
   mostrarPlazoGFS();
 }
 
-function cuadroGFS(k, plazo) {
-  return cpr.productos[k].cuadros.find((x) => x.plazo_h === plazo);
+const validaGFS = (plazo, inicio = cpr.inicio) => new Date(+inicio + plazo * HORA);
+const hhUTC = (d) => `${String(d.getUTCHours()).padStart(2, "0")} UTC`;
+const textoValida = (v) => `${fmtValida(v)} (${hhUTC(v)})`;
+const textoPlazo = (plazo) => `+${plazo} h · ${textoValida(validaGFS(plazo))}`;
+// Imagen de la carta k de cualquier corrida guardada (la dirección sale de la plantilla).
+function urlGFS(k, inicio, plazo) {
+  const c = cpr.corridas.find((x) => +x.inicio === +inicio);
+  if (!c || !c.plazos.has(plazo)) return null;
+  return cpr.productos[k].plantilla.replace("{corrida}", claveCorrida(inicio)).replace("{plazo}", String(plazo).padStart(3, "0"));
 }
-const validaGFS = (plazo) => new Date(+cpr.inicio + plazo * 3600e3);
-const textoPlazo = (plazo) => { const v = validaGFS(plazo); return `+${plazo} h · ${fmtValida(v)} (${String(v.getUTCHours()).padStart(2, "0")} UTC)`; };
 
-function figuraGFS(k, plazo, titulo) {
-  const p = cpr.productos[k], c = cuadroGFS(k, plazo);
-  return `<figure class="carta"><figcaption title="${esc(titulo)}">${titulo}</figcaption>
-    ${c ? `<div class="carta-img" data-grupo="gfs"><a href="${esc(c.url)}" target="_blank" rel="noopener" title="Abrir en grande (pestaña nueva)"><img src="${esc(c.url)}" alt="${esc(p.nombre)}"></a><div class="cruz" hidden></div></div>`
-        : '<div class="falta chica">Sin este plazo</div>'}</figure>`;
+function figuraGFS(k, url, titulo) {
+  const p = cpr.productos[k];
+  const puntos = cpr.marco ? Object.entries(cpr.ciudades).map(([nom, c]) => {
+    const [fx, fy] = aImagen(c.lon, c.lat);
+    return `<div class="cpr-punto" style="left:${fx * 100}%;top:${fy * 100}%"><span>${esc(nom)}</span></div>`;
+  }).join("") : "";
+  return `<figure class="carta"><figcaption>${titulo}${url ? ` <a href="${esc(url)}" target="_blank" rel="noopener" title="Abrir la imagen sola, en una pestaña nueva">↗</a>` : ""}</figcaption>
+    ${url ? `<div class="carta-img" data-grupo="gfs"><div class="cpr-lienzo"><img src="${esc(url)}" alt="${esc(p.nombre)}" draggable="false">${puntos}<div class="cruz" hidden></div></div></div>`
+          : '<div class="falta chica">No está guardada</div>'}</figure>`;
 }
+
+// ----- Ubicar puntos en las cartas (la misma cuenta que estilo_bentley.a_imagen) -----
+// La x es lineal en la longitud; la y sale de una tabla latitud -> y que arma
+// el servidor con cartopy (así coincide exactamente con lo dibujado).
+function interp(v, xs, ys) {
+  if (v <= xs[0]) return ys[0];
+  for (let i = 1; i < xs.length; i++) if (v <= xs[i]) return ys[i - 1] + (v - xs[i - 1]) / (xs[i] - xs[i - 1]) * (ys[i] - ys[i - 1]);
+  return ys[ys.length - 1];
+}
+function aImagen(lon, lat) {
+  const m = cpr.marco, c = m.caja;
+  const x = lon * m.mx, y = interp(lat, m.lat, m.my);
+  return [c[0] + (x - m.x[0]) / (m.x[1] - m.x[0]) * (c[2] - c[0]), c[3] - (y - m.y[0]) / (m.y[1] - m.y[0]) * (c[3] - c[1])];
+}
+function aLatLon(fx, fy) {
+  const m = cpr.marco, c = m.caja;
+  if (fx < c[0] || fx > c[2] || fy < c[1] || fy > c[3]) return null;
+  const x = m.x[0] + (fx - c[0]) / (c[2] - c[0]) * (m.x[1] - m.x[0]);
+  const y = m.y[0] + (c[3] - fy) / (c[3] - c[1]) * (m.y[1] - m.y[0]);
+  return [x / m.mx, interp(y, m.my, m.lat)];
+}
+const fmtGrado = (v, pos, neg) => `${Math.abs(v).toFixed(1).replace(".", ",")}°${v >= 0 ? pos : neg}`;
 
 function mostrarPlazoGFS() {
   if (!cpr.plazos.length) return;
+  const v = cpr.vista, verif = v === "verif";
   const plazo = cpr.plazos[cpr.i];
-  $("#cpr-plazo").value = cpr.i;
-  const v = cpr.vista;
   $("#cpr-l-a").hidden = v === "cuatro";
   $("#cpr-l-b").hidden = v !== "dos-cartas";
   $("#cpr-l-delta").hidden = v !== "dos-plazos";
+  $("#cpr-l-antic").hidden = !verif;
+  $("#cpr-dias").hidden = verif;
   $("#cpr-a").value = cpr.a;
   $("#cpr-b").value = cpr.b;
-  $("#cpr-titulo").textContent = textoPlazo(plazo);
+  // La barra recorre los plazos de la corrida, o (contra lo que pasó) las horas con análisis.
+  $("#cpr-plazo").max = verif ? Math.max(0, cpr.analisis.length - 1) : cpr.plazos.length - 1;
+  $("#cpr-plazo").value = verif ? cpr.iv : cpr.i;
   const nombre = (k) => `<b>${esc(cpr.productos[k].nivel || "")}</b> · ${esc(cpr.productos[k].nombre)}`;
-  let html;
-  if (v === "una") html = figuraGFS(cpr.a, plazo, nombre(cpr.a));
-  else if (v === "dos-cartas") html = figuraGFS(cpr.a, plazo, nombre(cpr.a)) + figuraGFS(cpr.b, plazo, nombre(cpr.b));
+  const actual = (k, pl) => cpr.productos[k].cuadros.find((x) => x.plazo_h === pl)?.url || null;
+  let html, titulo = textoPlazo(plazo);
+  if (v === "una") html = figuraGFS(cpr.a, actual(cpr.a, plazo), nombre(cpr.a));
+  else if (v === "dos-cartas") html = figuraGFS(cpr.a, actual(cpr.a, plazo), nombre(cpr.a)) + figuraGFS(cpr.b, actual(cpr.b, plazo), nombre(cpr.b));
   else if (v === "dos-plazos") {
     const otro = plazo + Number($("#cpr-delta").value);
-    const izq = Math.min(plazo, otro), der = Math.max(plazo, otro);
-    html = [izq, der].map((pl) => figuraGFS(cpr.a, pl, `${pl === plazo ? "▶ " : ""}${esc(textoPlazo(pl))}`)).join("");
-    $("#cpr-titulo").textContent = `${cpr.productos[cpr.a].nombre}: +${izq} h contra +${der} h`;
-  } else html = cpr.productos.map((p, k) => figuraGFS(k, plazo, nombre(k))).join("");
-  $("#cpr-grid").className = `cartas-grid cpr-grid${v === "una" ? " una" : ""}`;
-  $("#cpr-grid").innerHTML = html;
-  document.querySelectorAll("#cpr-dias button").forEach((b) => b.classList.toggle("actual", fmtDia.format(validaGFS(cpr.plazos[Number(b.dataset.k)])) === fmtDia.format(validaGFS(plazo))));
-  try { localStorage.setItem("gfs-vista", JSON.stringify({ vista: cpr.vista, a: cpr.a, b: cpr.b, delta: $("#cpr-delta").value })); } catch (_) {}
+    const [izq, der] = [Math.min(plazo, otro), Math.max(plazo, otro)];
+    html = [izq, der].map((pl) => figuraGFS(cpr.a, actual(cpr.a, pl), `${pl === plazo ? "▶ " : ""}${esc(textoPlazo(pl))}`)).join("");
+    titulo = `${cpr.productos[cpr.a].nombre}: +${izq} h contra +${der} h`;
+  } else if (v === "corridas") {
+    // La MISMA hora pronosticada por las últimas corridas (hasta 4): si el
+    // modelo cambia mucho de una corrida a otra, hay que confiar menos.
+    const T = validaGFS(plazo);
+    const usadas = cpr.corridas.filter((c) => c.inicio <= cpr.inicio && c.plazos.has((T - c.inicio) / HORA)).slice(0, 4);
+    html = usadas.map((c) => { const pl = (T - c.inicio) / HORA;
+      return figuraGFS(cpr.a, urlGFS(cpr.a, c.inicio, pl), `Corrida del ${esc(fmtCorrida(c.inicio))} <span class="tenue">(+${pl} h)</span>`); }).join("");
+    titulo = `${cpr.productos[cpr.a].nombre} para el ${textoValida(T)}: ${usadas.length} corrida${usadas.length === 1 ? "" : "s"}`;
+  } else if (verif) {
+    // Lo que pasó (el análisis, +0 h de la corrida de esa hora) contra lo que
+    // pronosticaba la corrida de X h antes para esa misma hora.
+    const T = cpr.analisis[cpr.iv], x = Number($("#cpr-antic").value);
+    if (!T) { html = '<p class="ayuda">Todavía no hay análisis guardados: se van juntando con cada corrida.</p>'; titulo = ""; }
+    else {
+      const ant = new Date(+T - x * HORA);
+      html = figuraGFS(cpr.a, urlGFS(cpr.a, T, 0), `<b>Lo que pasó</b> · análisis del ${esc(textoValida(T))}`)
+           + figuraGFS(cpr.a, urlGFS(cpr.a, ant, x), `<b>Lo pronosticado</b> · corrida del ${esc(fmtCorrida(ant))} (+${x} h)`);
+      titulo = `${cpr.productos[cpr.a].nombre} · ${textoValida(T)}`;
+    }
+  } else html = cpr.productos.map((p, k) => figuraGFS(k, actual(k, plazo), nombre(k))).join("");
+  $("#cpr-titulo").textContent = titulo;
+  const g = $("#cpr-grid");
+  g.className = `cartas-grid cpr-grid${v === "una" ? " una" : ""}`;
+  g.classList.toggle("puntos", $("#cpr-ciudades").checked);
+  g.innerHTML = html;
+  aplicarZoomGFS();
+  if (!verif) document.querySelectorAll("#cpr-dias button").forEach((b) =>
+    b.classList.toggle("actual", fmtDia.format(validaGFS(cpr.plazos[Number(b.dataset.k)])) === fmtDia.format(validaGFS(plazo))));
+  try { localStorage.setItem("gfs-vista", JSON.stringify({ vista: cpr.vista, a: cpr.a, b: cpr.b, delta: $("#cpr-delta").value,
+    antic: $("#cpr-antic").value, ciudades: $("#cpr-ciudades").checked })); } catch (_) {}
 }
 
+// ----- Zoom: el mismo en todas las cartas (comparten el marco) -----
+function aplicarZoomGFS() {
+  const z = cpr.zoom;
+  document.querySelectorAll("#cpr-grid .cpr-lienzo").forEach((l) => {
+    l.style.transform = `translate(${z.x * 100}%, ${z.y * 100}%) scale(${z.s})`;
+    l.style.setProperty("--inv", 1 / z.s);
+  });
+  $("#cpr-grid").classList.toggle("con-zoom", z.s > 1);
+  $("#cpr-grid").classList.toggle("nombres", z.s >= 2);
+}
+// Acercar/alejar dejando quieto el punto (fx, fy) de la caja (fracciones).
+function zoomGFS(factor, fx = 0.5, fy = 0.5) {
+  const z = cpr.zoom, s = Math.min(8, Math.max(1, z.s * factor));
+  const ux = (fx - z.x) / z.s, uy = (fy - z.y) / z.s;     // punto de la imagen bajo el cursor
+  z.x = fx - ux * s; z.y = fy - uy * s; z.s = s;
+  limitarZoomGFS();
+  aplicarZoomGFS();
+}
+function limitarZoomGFS() {
+  const z = cpr.zoom;
+  z.x = Math.min(0, Math.max(1 - z.s, z.x));
+  z.y = Math.min(0, Math.max(1 - z.s, z.y));
+}
+const fraccionEnCaja = (caja, e) => { const r = caja.getBoundingClientRect(); return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height]; };
+
 function moverPlazoGFS(n, ciclico = true) {
-  if (!cpr.plazos.length) return;
-  const m = cpr.plazos.length;
-  cpr.i = ciclico ? (cpr.i + n + m) % m : Math.max(0, Math.min(m - 1, cpr.i + n));
+  if (cpr.vista === "verif") {
+    const m = cpr.analisis.length;
+    if (m) cpr.iv = ciclico ? (cpr.iv + n + m) % m : Math.max(0, Math.min(m - 1, cpr.iv + n));
+  } else {
+    const m = cpr.plazos.length;
+    cpr.i = ciclico ? (cpr.i + n + m) % m : Math.max(0, Math.min(m - 1, cpr.i + n));
+  }
   mostrarPlazoGFS();
 }
-// Salto en horas (±24 h): el plazo más cercano a esa hora.
-function saltarHorasGFS(h) {
-  const meta = cpr.plazos[cpr.i] + h;
-  let mejor = cpr.i;
-  cpr.plazos.forEach((p, k) => { if (Math.abs(p - meta) < Math.abs(cpr.plazos[mejor] - meta)) mejor = k; });
-  cpr.i = mejor;
-  mostrarPlazoGFS();
-}
+function saltarHorasGFS(h) { moverPlazoGFS(h / 6, false); }     // plazos y análisis van de a 6 h
 function animarGFS() {
   if (cpr.reloj) { clearInterval(cpr.reloj); cpr.reloj = null; $("#cpr-anim").textContent = "▶ Animar"; return; }
   $("#cpr-anim").textContent = "⏸ Pausar";
@@ -2209,26 +2340,31 @@ function activarTecladoGFS() {
 function teclaGFS(e) {
   if (!cpr.activa || $("#tab-cartas").hidden || $("#cpr").hidden || $("#c-dialogo").open) return false;
   const el = document.activeElement;
-  if (["SELECT", "TEXTAREA"].includes(el.tagName) || (el.tagName === "INPUT" && el.type !== "range")) return false;
+  if (["SELECT", "TEXTAREA"].includes(el.tagName) || (el.tagName === "INPUT" && !["range", "checkbox"].includes(el.type))) return false;
+  if (e.ctrlKey || e.metaKey || e.altKey) return false;
   const k = e.key;
   if (k === "ArrowLeft" || k === "ArrowRight") {
     const s = k === "ArrowLeft" ? -1 : 1;
     if (e.shiftKey) saltarHorasGFS(24 * s); else moverPlazoGFS(s, false);
-  } else if (k === "Home") { cpr.i = 0; mostrarPlazoGFS(); }
-  else if (k === "End") { cpr.i = cpr.plazos.length - 1; mostrarPlazoGFS(); }
+  } else if (k === "Home") { if (cpr.vista === "verif") cpr.iv = 0; else cpr.i = 0; mostrarPlazoGFS(); }
+  else if (k === "End") { if (cpr.vista === "verif") cpr.iv = cpr.analisis.length - 1; else cpr.i = cpr.plazos.length - 1; mostrarPlazoGFS(); }
   else if (k === " ") animarGFS();
   else if (/^[1-9]$/.test(k)) elegirCartaGFS(Number(k) - 1);
   else if (k === "ArrowUp" || k === "ArrowDown") {
     if (cpr.vista === "cuatro") return false;
-    const n = cpr.productos.length;
-    cpr.a = (cpr.a + (k === "ArrowUp" ? -1 : 1) + n) % n;
-    if (cpr.vista === "dos-cartas" && cpr.a === cpr.b) cpr.a = (cpr.a + (k === "ArrowUp" ? -1 : 1) + n) % n;
+    const n = cpr.productos.length, d = k === "ArrowUp" ? -1 : 1;
+    cpr.a = (cpr.a + d + n) % n;
+    if (cpr.vista === "dos-cartas" && cpr.a === cpr.b) cpr.a = (cpr.a + d + n) % n;
     mostrarPlazoGFS();
   } else if (k === "v" || k === "V") {
     cpr.vista = VISTAS_GFS[(VISTAS_GFS.indexOf(cpr.vista) + 1) % VISTAS_GFS.length];
     $("#cpr-vista").value = cpr.vista;
     mostrarPlazoGFS();
-  } else return false;
+  } else if (k === "+" || k === "=") zoomGFS(1.5);
+  else if (k === "-" || k === "_") zoomGFS(1 / 1.5);
+  else if (k === "0") { cpr.zoom = { s: 1, x: 0, y: 0 }; aplicarZoomGFS(); }
+  else if (k === "c" || k === "C") { $("#cpr-ciudades").checked = !$("#cpr-ciudades").checked; $("#cpr-ciudades").dispatchEvent(new Event("change")); }
+  else return false;
   e.preventDefault();
   return true;
 }
@@ -2236,39 +2372,94 @@ function teclaGFS(e) {
 function iniciarPronosticoGFS() {
   try {
     const g = JSON.parse(localStorage.getItem("gfs-vista") || "null");
-    if (g && VISTAS_GFS.includes(g.vista)) { cpr.vista = g.vista; cpr.a = g.a | 0; cpr.b = g.b | 0; $("#cpr-delta").value = g.delta || "24"; }
+    if (g && VISTAS_GFS.includes(g.vista)) {
+      cpr.vista = g.vista; cpr.a = g.a | 0; cpr.b = g.b | 0;
+      $("#cpr-delta").value = g.delta || "24"; $("#cpr-antic").value = g.antic || "48";
+      if (g.ciudades === false) $("#cpr-ciudades").checked = false;
+    }
   } catch (_) {}
   $("#cpr-vista").value = cpr.vista;
   $("#cpr-ant").addEventListener("click", () => moverPlazoGFS(-1));
   $("#cpr-sig").addEventListener("click", () => moverPlazoGFS(1));
-  $("#cpr-plazo").addEventListener("input", (e) => { cpr.i = Number(e.target.value); mostrarPlazoGFS(); });
+  $("#cpr-plazo").addEventListener("input", (e) => {
+    if (cpr.vista === "verif") cpr.iv = Number(e.target.value); else cpr.i = Number(e.target.value);
+    mostrarPlazoGFS();
+  });
   $("#cpr-anim").addEventListener("click", animarGFS);
   $("#cpr-vel").addEventListener("change", () => { if (cpr.reloj) { animarGFS(); animarGFS(); } });
   $("#cpr-vista").addEventListener("change", (e) => { cpr.vista = e.target.value; mostrarPlazoGFS(); });
+  $("#cpr-corrida").addEventListener("change", (e) => cargarPronosticoGFS(e.target.value || null));
   $("#cpr-a").addEventListener("change", (e) => { cpr.a = Number(e.target.value); mostrarPlazoGFS(); });
   $("#cpr-b").addEventListener("change", (e) => { cpr.b = Number(e.target.value); mostrarPlazoGFS(); });
   $("#cpr-delta").addEventListener("change", mostrarPlazoGFS);
+  $("#cpr-antic").addEventListener("change", mostrarPlazoGFS);
+  $("#cpr-ciudades").addEventListener("change", mostrarPlazoGFS);
+  $("#cpr-zmas").addEventListener("click", () => zoomGFS(1.5));
+  $("#cpr-zmenos").addEventListener("click", () => zoomGFS(1 / 1.5));
+  $("#cpr-z0").addEventListener("click", () => { cpr.zoom = { s: 1, x: 0, y: 0 }; aplicarZoomGFS(); });
   $("#cpr-dias").addEventListener("click", (e) => {
     const b = e.target.closest("button[data-k]");
     if (b) { cpr.i = Number(b.dataset.k); mostrarPlazoGFS(); }
   });
+  // Después de elegir en un desplegable o tocar un botón de la tarjeta, se le
+  // saca el foco: si no, las flechas cambiarían la opción del desplegable en
+  // vez de mover el pronóstico.
+  $("#cpr").addEventListener("change", (e) => { if (e.target.matches("select, input[type=checkbox]")) e.target.blur(); });
+  $("#cpr").addEventListener("click", (e) => { if (e.target.closest("button")) e.target.closest("button").blur(); });
   // Teclado: el mouse sobre la tarjeta, o tocarla, la activa; tocar fuera, la desactiva.
   $("#cpr").addEventListener("mouseenter", () => { cpr.encima = true; activarTecladoGFS(); });
   $("#cpr").addEventListener("mouseleave", () => { cpr.encima = false; activarTecladoGFS(); });
   document.addEventListener("pointerdown", (e) => { cpr.fijada = !!e.target.closest("#cpr"); activarTecladoGFS(); });
-  // Cursor sincronizado entre las cartas del pronóstico (mismo marco en todas).
-  $("#cpr-grid").addEventListener("mousemove", (e) => {
-    const img = e.target.closest(".carta-img img");
-    document.querySelectorAll("#cpr-grid .cruz").forEach((c) => (c.hidden = true));
-    if (!img || !$("#f-c-cursor").checked) return;
-    const r = img.getBoundingClientRect(), fx = (e.clientX - r.left) / r.width, fy = (e.clientY - r.top) / r.height;
-    document.querySelectorAll("#cpr-grid .carta-img").forEach((c) => {
-      if (c.contains(img)) return;
-      const cruz = c.querySelector(".cruz");
-      cruz.hidden = false; cruz.style.left = fx * 100 + "%"; cruz.style.top = fy * 100 + "%";
-    });
+  const g = $("#cpr-grid");
+  // Zoom con Ctrl + rueda (o con la rueda sola si ya está acercada), centrado en el cursor.
+  g.addEventListener("wheel", (e) => {
+    const caja = e.target.closest(".carta-img");
+    if (!caja || !(e.ctrlKey || cpr.zoom.s > 1)) return;
+    e.preventDefault();
+    const [fx, fy] = fraccionEnCaja(caja, e);
+    zoomGFS(e.deltaY < 0 ? 1.25 : 1 / 1.25, fx, fy);
+  }, { passive: false });
+  g.addEventListener("dblclick", (e) => {
+    const caja = e.target.closest(".carta-img");
+    if (!caja) return;
+    const [fx, fy] = fraccionEnCaja(caja, e);
+    zoomGFS(e.shiftKey ? 1 / 2 : 2, fx, fy);
   });
-  $("#cpr-grid").addEventListener("mouseleave", () => document.querySelectorAll("#cpr-grid .cruz").forEach((c) => (c.hidden = true)));
+  // Arrastrar para mover (cuando está acercada): se mueven todas juntas.
+  let arrastre = null;
+  g.addEventListener("pointerdown", (e) => {
+    const caja = e.target.closest(".carta-img");
+    if (!caja || cpr.zoom.s <= 1 || e.button !== 0) return;
+    const r = caja.getBoundingClientRect();
+    arrastre = { x: e.clientX, y: e.clientY, zx: cpr.zoom.x, zy: cpr.zoom.y, w: r.width, h: r.height };
+    g.classList.add("moviendo");
+    caja.setPointerCapture(e.pointerId);
+  });
+  g.addEventListener("pointermove", (e) => {
+    if (arrastre) {
+      cpr.zoom.x = arrastre.zx + (e.clientX - arrastre.x) / arrastre.w;
+      cpr.zoom.y = arrastre.zy + (e.clientY - arrastre.y) / arrastre.h;
+      limitarZoomGFS();
+      aplicarZoomGFS();
+    }
+    // Cursor sincronizado y posición (lat/lon) bajo el mouse.
+    const caja = e.target.closest(".carta-img");
+    document.querySelectorAll("#cpr-grid .cruz").forEach((c) => (c.hidden = true));
+    if (!caja) { $("#cpr-pos").innerHTML = "&nbsp;"; return; }
+    const [fx, fy] = fraccionEnCaja(caja, e), z = cpr.zoom;
+    const ux = (fx - z.x) / z.s, uy = (fy - z.y) / z.s;      // punto de la imagen
+    if ($("#f-c-cursor").checked) document.querySelectorAll("#cpr-grid .carta-img").forEach((c) => {
+      if (c === caja) return;
+      const cruz = c.querySelector(".cruz");
+      cruz.hidden = false; cruz.style.left = ux * 100 + "%"; cruz.style.top = uy * 100 + "%";
+    });
+    const ll = cpr.marco ? aLatLon(ux, uy) : null;
+    $("#cpr-pos").textContent = ll ? `📍 ${fmtGrado(ll[1], "N", "S")}  ${fmtGrado(ll[0], "E", "O")}` : " ";
+  });
+  const soltar = () => { arrastre = null; g.classList.remove("moviendo"); };
+  g.addEventListener("pointerup", soltar);
+  g.addEventListener("pointercancel", soltar);
+  g.addEventListener("mouseleave", () => { document.querySelectorAll("#cpr-grid .cruz").forEach((c) => (c.hidden = true)); $("#cpr-pos").innerHTML = "&nbsp;"; });
   cargarPronosticoGFS();
 }
 
