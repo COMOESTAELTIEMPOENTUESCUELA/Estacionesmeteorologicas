@@ -9,9 +9,9 @@ horas_utc: [0, 6, 12, 18]
 
 productos:
   # --- Cartas propias: análisis del GFS dibujado en el servidor -----------
-  # EN PAUSA (28/10/2026): `descargar: false` en las cuatro. No se dibujan ni
-  # se baja nada del GFS; lo que ya se haya dibujado se sigue viendo. Para
-  # retomarlas, sacar esas líneas (o poner `descargar: true`).
+  # APAGADAS (29/10/2026): `activo: false` en las cuatro. No se dibujan, no se
+  # baja nada del GFS y no se muestran (tampoco lo ya dibujado). Para
+  # retomarlas, sacar esas líneas.
   # Reemplazan a las de Bentley (mismos cuatro campos). Ver
   # app/meteo/cartas/diagnostico.py. Bajan ~16 MB por hora sinóptica (solo las
   # variables necesarias) del bucket público de NOAA, que guarda los análisis
@@ -23,7 +23,7 @@ productos:
     fuente: gfs
     dominio: sudamerica
     carta: presion_chorro
-    descargar: false
+    activo: false
     region: [-95, -25, -60, 5]          # lon mín, lon máx, lat mín, lat máx
   - id: gfs_thetae_850
     nombre: "Temperatura potencial equivalente, altura y viento (850 hPa)"
@@ -31,21 +31,21 @@ productos:
     fuente: gfs
     dominio: sudamerica
     carta: thetae_850
-    descargar: false
+    activo: false
   - id: gfs_ivt
     nombre: "Transporte integrado de vapor (IVT) y presión"
     nivel: "Diagnóstico GFS"
     fuente: gfs
     dominio: sudamerica
     carta: ivt
-    descargar: false
+    activo: false
   - id: gfs_vorticidad_500
     nombre: "Vorticidad relativa, altura y viento (500 hPa)"
     nivel: "Diagnóstico GFS"
     fuente: gfs
     dominio: sudamerica
     carta: vorticidad_500
-    descargar: false
+    activo: false
 
   # --- Página de Alicia Bentley (GFS, análisis): respaldo y comparación ----
   # https://www.atmos.albany.edu/student/abentley/realtime/standard.php?domain=southamer&variable=VARIABLE
