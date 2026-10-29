@@ -25,13 +25,16 @@ def horarias(valores, dia=DIA):
 # Temperatura
 # ---------------------------------------------------------------------------
 def test_minima_nocturna_despues_de_un_frente():
-    # Mañana templada (mín 14 a las 6), frente a la tarde, y a las 23 hace 9.
+    # Mañana templada (mín 14 a las 6), frente a la tarde: a las 21 hace 11 y
+    # sigue bajando. La mínima del día va de 21 a 21 hs (la que el termómetro
+    # de las 00 UTC registra); lo de después de las 21 es del día siguiente.
     t = {h: 14 + h * 0.5 for h in range(0, 16)}
     t[6] = 14.0
     t.update({16: 20, 17: 18, 18: 16, 19: 14, 20: 12, 21: 11, 22: 10, 23: 9})
     r = ob.temperaturas(horarias(t), [], DIA)
-    assert (r["tmin"], r["tmin_hora"], r["tmin_periodo"]) == (9, 23, "noche")
-    assert r["periodos"]["madrugada"]["min"] == 14.0   # queda guardada para analizar
+    assert (r["tmin"], r["tmin_hora"], r["tmin_periodo"]) == (11, 21, "noche")
+    assert r["tmin_civil"] == 9                          # la de 00 a 24 hs queda guardada para comparar
+    assert r["periodos"]["madrugada"]["min"] == 14.0
     assert r["completitud"] == 1.0
 
 
@@ -43,13 +46,15 @@ def test_extremo_synop_de_las_12utc_se_usa_si_ocurrio_dentro_del_dia():
     assert r["tmin"] == 8.3 and r["fuente"]["tmin"] == "synop" and r["tmin_hora"] == 6
 
 
-def test_extremo_synop_se_descarta_si_puede_ser_de_la_noche_anterior():
-    # La noche anterior ya hacía 5 grados (a las 23): la mínima de 5,0 que
-    # informa el SYNOP de las 12 UTC puede ser de ESA noche, no de hoy.
+def test_minima_de_la_noche_anterior_despues_de_las_21_es_de_hoy():
+    # A las 23 de ayer ya hacía 5 grados: el termómetro de mínima de las
+    # 12 UTC (21 a 09 hs) la registra y es la mínima de HOY (convención del
+    # equipo y del SMN: la noche que lleva al día). Cuenta como de la madrugada.
     ayer = DIA - timedelta(days=1)
     lecturas = horarias({21: 6.0, 22: 5.4, 23: 5.0}, ayer) + horarias({h: 7.0 + h * 0.3 for h in range(24)})
     r = ob.temperaturas(lecturas, [(datetime(2026, 10, 13, 12, tzinfo=timezone.utc), "tmin", 5.0)], DIA)
-    assert r["tmin"] == 7.0 and r["fuente"]["tmin"] == "lecturas"
+    assert (r["tmin"], r["tmin_hora"], r["tmin_periodo"], r["tmin_dia_anterior"]) == (5.0, 23, "madrugada", True)
+    assert r["tmin_civil"] == 7.0
 
 
 def test_minima_de_la_madrugada_siguiente_no_cuenta_para_hoy():
@@ -66,8 +71,10 @@ def test_minima_de_la_madrugada_siguiente_no_cuenta_para_hoy():
     lecturas = [(utc(25, h), v) for h, v in t25.items()] + [(utc(26, h), v) for h, v in t26.items()]
     extremos = [(utc(25, 12), "tmin", 8.2), (utc(26, 0), "tmin", 7.6), (utc(26, 12), "tmin", 1.3)]
     r = ob.temperaturas(lecturas, extremos, dia)
-    assert (r["tmin"], r["tmin_hora"]) == (5.6, 23)
-    # Y para el 26 sí cuenta (cae casi toda dentro del día).
+    # De 21 a 21 hs: la menor de los termómetros de las 12 UTC del 25 (8,2) y
+    # de las 00 UTC del 26 (7,6, a las 21 hs). La de 00 a 24 hs: 5,6 (23 hs).
+    assert (r["tmin"], r["tmin_hora"], r["tmin_civil"]) == (7.6, 21, 5.6)
+    # Y para el 26 sí cuenta (es su madrugada).
     assert ob.temperaturas(lecturas, extremos, date(2026, 10, 26))["tmin"] == 1.3
 
 

@@ -83,31 +83,39 @@ el día completo):
 
 ### El día
 
-Es el **día civil, de 00 a 24 hs en hora argentina**, no el de 9 a 9 del
-SMN. La mínima puede ser **nocturna**: por ejemplo, después de un frente
-frío que pasa a la tarde, la temperatura sigue bajando hasta la medianoche.
-Con el día civil, la mínima del martes es la más baja de todo el martes, sea
-a las 6 o a las 23. La tabla día por día marca esos casos como "nocturna".
+Es el **día civil, de 00 a 24 hs en hora argentina**, salvo la **mínima**,
+que va de **21 hs del día anterior a 21 hs del día** (00 a 00 UTC). Así la
+verifica el equipo: la menor de los dos termómetros de mínima del SMN, el de
+las **12 UTC** (21 a 09 hs: la madrugada) y el de las **00 UTC del día
+siguiente** (09 a 21 hs: la mínima "nocturna", por ejemplo cuando un frente
+frío pasa de día y la temperatura baja hasta la noche). Los dos períodos
+caen enteros dentro de esa ventana: no hay que adivinar de qué día es cada
+grupo. Lo de después de las 21 hs cuenta para el día siguiente (su
+madrugada). Se guarda también la mínima de 00 a 24 hs (`tmin_civil` en el
+detalle), para comparar. (Hasta el 30/10/2026 se usaba el día civil también
+para la mínima; ver la tabla de problemas, punto 11.)
 
 ### Cómo se arma cada elemento
 
 | Elemento | Observado | Pronosticado |
 |---|---|---|
-| **Máxima y mínima** | El mayor y el menor valor del día entre las lecturas (horarias del SYNOP, o cada pocos minutos en las EMAs), más los extremos que informa el SYNOP en sus grupos 1 y 2 (ver abajo). | `temp_max` / `temp_min` (urbana) y `_suburban` |
+| **Máxima** | El mayor valor del día (00 a 24 hs) entre las lecturas (horarias del SYNOP, o cada pocos minutos en las EMAs), más la máxima que informa el SYNOP en su grupo 1 (ver abajo). | `temp_max` (urbana) y `_suburban` |
+| **Mínima** | El menor valor de 21 a 21 hs: los termómetros de mínima de las 12 y 00 UTC (grupo 2 del SYNOP) y las lecturas de ese período (las EMAs no tienen termómetros; también cubren un parte que falte). | `temp_min` (urbana) y `_suburban` |
 | **Día con precipitación** | EMA: 0,1 mm o más en el día. Sinóptica: algún reporte del día con tiempo presente de precipitación, o una cantidad mayor que 0 cuyo período cae al menos en un 75 % dentro del día. | Algún período con descripción de precipitación (lluvias, lloviznas, chaparrones, tormentas...), como en la hoja del equipo, sin importar la probabilidad. |
 | **Dirección del viento** | El sector de 8 rumbos más frecuente en los valores horarios del día, sin contar las calmas. Si hay empate, el de más viento acumulado. | Todas las direcciones nombradas en los períodos del día. Acierta si la predominante observada está entre ellas. |
 | **Intensidad del viento** | La categoría del mayor viento medio horario del día (no las ráfagas). | La mayor categoría nombrada ("leves a moderados" cuenta como MODERADOS). |
 
 **Los extremos del SYNOP.** Los grupos 1 y 2 de la sección 3 traen la
 máxima y la mínima de las **12 horas anteriores** al reporte:
-- La máxima de las 00 UTC cubre de 09 a 21 hs: cae entera dentro del día y
-  se usa siempre.
-- La mínima de las 12 UTC cubre de 21 hs del día anterior a 09 hs: empieza 3
-  horas antes del día. Se usa solo si es más baja que todas las lecturas de
-  esas 3 horas de afuera, porque entonces seguro ocurrió dentro del día.
-- Si de esas horas no hay lecturas (estaciones que no reportan de noche), no
-  se puede comprobar. En ese caso se usa si la mayor parte de su período cae
-  dentro del día, que es la convención del SMN.
+- Máxima: la de las 00 UTC cubre de 09 a 21 hs, entera dentro del día, y se
+  usa siempre. Una que cae en parte afuera del día (la de las 12 UTC, de 21 a
+  09 hs) se usa solo si se comprueba que ocurrió dentro: la lectura más
+  caliente de su período tiene que estar dentro del día, y el valor ser más
+  alto que todas las lecturas de afuera.
+- Mínima: las de las 12 UTC del día y las 00 UTC del día siguiente se usan
+  siempre (caen enteras en la ventana de 21 a 21). Con un solo termómetro,
+  la otra mitad de la ventana tiene que tener lecturas (al menos una cada
+  3 horas).
 
 **Tiempo presente (ww) que cuenta como precipitación:** 20 a 27 (en la
 última hora) y 50 a 97 y 99 (en el momento). No cuentan 28 (niebla) ni 29 y
@@ -163,8 +171,8 @@ pestaña Estaciones SMN, "Ver en Ogimet" abre la misma estación y período.
 ### Mínimas nocturnas
 
 La pestaña cuenta, para la mínima urbana y la suburbana, en qué período del
-día ocurrió la mínima (madrugada 00-06, mañana 06-12, tarde 12-18, noche
-18-24). También lista los días con mínima nocturna, con la mínima de la
+día ocurrió la mínima (madrugada 00-06, contando las 21-24 del día anterior;
+mañana 06-12, tarde 12-18, noche 18-21). También lista los días con mínima nocturna, con la mínima de la
 madrugada de ese mismo día y lo pronosticado en cada plazo, y compara el
 error de la mínima en esos días contra el resto. En las estaciones que no
 reportan de noche (Bolívar, Tandil, Dolores) el conteo es un mínimo: una
@@ -191,7 +199,7 @@ se pudieron evaluar por falta de datos. Código: `meteo/verificacion/etiquetas.p
 | Viento fuerte | Viento medio horario de 40 km/h o más |
 | Helada / helada agrometeorológica | Mínima ≤ 0 °C / ≤ 3 °C en el abrigo |
 | Caída fuerte de presión | −8 hPa o más en 24 h (indicador local; la ciclogénesis de verdad necesita el mapa de presión de la región) |
-| Mínima nocturna | La mínima ocurrió entre las 18 y las 24 hs |
+| Mínima nocturna | La mínima ocurrió entre las 18 y las 21 hs |
 
 En la pestaña: el filtro **Situación** muestra todas las medidas solo para
 esos días; la tabla **Errores según la situación** compara cada situación
@@ -266,6 +274,7 @@ reproduce, para que no vuelva a pasar.
 | 8 | La Plata urbana (Campbell) tenía solo 27 de 62 días | Consulta de cobertura | Con más de 8000 registros en el rango, ThingSpeak devuelve los **más recientes**; el código suponía los primeros y cortaba | Se pagina hacia atrás hasta que una tanda viene incompleta. Ahora 62 de 62. |
 | 9 | Bolívar tenía lluvia en solo 15 de 62 días | Mensajes reales del 10/08: `31960` a las 12 UTC, `NIL` de noche | El indicador iR = 3 ("grupo de lluvia omitido por ser cero") no se leía, así que la noche quedaba sin información | iR = 3 vale 0 mm (24 h a las 12 UTC; 6 h a las 00, 06 y 18 UTC). Comando `reprocesar-synop` para volver a leer lo guardado sin pedir nada a Ogimet. Ahora 60 de 62. |
 | 10 | El pronóstico del viernes 9/10 de La Plata no aparecía en ningún lado | El portal mostró el del jueves todo el viernes; en la hoja "Pronosticos", la fila decía 10/10 pero se guardó el 9/10 a las 08:14 | Publicado a la mañana con "CREAR PARA MAÑANA (Turno noche)" tildado: TODAS las fechas corridas un día. Revisando la hoja completa: 8 casos así | `config/correcciones_pronosticos.yaml` (registro) + `aplicar-correcciones`: se corrigen las fechas en el lugar, anotando el motivo. "Publicado el día anterior" no siempre es turno noche: hay que mirar la HORA. |
+| 11 | Bahía Blanca 25/10/2026: mínima observada 1,3 contra 8,2 de Ogimet | Comparación a mano con Ogimet | La mínima de 1,3 era de la madrugada del 26 (termómetro de las 12 UTC del 26): se aceptaba para el 25 porque era apenas más baja que la lectura de las 05 hs, pero el extremo real cae entre lecturas. Y el equipo verifica la mínima de 21 a 21 hs, no de 00 a 24 | La mínima va de 21 a 21 hs: la menor de los termómetros de las 12 UTC del día y 00 UTC del día siguiente (7,6 ese día). La de 00 a 24 queda en el detalle. |
 
 Lección general: **revisar siempre la cobertura** (cuántos días hay de cada
 cosa) antes de mirar los resultados. Los problemas 6 a 9 aparecieron así, y

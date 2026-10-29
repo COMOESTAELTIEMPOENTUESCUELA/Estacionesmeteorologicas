@@ -512,7 +512,7 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
         <a class="boton" id="f-v-csv" href="#">Descargar CSV</a>
       </div>
       <p class="ayuda">Pronósticos de Pronóstico UNLP contra lo observado en las estaciones. El día es el día civil
-        (00 a 24 hs): la mínima puede ser de madrugada o nocturna. Un día entra en la cuenta solo si hay pronóstico
+        (00 a 24 hs), salvo la mínima, que va de 21 a 21 hs: la menor de los termómetros de mínima de las 12 UTC (madrugada) y de las 00 UTC (09 a 21 hs: la "nocturna"). Un día entra en la cuenta solo si hay pronóstico
         Y observación completa (n = días comparados). "Plazo 1" = el día siguiente al del pronóstico (su "Día 2"), aunque se haya publicado la noche anterior.
         <b>Persistencia</b> = pronosticar "lo mismo que ayer"; la <b>destreza</b> dice cuánto menos se erra que con ella.</p>
       <p class="ayuda" id="v-nota"></p>
@@ -524,7 +524,7 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
       <div class="tabla-scroll" style="max-height:none"><table class="verif" id="v-temp"></table></div>
 
       <div class="panel-titulo" style="margin-top:16px">Mínimas nocturnas
-        <span class="tenue">(días en que la mínima ocurrió entre las 18 y las 24 hs, por ejemplo después de un frente frío)</span></div>
+        <span class="tenue">(días en que la mínima ocurrió entre las 18 y las 21 hs, por ejemplo después de un frente frío)</span></div>
       <div id="v-noct"></div>
 
       <div class="panel-titulo" style="margin-top:16px">Precipitación: día con / sin precipitación
@@ -602,12 +602,13 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
 
       <details>
         <summary><b>Definiciones y parámetros</b></summary>
-        <p><b>El día</b> es el día civil, de 00 a 24 hs (hora argentina), no el de 9 a 9 del SMN: la mínima puede ser <b>nocturna</b>
-          (por ejemplo, después de un frente frío que pasa a la tarde). La mínima del martes es la más baja de todo el martes, sea a las 6 o a las 23.</p>
+        <p><b>El día</b> es el día civil, de 00 a 24 hs (hora argentina), salvo la <b>mínima</b>, que va de <b>21 hs del día anterior a 21 hs</b>
+          (00 a 00 UTC), como la verifica el equipo: la menor de los dos termómetros de mínima del SMN, el de las 12 UTC (21 a 09 hs, la madrugada)
+          y el de las 00 UTC del día siguiente (09 a 21 hs: la mínima <b>nocturna</b>, por ejemplo cuando un frente frío pasa de día).</p>
         <div class="tabla-scroll"><table>
           <tr><th>Elemento</th><th>Observado</th><th>Pronosticado</th></tr>
-          <tr><td>Máxima y mínima</td><td>Mayor y menor valor del día entre las lecturas, más los extremos que informa el SYNOP (grupos 1 y 2).
-            La mínima de las 12 UTC cubre de 21 a 09 hs: se usa solo si se comprueba que ocurrió dentro del día.</td><td>Máx. y mín. urbana y suburbana</td></tr>
+          <tr><td>Máxima y mínima</td><td>Máxima: mayor valor del día (00 a 24 hs) entre las lecturas, más la máxima del SYNOP (grupo 1).
+            Mínima: menor valor de 21 a 21 hs entre los termómetros de mínima de las 12 y 00 UTC (grupo 2) y las lecturas.</td><td>Máx. y mín. urbana y suburbana</td></tr>
           <tr><td>Día con precipitación</td><td>EMA: 0,1 mm o más. Sinóptica: algún reporte con tiempo presente de precipitación (llovizna con traza incluida),
             o una cantidad mayor que 0 cuyo período cae al menos 75 % dentro del día.</td><td>Algún período con lluvias, lloviznas, chaparrones, tormentas... (sin mirar la probabilidad, como la hoja)</td></tr>
           <tr><td>Dirección del viento</td><td>Sector de 8 rumbos más frecuente en los valores horarios, sin contar las calmas</td><td>Todas las direcciones nombradas; acierta si la observada está entre ellas</td></tr>
@@ -661,7 +662,7 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
           <tr><td>Viento fuerte</td><td>Viento medio horario de 40 km/h o más</td><td>Categoría FUERTES</td></tr>
           <tr><td>Helada / helada agrometeorológica</td><td>Mínima de 0 °C o menos / de 3 °C o menos en el abrigo (a nivel del suelo suele ya helar)</td><td>Pronóstico para el agro</td></tr>
           <tr><td>Caída fuerte de presión</td><td>La presión baja 8 hPa o más en 24 h. Indicador local: suele acompañar a una ciclogénesis cercana, pero detectarla de verdad necesita el mapa de presión de la región (etapa futura)</td><td>Situaciones de mal tiempo</td></tr>
-          <tr><td>Mínima nocturna</td><td>La mínima del día ocurrió entre las 18 y las 24 hs</td><td>El pronóstico suele dar la de la madrugada</td></tr>
+          <tr><td>Mínima nocturna</td><td>La mínima del día ocurrió entre las 18 y las 21 hs</td><td>El pronóstico suele dar la de la madrugada</td></tr>
         </table></div>
       </details>
 
@@ -827,7 +828,7 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
         <div id="cp-mapa"></div>
         <div style="overflow-x:auto"><table id="cp-tabla"></table></div>
       </div>
-      <p class="ayuda" style="margin-top:8px">Pronosticado / observado en cada ciudad para el día civil (00 a 24 hs de Argentina) de la carta elegida.
+      <p class="ayuda" style="margin-top:8px">Pronosticado / observado en cada ciudad para el día de la carta (la máxima, de 00 a 24 hs; la mínima, de 21 hs del día anterior a 21 hs, como la verifica el equipo).
         Temperaturas: urbana (en La Plata, el Observatorio; en las demás, el aeropuerto). El color es el error:
         <span class="err e-ok">≤2</span> <span class="err e-medio">≤4</span> <span class="err e-mal">&gt;4 °C</span>;
         ▲ hizo más calor de lo pronosticado, ▼ más frío. Tocá una ciudad para ver el pronóstico por período; "Ogimet ↗" abre los SYNOP de su aeropuerto para ese día (horas en UTC: el día civil va de las 03 UTC a las 03 UTC del día siguiente; la lluvia de 24 h y los extremos están en el parte de las 12 UTC del día siguiente).</p>
@@ -2081,7 +2082,7 @@ function dibujarVerifDias() {
     (dias.length ? ordenarDias(dias, amb).map((d) => {
       const pp = d.pp, vd = d.viento_dir, vi = d.viento_int;
       const tmin = d[`tmin_${amb}`];
-      const nocturna = d.tmin_periodo.obs === "noche" ? ' <span class="chip" title="La mínima observada fue entre las 18 y las 24 hs">nocturna</span>' : "";
+      const nocturna = d.tmin_periodo.obs === "noche" ? ' <span class="chip" title="La mínima observada fue entre las 18 y las 21 hs">nocturna</span>' : "";
       return `<tr>
         <td>${fmtFecha.format(new Date(t(d)))}<br>${linksOgimet([d[`tmax_${amb}`].estacion, tmin.estacion, pp.estacion, vd.estacion], d.fecha)}</td>
         <td>${esc(d.pronosticador || "–")}<br>${chipsEtiquetas(d)}${d.anticipado ? ' <span class="chip" title="Publicado la noche anterior (' + esc(d.publicado_el) + ')">noche ant.</span>' : ""}</td>
