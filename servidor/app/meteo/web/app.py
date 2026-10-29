@@ -692,7 +692,9 @@ CARTAS_CONFIG = os.environ.get("CARTAS_CONFIG", "/config/cartas.yaml")
 ARCHIVO_DIR = os.environ.get("ARCHIVO_DIR", "/archivo")
 
 
-def _cartas_productos():
+def _cartas_productos(con_pronosticos=False):
+    """Las cartas activas. Sin con_pronosticos, solo las que se archivan por
+    hora (las del pronóstico del GFS tienen su propia tarjeta)."""
     import yaml
     try:
         with open(CARTAS_CONFIG, encoding="utf-8") as f:
@@ -701,8 +703,10 @@ def _cartas_productos():
         return []
     horas = cfg.get("horas_utc", [0, 6, 12, 18])
     return [{**{k: p.get(k) for k in ("id", "nombre", "nivel", "fuente", "zona", "dominio", "solo_con_tormenta")},
-             "horas_utc": p.get("horas_utc", horas), "solo_archivo": p.get("descargar", True) is False}
-            for p in cfg.get("productos", []) if p.get("activo", True)]
+             "horas_utc": p.get("horas_utc", horas), "solo_archivo": p.get("descargar", True) is False,
+             "pronostico": p.get("pronostico", True)}
+            for p in cfg.get("productos", [])
+            if p.get("activo", True) and (con_pronosticos or p.get("fuente") != "gfs_pronostico")]
 
 
 @app.get("/api/cartas/disponibles")
@@ -744,12 +748,14 @@ def cartas(ts: datetime):
 
 @app.get("/api/cartas/pronostico")
 def cartas_pronostico():
-    """Pronóstico del GFS (cartas de Bentley) de la última corrida guardada:
-    por carta, la corrida y la imagen de cada plazo."""
+    """Pronóstico del GFS de la última corrida guardada (las cartas dibujadas
+    en el servidor y, si están activadas, las de la página de Bentley): por
+    carta, la corrida y la imagen de cada plazo."""
     from ..cartas import pronostico
     salida = []
-    for p in _cartas_productos():
-        if p["fuente"] != "bentley" or p["solo_archivo"]:
+    for p in _cartas_productos(con_pronosticos=True):
+        if not (p["fuente"] == "gfs_pronostico"
+                or (p["fuente"] == "bentley" and p["pronostico"] and not p["solo_archivo"])):
             continue
         d = pronostico.leer(ARCHIVO_DIR, p["id"])
         if not d:

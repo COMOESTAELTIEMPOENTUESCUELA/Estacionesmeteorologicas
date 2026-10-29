@@ -393,16 +393,20 @@ def test_api_pronostico_gfs(cliente, tmp_path, monkeypatch):
     from meteo.web import app as web
     cfg = tmp_path / "cartas.yaml"
     cfg.write_text("productos:\n  - {id: b_vort, nombre: Vort, nivel: '500 hPa', fuente: bentley, dominio: southamer, variable: rel_vort}\n"
-                   "  - {id: b_viejo, nombre: V, fuente: bentley, dominio: southamer, variable: x, descargar: false}\n")
+                   "  - {id: b_viejo, nombre: V, fuente: bentley, dominio: southamer, variable: x, descargar: false}\n"
+                   "  - {id: b_sin, nombre: S, fuente: bentley, dominio: southamer, variable: y, pronostico: false}\n"
+                   "  - {id: g_ivt, nombre: IVT, nivel: '700 hPa', fuente: gfs_pronostico, carta: ivt}\n")
     monkeypatch.setattr(web, "CARTAS_CONFIG", str(cfg))
     monkeypatch.setattr(web, "ARCHIVO_DIR", str(tmp_path))
     assert cliente.get("/api/cartas/pronostico").json() == {"productos": []}
     ini = datetime(2026, 10, 12, 6, tzinfo=timezone.utc)
-    for pid in ("b_vort", "b_viejo"):
+    for pid in ("b_vort", "b_viejo", "b_sin", "g_ivt"):
         tmp = pronostico.empezar(tmp_path, pid)
         pronostico.publicar(tmp_path, pid, tmp, ini, [(6, datetime(2026, 10, 12, 12, tzinfo=timezone.utc), "a.png")])
     monkeypatch.setattr(web, "WEB_MODO", "cartas")          # también en la copia pública
     d = cliente.get("/api/cartas/pronostico").json()["productos"]
     monkeypatch.setattr(web, "WEB_MODO", "completo")
-    assert [p["id"] for p in d] == ["b_vort"]               # las que ya no se bajan, no
+    assert [p["id"] for p in d] == ["b_vort", "g_ivt"]      # las que ya no se bajan (o sin pronóstico), no
+    # Las del pronóstico propio no aparecen entre las cartas archivadas por hora.
+    assert "g_ivt" not in [p["id"] for p in web._cartas_productos()]
     assert d[0]["cuadros"][0]["url"] == "/cartas-img/_pronostico/b_vort/a.png" and d[0]["nivel"] == "500 hPa"

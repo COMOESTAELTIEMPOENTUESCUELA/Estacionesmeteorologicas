@@ -37,10 +37,11 @@ class Campo:
     valores: np.ndarray    # 2D (lat, lon)
 
 
-def urls(ts, resolucion="0p50"):
-    """Direcciones posibles del análisis (NOAA agregó la carpeta "atmos" en 2021)."""
+def urls(ts, resolucion="0p50", plazo=0):
+    """Direcciones posibles del archivo de la corrida ts (NOAA agregó la carpeta
+    "atmos" en 2021). plazo=0 es el análisis; 6, 12... los pronósticos."""
     ts = ts.astimezone(timezone.utc)
-    nombre = f"gfs.t{ts:%H}z.pgrb2.{resolucion}.f000"
+    nombre = f"gfs.t{ts:%H}z.pgrb2.{resolucion}.f{plazo:03d}"
     return [f"{BASE}/gfs.{ts:%Y%m%d}/{ts:%H}/atmos/{nombre}", f"{BASE}/gfs.{ts:%Y%m%d}/{ts:%H}/{nombre}"]
 
 
@@ -106,15 +107,16 @@ def decodificar(mensaje, region):
     return Campo(lat[fl], lon[cl], valores[np.ix_(fl, cl)])
 
 
-def bajar(ts, pedidos, region, sesion, resolucion="0p50"):
-    """{(variable, nivel): Campo} del análisis de las ts. FileNotFoundError si
-    todavía no está publicado (sale ~3,5-4 h después de la hora)."""
-    for url in urls(ts, resolucion):
+def bajar(ts, pedidos, region, sesion, resolucion="0p50", plazo=0):
+    """{(variable, nivel): Campo} de la corrida ts (plazo=0: el análisis).
+    FileNotFoundError si todavía no está publicado (el análisis sale ~3,5-4 h
+    después de la hora; el +192 h, ~5 h)."""
+    for url in urls(ts, resolucion, plazo):
         r = sesion.get(url + ".idx", timeout=60)
         if r.status_code == 200:
             break
     else:
-        raise FileNotFoundError(f"el análisis GFS de {ts:%d/%m %H} UTC todavía no está publicado")
+        raise FileNotFoundError(f"el GFS de {ts:%d/%m %H} UTC (+{plazo} h) todavía no está publicado")
     indice = leer_indice(r.text)
     campos = {}
     for ini, fin, partes in tramos(indice, pedidos):

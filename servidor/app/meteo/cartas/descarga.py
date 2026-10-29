@@ -78,8 +78,8 @@ def _correr(cfg, raiz, sesion, tormenta=None):
         if p["fuente"] == "glm":
             nuevas += _correr_rayos(p, raiz, sesion, tuple(p.get("horas_utc", horas)), tormenta)
             continue
-        if p["fuente"] == "gfs":
-            continue      # se dibujan abajo, todas juntas (un solo análisis para las cuatro)
+        if p["fuente"] in ("gfs", "gfs_pronostico"):
+            continue      # se dibujan abajo, todas juntas (un solo archivo del GFS para las cuatro)
         if p["fuente"] != "bentley":
             log.info("cartas %s: fuente %s todavía no implementada", p["id"], p["fuente"])
             continue
@@ -140,8 +140,16 @@ def _correr(cfg, raiz, sesion, tormenta=None):
     desde = ahora - timedelta(hours=OGIMET_HORAS_ATRAS)
     nuevas += _correr_ogimet(cfg, raiz, sesion, desde, ahora)
     # Las archivadas antes de que existieran las miniaturas (o si alguna falló).
-    mins = archivo.completar_miniaturas(raiz, [p["id"] for p in activos])
+    mins = archivo.completar_miniaturas(raiz, [p["id"] for p in activos if p["fuente"] != "gfs_pronostico"])
     log.info("cartas: %d nuevas%s", nuevas, f", {mins} miniaturas completadas" if mins else "")
+    # Al final: cuando hay corrida nueva tarda ~15-25 min (132 mapas), y así no demora lo demás.
+    prono = [p for p in activos if p["fuente"] == "gfs_pronostico"]
+    if prono:
+        try:
+            _correr_pronostico_gfs(prono, raiz, sesion)
+        except Exception as ex:
+            errores.append(f"pronóstico GFS: {str(ex)[:150]}")
+            log.warning("cartas: %s", errores[-1])
     if errores:
         # Lo demás ya se bajó; esto deja la falla a la vista en "Estado de la red".
         raise RuntimeError(f"{nuevas} cartas nuevas, pero: " + "; ".join(errores))
@@ -299,6 +307,66 @@ def _correr_pronostico_bentley(p, corrida, raiz, sesion):
     log.info("cartas %s: pronóstico de la corrida %s, %d de %d plazos", p["id"], corrida["inicio"],
              len(guardados), len(cuadros))
     return nuevos
+
+
+GFS_PRONO_CORRIDAS_ATRAS = 4    # si la PC estuvo apagada, no se buscan corridas de hace más de un día
+
+
+def _ultima_corrida_gfs(sesion, plazo_final, ahora=None):
+    """Inicio de la corrida más nueva del GFS que ya está completa en NOAA (ya
+    está el último plazo; los plazos salen en orden), o None."""
+    from . import gfs
+    ahora = ahora or datetime.now(timezone.utc)
+    t = ahora.replace(hour=ahora.hour // 6 * 6, minute=0, second=0, microsecond=0)
+    for _ in range(GFS_PRONO_CORRIDAS_ATRAS):
+        if sesion.get(gfs.urls(t, plazo=plazo_final)[0] + ".idx", timeout=30).status_code == 200:
+            return t
+        t -= timedelta(hours=6)
+    return None
+
+
+def _correr_pronostico_gfs(productos, raiz, sesion, ahora=None):
+    """Pronóstico del GFS dibujado en el servidor con el formato de las cartas
+    de Bentley (estilo_bentley.py): todos los plazos de la última corrida.
+    Como el de Bentley, se guarda SOLO la última corrida (pronostico.py): la
+    nueva se arma aparte y reemplaza a la anterior al terminar.
+    Devuelve cuántas imágenes dibujó."""
+    from . import estilo_bentley as eb, gfs, pronostico
+    inicio = _ultima_corrida_gfs(sesion, eb.PLAZOS[-1], ahora)
+    if inicio is None:
+        return 0
+    def al_dia(p):
+        d = pronostico.leer(raiz, p["id"])
+        return d and datetime.fromisoformat(d["inicio"]) >= inicio and len(d["cuadros"]) >= len(eb.PLAZOS)
+    if all(al_dia(p) for p in productos):
+        return 0
+    log.info("cartas: pronóstico GFS de la corrida %s, dibujando %d plazos", inicio, len(eb.PLAZOS))
+    tmps = {p["id"]: pronostico.empezar(raiz, p["id"]) for p in productos}
+    cuadros = {p["id"]: [] for p in productos}
+    try:
+        for plazo in eb.PLAZOS:
+            for espera in (*REINTENTOS_SEG, None):
+                try:
+                    campos = gfs.bajar(inicio, eb.PEDIDOS, eb.REGION, sesion, plazo=plazo)
+                    break
+                except Exception as ex:
+                    if espera is None:
+                        raise
+                    log.info("cartas: GFS +%d h falló (%s); reintento en %d s", plazo, str(ex)[:80], espera)
+                    time.sleep(espera)
+            imagenes = eb.dibujar(campos, inicio, plazo)
+            for p in productos:
+                nom = pronostico.nombre(p["id"], inicio, plazo)
+                (tmps[p["id"]] / nom).write_bytes(imagenes[p["carta"]])
+                cuadros[p["id"]].append((plazo, inicio + timedelta(hours=plazo), nom))
+    except Exception:
+        for t in tmps.values():
+            pronostico.descartar(t)        # queda la corrida anterior; se reintenta en la próxima vuelta
+        raise
+    for p in productos:
+        pronostico.publicar(raiz, p["id"], tmps[p["id"]], inicio, cuadros[p["id"]])
+    log.info("cartas: pronóstico GFS de la corrida %s listo (%d plazos)", inicio, len(eb.PLAZOS))
+    return len(eb.PLAZOS) * len(productos)
 
 
 GFS_HORAS_ATRAS = 48      # el análisis sale ~4 h después de la hora; si la PC estuvo apagada, se recupera

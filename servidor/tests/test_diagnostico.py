@@ -113,3 +113,66 @@ def test_descargar_false_no_baja_pero_se_ve(tmp_path):
     cfg = {"productos": [{"id": "b1", "fuente": "bentley", "dominio": "southamer", "variable": "x",
                           "descargar": False}]}
     assert descarga._correr(cfg, tmp_path, Sesion()) == 0
+
+
+def test_pronostico_gfs_todos_los_plazos_de_la_ultima_corrida(tmp_path, monkeypatch):
+    """Pronóstico dibujado en el servidor (formato Bentley): la corrida más
+    nueva que ya está completa en NOAA, todos los plazos, y solo la última."""
+    from meteo.cartas import descarga, estilo_bentley as eb, gfs, pronostico
+    monkeypatch.setattr(descarga, "REINTENTOS_SEG", (0, 0))
+    publicadas = {datetime(2026, 10, 29, 6, tzinfo=UTC)}      # la de las 12 todavía no llegó a +192 h
+    bajadas, falla = [], {"plazo": None}
+
+    class Sesion:
+        def get(self, url, timeout):
+            ts = datetime.strptime(url.split("gfs.")[1][:8] + url.split("/")[4], "%Y%m%d%H").replace(tzinfo=UTC)
+            return type("R", (), {"status_code": 200 if ts in publicadas else 404})()
+
+    def bajar(ts, pedidos, region, sesion, plazo=0):
+        if plazo == falla["plazo"]:
+            raise ConnectionError("cortado")
+        bajadas.append((ts, plazo))
+        return {"plazo": plazo}
+
+    png = b"\x89PNG\r\n\x1a\n" + b"0" * 100
+    monkeypatch.setattr(gfs, "bajar", bajar)
+    monkeypatch.setattr(eb, "dibujar", lambda campos, inicio, plazo: {k: png + bytes([plazo]) for k in eb.CARTAS})
+    productos = [{"id": f"pro_{k}", "fuente": "gfs_pronostico", "carta": k} for k in eb.CARTAS]
+    ahora = datetime(2026, 10, 29, 16, 30, tzinfo=UTC)
+    assert descarga._correr_pronostico_gfs(productos, tmp_path, Sesion(), ahora) == 33 * 4
+    d = pronostico.leer(tmp_path, "pro_ivt")
+    assert d["inicio"] == "2026-10-29T06:00:00+00:00" and len(d["cuadros"]) == 33
+    assert d["cuadros"][-1]["plazo_h"] == 192 and d["cuadros"][-1]["valida"] == "2026-11-06T06:00:00+00:00"
+    assert len(bajadas) == 33                                    # un archivo por plazo para las cuatro
+    bajadas.clear()
+    assert descarga._correr_pronostico_gfs(productos, tmp_path, Sesion(), ahora) == 0 and not bajadas
+    # Sale la de las 12, pero un plazo falla siempre: queda la de las 06 entera.
+    publicadas.add(datetime(2026, 10, 29, 12, tzinfo=UTC))
+    falla["plazo"] = 96
+    with pytest.raises(ConnectionError):
+        descarga._correr_pronostico_gfs(productos, tmp_path, Sesion(), ahora)
+    assert pronostico.leer(tmp_path, "pro_ivt")["inicio"] == "2026-10-29T06:00:00+00:00"
+    falla["plazo"] = None
+    assert descarga._correr_pronostico_gfs(productos, tmp_path, Sesion(), ahora) == 33 * 4
+    archivos = sorted(f.name for f in pronostico.carpeta(tmp_path, "pro_ivt").iterdir())
+    assert len(archivos) == 34 and all("2026102912" in a for a in archivos if a.endswith(".png"))
+
+
+def test_estilo_bentley_dibuja_las_cuatro():
+    """Con campos inventados (pero razonables) salen las cuatro imágenes."""
+    from meteo.cartas import estilo_bentley as eb
+    from meteo.cartas.gfs import Campo
+    lat = np.arange(25, -80.1, -0.5)
+    lon = np.arange(-150, 40.1, 0.5)
+    la, lo = np.meshgrid(lat, lon, indexing="ij")
+    onda = np.sin(np.radians(lo * 3)) * np.cos(np.radians(la * 2))
+    valores = {"PRMSL": 101300 + 1500 * onda, "PRES": np.full(la.shape, 100000.0), "TMP": 280 + 10 * onda,
+               "RH": 60 + 30 * onda, "ABSV": 1e-4 * onda, "VVEL": -1.0 * onda, "SPFH": 0.008 + 0.004 * onda,
+               "UGRD": 20 + 30 * onda, "VGRD": 10 * onda}
+    alturas = {"1000 mb": 100, "850 mb": 1450, "700 mb": 3000, "500 mb": 5600}
+    campos = {}
+    for var, nivel in eb.PEDIDOS:
+        v = (alturas[nivel] + 60 * onda) if var == "HGT" else valores[var]
+        campos[(var, nivel)] = Campo(lat, lon, np.asarray(v, float))
+    out = eb.dibujar(campos, datetime(2026, 10, 29, 6, tzinfo=UTC), 48)
+    assert set(out) == set(eb.CARTAS) and all(png[:4] == b"\x89PNG" for png in out.values())

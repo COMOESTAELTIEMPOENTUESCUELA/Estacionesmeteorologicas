@@ -73,31 +73,52 @@ docker compose exec ingesta python -m meteo.ingesta historico cartas --desde 202
 CAPE...): agregar las variables a `PEDIDOS`, el cálculo y el dibujo en
 `diagnostico.dibujar`, y la entrada en `cartas.yaml` con `carta: <nombre>`.
 
-## Pronóstico GFS (cartas de Bentley, última corrida)
+## Pronóstico GFS (dibujado en el servidor, formato Bentley)
 
-La página de Bentley, además de los análisis, muestra el **pronóstico de la
-última corrida del GFS**: cada 6 h, hasta ~8 días (cuadros después de
-`startFrame`, hasta `maxFrame`). El servidor lo baja en la vuelta de cada hora
-cuando aparece una corrida nueva, y en Cartas se ve en la tarjeta
-**"Pronóstico GFS"**: las 4 cartas del plazo elegido (◀ ▶ de a 6 h, o
-"Animar"), con la hora válida en hora argentina y UTC.
+En Cartas, la tarjeta **"Pronóstico GFS"** muestra las 4 cartas del plazo
+elegido (◀ ▶ de a 6 h, o "Animar"), de +0 a +192 h, con la hora válida en
+hora argentina y UTC. Desde el 29/10/2026 se **dibujan en el servidor** con
+los datos del GFS de NOAA y el mismo formato que las de Alicia Bentley
+(`app/meteo/cartas/estilo_bentley.py`): misma región (Mercator, 122,5°O a
+12°E, 67°S a 12°N), mismos campos, intervalos y colores (leídos píxel por
+píxel de las barras de sus imágenes). No llevan su firma: dicen "GFS 0,5°
+(NOAA), procesado en el servidor del proyecto".
 
-- Se guarda **solo la última corrida**, en `cartas/_pronostico/<carta>/`
-  (`corrida.json` + una imagen por plazo, con la corrida en el nombre).
-  ~25 MB fijos: no crece.
-- La corrida nueva se arma en una carpeta aparte y recién al terminar
-  reemplaza a la anterior: nunca se ve a medio bajar.
-- Cada imagen tiene que ser de esa corrida (`Last-Modified` posterior al
-  inicio). Si la página ya anuncia la corrida nueva pero los últimos plazos
-  todavía son de la anterior (Bentley no terminó, o esa corrida no llega a 8
-  días), se guardan los plazos nuevos (si son al menos +48 h; si no, queda la
-  corrida anterior) y en cada vuelta se completa el resto sin volver a bajar
-  lo que ya está. La tarjeta lo avisa.
-- Si una imagen falla (el servidor de Bentley a veces corta alguna conexión),
-  se reintenta a los 5 y a los 15 segundos.
-- Descarga: ~25 MB por corrida (128 imágenes, una por segundo).
-- Para no bajar el pronóstico de una carta: `pronostico: false` en el YAML.
+| Carta | Qué muestra |
+|---|---|
+| `mslp_jet` | presión a nivel del mar (cada 4 hPa), espesor 1000-500 (rojo ≥ 546, azul ≤ 540 dam), viento en 250 hPa (m/s) |
+| `850_thetae` | altura de 850 hPa (cada 3 dam), θe (K, cada 6), viento (nudos) |
+| `ivt` | altura de 700 hPa (cada 3 dam), IVT 1000-300 hPa (kg m⁻¹ s⁻¹) con sus vectores |
+| `500_vort` | altura (cada 6 dam) y temperatura (cada 4 °C) en 500 hPa, ascenso (omega cada −0,5 Pa/s), vorticidad ciclónica, viento |
+
+Por qué: el 28/10/2026 la página de Bentley copió la misma imagen vieja (del
+20/10, +192 h) en todos los cuadros, y se guardó como si fuera el pronóstico.
+Dibujándolo acá no dependemos de que su página ande.
+
+- **Cuándo:** en la vuelta de cada hora se busca la corrida más nueva que ya
+  tiene el +192 h en NOAA (sale ~5 h después de su hora de inicio). Si es más
+  nueva que la guardada, se dibujan los 33 plazos: ~15 MB de NOAA y ~15-20 s
+  por plazo, unos **15-25 minutos por corrida**, al final de la vuelta (no
+  demora el resto). Cuatro corridas por día: ~2 GB por día de internet.
+- **Solo la última corrida**, en `cartas/_pronostico/<carta>/` (`corrida.json`
+  + una imagen por plazo, con la corrida en el nombre): ~80 MB fijos, no
+  crece. La nueva se arma en una carpeta aparte y reemplaza a la anterior al
+  terminar: nunca se ve a medias. Si algo falla en el medio, queda la
+  anterior y se reintenta en la vuelta siguiente.
+- Cada plazo que falla se reintenta a los 5 y 15 segundos.
+- Para apagarlo: `activo: false` en las cuatro `gfs_pro_*` del YAML.
 - Está también en la copia pública (`/api/cartas/pronostico`).
+
+### El pronóstico de la página de Bentley (apagado)
+
+Se puede seguir bajando el de su página (`pronostico: true`, o sacar la
+línea, en las `bentley_*`): todos los plazos de su última corrida, con los
+mismos controles que los análisis (`Last-Modified` posterior al inicio de la
+corrida, reintentos, corridas publicadas a medias). Además, desde el
+29/10/2026: un cuadro sin `Last-Modified` no se acepta, y si dos plazos traen
+**exactamente la misma imagen**, se descartan (y una tanda repetida ya
+guardada se borra sola). Lo mismo para los análisis: una carta idéntica a la
+de otra hora no se archiva.
 
 ## Bentley (respaldo)
 

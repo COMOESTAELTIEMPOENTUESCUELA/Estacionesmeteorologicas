@@ -719,7 +719,7 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
     </div>
     <div class="tarjeta" id="cpr" style="margin-top:16px" hidden>
       <div class="filtros">
-        <h2 style="margin:0; font-size:18px; flex:1 1 280px">Pronóstico GFS <span class="tenue" style="font-weight:400">(cartas de Alicia Bentley, última corrida)</span></h2>
+        <h2 style="margin:0; font-size:18px; flex:1 1 280px">Pronóstico GFS <span class="tenue" style="font-weight:400">(última corrida, con el formato de las cartas de Bentley)</span></h2>
         <button class="boton" id="cpr-ant" title="6 horas antes">◀ 6 h</button>
         <input type="range" id="cpr-plazo" min="0" max="0" step="1" value="0" style="flex:1 1 220px">
         <button class="boton" id="cpr-sig" title="6 horas después">6 h ▶</button>
@@ -2031,7 +2031,7 @@ function moverCarta(horas) {
   cargarCartas();
 }
 
-// ---------- Pronóstico GFS (cartas de Bentley, última corrida) ----------
+// ---------- Pronóstico GFS (última corrida, dibujado en el servidor) ----------
 const cpr = { productos: [], plazos: [], i: 0, reloj: null };
 const fmtSemanaAR = new Intl.DateTimeFormat("es-AR", { timeZone: TZ, weekday: "long" });
 const fmtHH_AR = new Intl.DateTimeFormat("es-AR", { timeZone: TZ, hour: "2-digit", hourCycle: "h23" });
@@ -2050,7 +2050,7 @@ async function cargarPronosticoGFS() {
   $("#cpr-nota").textContent = `Corrida del GFS del ${fmtCorrida(ini)} · ` +
     `${cpr.plazos.length} plazos, hasta +${cpr.plazos[cpr.plazos.length - 1]} h` +
     (cpr.productos.some((p) => p.cuadros.length < p.esperados) ? " (el resto todavía no está publicado: se completa solo)" : "") +
-    ". Se actualiza solo cuando la página de Bentley publica una corrida nueva." +
+    ". Se actualiza solo con cada corrida nueva del GFS (cada 6 h, ~5 h después de su hora de inicio)." +
     " Es un pronóstico del modelo, no un análisis: sirve como guía.";
   const r = $("#cpr-plazo");
   r.max = cpr.plazos.length - 1;
