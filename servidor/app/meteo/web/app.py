@@ -756,6 +756,7 @@ def cartas_pronostico():
             continue
         base = f"/cartas-img/{pronostico.CARPETA}/{p['id']}/"
         salida.append({"id": p["id"], "nombre": p["nombre"], "nivel": p["nivel"], "inicio": d["inicio"],
+                       "esperados": d.get("esperados", len(d["cuadros"])),
                        "cuadros": [{**c, "url": base + c["archivo"]} for c in d["cuadros"]]})
     return {"productos": salida}
 

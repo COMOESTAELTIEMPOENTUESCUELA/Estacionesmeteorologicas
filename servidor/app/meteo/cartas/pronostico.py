@@ -9,8 +9,10 @@ Se guarda en ARCHIVO_DIR/cartas/_pronostico/<producto>/:
 La corrida va en el nombre de cada imagen: así el navegador puede guardarlas
 en caché para siempre sin mostrar nunca una de otra corrida.
 
-Cuando sale una corrida nueva se baja completa a una carpeta aparte y recién
-al terminar reemplaza a la anterior: nunca queda un pronóstico a medias.
+Cuando sale una corrida nueva se arma en una carpeta aparte y recién al
+terminar reemplaza a la anterior: nunca se ve a medio bajar. Si la página
+todavía no publicó todos los plazos de la corrida, se guardan los que hay y se
+completan en las vueltas siguientes.
 No crece: ~25 MB fijos para las 4 cartas.
 """
 import json
@@ -51,11 +53,13 @@ def empezar(raiz, producto):
     return tmp
 
 
-def publicar(raiz, producto, tmp, inicio, cuadros):
+def publicar(raiz, producto, tmp, inicio, cuadros, esperados=None):
     """Escribe corrida.json y reemplaza la corrida anterior por la nueva.
-    cuadros: [(plazo, valida, archivo)]."""
+    cuadros: [(plazo, valida, archivo)]; esperados: cuántos plazos tiene la
+    corrida en la página (si hay menos, se completa en las vueltas siguientes)."""
     (tmp / "corrida.json").write_text(json.dumps({
         "inicio": inicio.isoformat(),
+        "esperados": esperados if esperados is not None else len(cuadros),
         "cuadros": [{"plazo_h": p, "valida": v.isoformat(), "archivo": a} for p, v, a in cuadros],
     }, ensure_ascii=False), encoding="utf-8")
     final = carpeta(raiz, producto)

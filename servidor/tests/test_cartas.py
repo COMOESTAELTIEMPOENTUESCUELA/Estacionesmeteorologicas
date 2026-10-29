@@ -545,3 +545,37 @@ def test_pronostico_reintenta_una_imagen_cortada(tmp_path, monkeypatch):
     p = {"id": "b_vort", "dominio": "southamer", "variable": "rel_vort"}
     assert descarga._correr_pronostico_bentley(p, c, tmp_path, Sesion()) == 32
     assert fallas["n"] == 2
+
+
+def test_pronostico_corrida_publicada_a_medias(tmp_path, monkeypatch):
+    """Si la página solo tiene nuevos los primeros plazos, se guardan esos y en
+    la vuelta siguiente se completa sin volver a bajar lo que ya está."""
+    from meteo.cartas import pronostico
+    monkeypatch.setattr(descarga, "PAUSA_SEG", 0)
+    c = bentley.leer_corrida(HTML)
+    pedidos = []
+
+    class Sesion:
+        def __init__(self, hasta):
+            self.hasta = hasta                # último cuadro ya publicado de esta corrida
+        def get(self, url, timeout):
+            n = int(url.rsplit("_", 1)[1].split(".")[0])
+            pedidos.append(n)
+            lm = "Mon, 12 Oct 2026 10:00:00 GMT" if n <= self.hasta else "Mon, 12 Oct 2026 01:00:00 GMT"
+            return type("R", (), {"content": PNG, "headers": {"Last-Modified": lm},
+                                  "raise_for_status": lambda self: None})()
+
+    p = {"id": "b_vort", "dominio": "southamer", "variable": "rel_vort"}
+    # Publicada hasta el cuadro 61 (+24 h): solo 4 plazos, menos que el mínimo -> no se guarda nada.
+    assert descarga._correr_pronostico_bentley(p, c, tmp_path, Sesion(61)) == 0
+    assert pronostico.leer(tmp_path, "b_vort") is None
+    # Hasta el 77 (+120 h): se guardan esos 20.
+    assert descarga._correr_pronostico_bentley(p, c, tmp_path, Sesion(77)) == 20
+    d = pronostico.leer(tmp_path, "b_vort")
+    assert len(d["cuadros"]) == 20 and d["esperados"] == 32
+    # La vuelta siguiente completa el resto y no vuelve a pedir lo que ya tiene.
+    pedidos.clear()
+    assert descarga._correr_pronostico_bentley(p, c, tmp_path, Sesion(89)) == 12
+    assert min(pedidos) == 78 and len(pronostico.leer(tmp_path, "b_vort")["cuadros"]) == 32
+    pedidos.clear()
+    assert descarga._correr_pronostico_bentley(p, c, tmp_path, Sesion(89)) == 0 and not pedidos   # completa

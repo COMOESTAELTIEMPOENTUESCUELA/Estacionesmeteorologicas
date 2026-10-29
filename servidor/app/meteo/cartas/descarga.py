@@ -188,36 +188,59 @@ def _pedir_con_reintentos(sesion, url):
             time.sleep(espera)
 
 
+MIN_PLAZOS_CORRIDA_NUEVA = 8     # +48 h: una corrida nueva más corta que esto no reemplaza a la anterior
+
+
 def _correr_pronostico_bentley(p, corrida, raiz, sesion):
-    """Todos los plazos del pronóstico de la última corrida de Bentley. Si ya
-    está guardada esa corrida, no hace nada. Se baja completa a una carpeta
-    aparte y recién al final reemplaza a la anterior. Devuelve cuántos bajó."""
+    """Pronóstico de la última corrida de Bentley, todos los plazos que estén
+    publicados. Se arma en una carpeta aparte y recién al final reemplaza a lo
+    anterior (nunca se ve a medias).
+
+    Si la corrida nueva tiene publicados solo los primeros plazos (los últimos
+    cuadros todavía son de la corrida anterior: Bentley no terminó, o esa
+    corrida no llega a 8 días), se guardan los que hay y en cada vuelta se
+    intenta completar el resto SIN volver a bajar lo que ya se tiene.
+    Devuelve cuántas imágenes nuevas bajó."""
+    import shutil
     from . import pronostico
-    if pronostico.corrida_guardada(raiz, p["id"]) == corrida["inicio"]:
-        return 0
+    cuadros = bentley.cuadros_pronostico(corrida)
+    guardado = pronostico.leer(raiz, p["id"])
+    misma = bool(guardado) and datetime.fromisoformat(guardado["inicio"]) == corrida["inicio"]
+    ya = {}
+    if misma:
+        if len(guardado["cuadros"]) >= len(cuadros):
+            return 0                          # completa: nada que hacer
+        ya = {c["plazo_h"]: c["archivo"] for c in guardado["cuadros"]}
     tmp = pronostico.empezar(raiz, p["id"])
-    guardados = []
+    guardados, nuevos = [], 0
     try:
-        for n, valida, plazo in bentley.cuadros_pronostico(corrida):
+        for n, valida, plazo in cuadros:
+            nom = pronostico.nombre(p["id"], corrida["inicio"], plazo)
+            if plazo in ya:                   # de esta misma corrida, ya bajado
+                shutil.copy2(pronostico.carpeta(raiz, p["id"]) / ya[plazo], tmp / nom)
+                guardados.append((plazo, valida, nom))
+                continue
             r = _pedir_con_reintentos(sesion, bentley.url_imagen(p["dominio"], p["variable"], n))
             if not bentley.es_de_esta_corrida(r.headers, corrida["inicio"]):
-                # La página ya anuncia la corrida nueva pero las imágenes todavía
-                # son de la anterior: se reintenta entera en la próxima vuelta.
-                log.info("cartas %s: pronóstico de %s todavía no publicado; se reintenta", p["id"], corrida["inicio"])
-                pronostico.descartar(tmp)
-                return 0
+                log.info("cartas %s: corrida %s publicada hasta +%d h; el resto se intenta en la próxima vuelta",
+                         p["id"], corrida["inicio"], plazo - 6)
+                break
             if archivo.tipo_imagen(r.content) != "png":
                 raise ValueError(f"el cuadro {n} no es una imagen")
-            nom = pronostico.nombre(p["id"], corrida["inicio"], plazo)
             (tmp / nom).write_bytes(r.content)
             guardados.append((plazo, valida, nom))
+            nuevos += 1
             time.sleep(PAUSA_SEG)
     except Exception:
         pronostico.descartar(tmp)
         raise
-    pronostico.publicar(raiz, p["id"], tmp, corrida["inicio"], guardados)
-    log.info("cartas %s: pronóstico de la corrida %s (%d plazos)", p["id"], corrida["inicio"], len(guardados))
-    return len(guardados)
+    if not nuevos or (not misma and len(guardados) < MIN_PLAZOS_CORRIDA_NUEVA):
+        pronostico.descartar(tmp)             # nada nuevo, o muy poco: queda lo que había
+        return 0
+    pronostico.publicar(raiz, p["id"], tmp, corrida["inicio"], guardados, esperados=len(cuadros))
+    log.info("cartas %s: pronóstico de la corrida %s, %d de %d plazos", p["id"], corrida["inicio"],
+             len(guardados), len(cuadros))
+    return nuevos
 
 
 GFS_HORAS_ATRAS = 48      # el análisis sale ~4 h después de la hora; si la PC estuvo apagada, se recupera

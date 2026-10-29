@@ -85,10 +85,16 @@ cuando aparece una corrida nueva, y en Cartas se ve en la tarjeta
 - Se guarda **solo la última corrida**, en `cartas/_pronostico/<carta>/`
   (`corrida.json` + una imagen por plazo, con la corrida en el nombre).
   ~25 MB fijos: no crece.
-- La corrida nueva se baja completa a una carpeta aparte y recién al terminar
-  reemplaza a la anterior: nunca queda un pronóstico a medias. Si la página ya
-  anuncia la corrida nueva pero sus imágenes todavía son de la anterior
-  (`Last-Modified`), se espera a la vuelta siguiente.
+- La corrida nueva se arma en una carpeta aparte y recién al terminar
+  reemplaza a la anterior: nunca se ve a medio bajar.
+- Cada imagen tiene que ser de esa corrida (`Last-Modified` posterior al
+  inicio). Si la página ya anuncia la corrida nueva pero los últimos plazos
+  todavía son de la anterior (Bentley no terminó, o esa corrida no llega a 8
+  días), se guardan los plazos nuevos (si son al menos +48 h; si no, queda la
+  corrida anterior) y en cada vuelta se completa el resto sin volver a bajar
+  lo que ya está. La tarjeta lo avisa.
+- Si una imagen falla (el servidor de Bentley a veces corta alguna conexión),
+  se reintenta a los 5 y a los 15 segundos.
 - Descarga: ~25 MB por corrida (128 imágenes, una por segundo).
 - Para no bajar el pronóstico de una carta: `pronostico: false` en el YAML.
 - Está también en la copia pública (`/api/cartas/pronostico`).

@@ -2048,7 +2048,9 @@ async function cargarPronosticoGFS() {
   cpr.plazos = [...new Set(cpr.productos.flatMap((p) => p.cuadros.map((c) => c.plazo_h)))].sort((a, b) => a - b);
   const ini = new Date(cpr.productos[0].inicio);
   $("#cpr-nota").textContent = `Corrida del GFS del ${fmtCorrida(ini)} · ` +
-    `${cpr.plazos.length} plazos, hasta +${cpr.plazos[cpr.plazos.length - 1]} h. Se actualiza solo cuando la página de Bentley publica una corrida nueva.` +
+    `${cpr.plazos.length} plazos, hasta +${cpr.plazos[cpr.plazos.length - 1]} h` +
+    (cpr.productos.some((p) => p.cuadros.length < p.esperados) ? " (el resto todavía no está publicado: se completa solo)" : "") +
+    ". Se actualiza solo cuando la página de Bentley publica una corrida nueva." +
     " Es un pronóstico del modelo, no un análisis: sirve como guía.";
   const r = $("#cpr-plazo");
   r.max = cpr.plazos.length - 1;
