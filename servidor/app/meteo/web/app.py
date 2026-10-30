@@ -804,6 +804,44 @@ def diagnostico_punto(ciudad: str, desde: datetime, hasta: datetime):
             "ciudades": list(PUNTOS_GFS)}
 
 
+@app.get("/api/cartas/sondeo")
+def sondeo(ciudad: str, ts: datetime):
+    """Sondeo de una ciudad a una hora sinóptica: el del análisis del GFS
+    (perfil guardado en cartas/_puntos, con la superficie del modelo abajo) y,
+    si hay, el radiosondeo real de Ezeiza de esa hora (IGRA). Con los índices
+    de cada uno (sondeos.indices) y los que calcula el propio GFS."""
+    import yaml
+
+    from ..cartas import puntos, sondeos
+    from ..ciudades import PUNTOS_GFS
+    if ciudad not in PUNTOS_GFS:
+        raise HTTPException(404, "ciudad desconocida")
+    ts = (ts if ts.tzinfo else ts.replace(tzinfo=timezone.utc)).astimezone(timezone.utc)
+    salida = {"ciudad": ciudad, "ts": _iso(ts), "gfs": None, "real": None}
+    v = ((puntos.leer(ARCHIVO_DIR, ts) or {}).get("ciudades") or {}).get(ciudad)
+    if v and v.get("perfil"):
+        pf, sup = v["perfil"], v.get("sup") or {}
+        niveles = [{"p": p, "z": z, "t": t, "td": td, "dir": d, "kt": k}
+                   for p, z, t, td, d, k in zip(pf["p"], pf["z"], pf["t"], pf["td"], pf["dir"], pf["kt"])]
+        if {"p", "t", "td"} <= sup.keys() and (not niveles or sup["p"] > niveles[0]["p"]):
+            v10 = sup.get("v") or [None, None]
+            niveles.insert(0, {"p": sup["p"], "z": sup.get("z"), "t": sup["t"], "td": sup["td"], "dir": v10[1], "kt": v10[0]})
+        salida["gfs"] = {"niveles": niveles, "indices": sondeos.indices(niveles),
+                         "modelo": {k: v.get(k) for k in ("cape", "cin", "pw")}}
+    try:
+        with open(CARTAS_CONFIG, encoding="utf-8") as f:
+            estaciones = (yaml.safe_load(f) or {}).get("sondeos") or []
+    except FileNotFoundError:
+        estaciones = []
+    for e in estaciones:
+        real = sondeos.leer(ARCHIVO_DIR, str(e["id"]), ts)
+        if real:
+            salida["real"] = {"estacion": str(e["id"]), "nombre": e.get("nombre"), "niveles": real["niveles"],
+                              "indices": sondeos.indices(real["niveles"])}
+            break
+    return salida
+
+
 @app.get("/api/cartas/estaciones-omm")
 def estaciones_omm():
     """Nombre de cada estación sinóptica de Sudamérica, por número OMM (para

@@ -276,3 +276,71 @@ def test_valores_del_gfs_en_una_ciudad():
     assert abs(r["td850"] - puntos.rocio(6.0, 50)) < 0.05
     # IVT = q·|V|·Δp/g = 0,008 x 10 x (975-300) hPa / g, hacia el oeste (270°).
     assert abs(r["ivt"][0] - 0.008 * 10 * 67500 / 9.80665) < 2 and r["ivt"][1] == 270
+
+
+def _igra(ts, niveles, estacion="ARM00087576"):
+    """Un sondeo en formato IGRA2 (columnas fijas, como lo publica NOAA)."""
+    lineas = [f"#{estacion:11s} {ts.year:4d} {ts.month:02d} {ts.day:02d} {ts.hour:02d} 1115 {len(niveles):4d} ncdc-gts ncdc-gts -348200 -585300"]
+    for p, z, t, dpd, wd, ws in niveles:
+        lineas.append(f"21 {-9999:5d} {p:6d}B{z:5d}B{t:5d}B{-9999:5d} {dpd:5d} {wd:5d} {ws:5d}")
+    return "\n".join(lineas)
+
+
+def test_leer_igra():
+    """Formato IGRA2: Pa, décimas de °C y de m/s, -9999 = falta; niveles de
+    abajo hacia arriba y sin presiones repetidas."""
+    from meteo.cartas import sondeos
+    t = datetime(2026, 10, 29, 12, tzinfo=UTC)
+    texto = _igra(t, [(101800, 20, 158, 46, 20, 36), (100000, 170, 150, 50, 30, 50), (85000, 1520, 60, 40, 270, 100),
+                      (85000, 1520, 60, 40, 270, 100), (70000, 3100, -20, 100, 280, 150), (50000, 5700, -190, 200, 285, 250),
+                      (40000, 7300, -300, -9999, 290, 300), (30000, 9300, -450, -9999, 290, -9999)])
+    texto += "\n" + _igra(datetime(2026, 10, 30, 0, tzinfo=UTC), [(100000, 100, 100, 10, 0, 0)])   # muy corto: se descarta
+    [s] = sondeos.leer_igra(texto)
+    assert s["ts"] == t and [n["p"] for n in s["niveles"]] == [1018, 1000, 850, 700, 500, 400, 300]
+    assert s["niveles"][0] == {"p": 1018, "z": 20, "t": 15.8, "td": 11.2, "dir": 20, "kt": 7.0}
+    assert s["niveles"][5]["td"] is None and s["niveles"][6]["kt"] is None
+    assert sondeos.nombre_archivo_igra('<a href="ARM00087576-data-beg2025.txt.zip">', "ARM00087576") == "ARM00087576-data-beg2025.txt.zip"
+
+
+def test_indices_de_un_sondeo():
+    """Comparados con MetPy para un perfil real del GFS (La Plata, 29/10/2026
+    18 UTC): PW 22,3 mm, NCL 890 hPa, CAPE 422 J/kg, K 24,1, LI -2,2."""
+    from meteo.cartas import sondeos
+    p = [1014.3, 1000, 975, 950, 925, 900, 850, 800, 750, 700, 650, 600, 550, 500, 450, 400, 350, 300, 250, 200, 150, 100]
+    t = [21.2, 19.1, 17.2, 15.2, 13.2, 11.1, 7.3, 3.8, 1.0, -1.5, -4.5, -8.9, -13.7, -19.3, -24.6, -30.7, -36.9, -43.7, -48.4, -49.4, -52.6, -58.1]
+    td = [12.4, 10.7, 10.1, 9.5, 8.9, 8.2, 6.1, 1.9, -5.1, -10.1, -17.2, -25.9, -31.2, -44.5, -48.7, -52.8, -55.0, -58.7, -64.0, -74.7, -80.9, -85.6]
+    niveles = [{"p": a, "z": None, "t": b, "td": c} for a, b, c in zip(p, t, td)]
+    r = sondeos.indices(niveles)
+    assert abs(r["pw"] - 22.3) < 0.3 and abs(r["ncl"] - 890) < 2
+    assert abs(r["cape"] - 422) < 25 and r["cin"] == 0 and r["k"] == 24.1 and abs(r["li"] + 2.2) < 0.5
+    assert len(r["parcela"]) == len(p)
+    # Parcela: seca hasta el NCL (conserva θ) y después más tibia que la seca.
+    assert abs(r["parcela"][1] - ((21.2 + 273.15) * (1000 / 1014.3) ** (287.04 / 1005.7) - 273.15)) < 0.2
+
+
+def test_bajar_radiosondeos_de_igra(tmp_path):
+    """Cada 6 h se baja el archivo del año de cada estación y se guardan los
+    sondeos que falten."""
+    import io
+    import zipfile
+    from meteo.cartas import descarga, sondeos
+    t = datetime(2026, 10, 29, 12, tzinfo=UTC)
+    niv = [(101800, 20, 158, 46, 20, 36), (100000, 170, 150, 50, 30, 50), (85000, 1520, 60, 40, 270, 100),
+           (70000, 3100, -20, 100, 280, 150), (50000, 5700, -190, 200, 285, 250)]
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        z.writestr("ARM00087576-data-beg2025.txt", _igra(t, niv))
+    pedidos = []
+
+    class Sesion:
+        def get(self, url, timeout):
+            pedidos.append(url)
+            cuerpo = buf.getvalue() if url.endswith(".zip") else b'<a href="ARM00087576-data-beg2025.txt.zip">'
+            return type("R", (), {"content": cuerpo, "text": cuerpo.decode("latin-1"), "raise_for_status": lambda self: None})()
+
+    est = [{"id": "87576", "igra": "ARM00087576", "nombre": "Ezeiza"}]
+    assert descarga._correr_sondeos(est, tmp_path, Sesion(), ahora=t) == 1
+    assert sondeos.leer(tmp_path, "87576", t)["niveles"][2]["p"] == 850
+    pedidos.clear()
+    assert descarga._correr_sondeos(est, tmp_path, Sesion(), ahora=t + timedelta(hours=2)) == 0 and not pedidos  # antes de 6 h
+    assert descarga._correr_sondeos(est, tmp_path, Sesion(), ahora=t + timedelta(hours=7)) == 0 and pedidos     # ya estaba

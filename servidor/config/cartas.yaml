@@ -7,6 +7,13 @@
 # Horas a guardar (UTC). Cada carta puede tener las suyas con "horas_utc".
 horas_utc: [0, 6, 12, 18]
 
+# Radiosondeos REALES (IGRA, de NOAA; ver app/meteo/cartas/sondeos.py): se
+# guardan todos los del año y se ven en la tarjeta "Sondeo" de Cartas, al
+# lado del sondeo del análisis del GFS. Ezeiza (87576) lanza a las 12 UTC
+# (a veces también a las 00 UTC). Para sacarlos, borrar estas líneas.
+sondeos:
+  - {id: "87576", igra: ARM00087576, nombre: Ezeiza}
+
 productos:
   # --- Cartas propias: análisis del GFS dibujado en el servidor -----------
   # APAGADAS (29/10/2026): `activo: false` en las cuatro. No se dibujan, no se

@@ -137,6 +137,12 @@ def _correr(cfg, raiz, sesion, tormenta=None):
             except Exception as ex:
                 errores.append(f"cartas GFS: {str(ex)[:150]}")
                 log.warning("cartas: %s", errores[-1])
+    if cfg.get("sondeos"):
+        try:
+            _correr_sondeos(cfg["sondeos"], raiz, sesion)
+        except Exception as ex:
+            errores.append(f"radiosondeos: {str(ex)[:150]}")
+            log.warning("cartas: %s", errores[-1])
     ahora = datetime.now(timezone.utc) - OGIMET_MARGEN
     desde = ahora - timedelta(hours=OGIMET_HORAS_ATRAS)
     nuevas += _correr_ogimet(cfg, raiz, sesion, desde, ahora)
@@ -325,6 +331,33 @@ def _bajar_gfs(ts, pedidos, region, sesion, plazo=0):
                 raise
             log.info("cartas: GFS %s +%d h falló (%s); reintento en %d s", ts, plazo, str(ex)[:80], espera)
             time.sleep(espera)
+
+
+SONDEOS_CADA = timedelta(hours=6)     # IGRA se actualiza una vez por día: no hace falta mirar cada hora
+
+
+def _correr_sondeos(estaciones, raiz, sesion, ahora=None):
+    """Radiosondeos reales (IGRA, ver sondeos.py): cada 6 h se baja el
+    archivo del año de cada estación y se guardan los sondeos que falten.
+    Devuelve cuántos sondeos nuevos guardó."""
+    from . import sondeos
+    ahora = ahora or datetime.now(timezone.utc)
+    marca = Path(raiz) / "cartas" / sondeos.CARPETA / "ultima_descarga"
+    try:
+        if ahora - datetime.fromisoformat(marca.read_text().strip()) < SONDEOS_CADA:
+            return 0
+    except (FileNotFoundError, ValueError):
+        pass
+    nuevos = 0
+    for e in estaciones:
+        for s in sondeos.bajar_igra(e["igra"], sesion):
+            if not sondeos.ruta(raiz, e["id"], s["ts"]).exists():
+                sondeos.guardar(raiz, e["id"], s)
+                nuevos += 1
+    marca.parent.mkdir(parents=True, exist_ok=True)
+    marca.write_text(ahora.isoformat())
+    log.info("cartas: %d radiosondeos nuevos", nuevos)
+    return nuevos
 
 
 GFS_PRONO_CORRIDAS_ATRAS = 4    # si la PC estuvo apagada, no se buscan corridas de hace más de un día

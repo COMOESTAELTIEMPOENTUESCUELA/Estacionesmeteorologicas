@@ -437,3 +437,30 @@ def test_api_punto_meteograma(cliente, tmp_path, monkeypatch):
     assert d["estacion"] == "omm_87593" and "Ezeiza" in d["ciudades"]
     assert cliente.get("/api/cartas/punto?ciudad=Narnia&desde=2026-10-28T03:00Z&hasta=2026-10-28T13:00Z").status_code == 404
     assert cliente.get("/api/cartas/punto?ciudad=La Plata&desde=2026-10-01T00:00Z&hasta=2026-10-28T13:00Z").status_code == 400
+
+
+def test_api_sondeo(cliente, tmp_path, monkeypatch):
+    """Sondeo del GFS (con la superficie del modelo abajo) y el real de Ezeiza
+    de esa hora, cada uno con sus índices."""
+    from datetime import datetime, timezone
+
+    from meteo.cartas import puntos, sondeos
+    from meteo.web import app as web
+    cfg = tmp_path / "cartas.yaml"
+    cfg.write_text('sondeos:\n  - {id: "87576", igra: ARM00087576, nombre: Ezeiza}\nproductos: []\n')
+    monkeypatch.setattr(web, "CARTAS_CONFIG", str(cfg))
+    monkeypatch.setattr(web, "ARCHIVO_DIR", str(tmp_path))
+    ts = datetime(2026, 10, 29, 12, tzinfo=timezone.utc)
+    p = [1000, 950, 900, 850, 700, 500, 300]
+    puntos.guardar(tmp_path, ts, {"Ezeiza": {
+        "sup": {"p": 1015, "z": 20, "t": 22, "td": 15, "v": [8, 40]}, "cape": 300, "cin": -10, "pw": 25,
+        "perfil": {"p": p, "z": [110, 540, 990, 1460, 3050, 5750, 9400], "t": [20, 17, 14, 11, 2, -14, -40],
+                   "td": [14, 12, 10, 6, -6, -25, -50], "dir": [30, 0, 330, 300, 280, 270, 270], "kt": [10, 15, 20, 25, 35, 50, 80]}}})
+    sondeos.guardar(tmp_path, "87576", {"ts": ts, "niveles": [{"p": a, "z": None, "t": b, "td": b - 5, "dir": 0, "kt": 10}
+                                                             for a, b in zip(p, [19, 16, 13, 10, 1, -15, -41])]})
+    d = cliente.get("/api/cartas/sondeo?ciudad=Ezeiza&ts=2026-10-29T12:00Z").json()
+    assert d["gfs"]["niveles"][0] == {"p": 1015, "z": 20, "t": 22, "td": 15, "dir": 40, "kt": 8}
+    assert len(d["gfs"]["niveles"]) == 8 and d["gfs"]["modelo"] == {"cape": 300, "cin": -10, "pw": 25}
+    assert "cape" in d["gfs"]["indices"] and d["real"]["nombre"] == "Ezeiza" and "pw" in d["real"]["indices"]
+    sin = cliente.get("/api/cartas/sondeo?ciudad=La Plata&ts=2026-10-29T18:00Z").json()
+    assert sin["gfs"] is None and sin["real"] is None
