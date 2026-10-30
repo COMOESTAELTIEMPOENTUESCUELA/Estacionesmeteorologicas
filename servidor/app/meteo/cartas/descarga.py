@@ -392,11 +392,14 @@ def _correr_gfs(productos, raiz, sesion, horas, desde=None, hasta=None):
     Dos formatos: fuente "gfs_analisis" (el de las cartas de Bentley, igual
     que el pronóstico: estilo_bentley.py) y fuente "gfs" (el anterior, con
     proyección cónica: diagnostico.py)."""
-    from . import diagnostico, estilo_bentley, gfs
+    from . import diagnostico, estilo_bentley, gfs, puntos
     hasta = hasta or datetime.now(timezone.utc)
     desde = desde or hasta - timedelta(hours=GFS_HORAS_ATRAS)
-    if productos[0]["fuente"] == "gfs_analisis":
-        pedidos, region = estilo_bentley.PEDIDOS, estilo_bentley.REGION
+    # Con las de formato Bentley se guardan además los valores del análisis en
+    # cada ciudad (meteograma de diagnóstico y sondeos: puntos.py).
+    con_puntos = productos[0]["fuente"] == "gfs_analisis"
+    if con_puntos:
+        pedidos, region = estilo_bentley.PEDIDOS | puntos.PEDIDOS, estilo_bentley.REGION
         dibujar = lambda campos, ts: estilo_bentley.dibujar(campos, ts, 0)
     else:
         pedidos, region = diagnostico.PEDIDOS, tuple(productos[0].get("region", (-95, -25, -60, 5)))
@@ -404,18 +407,22 @@ def _correr_gfs(productos, raiz, sesion, horas, desde=None, hasta=None):
     nuevas = 0
     for ts in horas_sinopticas(desde, hasta, horas):
         faltan = [p for p in productos if not archivo.existe(raiz, p["id"], ts)]
-        if not faltan:
+        faltan_puntos = con_puntos and not puntos.existe(raiz, ts)
+        if not faltan and not faltan_puntos:
             continue
         try:
             campos = gfs.bajar(ts, pedidos, region, sesion)
         except FileNotFoundError as ex:
             log.info("cartas: %s", ex)
             continue
-        dibujos = dibujar(campos, ts)
-        for p in faltan:
-            archivo.guardar(raiz, p["id"], ts, dibujos[p["carta"]])
-            nuevas += 1
-        log.info("cartas GFS %s: %d dibujadas", ts, len(faltan))
+        if faltan_puntos:
+            puntos.guardar(raiz, ts, puntos.extraer(campos))
+        if faltan:
+            dibujos = dibujar(campos, ts)
+            for p in faltan:
+                archivo.guardar(raiz, p["id"], ts, dibujos[p["carta"]])
+                nuevas += 1
+        log.info("cartas GFS %s: %d dibujadas%s", ts, len(faltan), ", valores en las ciudades" if faltan_puntos else "")
     return nuevas
 
 

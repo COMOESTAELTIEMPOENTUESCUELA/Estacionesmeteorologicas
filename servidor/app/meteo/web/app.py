@@ -608,21 +608,9 @@ def verificacion(ciudad: str = "La Plata", desde: date | None = None, hasta: dat
             "etiquetas_def": ETIQUETAS, "umbrales": UMBRALES}
 
 
-# Ubicación de las ciudades que pronostica el grupo (para el mapa del panel).
-# El panel muestra las que tienen algún pronóstico guardado: Bolívar, que
-# hoy no se pronostica, aparece sola cuando el grupo empiece.
-CIUDADES_COORD = {
-    "La Plata": (-34.92, -57.95), "Junín": (-34.59, -60.95), "Mar del Plata": (-38.00, -57.56),
-    "Bolívar": (-36.23, -61.11), "Tandil": (-37.32, -59.13), "Bahía Blanca": (-38.72, -62.27),
-}
-
-
-# Estación SYNOP (aeropuerto) de cada ciudad, para el link a Ogimet del
-# panel: la misma que usa la verificación (config/estaciones.yaml).
-CIUDADES_SYNOP = {
-    "La Plata": "omm_87593", "Junín": "omm_87548", "Mar del Plata": "omm_87692",
-    "Bolívar": "omm_87640", "Tandil": "omm_87645", "Bahía Blanca": "omm_87750",
-}
+# Ubicación y estación SYNOP de cada ciudad: en meteo/ciudades.py (los usa
+# también la descarga de cartas).
+from ..ciudades import CIUDADES_COORD, CIUDADES_SYNOP  # noqa: E402
 
 
 @app.get("/api/cartas/synop")

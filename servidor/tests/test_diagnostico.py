@@ -237,5 +237,42 @@ def test_analisis_propio_formato_bentley(tmp_path, monkeypatch):
     productos = [{"id": f"ana_{k}", "fuente": "gfs_analisis", "carta": k} for k in eb.CARTAS]
     desde, hasta = datetime(2026, 10, 26, tzinfo=UTC), datetime(2026, 10, 26, 12, tzinfo=UTC)
     assert descarga._correr_gfs(productos, tmp_path, None, (0, 6, 12, 18), desde, hasta) == 12
-    assert vistos[0] == (eb.PEDIDOS, eb.REGION) and set(plazos) == {0}
+    from meteo.cartas import puntos
+    assert vistos[0] == (eb.PEDIDOS | puntos.PEDIDOS, eb.REGION) and set(plazos) == {0}
     assert descarga.archivo.existe(tmp_path, "ana_500_vort", datetime(2026, 10, 26, 6, tzinfo=UTC))
+    # Además, los valores en las ciudades de cada hora.
+    assert puntos.existe(tmp_path, datetime(2026, 10, 26, 12, tzinfo=UTC))
+    # Si las cartas ya están pero faltan los valores (fechas viejas), se bajan solo para eso.
+    puntos.ruta(tmp_path, datetime(2026, 10, 26, 6, tzinfo=UTC)).unlink()
+    plazos.clear()
+    assert descarga._correr_gfs(productos, tmp_path, None, (0, 6, 12, 18), desde, hasta) == 0
+    assert puntos.existe(tmp_path, datetime(2026, 10, 26, 6, tzinfo=UTC)) and not plazos   # sin volver a dibujar
+
+
+def test_valores_del_gfs_en_una_ciudad():
+    """Interpolación bilineal, viento, rocío, IVT y perfil (sin los niveles
+    bajo el suelo) en un punto."""
+    from meteo.cartas import puntos
+    from meteo.cartas.gfs import Campo
+    lat = np.arange(-30, -40.1, -0.5)
+    lon = np.arange(-62, -54.9, 0.5)
+    la, lo = np.meshgrid(lat, lon, indexing="ij")
+    def campo(v):
+        return Campo(lat, lon, np.broadcast_to(np.asarray(v, float), la.shape).copy())
+    campos = {("PRMSL", "mean sea level"): campo(101000 + 100 * (lo + 60)),     # sube 1 hPa por grado al este
+              ("PRES", "surface"): campo(98000.0), ("HGT", "surface"): campo(300.0)}
+    for n in puntos.NIVELES_PERFIL:
+        campos[("TMP", f"{n} mb")] = campo(273.15 + 15 - (1000 - n) * 0.06)
+        campos[("RH", f"{n} mb")] = campo(50.0)
+        campos[("HGT", f"{n} mb")] = campo((1000 - n) * 10.0)
+        campos[("UGRD", f"{n} mb")] = campo(-10.0)                           # viento del este
+        campos[("VGRD", f"{n} mb")] = campo(0.0)
+    for n in (1000, 975, 950, 925, 900, 850, 800, 750, 700, 650, 600, 550, 500, 450, 400, 350, 300):
+        campos[("SPFH", f"{n} mb")] = campo(0.008)
+    r = puntos.extraer(campos, {"X": (-34.92, -57.95)})["X"]
+    assert abs(r["pnm"] - (1010 + (-57.95 + 60))) < 0.06                       # interpolado entre grillas (redondeado a 0,1)
+    assert r["v850"] == [round(10 * 1.943844, 1), 90]                          # 19,4 kt del este
+    assert r["perfil"]["p"][0] == 975 and 1000 not in r["perfil"]["p"]         # 1000 hPa está bajo el suelo (980)
+    assert abs(r["td850"] - puntos.rocio(6.0, 50)) < 0.05
+    # IVT = q·|V|·Δp/g = 0,008 x 10 x (975-300) hPa / g, hacia el oeste (270°).
+    assert abs(r["ivt"][0] - 0.008 * 10 * 67500 / 9.80665) < 2 and r["ivt"][1] == 270
