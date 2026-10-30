@@ -229,6 +229,12 @@ img.con-fondo { background-color: #fff !important; background-size: 100% 100%; b
 .cpr-grid:not(.nombres) .cpr-punto::before { left: -3.5px; top: -3.5px; width: 7px; height: 7px; border-width: 2px; }
 .cpr-zoom { display: inline-flex; gap: 2px; }
 .cpr-pos { min-height: 1.2em; font-variant-numeric: tabular-nums; }
+.csd-cuerpo { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(220px, 1fr); gap: 14px; align-items: start; }
+@media (max-width: 860px) { .csd-cuerpo { grid-template-columns: minmax(0, 1fr); } }
+.csd-grafico svg { width: 100%; height: auto; display: block; background: var(--superficie); border: 1px solid var(--borde); border-radius: 6px; }
+.csd-grafico text { font: 11px system-ui, sans-serif; fill: var(--tenue); }
+#csd-indices td, #csd-indices th { text-align: right; }
+#csd-indices th:first-child, #csd-indices td:first-child { text-align: left; }
 .cpr-dias { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
 .cpr-dias button { font: inherit; font-size: 12.5px; padding: 3px 9px; border-radius: 99px; border: 1px solid var(--borde);
   background: var(--superficie); color: var(--tinta-2); cursor: pointer; }
@@ -853,6 +859,32 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
           <li><b>Viento en altura</b>: 850 hPa (~1500 m, el chorro de capas bajas que trae humedad del norte), 500 hPa (~5500 m) y 250 hPa (~10 km, la corriente en chorro). Las barbas indican de dónde viene.</li>
           <li><b>Agua precipitable</b>: el vapor de toda la columna, en mm, si se condensara todo. <b>IVT</b>: cuánto vapor está transportando el viento.</li>
           <li><b>CAPE</b>: energía disponible para la convección (tormentas). <b>Vorticidad en 500 hPa</b>: ciclónica (negativa en el hemisferio sur) con las vaguadas.</li>
+        </ul>
+      </details>
+    </div>
+    <div class="tarjeta" id="csd" style="margin-top:16px">
+      <div class="filtros">
+        <h2 style="margin:0; font-size:18px; flex:1 1 280px" id="csd-titulo">Sondeo</h2>
+        <label class="en-linea" title="El globo que lanza el SMN en Ezeiza (a las 12 UTC; a veces también a las 00 UTC)">
+          <input type="checkbox" id="csd-real" checked> Comparar con el radiosondeo real de Ezeiza</label>
+      </div>
+      <p class="ayuda" id="csd-nota"></p>
+      <div class="csd-cuerpo">
+        <div id="csd-grafico" class="csd-grafico"></div>
+        <div class="tabla-scroll"><table id="csd-indices"></table></div>
+      </div>
+      <details class="como" style="margin-top:6px"><summary>¿Cómo se lee un Skew-T?</summary>
+        <ul class="ayuda">
+          <li>El eje vertical es la <b>presión</b> (la altura: 1000 hPa abajo, cerca del suelo; 100 hPa arriba, ~16 km). Las <b>isotermas</b> (temperatura
+            constante) están inclinadas 45°: por eso se llama "skew" (sesgado). La de 0 °C, en azul.</li>
+          <li><b>Rojo</b>: temperatura del aire. <b>Verde</b>: punto de rocío. Donde las dos líneas se juntan, el aire está saturado (nubes); donde se separan, seco.</li>
+          <li><b>Negro punteado</b>: una parcela de aire de superficie que sube: primero por la <b>adiabática seca</b> (marrón) hasta el NCL, donde condensa,
+            y después por la <b>adiabática húmeda</b> (verde claro). Si queda más caliente que el aire de alrededor, sigue subiendo sola: eso es el <b>CAPE</b>
+            (energía para tormentas). El <b>CIN</b> es lo que le cuesta llegar hasta ahí.</li>
+          <li><b>Índice K</b>: más de 30, tormentas probables. <b>LI</b> (levantamiento): negativo = inestable (menos de −4, muy inestable).
+            <b>Agua precipitable</b>: el vapor de toda la columna, en mm. Las <b>barbas</b> de la derecha: viento en cada nivel, de dónde viene.</li>
+          <li>Línea llena: <b>análisis del GFS</b> en la ciudad. Punteada: el <b>radiosondeo real</b> de Ezeiza (si hay a esa hora). Así se ve dónde el modelo
+            se parece a la realidad y dónde no (sobre todo cerca del suelo: inversiones, capas húmedas finas).</li>
         </ul>
       </details>
     </div>
@@ -2635,6 +2667,7 @@ async function cargarCartas() {
   if ($("#c-dialogo").open) mostrarEnVisor();
   cargarPronoDia();
   cargarDiagnostico();
+  cargarSondeo();
   cargarObsHora(t);
 }
 
@@ -2650,7 +2683,8 @@ function iniciarDiagnostico() {
     try { localStorage.setItem("diag-ciudad", $("#cmd-ciudad").value); localStorage.setItem("diag-dias", $("#cmd-dias").value); } catch (_) {}
     cargarDiagnostico();
   };
-  $("#cmd-ciudad").addEventListener("change", cambio);
+  $("#cmd-ciudad").addEventListener("change", () => { cambio(); cargarSondeo(); });
+  $("#csd-real").addEventListener("change", cargarSondeo);
   $("#cmd-dias").addEventListener("change", cambio);
 }
 async function cargarDiagnostico() {
@@ -2723,6 +2757,129 @@ async function cargarDiagnostico() {
   $("#cmd-paneles").innerHTML = paneles.map(([tit, u], j) => `<div class="panel-titulo">${esc(tit)}${u ? ` <span class="tenue">(${esc(u)})</span>` : ""}</div>
     <div class="panel cp-panel"><canvas data-j="${j}"></canvas></div>`).join("");
   paneles.forEach(([, , dibujar], j) => dibujar($(`#cmd-paneles canvas[data-j="${j}"]`)));
+}
+
+// ---------- Sondeo (diagrama Skew-T) ----------
+// El perfil del análisis del GFS en la ciudad del meteograma, a la hora de
+// la carta, y el radiosondeo real de Ezeiza de esa hora (si hay), dibujados
+// en un Skew-T-log p propio (SVG, sin bibliotecas).
+let csdClave = null;
+const SK = { W: 560, H: 560, M: { izq: 42, der: 78, arr: 10, aba: 26 }, pMax: 1050, pMin: 100, tMin: -35, tMax: 40 };
+// y: 1050 hPa abajo, 100 hPa arriba (logaritmo de la presión: como la altura).
+function skY(p) { const { H, M, pMax, pMin } = SK; return H - M.aba - (H - M.arr - M.aba) * Math.log(pMax / p) / Math.log(pMax / pMin); }
+// Las isotermas inclinadas: la x corre con la altura en el gráfico (SESGO
+// píxeles por píxel de altura; con 0,55 los perfiles quedan casi verticales en
+// la troposfera, como en los Skew-T habituales).
+const SESGO = 0.55;
+function skX(t, p) { const { W, H, M, tMin, tMax } = SK; const ancho = W - M.izq - M.der;
+  return M.izq + (t - tMin) / (tMax - tMin) * ancho + SESGO * (H - M.aba - skY(p)); }
+const RD_ = 287.04, CP_ = 1005.7, LV_ = 2.501e6, EPS_ = 0.622;
+function dtdpHumeda(tk, p) {
+  const tc = tk - 273.15, es = 6.112 * Math.exp(17.67 * tc / (tc + 243.5)), rs = EPS_ * es / (p - es);
+  return (RD_ * tk + LV_ * rs) / (p * (CP_ + LV_ ** 2 * rs * EPS_ / (RD_ * tk ** 2)));
+}
+function svgLinea(pts, attrs) {
+  const d = pts.filter(([x, y]) => isFinite(x) && isFinite(y)).map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)},${y.toFixed(1)}`).join("");
+  return d ? `<path d="${d}" fill="none" ${attrs}/>` : "";
+}
+function barbaSVG(x, y, dir, kt) {
+  if (kt === null || kt === undefined || dir === null || dir === undefined) return "";
+  const n = Math.round(kt / 5) * 5;
+  if (n < 5) return `<circle cx="${x}" cy="${y}" r="3" fill="none" stroke="currentColor"/>`;
+  let partes = [`M0,0 L0,-22`], resto = n, yy = -22;
+  while (resto >= 50) { partes.push(`M0,${yy} L-8,${yy + 2} L0,${yy + 5} Z`); yy += 6; resto -= 50; }
+  while (resto >= 10) { partes.push(`M0,${yy} L-8,${yy - 4}`); yy += 4; resto -= 10; }
+  if (resto >= 5) { if (yy === -22) yy += 4; partes.push(`M0,${yy} L-4,${yy - 2}`); }
+  return `<path transform="translate(${x},${y}) rotate(${dir})" d="${partes.join(" ")}" fill="currentColor" stroke="currentColor" stroke-width="1.2"/>`;
+}
+function dibujarSkewT(gfs, real) {
+  const { W, H, M, pMax, pMin } = SK;
+  const xi = M.izq, xd = W - M.der, ya = M.arr, yb = H - M.aba;
+  let fondo = `<defs><clipPath id="sk-recorte"><rect x="${xi}" y="${ya}" width="${xd - xi}" height="${yb - ya}"/></clipPath></defs>`;
+  const ref = [];
+  // Isobaras.
+  for (const p of [1000, 900, 850, 700, 600, 500, 400, 300, 250, 200, 150, 100]) {
+    const y = skY(p);
+    fondo += `<line x1="${xi}" x2="${xd}" y1="${y}" y2="${y}" stroke="var(--grilla)"/><text x="${xi - 4}" y="${y + 4}" text-anchor="end">${p}</text>`;
+  }
+  // Isotermas cada 10 °C (la de 0 °C, en azul).
+  for (let t = -120; t <= 50; t += 10)
+    ref.push(svgLinea([[skX(t, pMax), skY(pMax)], [skX(t, pMin), skY(pMin)]], t === 0 ? 'stroke="#2a78d6" stroke-width="1.4"' : 'stroke="var(--grilla)"'));
+  for (let t = -30; t <= 40; t += 10) fondo += `<text x="${skX(t, pMax)}" y="${yb + 15}" text-anchor="middle">${t}</text>`;
+  const ps = []; for (let p = pMax; p >= pMin; p -= 10) ps.push(p);
+  // Adiabáticas secas (θ constante) y húmedas (parcela saturada que sube).
+  for (let th = 250; th <= 460; th += 10)
+    ref.push(svgLinea(ps.map((p) => [skX(th * (p / 1000) ** (RD_ / CP_) - 273.15, p), skY(p)]), 'stroke="#c4935a" stroke-opacity=".45" stroke-dasharray="4 3"'));
+  for (let t0 = -12; t0 <= 36; t0 += 4) {
+    let tk = t0 + 273.15, p = 1050; const pts = [];
+    for (; p >= 200; p -= 5) { pts.push([skX(tk - 273.15, p), skY(p)]); tk -= dtdpHumeda(tk, p) * 5; }
+    ref.push(svgLinea(pts, 'stroke="#3fa34d" stroke-opacity=".4" stroke-dasharray="2 3"'));
+  }
+  // Perfiles: T, Td y la parcela; el real, punteado.
+  const perfil = (s, guiones) => {
+    if (!s) return "";
+    const n = s.niveles.filter((x) => x.p >= pMin);
+    const g = guiones ? 'stroke-dasharray="6 4"' : "";
+    let out = svgLinea(n.filter((x) => x.t !== null).map((x) => [skX(x.t, x.p), skY(x.p)]), `stroke="#d93a2b" stroke-width="2.2" ${g}`)
+      + svgLinea(n.filter((x) => x.td !== null).map((x) => [skX(x.td, x.p), skY(x.p)]), `stroke="#1e9e3a" stroke-width="2.2" ${g}`);
+    const par = s.indices && s.indices.parcela;
+    if (par) {
+      const conT = s.niveles.filter((x) => x.t !== null && x.td !== null);
+      out += svgLinea(conT.map((x, i) => [skX(par[i], x.p), skY(x.p)]).filter((_, i) => par[i] !== undefined),
+        `stroke="var(--tinta)" stroke-width="1.3" stroke-dasharray="${guiones ? "2 4" : "5 3"}"`);
+    }
+    return out;
+  };
+  // Barbas a la derecha: el GFS en una columna, el real en otra.
+  // (una barba cada 14 px como mínimo: el sondeo real trae muchos niveles)
+  const barbas = (s, x, color) => {
+    if (!s) return "";
+    let ultimo = Infinity, out = "";
+    for (const n of s.niveles) {
+      if (n.p < pMin || n.kt === null || n.kt === undefined || ultimo - skY(n.p) < 14) continue;
+      ultimo = skY(n.p);
+      out += barbaSVG(x, ultimo, n.dir, n.kt);
+    }
+    return `<g style="color:${color}">${out}</g>`;
+  };
+  const svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diagrama Skew-T">${fondo}
+    <g clip-path="url(#sk-recorte)">${ref.join("")}${perfil(gfs, false)}${perfil(real, true)}</g>
+    <rect x="${xi}" y="${ya}" width="${xd - xi}" height="${yb - ya}" fill="none" stroke="var(--eje)"/>
+    ${barbas(gfs, xd + 22, "var(--tinta)")}${barbas(real, xd + 56, "var(--tinta-2)")}
+    <text x="${xd + 22}" y="${yb + 15}" text-anchor="middle">GFS</text>${real ? `<text x="${xd + 56}" y="${yb + 15}" text-anchor="middle">real</text>` : ""}
+    <text x="${(xi + xd) / 2}" y="${H - 1}" text-anchor="middle">°C</text></svg>`;
+  $("#csd-grafico").innerHTML = svg;
+}
+async function cargarSondeo() {
+  const t = tsCarta(), ciudad = $("#cmd-ciudad").value || "La Plata";
+  const clave = `${ciudad}|${+t}|${$("#csd-real").checked}`;
+  if (clave === csdClave) return;
+  csdClave = clave;
+  $("#csd-titulo").innerHTML = `Sondeo · ${esc(ciudad)} <span class="tenue" style="font-weight:400">(${esc(fmtCartaTitulo.format(t))}, ${String(t.getUTCHours()).padStart(2, "0")} UTC)</span>`;
+  let r;
+  try { r = await api(`/api/cartas/sondeo?ciudad=${encodeURIComponent(ciudad)}&ts=${t.toISOString()}`); }
+  catch (err) { $("#csd-nota").textContent = `No se pudo cargar: ${err.message}`; return; }
+  if (csdClave !== clave) return;
+  const real = $("#csd-real").checked ? r.real : null;
+  if (!r.gfs && !real) {
+    $("#csd-grafico").innerHTML = ""; $("#csd-indices").innerHTML = "";
+    $("#csd-nota").textContent = "No hay sondeo guardado para esa hora: el del GFS se guarda con cada análisis (las horas sinópticas: 00, 06, 12 y 18 UTC) desde que se instaló esta función.";
+    return;
+  }
+  $("#csd-nota").textContent = (r.gfs ? `Línea llena: análisis del GFS en ${ciudad}.` : "Sin perfil del GFS para esa hora.") +
+    ($("#csd-real").checked ? (r.real ? ` Punteada: radiosondeo real de ${r.real.nombre} (${r.real.estacion}).` :
+      " No hay radiosondeo real de Ezeiza a esa hora (se lanza a las 12 UTC; IGRA lo publica con 1 o 2 días de atraso).") : "");
+  dibujarSkewT(r.gfs, real);
+  const fila = (nombre, k, unidad, deci = 0) => {
+    const v = (s) => s && s.indices && s.indices[k] !== undefined ? num(s.indices[k], deci) + (unidad ? " " + unidad : "") : "–";
+    return `<tr><td>${nombre}</td><td>${v(r.gfs)}</td>${real ? `<td>${v(real)}</td>` : ""}</tr>`;
+  };
+  const m = r.gfs && r.gfs.modelo;
+  $("#csd-indices").innerHTML = `<tr><th>Índice</th><th>GFS</th>${real ? "<th>Real</th>" : ""}</tr>` +
+    fila("CAPE (parcela de superficie)", "cape", "J/kg") + fila("CIN", "cin", "J/kg") + fila("Agua precipitable", "pw", "mm", 1) +
+    fila("Isoterma de 0 °C", "z0", "m") + fila("NCL (base de nubes)", "ncl", "hPa") + fila("Índice K", "k", "", 1) + fila("Índice LI", "li", "", 1) +
+    (m ? `<tr><td colspan="${real ? 3 : 2}" class="tenue" style="text-align:left">El GFS calcula su propio CAPE (${num(m.cape, 0)} J/kg) con otra parcela y la
+      temperatura virtual: puede dar distinto que el de este perfil.</td></tr>` : "");
 }
 
 // ---------- Observaciones de la hora de la carta ----------

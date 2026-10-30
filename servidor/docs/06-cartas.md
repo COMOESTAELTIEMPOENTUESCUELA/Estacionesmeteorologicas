@@ -349,6 +349,27 @@ análisis (los niveles del perfil). Para fechas viejas:
 `historico cartas --desde ... --hasta ...` (si las cartas ya están, baja solo
 lo de los puntos). API: `/api/cartas/punto?ciudad=&desde=&hasta=`.
 
+## Sondeo (diagrama Skew-T)
+
+Tarjeta "Sondeo" de Cartas: el perfil vertical de la ciudad del meteograma a
+la hora de la carta, en un diagrama Skew-T-log p (dibujado en la página, sin
+bibliotecas): temperatura (rojo), rocío (verde), la parcela de superficie
+(negro punteado), adiabáticas secas y húmedas de referencia, la isoterma de
+0 °C y las barbas del viento. Con una tabla de índices: CAPE y CIN de la
+parcela de superficie, agua precipitable, altura de la isoterma de 0 °C, NCL
+(base de las nubes), K y LI (calculados en `sondeos.py`; comparados con
+MetPy: misma agua precipitable, NCL, K, y CAPE a ±2 %).
+
+- **Sondeo del GFS**: el perfil del análisis en la ciudad (1000 a 100 hPa, con
+  la superficie del modelo abajo), guardado con cada análisis (`puntos.py`).
+- **Radiosondeo real de Ezeiza** (punteado, para comparar): de IGRA (NOAA),
+  el archivo de radiosondeos del mundo, que se actualiza todos los días con
+  1 o 2 días de atraso. Cada 6 h se baja el archivo del año de la estación y
+  se guardan los sondeos que falten en `cartas/_sondeos/87576/`. Se configura
+  en `sondeos:` de `config/cartas.yaml`. El SMN lanza en Ezeiza a las 12 UTC.
+
+API: `/api/cartas/sondeo?ciudad=&ts=`.
+
 ## Pronóstico del grupo para el día de la carta
 
 Debajo de las cartas está lo que el grupo pronosticó para ese día en las 6
