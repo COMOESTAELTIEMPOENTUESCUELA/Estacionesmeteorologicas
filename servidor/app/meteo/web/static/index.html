@@ -2512,7 +2512,9 @@ function imgCarta(p, extra = "", chica = false) {
 const tituloCarta = (p) => (p.nivel ? p.nivel + " · " : "") + p.nombre;
 // Cartas con la MISMA proyección y recorte (ej. las 4 de Bentley, o las de
 // Ogimet entre sí): un mismo punto de la imagen es el mismo lugar del mapa.
-const grupoCarta = (p) => `${p.fuente}:${p.dominio || p.zona || ""}`;
+// "grupo" en el YAML junta cartas de distinta fuente con el mismo marco (ej.
+// las de Bentley y nuestras cartas de análisis con su formato).
+const grupoCarta = (p) => p.grupo || `${p.fuente}:${p.dominio || p.zona || ""}`;
 
 // Cursor sincronizado: una cruz en el mismo punto de las otras cartas del grupo.
 function moverCruces(img, e) {

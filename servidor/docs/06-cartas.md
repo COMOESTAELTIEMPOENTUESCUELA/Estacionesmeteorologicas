@@ -104,9 +104,15 @@ elegido, de +0 a +192 h, con la hora válida en hora argentina y UTC.
   Shift+← → 24 h · Inicio / Fin · Espacio animar · 1–4 elegir carta ·
   ↑ ↓ cambiar carta · V cambiar vista. Animación lenta, normal o rápida. Desde el 29/10/2026 se **dibujan en el servidor** con
 los datos del GFS de NOAA y el mismo formato que las de Alicia Bentley
-(`app/meteo/cartas/estilo_bentley.py`): misma región (Mercator, 122,5°O a
-12°E, 67°S a 12°N), mismos campos, intervalos y colores (leídos píxel por
-píxel de las barras de sus imágenes). No llevan su firma: dicen "GFS 0,5°
+(`app/meteo/cartas/estilo_bentley.py`): misma región, mismos campos,
+intervalos y colores (leídos píxel por píxel de las barras de sus imágenes)
+y el **mismo marco**: imagen de 1160 x 912, el mapa en la misma caja (x 99 a
+1060, y 49 a 788) y con los mismos límites en la proyección (Mercator, la
+misma que cartopy: medida sobre las líneas de la grilla de sus cartas, con
+residuos de 0,1 píxel). Por eso nuestras cartas de análisis y las de ella se
+pueden **superponer con transparencia** en el visor (la clave `grupo:
+bentley_southamer` del YAML las junta) y el cursor sincronizado marca el
+mismo lugar en las dos. No llevan su firma: dicen "GFS 0,5°
 (NOAA), procesado en el servidor del proyecto".
 
 | Carta | Qué muestra |

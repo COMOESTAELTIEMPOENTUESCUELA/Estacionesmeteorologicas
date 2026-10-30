@@ -31,9 +31,6 @@ from matplotlib.colors import BoundaryNorm, ListedColormap  # noqa: E402
 
 from .diagnostico import KT, NIVELES_IVT, ivt, suavizar, theta_e, vorticidad_relativa  # noqa: E402
 
-# Región de las cartas de Bentley ("southamer"), en Mercator. Medida sobre sus
-# imágenes: 20° de longitud = 143 píxeles; el ecuador, 87 píxeles bajo el borde.
-EXTENSION = (-122.5, 12, -67.3, 12)
 # Lo que se baja (con un margen alrededor, para que no queden bordes vacíos).
 REGION = (-125, 15, -70, 15)
 PLAZOS = list(range(0, 193, 6))         # +0 (análisis) a +192 h, cada 6 h
@@ -75,7 +72,13 @@ PC = ccrs.PlateCarree()
 
 # Tamaño y lugares (en píxeles de una imagen de 1160 x 912, como las de ella).
 ANCHO_PX, ALTO_PX = 1160, 912
-MAPA_PX = (100, 48, 1060, 790)          # izquierda, arriba, derecha, abajo
+MAPA_PX = (99, 49, 1060, 788)           # izquierda, arriba, derecha, abajo
+# Límites del mapa en metros de la Mercator, medidos sobre las imágenes de
+# Bentley (líneas de la grilla, ajuste con residuos de 0,1 píxel: usa la
+# misma proyección que cartopy). Con la misma caja y estos límites, nuestras
+# cartas y las de ella coinciden píxel a píxel y se pueden superponer.
+LIM_X = (-13592859, 1346716)
+LIM_Y = (-10155183, 1335818)
 BARRA_PX = (2, 856, 1158, 883)
 
 
@@ -93,9 +96,12 @@ def _escala(limites, colores):
 
 
 def _marco(titulo, inicio, plazo, tierra=True, costa="black", titulo2_der=""):
-    fig = plt.figure(figsize=(ANCHO_PX / 100, ALTO_PX / 100), dpi=100)
+    # (+0,5 px: 9,12 pulgadas x 100 daba 911 píxeles por redondeo)
+    fig = plt.figure(figsize=(ANCHO_PX / 100, (ALTO_PX + 0.5) / 100), dpi=100)
     ax = fig.add_axes(_caja(MAPA_PX), projection=ccrs.Mercator())
-    ax.set_extent(EXTENSION, crs=PC)
+    ax.set_xlim(*LIM_X)
+    ax.set_ylim(*LIM_Y)
+    ax.set_aspect("auto")      # la escala ya es la misma en x y en y: que no mueva la caja
     if tierra:
         ax.add_feature(cfeature.LAND.with_scale("50m"), facecolor=TIERRA, zorder=0)
     ancho = 1.3 if costa != "black" else 0.7
@@ -104,14 +110,19 @@ def _marco(titulo, inicio, plazo, tierra=True, costa="black", titulo2_der=""):
     gl = ax.gridlines(crs=PC, draw_labels=True, xlocs=range(-120, 21, 20), ylocs=range(-80, 21, 20),
                       linewidth=0.9, color="#8c8c8c", linestyle=(0, (6, 4)), zorder=6)
     gl.top_labels = False
-    gl.xlabel_style = gl.ylabel_style = {"size": 16}
+    gl.xlabel_style = gl.ylabel_style = {"size": 19.5}
+    gl.xpadding, gl.ypadding = 23, 26     # separación de los rótulos al mapa, como en las de Bentley
+    # Como en las de Bentley: "0" sin grado en el ecuador y en Greenwich.
+    from matplotlib.ticker import FuncFormatter
+    gl.xformatter = FuncFormatter(lambda v, _: "0" if abs(v) < 1e-6 else f"{abs(v):g}°{'W' if v < 0 else 'E'}")
+    gl.yformatter = FuncFormatter(lambda v, _: "0" if abs(v) < 1e-6 else f"{abs(v):g}°{'S' if v < 0 else 'N'}")
     valida = inicio + timedelta(hours=plazo)
-    fig.text(100 / ANCHO_PX, 1 - 17 / ALTO_PX, titulo, fontsize=11.5, va="center")
-    fig.text(100 / ANCHO_PX, 1 - 38 / ALTO_PX,
+    fig.text(100 / ANCHO_PX, 1 - 19 / ALTO_PX, titulo, fontsize=13.5, va="center")
+    fig.text(100 / ANCHO_PX, 1 - 40 / ALTO_PX,
              f"Initialized: {inicio:%H%M} UTC {inicio:%d %b %Y} | Forecast hour: {plazo} | "
-             f"Valid: {valida:%H%M} UTC {valida:%d %b %Y}", fontsize=9.5, va="center")
+             f"Valid: {valida:%H%M} UTC {valida:%d %b %Y}", fontsize=11, va="center")
     if titulo2_der:
-        fig.text(1060 / ANCHO_PX, 1 - 38 / ALTO_PX, titulo2_der, fontsize=11.5, va="center", ha="right")
+        fig.text(1060 / ANCHO_PX, 1 - 40 / ALTO_PX, titulo2_der, fontsize=13.5, va="center", ha="right")
     ax.text(0.008, 0.012, "GFS 0,5° (NOAA)\nprocesado en el servidor del proyecto", transform=ax.transAxes,
             fontsize=8.5, zorder=7, bbox={"facecolor": "white", "alpha": 0.6, "pad": 1.5, "linewidth": 0})
     return fig, ax
@@ -119,9 +130,11 @@ def _marco(titulo, inicio, plazo, tierra=True, costa="black", titulo2_der=""):
 
 def _barra(fig, mapeo, limites):
     cax = fig.add_axes(_caja(BARRA_PX))
+    # Las cajas de los extremos ("menos que" y "más que") del mismo ancho que
+    # las demás, como en las de Bentley.
     cb = fig.colorbar(mapeo, cax=cax, orientation="horizontal", ticks=limites, extend="both",
-                      extendfrac=0.105, extendrect=True, drawedges=True)
-    cb.ax.tick_params(labelsize=16, length=0, pad=6)
+                      extendfrac=1 / (len(mapeo.levels) - 1), extendrect=True, drawedges=True)
+    cb.ax.tick_params(labelsize=19.5, length=0, pad=8)
     cb.outline.set_linewidth(0.8)
     cb.dividers.set_linewidth(0.8)
 

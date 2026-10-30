@@ -79,28 +79,34 @@ productos:
 
   # --- Cartas de diagnóstico propias: ANÁLISIS del GFS (formato Bentley) ---
   # El análisis (+0 h) de cada hora sinóptica, dibujado en el servidor con el
-  # mismo formato que el pronóstico de arriba, y archivado para siempre como
+  # mismo formato que el pronóstico de arriba (y el MISMO marco que las de
+  # Bentley: "grupo" igual, así el visor las deja superponer con
+  # transparencia y el cursor sincronizado marca el mismo lugar), y archivado para siempre como
   # las demás cartas de cada hora (~1 GB por año). Son análisis de verdad:
   # "Forecast hour: 0" en el título. En cada vuelta se dibujan las horas de
   # las últimas 48 h que falten (~15 MB de NOAA y ~20 s cada una); NOAA
   # guarda los análisis desde 2021, así que se pueden dibujar eventos viejos:
   #   python -m meteo.ingesta historico cartas --desde 2026-10-01 --hasta 2026-10-29
   - id: gfs_ana_mslp_jet
+    grupo: bentley_southamer
     nombre: "Presión, espesor 1000/500 hPa y corriente en chorro"
     nivel: "Superficie y 1000/500 hPa (GFS)"
     fuente: gfs_analisis
     carta: mslp_jet
   - id: gfs_ana_850_thetae
+    grupo: bentley_southamer
     nombre: "Temperatura potencial equivalente"
     nivel: "850 hPa (GFS)"
     fuente: gfs_analisis
     carta: 850_thetae
   - id: gfs_ana_ivt
+    grupo: bentley_southamer
     nombre: "Transporte integrado de vapor (IVT)"
     nivel: "700 hPa (GFS)"
     fuente: gfs_analisis
     carta: ivt
   - id: gfs_ana_500_vort
+    grupo: bentley_southamer
     nombre: "Vorticidad, temperatura y ascenso"
     nivel: "500 hPa (GFS)"
     fuente: gfs_analisis
@@ -116,6 +122,7 @@ productos:
   # 14 días: al volver de una caída, recupera lo que faltó. Para dejar de
   # bajarlas sin perder lo archivado: `descargar: false` en las cuatro.
   - id: bentley_mslp_jet
+    grupo: bentley_southamer
     nombre: "Presión, espesor 1000/500 hPa y corriente en chorro"
     nivel: "Superficie y 1000/500 hPa (Bentley)"
     fuente: bentley
@@ -123,6 +130,7 @@ productos:
     variable: mslp_jet
     pronostico: false
   - id: bentley_850_thetae
+    grupo: bentley_southamer
     nombre: "Temperatura potencial equivalente"
     nivel: "850 hPa (Bentley)"
     fuente: bentley
@@ -130,6 +138,7 @@ productos:
     variable: 850_thetae
     pronostico: false
   - id: bentley_ivt_conv
+    grupo: bentley_southamer
     nombre: "Transporte integrado de vapor (IVT) y convergencia"
     nivel: "700 hPa (Bentley)"
     fuente: bentley
@@ -137,6 +146,7 @@ productos:
     variable: IVT_conv
     pronostico: false
   - id: bentley_rel_vort
+    grupo: bentley_southamer
     nombre: "Vorticidad relativa"
     nivel: "500 hPa (Bentley)"
     fuente: bentley

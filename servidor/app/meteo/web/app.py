@@ -702,7 +702,7 @@ def _cartas_productos(con_pronosticos=False):
     except FileNotFoundError:
         return []
     horas = cfg.get("horas_utc", [0, 6, 12, 18])
-    return [{**{k: p.get(k) for k in ("id", "nombre", "nivel", "fuente", "zona", "dominio", "solo_con_tormenta")},
+    return [{**{k: p.get(k) for k in ("id", "nombre", "nivel", "fuente", "zona", "dominio", "solo_con_tormenta", "grupo")},
              "horas_utc": p.get("horas_utc", horas), "solo_archivo": p.get("descargar", True) is False,
              "pronostico": p.get("pronostico", True)}
             for p in cfg.get("productos", [])
