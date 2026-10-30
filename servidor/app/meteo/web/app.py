@@ -767,6 +767,43 @@ def cartas_pronostico(corrida: str | None = None):
     return {"productos": salida, "ciudades": ciudades}
 
 
+@app.get("/api/cartas/punto")
+def diagnostico_punto(ciudad: str, desde: datetime, hasta: datetime):
+    """Meteograma de diagnóstico de una ciudad: lo que pasó arriba (los
+    valores del análisis del GFS cada 6 h, cartas/puntos.py) y en superficie
+    (lo que midió su estación del SMN, cada hora). Hasta 16 días."""
+    from ..cartas import puntos
+    from ..ciudades import PUNTOS_GFS, SYNOP_PUNTOS
+    if ciudad not in PUNTOS_GFS:
+        raise HTTPException(404, "ciudad desconocida")
+    desde = (desde if desde.tzinfo else desde.replace(tzinfo=timezone.utc)).astimezone(timezone.utc)
+    hasta = (hasta if hasta.tzinfo else hasta.replace(tzinfo=timezone.utc)).astimezone(timezone.utc)
+    if not timedelta(0) < hasta - desde <= timedelta(days=16):
+        raise HTTPException(400, "período inválido (hasta 16 días)")
+    gfs = []
+    t = desde.replace(minute=0, second=0, microsecond=0)
+    t -= timedelta(hours=t.hour % 6)
+    if t < desde:
+        t += timedelta(hours=6)            # el primer análisis DENTRO del período
+    while t <= hasta:
+        d = puntos.leer(ARCHIVO_DIR, t)
+        v = (d or {}).get("ciudades", {}).get(ciudad)
+        if v:
+            gfs.append({"ts": _iso(t), "perfil": "perfil" in v, **{k: x for k, x in v.items() if k != "perfil"}})
+        t += timedelta(hours=6)
+    est = SYNOP_PUNTOS.get(ciudad)
+    obs = []
+    if est:
+        cols = ("temp", "td", "pnm", "viento_dir", "viento_vel", "precip_1h", "precip_3h", "precip_6h", "ww")
+        columnas = ", ".join(f"max(valor) FILTER (WHERE variable = '{c}') AS {c}" for c in cols)
+        obs = _json(consultar(f"""
+            SELECT ts, {columnas} FROM observacion
+            WHERE estacion_id = %s AND ts >= %s AND ts <= %s AND qc <> 4
+            GROUP BY ts ORDER BY ts""", (est, desde, hasta)))
+    return {"ciudad": ciudad, "estacion": est, "desde": _iso(desde), "hasta": _iso(hasta), "gfs": gfs, "obs": obs,
+            "ciudades": list(PUNTOS_GFS)}
+
+
 @app.get("/api/cartas/estaciones-omm")
 def estaciones_omm():
     """Nombre de cada estación sinóptica de Sudamérica, por número OMM (para

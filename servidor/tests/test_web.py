@@ -417,3 +417,23 @@ def test_api_pronostico_gfs(cliente, tmp_path, monkeypatch):
     assert cliente.get("/api/cartas/pronostico?corrida=2026101206").json()["productos"][1]["id"] == "g_ivt"
     assert cliente.get("/api/cartas/pronostico?corrida=2026101200").json()["productos"] == []
     assert cliente.get("/api/cartas/pronostico?corrida=xx").status_code == 400
+
+
+def test_api_punto_meteograma(cliente, tmp_path, monkeypatch):
+    """Meteograma de diagnóstico: los valores del GFS de cada 6 h del período
+    (sin el perfil, que es para el sondeo) y lo medido por su estación."""
+    from datetime import datetime, timezone
+
+    from meteo.cartas import puntos
+    from meteo.web import app as web
+    monkeypatch.setattr(web, "ARCHIVO_DIR", str(tmp_path))
+    for h in (0, 6, 12):
+        puntos.guardar(tmp_path, datetime(2026, 10, 28, h, tzinfo=timezone.utc),
+                       {"La Plata": {"pnm": 1010 + h, "perfil": {"p": [1000]}}, "Junín": {"pnm": 1000}})
+    r = cliente.get("/api/cartas/punto?ciudad=La Plata&desde=2026-10-28T03:00Z&hasta=2026-10-28T13:00Z")
+    assert r.status_code == 200
+    d = r.json()
+    assert [(g["ts"], g["pnm"], g["perfil"]) for g in d["gfs"]] == [("2026-10-28T06:00:00Z", 1016, True), ("2026-10-28T12:00:00Z", 1022, True)]
+    assert d["estacion"] == "omm_87593" and "Ezeiza" in d["ciudades"]
+    assert cliente.get("/api/cartas/punto?ciudad=Narnia&desde=2026-10-28T03:00Z&hasta=2026-10-28T13:00Z").status_code == 404
+    assert cliente.get("/api/cartas/punto?ciudad=La Plata&desde=2026-10-01T00:00Z&hasta=2026-10-28T13:00Z").status_code == 400

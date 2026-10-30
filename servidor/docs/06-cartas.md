@@ -327,6 +327,28 @@ docker compose exec ingesta python -m meteo.ingesta diagnostico-ogimet
 - **Observaciones de la hora**: debajo, el SYNOP de esa hora de cada
   estación del SMN.
 
+## Diagnóstico por ciudad (meteograma de "lo que pasó")
+
+Tarjeta "Diagnóstico por ciudad" de la pestaña Cartas: para una ciudad (o
+Ezeiza) y un período de 3, 5 o 10 días alrededor de la hora de la carta
+(línea vertical punteada), en paneles con el mismo eje de tiempo:
+
+- **Lo medido** por su estación del SMN (SYNOP, cada hora): temperatura,
+  rocío, presión, viento (con barbas cada 3 h) y lluvia.
+- **El análisis del GFS** en el punto de la ciudad, cada 6 h (punteado): T y
+  Td a 2 m y presión (para comparar con lo medido), T, Td y θe en 850 hPa,
+  espesor 1000-500, viento en 850, 500 y 250 hPa (con barbas), agua
+  precipitable, IVT, CAPE y vorticidad en 500 hPa.
+
+De dónde salen los valores del GFS: en cada análisis que se dibuja (las
+cartas `gfs_analisis`) se guardan, además, los valores interpolados en cada
+ciudad y en Ezeiza, y el perfil vertical de 1000 a 100 hPa (para los
+sondeos): `app/meteo/cartas/puntos.py`, un JSON de ~7 KB por hora en
+`cartas/_puntos/AAAA/MM/` (~10 MB por año). Se bajan unos 12 MB más por
+análisis (los niveles del perfil). Para fechas viejas:
+`historico cartas --desde ... --hasta ...` (si las cartas ya están, baja solo
+lo de los puntos). API: `/api/cartas/punto?ciudad=&desde=&hasta=`.
+
 ## Pronóstico del grupo para el día de la carta
 
 Debajo de las cartas está lo que el grupo pronosticó para ese día en las 6

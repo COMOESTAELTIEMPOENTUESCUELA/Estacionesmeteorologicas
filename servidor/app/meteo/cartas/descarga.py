@@ -310,6 +310,23 @@ def _correr_pronostico_bentley(p, corrida, raiz, sesion):
     return nuevos
 
 
+def _bajar_gfs(ts, pedidos, region, sesion, plazo=0):
+    """gfs.bajar con reintentos: NOAA (o la red) a veces corta una conexión
+    en medio de los ~100 pedidos de un archivo. "Todavía no publicado"
+    (FileNotFoundError) no se reintenta."""
+    from . import gfs
+    for espera in (*REINTENTOS_SEG, None):
+        try:
+            return gfs.bajar(ts, pedidos, region, sesion, plazo=plazo) if plazo else gfs.bajar(ts, pedidos, region, sesion)
+        except FileNotFoundError:
+            raise
+        except Exception as ex:
+            if espera is None:
+                raise
+            log.info("cartas: GFS %s +%d h falló (%s); reintento en %d s", ts, plazo, str(ex)[:80], espera)
+            time.sleep(espera)
+
+
 GFS_PRONO_CORRIDAS_ATRAS = 4    # si la PC estuvo apagada, no se buscan corridas de hace más de un día
 
 
@@ -352,15 +369,7 @@ def _correr_pronostico_gfs(productos, raiz, sesion, ahora=None, analisis=()):
     cuadros = {p["id"]: [] for p in productos}
     try:
         for plazo in eb.PLAZOS:
-            for espera in (*REINTENTOS_SEG, None):
-                try:
-                    campos = gfs.bajar(inicio, eb.PEDIDOS, eb.REGION, sesion, plazo=plazo)
-                    break
-                except Exception as ex:
-                    if espera is None:
-                        raise
-                    log.info("cartas: GFS +%d h falló (%s); reintento en %d s", plazo, str(ex)[:80], espera)
-                    time.sleep(espera)
+            campos = _bajar_gfs(inicio, eb.PEDIDOS, eb.REGION, sesion, plazo=plazo)
             imagenes = eb.dibujar(campos, inicio, plazo)
             if plazo == 0:
                 for p in analisis:
@@ -411,7 +420,7 @@ def _correr_gfs(productos, raiz, sesion, horas, desde=None, hasta=None):
         if not faltan and not faltan_puntos:
             continue
         try:
-            campos = gfs.bajar(ts, pedidos, region, sesion)
+            campos = _bajar_gfs(ts, pedidos, region, sesion)
         except FileNotFoundError as ex:
             log.info("cartas: %s", ex)
             continue

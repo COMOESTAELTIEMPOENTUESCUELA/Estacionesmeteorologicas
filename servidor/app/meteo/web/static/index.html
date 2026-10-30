@@ -833,6 +833,29 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
         <span class="err e-ok">≤2</span> <span class="err e-medio">≤4</span> <span class="err e-mal">&gt;4 °C</span>;
         ▲ hizo más calor de lo pronosticado, ▼ más frío. Tocá una ciudad para ver el pronóstico por período; "Ogimet ↗" abre los SYNOP de su aeropuerto para ese día (horas en UTC: el día civil va de las 03 UTC a las 03 UTC del día siguiente; la lluvia de 24 h y los extremos están en el parte de las 12 UTC del día siguiente).</p>
     </div>
+    <div class="tarjeta" id="cmd" style="margin-top:16px">
+      <div class="filtros">
+        <h2 style="margin:0; font-size:18px; flex:1 1 280px">Diagnóstico por ciudad <span class="tenue" style="font-weight:400">(lo que pasó: superficie medida y GFS en altura)</span></h2>
+        <label class="en-linea">Ciudad <select id="cmd-ciudad"><option>La Plata</option></select></label>
+        <label class="en-linea">Período
+          <select id="cmd-dias"><option value="3">3 días</option><option value="5" selected>5 días</option><option value="10">10 días</option></select>
+        </label>
+      </div>
+      <p class="ayuda" id="cmd-nota"></p>
+      <div id="cmd-paneles"></div>
+      <details class="como" style="margin-top:6px"><summary>¿Qué es cada cosa?</summary>
+        <p class="ayuda">Las líneas continuas son lo <b>medido</b> por la estación del SMN de la ciudad (SYNOP, cada hora). Los puntos unidos son el
+          <b>análisis del GFS</b> en el punto de la ciudad, cada 6 h: el estado de la atmósfera según el modelo con todas las observaciones
+          asimiladas (radiosondeos, aviones, satélites...). La línea vertical punteada es la hora de la carta elegida arriba.</p>
+        <ul class="ayuda">
+          <li><b>Espesor 1000-500 hPa</b>: cuanto más frío el aire entre esos niveles, más bajo. Cae al pasar un frente frío; 540 dam es una referencia de nieve posible.</li>
+          <li><b>θe en 850 hPa</b> (temperatura potencial equivalente): mide calor y humedad juntos. Valores altos = aire cálido y húmedo (inestable); su caída marca la entrada de aire más seco o frío.</li>
+          <li><b>Viento en altura</b>: 850 hPa (~1500 m, el chorro de capas bajas que trae humedad del norte), 500 hPa (~5500 m) y 250 hPa (~10 km, la corriente en chorro). Las barbas indican de dónde viene.</li>
+          <li><b>Agua precipitable</b>: el vapor de toda la columna, en mm, si se condensara todo. <b>IVT</b>: cuánto vapor está transportando el viento.</li>
+          <li><b>CAPE</b>: energía disponible para la convección (tormentas). <b>Vorticidad en 500 hPa</b>: ciclónica (negativa en el hemisferio sur) con las vaguadas.</li>
+        </ul>
+      </details>
+    </div>
     <div class="tarjeta" id="co" style="margin-top:16px">
       <h2 style="margin:0 0 4px; font-size:18px" id="co-titulo">Observaciones de la hora</h2>
       <p class="ayuda" id="co-nota"></p>
@@ -1374,13 +1397,20 @@ function rangoAjustado(datasets, margen = 1) {
   return { suggestedMin: Math.min(...ys) - margen, suggestedMax: Math.max(...ys) + margen };
 }
 
-function panel(canvas, datasets, { unidad, tipo = "line", xmin, xmax, min, max, ticksY, rango } = {}) {
+function panel(canvas, datasets, { unidad, tipo = "line", xmin, xmax, min, max, ticksY, rango, marca, complementos = [] } = {}) {
   if (graficosPanel.has(canvas)) graficosPanel.get(canvas).destroy();
   const tinta2 = css("--tinta-2"), tenue = css("--tenue"), grilla = css("--grilla");
+  // marca: una línea vertical punteada en ese instante (ej. la hora de la carta).
+  const lineaMarca = marca === undefined ? [] : [{ id: "marca", afterDatasetsDraw(chart) {
+    const x = chart.scales.x.getPixelForValue(marca), { top, bottom, left, right } = chart.chartArea;
+    if (x < left || x > right) return;
+    const ctx = chart.ctx; ctx.save(); ctx.setLineDash([4, 3]); ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, bottom);
+    ctx.lineWidth = 1.5; ctx.strokeStyle = css("--tinta-2"); ctx.stroke(); ctx.restore();
+  } }];
   const g = new Chart(canvas, {
     type: tipo,
     data: { datasets },
-    plugins: [lineaCursor],
+    plugins: [lineaCursor, ...lineaMarca, ...complementos],
     options: {
       responsive: true, maintainAspectRatio: false, animation: false, parsing: false, normalized: true,
       locale: "es-AR",
@@ -1466,6 +1496,42 @@ function barba(dirGrados, velMs, tam = 44) {
     aria-label="${nudos} nudos desde ${rumbo(dirGrados)}"><circle cx="0" cy="0" r="1.6"/>
     <g transform="rotate(${dirGrados || 0})">${partes.join("")}</g></svg>`;
 }
+
+// La misma barba, dibujada en un canvas (para los gráficos): en (x, y), viento
+// de dirGrados con `nudos` (redondeado a 5). Hemisferio sur.
+function barbaCanvas(ctx, x, y, dirGrados, nudosCrudos, tam = 15) {
+  if (nudosCrudos === null || nudosCrudos === undefined || dirGrados === null || dirGrados === undefined) return;
+  const nudos = Math.round(nudosCrudos / 5) * 5;
+  ctx.save(); ctx.translate(x, y);
+  if (nudos < 5) { ctx.beginPath(); ctx.arc(0, 0, 3, 0, 2 * Math.PI); ctx.stroke(); ctx.restore(); return; }
+  ctx.rotate((dirGrados * Math.PI) / 180);
+  const L = tam, paso = 3.2, largo = 7, lado = -1;
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -L);
+  let resto = nudos, yy = -L;
+  while (resto >= 50) {
+    ctx.moveTo(0, yy); ctx.lineTo(lado * largo, yy + 1.6); ctx.lineTo(0, yy + 4); ctx.fill(); yy += 4.8; resto -= 50;
+  }
+  while (resto >= 10) { ctx.moveTo(0, yy); ctx.lineTo(lado * largo, yy - 3); yy += paso; resto -= 10; }
+  if (resto >= 5) { if (yy === -L) yy += paso; ctx.moveTo(0, yy); ctx.lineTo((lado * largo) / 2, yy - 1.5); }
+  ctx.stroke(); ctx.restore();
+}
+// Complemento de Chart.js: una barba en cada punto de las series que traen
+// "dir" (y "nudos") en sus datos.
+const barbasPuntos = {
+  id: "barbasPuntos",
+  afterDatasetsDraw(chart) {
+    const ctx = chart.ctx;
+    chart.data.datasets.forEach((ds, i) => {
+      if (!ds.barbas || chart.getDatasetMeta(i).hidden) return;
+      ctx.save(); ctx.strokeStyle = ds.borderColor; ctx.fillStyle = ds.borderColor; ctx.lineWidth = 1.3;
+      chart.getDatasetMeta(i).data.forEach((el, k) => {
+        const d = ds.data[k];
+        if (d && d.y !== null && d.dir !== undefined) barbaCanvas(ctx, el.x, el.y, d.dir, d.nudos);
+      });
+      ctx.restore();
+    });
+  },
+};
 
 // ======================================================================
 // Rosa de los vientos (SVG propio)
@@ -2487,6 +2553,7 @@ async function iniciarCartas() {
     cargarCartas();
   });
   iniciarVisor();
+  iniciarDiagnostico();
   $("#f-cp-plazo").addEventListener("change", cargarPronoDia);
   document.addEventListener("keydown", (e) => {
     if (teclaGFS(e)) return;            // el teclado lo está usando el pronóstico GFS
@@ -2567,7 +2634,95 @@ async function cargarCartas() {
   $("#c-grid").onpointerleave = () => document.querySelectorAll("#c-grid .cruz").forEach((c) => (c.hidden = true));
   if ($("#c-dialogo").open) mostrarEnVisor();
   cargarPronoDia();
+  cargarDiagnostico();
   cargarObsHora(t);
+}
+
+// ---------- Diagnóstico por ciudad (meteograma) ----------
+// Lo medido en superficie (SYNOP, cada hora) junto con el análisis del GFS en
+// el punto de la ciudad (cada 6 h: cartas/puntos.py), alrededor de la hora
+// de la carta elegida.
+let cmdClave = null;
+function iniciarDiagnostico() {
+  try { const c = localStorage.getItem("diag-ciudad"); if (c) $("#cmd-ciudad").innerHTML = `<option>${esc(c)}</option>`; } catch (_) {}
+  try { const d = localStorage.getItem("diag-dias"); if (d) $("#cmd-dias").value = d; } catch (_) {}
+  const cambio = () => {
+    try { localStorage.setItem("diag-ciudad", $("#cmd-ciudad").value); localStorage.setItem("diag-dias", $("#cmd-dias").value); } catch (_) {}
+    cargarDiagnostico();
+  };
+  $("#cmd-ciudad").addEventListener("change", cambio);
+  $("#cmd-dias").addEventListener("change", cambio);
+}
+async function cargarDiagnostico() {
+  const t = tsCarta(), dias = Number($("#cmd-dias").value), ciudad = $("#cmd-ciudad").value || "La Plata";
+  let desde = +t - (dias / 2) * 24 * HORA, hasta = +t + (dias / 2) * 24 * HORA;
+  if (hasta > Date.now()) { desde -= hasta - Date.now(); hasta = Date.now(); }
+  const clave = `${ciudad}|${dias}|${+t}`;
+  if (clave === cmdClave) return;
+  cmdClave = clave;
+  let r;
+  try {
+    r = await api(`/api/cartas/punto?ciudad=${encodeURIComponent(ciudad)}&desde=${new Date(desde).toISOString()}&hasta=${new Date(hasta).toISOString()}`);
+  } catch (err) { $("#cmd-nota").textContent = `No se pudo cargar: ${err.message}`; return; }
+  if (cmdClave !== clave) return;                  // llegó tarde: ya se pidió otro
+  if ($("#cmd-ciudad").options.length < 2) {
+    $("#cmd-ciudad").innerHTML = r.ciudades.map((c) => `<option>${esc(c)}</option>`).join("");
+    $("#cmd-ciudad").value = ciudad;
+  }
+  const G = r.gfs, O = r.obs, x = { xmin: desde, xmax: hasta, marca: +t };
+  $("#cmd-nota").textContent = `${ciudad}: ${O.length} observaciones del SMN${r.estacion ? ` (${r.estacion.replace("omm_", "")})` : ""} y ` +
+    `${G.length} análisis del GFS en el período.` + (G.length ? "" : " Los análisis del GFS se guardan desde que se instaló esta función " +
+    "(para fechas anteriores: historico cartas).");
+  const ptsO = (k, fn = (v) => v) => O.filter((o) => o[k] !== null && o[k] !== undefined).map((o) => [o.ts, fn(o[k])]);
+  const ptsG = (k, fn = (v) => v) => G.filter((g) => g[k] !== null && g[k] !== undefined).map((g) => [g.ts, fn(g[k])]);
+  const gfs = (etiqueta, puntos, slot) => ({ ...serieLinea(etiqueta, puntos, slot), pointRadius: 2.5, borderDash: [5, 3] });
+  // Serie de viento con barbas: [nudos, dir] -> línea de nudos (o km/h) con la barba en cada punto.
+  // cadaHoras: una barba cada tantas horas (UTC múltiplo), para que no se amontonen.
+  const conBarbas = (etiqueta, filas, slot, { factor = 1, cadaHoras = 6 } = {}) => {
+    const ds = serieLinea(etiqueta, filas.map(([ts, [kt]]) => [ts, +(kt * factor).toFixed(1)]), slot);
+    const por = new Map(filas.map(([ts, v]) => [Date.parse(ts), v]));       // por hora (los huecos agregan puntos)
+    ds.data.forEach((d) => {
+      const v = por.get(d.x);
+      if (v && d.y !== null && new Date(d.x).getUTCHours() % cadaHoras === 0) { d.nudos = v[0]; d.dir = v[1]; }
+    });
+    ds.barbas = true; ds.pointRadius = 0;
+    return ds;
+  };
+  // Para el viento medido: [kt, dir] de km/h (m/s en la base) y dirección.
+  const vientoObs = O.filter((o) => o.viento_vel !== null && o.viento_dir !== null).map((o) => [o.ts, [o.viento_vel * 1.943844, o.viento_dir]]);
+  const lluvia = ptsO("precip_6h").length ? ["precip_6h", "Lluvia en 6 h"] : ptsO("precip_3h").length ? ["precip_3h", "Lluvia en 3 h"]
+    : ptsO("precip_1h").length ? ["precip_1h", "Lluvia en 1 h"] : null;
+  const sup = (k) => G.filter((g) => g.sup && g.sup[k] !== undefined).map((g) => [g.ts, g.sup[k]]);
+  const paneles = [
+    ["Temperatura y rocío en superficie", "°C · punteado: GFS a 2 m", (cv) => panel(cv,
+      [serieLinea("Temperatura", ptsO("temp"), 2), serieLinea("Rocío", ptsO("td"), 1), gfs("T (GFS)", sup("t"), 2), gfs("Td (GFS)", sup("td"), 1)],
+      { unidad: "°C", ...x })],
+    ["Presión a nivel del mar", "hPa", (cv) => { const ds = [serieLinea("Medida", ptsO("pnm"), 7), gfs("GFS", ptsG("pnm"), 7)];
+      return panel(cv, ds, { unidad: "hPa", rango: rangoAjustado(ds), ticksY: { callback: (v) => String(Math.round(v)) }, ...x }); }],
+    ["Viento en superficie", "km/h · barbas: de dónde viene (nudos)", (cv) => panel(cv,
+      [conBarbas("Medido", vientoObs, 1, { factor: 1.852, cadaHoras: 3 })], { unidad: "km/h", min: 0, ...x, complementos: [barbasPuntos] })],
+    ["850 hPa (~1500 m): temperatura y rocío", "°C", (cv) => panel(cv,
+      [gfs("T 850", ptsG("t850"), 2), gfs("Td 850", ptsG("td850"), 1)], { unidad: "°C", ...x })],
+    ["θe en 850 hPa", "K · aire cálido y húmedo arriba, seco o frío abajo", (cv) => { const ds = [gfs("θe 850", ptsG("te850"), 8)];
+      return panel(cv, ds, { unidad: "K", rango: rangoAjustado(ds, 2), ...x }); }],
+    ["Espesor 1000-500 hPa", "dam · baja con el aire frío", (cv) => { const ds = [gfs("Espesor", ptsG("espesor"), 7)];
+      return panel(cv, ds, { unidad: "dam", rango: rangoAjustado(ds, 2), ...x }); }],
+    ["Viento en altura", "nudos · barbas: de dónde viene", (cv) => panel(cv,
+      [conBarbas("850 hPa", ptsG("v850"), 3), conBarbas("500 hPa", ptsG("v500"), 4), conBarbas("250 hPa (chorro)", ptsG("v250"), 7)]
+        .map((d) => ({ ...d, pointRadius: 2.5 })), { unidad: "kt", min: 0, ...x, complementos: [barbasPuntos] })],
+    ["Agua precipitable", "mm", (cv) => panel(cv, [gfs("Agua precipitable", ptsG("pw"), 1)], { unidad: "mm", min: 0, ...x })],
+    ["Transporte de vapor (IVT)", "kg m⁻¹ s⁻¹ · 250 o más: río atmosférico débil", (cv) => panel(cv,
+      [gfs("IVT", ptsG("ivt", (v) => v[0]), 4)], { unidad: "kg/m/s", min: 0, ...x })],
+    ["Inestabilidad (CAPE)", "J/kg", (cv) => panel(cv, [gfs("CAPE", ptsG("cape"), 5)], { unidad: "J/kg", min: 0, ...x })],
+    ["Vorticidad relativa en 500 hPa", "10⁻⁵ s⁻¹ · negativa = ciclónica (vaguada)", (cv) => panel(cv,
+      [gfs("Vorticidad 500", ptsG("vort500"), 6)], { unidad: "10⁻⁵ s⁻¹", ...x })],
+  ];
+  if (lluvia) paneles.push([lluvia[1] + " (medida)", "mm (cada barra: el período que termina a esa hora)", (cv) => panel(cv,
+    [{ label: lluvia[1], data: ptsO(lluvia[0]).map(([ts, v]) => ({ x: Date.parse(ts), y: v })), backgroundColor: css("--s1"), borderRadius: 2, barThickness: 6 }],
+    { unidad: "mm", tipo: "bar", min: 0, ...x })]);
+  $("#cmd-paneles").innerHTML = paneles.map(([tit, u], j) => `<div class="panel-titulo">${esc(tit)}${u ? ` <span class="tenue">(${esc(u)})</span>` : ""}</div>
+    <div class="panel cp-panel"><canvas data-j="${j}"></canvas></div>`).join("");
+  paneles.forEach(([, , dibujar], j) => dibujar($(`#cmd-paneles canvas[data-j="${j}"]`)));
 }
 
 // ---------- Observaciones de la hora de la carta ----------

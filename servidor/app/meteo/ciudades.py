@@ -23,3 +23,6 @@ CIUDADES_SYNOP = {
 # ciudades y Ezeiza, donde el SMN lanza el radiosondeo (para comparar el
 # sondeo del modelo con el real).
 PUNTOS_GFS = {**CIUDADES_COORD, "Ezeiza": (-34.82, -58.53)}
+
+# Estación SYNOP de cada punto (para el meteograma: lo medido en superficie).
+SYNOP_PUNTOS = {**CIUDADES_SYNOP, "Ezeiza": "omm_87576"}
