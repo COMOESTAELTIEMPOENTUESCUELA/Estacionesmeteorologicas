@@ -884,12 +884,18 @@
 
             // Si se combinan varios canales (caso EMA Violeta), evitamos contar dos
             // veces la misma lectura si apareciera con el mismo timestamp en ambos.
-            const timestampsVistos = new Set();
-            feeds = feeds.filter(f => {
-                if (timestampsVistos.has(f.created_at)) return false;
-                timestampsVistos.add(f.created_at);
-                return true;
-            });
+            // OJO: esto es solo para ese caso. Con un solo canal, ThingSpeak redondea
+            // el timestamp al segundo, así que dos pulsos reales y distintos del
+            // pluviómetro pueden quedar con el mismo created_at durante una lluvia
+            // intensa — deduplicar ahí tira datos de lluvia real, no duplicados.
+            if (canales.length > 1) {
+                const timestampsVistos = new Set();
+                feeds = feeds.filter(f => {
+                    if (timestampsVistos.has(f.created_at)) return false;
+                    timestampsVistos.add(f.created_at);
+                    return true;
+                });
+            }
 
             const incluirFecha = dias > 1;
             let total = 0;
@@ -2188,12 +2194,17 @@
             let feeds = respuestas.flatMap(d => d.feeds || []);
             feeds.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
-            const timestampsVistos = new Set();
-            feeds = feeds.filter(f => {
-                if (timestampsVistos.has(f.created_at)) return false;
-                timestampsVistos.add(f.created_at);
-                return true;
-            });
+            // Mismo motivo que en datosDelPeriodoTS: solo deduplicar por timestamp si
+            // se están combinando varios canales (EMA Violeta). Con uno solo, dos
+            // pulsos reales de lluvia pueden compartir el mismo segundo.
+            if (canales.length > 1) {
+                const timestampsVistos = new Set();
+                feeds = feeds.filter(f => {
+                    if (timestampsVistos.has(f.created_at)) return false;
+                    timestampsVistos.add(f.created_at);
+                    return true;
+                });
+            }
 
             const channelId = estacion.id || canales[0].id;
             const isObservatorio = channelId === '2823820';
