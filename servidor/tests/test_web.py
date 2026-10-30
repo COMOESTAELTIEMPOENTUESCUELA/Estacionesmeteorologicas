@@ -435,6 +435,8 @@ def test_api_punto_meteograma(cliente, tmp_path, monkeypatch):
     d = r.json()
     assert [(g["ts"], g["pnm"], g["perfil"]) for g in d["gfs"]] == [("2026-10-28T06:00:00Z", 1016, True), ("2026-10-28T12:00:00Z", 1022, True)]
     assert d["estacion"] == "omm_87593" and "Ezeiza" in d["ciudades"]
+    con = cliente.get("/api/cartas/punto?ciudad=La Plata&desde=2026-10-28T03:00Z&hasta=2026-10-28T13:00Z&perfiles=true").json()
+    assert con["gfs"][0]["perfil"] == {"p": [1000]}
     assert cliente.get("/api/cartas/punto?ciudad=Narnia&desde=2026-10-28T03:00Z&hasta=2026-10-28T13:00Z").status_code == 404
     assert cliente.get("/api/cartas/punto?ciudad=La Plata&desde=2026-10-01T00:00Z&hasta=2026-10-28T13:00Z").status_code == 400
 

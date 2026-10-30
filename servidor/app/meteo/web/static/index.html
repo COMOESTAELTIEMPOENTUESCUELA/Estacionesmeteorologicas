@@ -229,6 +229,8 @@ img.con-fondo { background-color: #fff !important; background-size: 100% 100%; b
 .cpr-grid:not(.nombres) .cpr-punto::before { left: -3.5px; top: -3.5px; width: 7px; height: 7px; border-width: 2px; }
 .cpr-zoom { display: inline-flex; gap: 2px; }
 .cpr-pos { min-height: 1.2em; font-variant-numeric: tabular-nums; }
+.cmd-corte svg { width: 100%; height: auto; display: block; }
+.cmd-corte text { font: 11px system-ui, sans-serif; fill: var(--tenue); }
 .csd-cuerpo { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(220px, 1fr); gap: 14px; align-items: start; }
 @media (max-width: 860px) { .csd-cuerpo { grid-template-columns: minmax(0, 1fr); } }
 .csd-grafico svg { width: 100%; height: auto; display: block; background: var(--superficie); border: 1px solid var(--borde); border-radius: 6px; }
@@ -848,6 +850,8 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
         </label>
       </div>
       <p class="ayuda" id="cmd-nota"></p>
+      <div class="panel-titulo">Corte tiempo-altura del GFS <span class="tenue">(humedad relativa sombreada, temperatura cada 5 °C — la de 0 °C en azul — y viento)</span></div>
+      <div id="cmd-corte" class="cmd-corte"></div>
       <div id="cmd-paneles"></div>
       <details class="como" style="margin-top:6px"><summary>¿Qué es cada cosa?</summary>
         <p class="ayuda">Las líneas continuas son lo <b>medido</b> por la estación del SMN de la ciudad (SYNOP, cada hora). Los puntos unidos son el
@@ -858,6 +862,8 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
           <li><b>θe en 850 hPa</b> (temperatura potencial equivalente): mide calor y humedad juntos. Valores altos = aire cálido y húmedo (inestable); su caída marca la entrada de aire más seco o frío.</li>
           <li><b>Viento en altura</b>: 850 hPa (~1500 m, el chorro de capas bajas que trae humedad del norte), 500 hPa (~5500 m) y 250 hPa (~10 km, la corriente en chorro). Las barbas indican de dónde viene.</li>
           <li><b>Agua precipitable</b>: el vapor de toda la columna, en mm, si se condensara todo. <b>IVT</b>: cuánto vapor está transportando el viento.</li>
+          <li><b>Corte tiempo-altura</b>: como poner los sondeos del GFS uno al lado del otro. En verde, el aire húmedo (nubes, lluvia); las líneas,
+            la temperatura. Al pasar un frente frío se ve cómo baja la isoterma de 0 °C y entra aire más seco desde las capas bajas o desde arriba.</li>
           <li><b>CAPE</b>: energía disponible para la convección (tormentas). <b>Vorticidad en 500 hPa</b>: ciclónica (negativa en el hemisferio sur) con las vaguadas.</li>
         </ul>
       </details>
@@ -2696,7 +2702,7 @@ async function cargarDiagnostico() {
   cmdClave = clave;
   let r;
   try {
-    r = await api(`/api/cartas/punto?ciudad=${encodeURIComponent(ciudad)}&desde=${new Date(desde).toISOString()}&hasta=${new Date(hasta).toISOString()}`);
+    r = await api(`/api/cartas/punto?ciudad=${encodeURIComponent(ciudad)}&desde=${new Date(desde).toISOString()}&hasta=${new Date(hasta).toISOString()}&perfiles=true`);
   } catch (err) { $("#cmd-nota").textContent = `No se pudo cargar: ${err.message}`; return; }
   if (cmdClave !== clave) return;                  // llegó tarde: ya se pidió otro
   if ($("#cmd-ciudad").options.length < 2) {
@@ -2754,9 +2760,87 @@ async function cargarDiagnostico() {
   if (lluvia) paneles.push([lluvia[1] + " (medida)", "mm (cada barra: el período que termina a esa hora)", (cv) => panel(cv,
     [{ label: lluvia[1], data: ptsO(lluvia[0]).map(([ts, v]) => ({ x: Date.parse(ts), y: v })), backgroundColor: css("--s1"), borderRadius: 2, barThickness: 6 }],
     { unidad: "mm", tipo: "bar", min: 0, ...x })]);
+  dibujarCorte(G, desde, hasta, +t);
   $("#cmd-paneles").innerHTML = paneles.map(([tit, u], j) => `<div class="panel-titulo">${esc(tit)}${u ? ` <span class="tenue">(${esc(u)})</span>` : ""}</div>
     <div class="panel cp-panel"><canvas data-j="${j}"></canvas></div>`).join("");
   paneles.forEach(([, , dibujar], j) => dibujar($(`#cmd-paneles canvas[data-j="${j}"]`)));
+}
+
+// ---------- Corte tiempo-altura (perfiles del GFS uno al lado del otro) ----------
+const NIVELES_CORTE = [1000, 975, 950, 925, 900, 850, 800, 750, 700, 650, 600, 550, 500, 450, 400, 350, 300, 250, 200];
+function humedadRelativa(t, td) { const es = (x) => 6.112 * Math.exp(17.67 * x / (x + 243.5)); return 100 * es(td) / es(t); }
+// Isolíneas por "marching squares": en cada celda de la grilla (2 tiempos x 2
+// niveles) se busca en qué bordes el campo cruza el valor y se los une.
+function isolineas(grilla, xs, ys, valor) {
+  const seg = [];
+  for (let i = 0; i < xs.length - 1; i++) for (let j = 0; j < ys.length - 1; j++) {
+    const c = [[i, j], [i + 1, j], [i + 1, j + 1], [i, j + 1]].map(([a, b]) => grilla[a] && grilla[a][b]);
+    if (c.some((v) => v === null || v === undefined)) continue;
+    const pts = [];
+    for (let k = 0; k < 4; k++) {
+      const v1 = c[k], v2 = c[(k + 1) % 4];
+      if ((v1 < valor) === (v2 < valor)) continue;
+      const f = (valor - v1) / (v2 - v1);
+      const [a1, b1] = [[i, j], [i + 1, j], [i + 1, j + 1], [i, j + 1]][k], [a2, b2] = [[i, j], [i + 1, j], [i + 1, j + 1], [i, j + 1]][(k + 1) % 4];
+      pts.push([xs[a1] + f * (xs[a2] - xs[a1]), ys[b1] + f * (ys[b2] - ys[b1])]);
+    }
+    for (let k = 0; k + 1 < pts.length; k += 2) seg.push(pts[k], pts[k + 1]);
+  }
+  return seg;
+}
+function dibujarCorte(G, desde, hasta, marca) {
+  const W = 1000, H = 300, iz = ANCHO_EJE_Y + 6, de = 12, ar = 8, ab = 22;
+  const conPerfil = G.filter((g) => g.perfil && g.perfil.p);
+  if (conPerfil.length < 2) { $("#cmd-corte").innerHTML = '<p class="tenue">Faltan perfiles del GFS en el período para armar el corte.</p>'; return; }
+  const X = (ts) => iz + (ts - desde) / (hasta - desde) * (W - iz - de);
+  const Y = (p) => H - ab - (H - ar - ab) * Math.log(1000 / p) / Math.log(1000 / 200);
+  const xs = conPerfil.map((g) => X(Date.parse(g.ts))), ys = NIVELES_CORTE.map(Y);
+  // Grillas tiempo x nivel (null = bajo el suelo o sin dato).
+  const nivel = (g, p, k) => { const i = g.perfil.p.indexOf(p); return i < 0 ? null : g.perfil[k][i]; };
+  const T = conPerfil.map((g) => NIVELES_CORTE.map((p) => nivel(g, p, "t")));
+  const HR = conPerfil.map((g) => NIVELES_CORTE.map((p) => { const t = nivel(g, p, "t"), td = nivel(g, p, "td");
+    return t === null || td === null ? null : humedadRelativa(t, td); }));
+  let out = `<defs><clipPath id="corte-r"><rect x="${iz}" y="${ar}" width="${W - iz - de}" height="${H - ar - ab}"/></clipPath></defs><g clip-path="url(#corte-r)">`;
+  // Humedad: cada celda con el color de la humedad media de sus 4 esquinas
+  // (no se une a través de un hueco de más de 12 h sin análisis).
+  const color = (hr) => hr >= 95 ? "#1b7f3b" : hr >= 90 ? "#36a85c" : hr >= 80 ? "#82c98f" : hr >= 70 ? "#c6e7c8" : null;
+  for (let i = 0; i < xs.length - 1; i++) {
+    if (Date.parse(conPerfil[i + 1].ts) - Date.parse(conPerfil[i].ts) > 12 * HORA) continue;
+    for (let j = 0; j < ys.length - 1; j++) {
+      const v = [HR[i][j], HR[i + 1][j], HR[i][j + 1], HR[i + 1][j + 1]];
+      if (v.some((x) => x === null)) continue;
+      const c = color(v.reduce((a, b) => a + b) / 4);
+      if (c) out += `<rect x="${xs[i]}" y="${ys[j + 1]}" width="${xs[i + 1] - xs[i] + 0.5}" height="${ys[j] - ys[j + 1] + 0.5}" fill="${c}"/>`;
+    }
+  }
+  // Isotermas cada 5 °C (0 °C en azul y más gruesa; negativas punteadas).
+  for (let v = -60; v <= 40; v += 5) {
+    const s = isolineas(T, xs, ys, v);
+    if (!s.length) continue;
+    let d = "";
+    for (let k = 0; k < s.length; k += 2) d += `M${s[k][0].toFixed(1)},${s[k][1].toFixed(1)}L${s[k + 1][0].toFixed(1)},${s[k + 1][1].toFixed(1)}`;
+    out += `<path d="${d}" fill="none" stroke="${v === 0 ? "#2a78d6" : "#d93a2b"}" stroke-width="${v === 0 ? 2.2 : 1}" ${v < 0 ? 'stroke-dasharray="4 3"' : ""} stroke-opacity=".85"/>`;
+  }
+  // Viento: barbas en algunos niveles, en cada análisis.
+  out += `<g style="color:var(--tinta)">`;
+  conPerfil.forEach((g, i) => {
+    for (const p of [925, 850, 700, 500, 300, 250]) {
+      const k = g.perfil.p.indexOf(p);
+      if (k >= 0) out += barbaSVG(xs[i], Y(p), g.perfil.dir[k], g.perfil.kt[k], 17);
+    }
+  });
+  out += "</g>";
+  // Hora de la carta.
+  if (marca >= desde && marca <= hasta) out += `<line x1="${X(marca)}" x2="${X(marca)}" y1="${ar}" y2="${H - ab}" stroke="var(--tinta-2)" stroke-dasharray="4 3" stroke-width="1.5"/>`;
+  out += "</g>";
+  // Ejes.
+  for (const p of [1000, 850, 700, 500, 300, 200]) out += `<line x1="${iz}" x2="${W - de}" y1="${Y(p)}" y2="${Y(p)}" stroke="var(--grilla)"/><text x="${iz - 6}" y="${Y(p) + 4}" text-anchor="end">${p}</text>`;
+  for (let t = Math.ceil((desde + 3 * HORA) / (12 * HORA)) * 12 * HORA - 3 * HORA; t <= hasta; t += 12 * HORA) {
+    out += `<line x1="${X(t)}" x2="${X(t)}" y1="${ar}" y2="${H - ab}" stroke="var(--grilla)"/><text x="${X(t)}" y="${H - 6}" text-anchor="middle">${esc(fmtHora.format(new Date(t)).replace(",", ""))}</text>`;
+  }
+  out += `<rect x="${iz}" y="${ar}" width="${W - iz - de}" height="${H - ar - ab}" fill="none" stroke="var(--eje)"/>`;
+  out += `<text x="12" y="${(H - ab + ar) / 2}" transform="rotate(-90 12 ${(H - ab + ar) / 2})" text-anchor="middle">hPa</text>`;
+  $("#cmd-corte").innerHTML = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Corte tiempo-altura">${out}</svg>`;
 }
 
 // ---------- Sondeo (diagrama Skew-T) ----------
@@ -2782,14 +2866,14 @@ function svgLinea(pts, attrs) {
   const d = pts.filter(([x, y]) => isFinite(x) && isFinite(y)).map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)},${y.toFixed(1)}`).join("");
   return d ? `<path d="${d}" fill="none" ${attrs}/>` : "";
 }
-function barbaSVG(x, y, dir, kt) {
+function barbaSVG(x, y, dir, kt, L = 22) {
   if (kt === null || kt === undefined || dir === null || dir === undefined) return "";
   const n = Math.round(kt / 5) * 5;
   if (n < 5) return `<circle cx="${x}" cy="${y}" r="3" fill="none" stroke="currentColor"/>`;
-  let partes = [`M0,0 L0,-22`], resto = n, yy = -22;
+  let partes = [`M0,0 L0,${-L}`], resto = n, yy = -L;
   while (resto >= 50) { partes.push(`M0,${yy} L-8,${yy + 2} L0,${yy + 5} Z`); yy += 6; resto -= 50; }
   while (resto >= 10) { partes.push(`M0,${yy} L-8,${yy - 4}`); yy += 4; resto -= 10; }
-  if (resto >= 5) { if (yy === -22) yy += 4; partes.push(`M0,${yy} L-4,${yy - 2}`); }
+  if (resto >= 5) { if (yy === -L) yy += 4; partes.push(`M0,${yy} L-4,${yy - 2}`); }
   return `<path transform="translate(${x},${y}) rotate(${dir})" d="${partes.join(" ")}" fill="currentColor" stroke="currentColor" stroke-width="1.2"/>`;
 }
 function dibujarSkewT(gfs, real) {

@@ -768,10 +768,12 @@ def cartas_pronostico(corrida: str | None = None):
 
 
 @app.get("/api/cartas/punto")
-def diagnostico_punto(ciudad: str, desde: datetime, hasta: datetime):
+def diagnostico_punto(ciudad: str, desde: datetime, hasta: datetime, perfiles: bool = False):
     """Meteograma de diagnóstico de una ciudad: lo que pasó arriba (los
     valores del análisis del GFS cada 6 h, cartas/puntos.py) y en superficie
-    (lo que midió su estación del SMN, cada hora). Hasta 16 días."""
+    (lo que midió su estación del SMN, cada hora). Hasta 16 días. Con
+    perfiles=true, también el perfil vertical de cada análisis (para el corte
+    tiempo-altura)."""
     from ..cartas import puntos
     from ..ciudades import PUNTOS_GFS, SYNOP_PUNTOS
     if ciudad not in PUNTOS_GFS:
@@ -789,7 +791,8 @@ def diagnostico_punto(ciudad: str, desde: datetime, hasta: datetime):
         d = puntos.leer(ARCHIVO_DIR, t)
         v = (d or {}).get("ciudades", {}).get(ciudad)
         if v:
-            gfs.append({"ts": _iso(t), "perfil": "perfil" in v, **{k: x for k, x in v.items() if k != "perfil"}})
+            gfs.append({"ts": _iso(t), **{k: x for k, x in v.items() if k != "perfil"},
+                        "perfil": v.get("perfil") if perfiles else "perfil" in v})
         t += timedelta(hours=6)
     est = SYNOP_PUNTOS.get(ciudad)
     obs = []

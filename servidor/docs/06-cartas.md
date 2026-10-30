@@ -340,6 +340,12 @@ Ezeiza) y un período de 3, 5 o 10 días alrededor de la hora de la carta
   espesor 1000-500, viento en 850, 500 y 250 hPa (con barbas), agua
   precipitable, IVT, CAPE y vorticidad en 500 hPa.
 
+Arriba de los paneles, el **corte tiempo-altura** del GFS: los perfiles de
+cada análisis uno al lado del otro (1000 a 200 hPa), con la humedad relativa
+sombreada (70, 80, 90 y 95 %), la temperatura cada 5 °C (0 °C en azul;
+isolíneas por "marching squares") y barbas en 925, 850, 700, 500, 300 y
+250 hPa.
+
 De dónde salen los valores del GFS: en cada análisis que se dibuja (las
 cartas `gfs_analisis`) se guardan, además, los valores interpolados en cada
 ciudad y en Ezeiza, y el perfil vertical de 1000 a 100 hPa (para los
@@ -347,7 +353,7 @@ sondeos): `app/meteo/cartas/puntos.py`, un JSON de ~7 KB por hora en
 `cartas/_puntos/AAAA/MM/` (~10 MB por año). Se bajan unos 12 MB más por
 análisis (los niveles del perfil). Para fechas viejas:
 `historico cartas --desde ... --hasta ...` (si las cartas ya están, baja solo
-lo de los puntos). API: `/api/cartas/punto?ciudad=&desde=&hasta=`.
+lo de los puntos). API: `/api/cartas/punto?ciudad=&desde=&hasta=[&perfiles=true]`.
 
 ## Sondeo (diagrama Skew-T)
 
