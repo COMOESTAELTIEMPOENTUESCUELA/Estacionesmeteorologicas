@@ -803,6 +803,21 @@ def pronostico_punto(ciudad: str, corrida: str | None = None):
     return {"ciudad": ciudad, "inicio": _iso(inicio) if d["plazos"] else None, "plazos": filas, "ciudades": list(PUNTOS_GFS)}
 
 
+@app.get("/api/cartas/indices")
+def indices_climaticos(fecha: date | None = None, desde: date | None = None, hasta: date | None = None,
+                       meses: int = 12):
+    """Índices climáticos (ENSO, SAM, MJO, Índico, Atlántico, PDO): el estado
+    en `fecha`, el resumen del período desde-hasta y la serie de los últimos
+    `meses` meses (ver meteo/indices.py)."""
+    from .. import indices
+    fecha = fecha or date.today()
+    if desde and hasta and desde > hasta:
+        raise HTTPException(400, "desde tiene que ser anterior a hasta")
+    meses = max(1, min(meses, 60))
+    return {"fecha": fecha.isoformat(), "desde": desde and desde.isoformat(), "hasta": hasta and hasta.isoformat(),
+            "indices": indices.estado(ARCHIVO_DIR, fecha, desde, hasta, fecha - timedelta(days=31 * meses))}
+
+
 @app.get("/api/cartas/punto")
 def diagnostico_punto(ciudad: str, desde: datetime, hasta: datetime, perfiles: bool = False):
     """Meteograma de diagnóstico de una ciudad: lo que pasó arriba (los

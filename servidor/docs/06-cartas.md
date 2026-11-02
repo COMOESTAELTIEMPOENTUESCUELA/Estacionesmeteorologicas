@@ -474,3 +474,37 @@ y reiniciar: `docker compose up -d ingesta web`.
 - **Cartas propias desde el GFS / ERA5**, para tener todo el historial desde 2018.
 - **Mapas de superficie propios** para fechas viejas: bajar de Ogimet los SYNOP
   de toda la región (eso sí tiene historial) y dibujar los mapas en el servidor.
+
+## Contexto climático (índices ENSO, SAM, MJO…)
+
+Arriba de las cartas, una franja con el estado de los índices climáticos en
+el día que se está mirando (en Diagnóstico y en Pronóstico del grupo, el de
+la carta; en Pronóstico, hoy). "Ver evolución y período" muestra cada índice
+con su curva del último año, el resumen de un período elegido (promedio, o
+en la MJO cuántos días estuvo activa y en qué fase) y el diagrama de fases
+de la MJO.
+
+| Índice | Qué mide | Frecuencia | Fuente |
+|---|---|---|---|
+| ONI | ENSO oficial: Niño 3.4, promedio de 3 meses (episodio = 5 trimestres seguidos pasando ±0,5 °C) | trimestral | NOAA CPC |
+| Niño 3.4 y 1+2 | temperatura del mar en el Pacífico ecuatorial central y frente a Perú | semanal | NOAA CPC |
+| SOI | presión Tahití − Darwin (parte atmosférica del ENSO) | mensual | NOAA PSL |
+| SAM (AAO) | posición de los oestes del hemisferio sur | diario y mensual | NOAA CPC |
+| MJO (RMM) | pulso de convección tropical: fase 1–8 y amplitud | diario | BoM (Australia) |
+| DMI | dipolo del océano Índico | mensual | NOAA PSL (HadISST) |
+| TNA, TSA y su diferencia | Atlántico tropical norte, sur y el dipolo del Atlántico tropical (TNA − TSA) | mensual | NOAA PSL |
+| PDO | Pacífico norte, escala de décadas | mensual | NOAA NCEI |
+
+La ingesta los baja cada 12 h (tarea `indices`) y guarda un JSON por índice
+en `ARCHIVO_DIR/indices/`. Si una fuente falla, queda el último archivo
+bueno. A mano:
+
+```bash
+docker compose exec ingesta python -m meteo.indices bajar     # baja todo y dice cuántos datos trajo de cada uno
+docker compose exec ingesta python -m meteo.indices ver --fecha 2026-10-28
+```
+
+Ojo con las fechas: los mensuales y el ONI salen con demora (el dato de un
+mes se publica a principios del siguiente), así que para "hoy" se muestra el
+último publicado; si es demasiado viejo para la fecha elegida, aparece
+punteado y dice "viejo para esta fecha". Código: `app/meteo/indices.py`.

@@ -295,6 +295,28 @@ img.con-fondo { background-color: #fff !important; background-size: 100% 100%; b
    en las tarjetas de cada una. */
 /* Botonera de arriba: Pronóstico / Diagnóstico / Pronóstico del grupo. Cada
    una muestra solo sus tarjetas (las que tienen ese data-cvista). */
+/* Contexto climático (índices ENSO, SAM, MJO...) */
+.ci { margin-bottom: 14px; padding: 10px 14px; }
+.ci-cab { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; }
+.ci-cab h3 { margin: 0; font-size: 15px; }
+.ci-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.ci-chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--borde); border-radius: 99px; padding: 3px 10px 3px 8px;
+  font-size: 12.5px; background: var(--plano); cursor: help; }
+.ci-chip b { font-weight: 650; }
+.ci-chip .v { font-variant-numeric: tabular-nums; color: var(--tinta-2); }
+.ci-chip.viejo { opacity: .7; border-style: dashed; }
+.ci-punto { width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--eje); }
+.ci-punto.mas { background: #dc2626; } .ci-punto.menos { background: #2563eb; } .ci-punto.mjo { background: var(--s7); }
+.ci-det { margin-top: 10px; border-top: 1px solid var(--borde); padding-top: 10px; }
+.ci-periodo { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; font-size: 13px; margin-bottom: 10px; }
+.ci-grilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 10px; }
+.ci-tarj { border: 1px solid var(--borde); border-radius: 10px; padding: 8px 10px; background: var(--superficie); display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.ci-tarj h4 { margin: 0; font-size: 13.5px; display: flex; gap: 6px; align-items: center; }
+.ci-tarj .ahora { font-size: 13px; }
+.ci-tarj .per { font-size: 12.5px; color: var(--tinta-2); }
+.ci-tarj .exp { font-size: 12px; color: var(--tenue); }
+.ci-tarj svg { width: 100%; height: auto; display: block; }
+.ci-tarj svg text { font: 9px system-ui, sans-serif; fill: var(--tenue); }
 .cartas-nav { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
 @media (max-width: 720px) { .cartas-nav { grid-template-columns: 1fr; } }
 .cartas-nav button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 12px 16px; border-radius: 10px;
@@ -850,6 +872,26 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
       <button role="tab" data-cvista="pron" class="pron"><b>Pronóstico</b><span>cartas del GFS y meteograma</span></button>
       <button role="tab" data-cvista="diag" class="diag"><b>Diagnóstico</b><span>lo que pasó: análisis, satélite, observaciones</span></button>
       <button role="tab" data-cvista="grupo" class="grupo"><b>Pronóstico del grupo</b><span>contra lo observado</span></button>
+    </div>
+    <div class="tarjeta ci" id="ci">
+      <div class="ci-cab">
+        <h3>Contexto climático <span class="tenue" style="font-weight:400" id="ci-fecha"></span></h3>
+        <button class="boton chico" id="ci-ver" aria-expanded="false">Ver evolución y período ▾</button>
+      </div>
+      <div class="ci-chips" id="ci-chips"><span class="tenue">Cargando índices…</span></div>
+      <div class="ci-det" id="ci-det" hidden>
+        <div class="ci-periodo">
+          <span>Período:</span>
+          <input type="date" id="ci-desde"> a <input type="date" id="ci-hasta">
+          <button class="boton chico" data-ci-dias="30">último mes</button><button class="boton chico" data-ci-dias="90">3 meses</button>
+          <button class="boton chico" data-ci-dias="180">6 meses</button>
+        </div>
+        <p class="ayuda">El estado de cada índice en el día que estás mirando (en Diagnóstico, el de la carta; en Pronóstico, hoy) y su
+          promedio en el período. Las curvas muestran el último año: arriba de la franja gris, fase positiva/cálida (rojo); abajo, negativa/fría (azul);
+          la línea vertical es el día elegido. Los mensuales y el ONI se publican con demora (el dato de un mes sale a principios del siguiente).
+          Fuentes: NOAA (CPC, PSL, NCEI) y BoM (MJO).</p>
+        <div class="ci-grilla" id="ci-grilla"></div>
+      </div>
     </div>
     <div class="cartas-seccion pron" id="sec-pron" data-cvista="pron" hidden>
       <span class="etq">Pronóstico</span>
@@ -2816,6 +2858,7 @@ function verSeccionCartas(v) {
     else el.classList.toggle("cv-oculta", el.dataset.cvista !== v);
   });
   try { localStorage.setItem("cartas-seccion", v); } catch (_) {}
+  if (cargadas.cartas) actualizarIndices();
   if (v === "grupo" && cpMapa) setTimeout(() => cpMapa.invalidateSize(), 50);
 }
 async function iniciarCartas() {
@@ -2827,6 +2870,7 @@ async function iniciarCartas() {
   $("#cp-ant").addEventListener("click", () => moverCarta(-24));
   $("#cp-sig").addEventListener("click", () => moverCarta(24));
   iniciarMeteogramaPron();
+  iniciarIndices();
   iniciarPronosticoGFS();
   cartasDisp = await api("/api/cartas/disponibles");
   const claves = Object.keys(cartasDisp);
@@ -2922,6 +2966,7 @@ async function cargarCartas() {
   const titulo = fmtCartaTitulo.format(t);
   $("#c-titulo").innerHTML = `${esc(titulo.charAt(0).toUpperCase() + titulo.slice(1))} <span class="hora-utc">${String(t.getUTCHours()).padStart(2, "0")} UTC</span>`;
   const r = await api(`/api/cartas?ts=${encodeURIComponent(t.toISOString())}`);
+  actualizarIndices();
   const placa = $("#f-c-vista").value === "placa";
   const deLaHora = r.productos.filter((p) => p.horas_utc.includes(t.getUTCHours()));
   const otras = r.productos.filter((p) => !p.horas_utc.includes(t.getUTCHours()));
@@ -3039,6 +3084,127 @@ async function cargarMeteogramaPron() {
   $("#cpm-paneles").innerHTML = paneles.map(([tit, u], j) => `<div class="panel-titulo">${esc(tit)}${u ? ` <span class="tenue">(${esc(u)})</span>` : ""}</div>
     <div class="panel cp-panel"><canvas data-j="${j}"></canvas></div>`).join("");
   paneles.forEach(([, , dibujar], j) => dibujar($(`#cpm-paneles canvas[data-j="${j}"]`)));
+}
+
+// ---------- Contexto climático: índices ENSO, SAM, MJO... (meteo/indices.py) ----------
+// Se muestran para el día que se está mirando: en Diagnóstico y en el
+// Pronóstico del grupo, el de la carta; en Pronóstico, hoy.
+const ci = { fecha: null, datos: null, abierto: false, pedido: 0 };
+const CHIPS_CI = ["oni", "nino34", "sam", "mjo", "dmi", "dipolo_atl", "tsa", "pdo"];
+const fmtMesCorto = new Intl.DateTimeFormat("es-AR", { timeZone: "UTC", month: "short", year: "2-digit" });
+const fmtFechaCI = new Intl.DateTimeFormat("es-AR", { timeZone: "UTC", day: "numeric", month: "numeric", year: "numeric" });
+function fechaIndices() {
+  let v = "pron";
+  try { v = localStorage.getItem("cartas-seccion") || "pron"; } catch (_) {}
+  const t = v === "pron" ? NaN : +tsCarta();
+  return diaArg(Number.isFinite(t) ? t : Date.now());     // sin fecha de carta todavía: hoy
+}
+const claseSigno = (r) => !r.valor ? "" : r.id === "mjo" ? (r.valor.signo === "+" ? "mjo" : "") : r.valor.signo === "+" ? "mas" : r.valor.signo === "-" ? "menos" : "";
+const numCI = (v) => (v > 0 ? "+" : "") + num(v, 2);
+function cuandoDato(r) {
+  const f = new Date(r.valor.fecha + "T00:00:00Z");
+  return r.frecuencia === "mensual" ? fmtMesCorto.format(f) : r.frecuencia === "trimestral" ? `${r.valor.extra?.trimestre || ""} ${f.getUTCFullYear()}` : fmtFechaCI.format(f);
+}
+async function actualizarIndices(forzar = false) {
+  const fecha = fechaIndices();
+  if (!forzar && fecha === ci.fecha && ci.datos) return;
+  ci.fecha = fecha;
+  if (!$("#ci-hasta").value || !forzar) {
+    $("#ci-hasta").value = fecha;
+    $("#ci-desde").value = new Date(Date.parse(fecha) - 90 * 24 * HORA).toISOString().slice(0, 10);
+  }
+  const n = ++ci.pedido;
+  let d;
+  try { d = await api(`/api/cartas/indices?fecha=${fecha}&desde=${$("#ci-desde").value}&hasta=${$("#ci-hasta").value}`); }
+  catch (err) { $("#ci-chips").innerHTML = `<span class="tenue">No se pudieron cargar los índices: ${esc(err.message)}</span>`; return; }
+  if (n !== ci.pedido) return;
+  ci.datos = d;
+  $("#ci-fecha").textContent = `· ${fmtFechaCI.format(new Date(fecha + "T00:00:00Z"))}`;
+  const por = Object.fromEntries(d.indices.map((r) => [r.id, r]));
+  const chips = CHIPS_CI.map((k) => por[k]).filter((r) => r && r.valor);
+  $("#ci-chips").innerHTML = chips.length ? chips.map((r) => {
+    const v = r.valor, tip = `${r.nombre}: ${r.que}${r.efecto ? "\n\n" + r.efecto : ""}\n\nDato del ${cuandoDato(r)}${v.vigente ? "" : " (es el último publicado: viejo para esta fecha)"}.`;
+    const valor = r.id === "mjo" ? `amplitud ${num(v.valor, 1)}` : `${numCI(v.valor)}${r.unidad ? " " + r.unidad : ""}`;
+    return `<span class="ci-chip${v.vigente ? "" : " viejo"}" title="${esc(tip)}"><span class="ci-punto ${claseSigno(r)}"></span>
+      <b>${esc(r.nombre.replace(/ \(.*\)$/, "").replace(" semanal", " sem."))}</b> ${esc(v.fase)} <span class="v">${esc(valor)}</span></span>`;
+  }).join("") : '<span class="tenue">Todavía no hay índices bajados: el servidor los trae cada 12 h (o a mano: python -m meteo.indices bajar).</span>';
+  if (ci.abierto) dibujarIndicesDetalle();
+}
+function sparkIndice(r, fecha) {
+  const pts = r.serie.map((p) => [Date.parse(p[0]), p[1]]);
+  if (pts.length < 2) return '<p class="tenue">Sin serie.</p>';
+  const W = 320, H = 74, top = 4, bot = 12;
+  const t0 = pts[0][0], t1 = Math.max(Date.parse(fecha), pts[pts.length - 1][0]);
+  const ymax = Math.max(r.umbral * 2, ...pts.map((p) => Math.abs(p[1]))) * 1.05;
+  const X = (t) => ((t - t0) / (t1 - t0 || 1)) * W, Y = (v) => top + (H - top - bot) / 2 * (1 - v / ymax);
+  const linea = pts.map(([t, v], i) => `${i ? "L" : "M"}${X(t).toFixed(1)},${Y(v).toFixed(1)}`).join("");
+  const area = `${linea}L${X(pts[pts.length - 1][0]).toFixed(1)},${Y(0)}L${X(t0)},${Y(0)}Z`;
+  const id = `ci-${r.id}`;
+  const meses = [];
+  for (let d = new Date(t0); +d <= t1; d.setUTCMonth(d.getUTCMonth() + 3)) meses.push(+d);
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(r.nombre)}: último año">
+    <defs><clipPath id="${id}-a"><rect x="0" y="0" width="${W}" height="${Y(0)}"/></clipPath><clipPath id="${id}-b"><rect x="0" y="${Y(0)}" width="${W}" height="${H}"/></clipPath></defs>
+    <rect x="0" y="${Y(r.umbral)}" width="${W}" height="${Y(-r.umbral) - Y(r.umbral)}" fill="var(--grilla)" opacity=".7"/>
+    <line x1="0" x2="${W}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--eje)"/>
+    <path d="${area}" fill="#dc2626" opacity=".35" clip-path="url(#${id}-a)"/><path d="${area}" fill="#2563eb" opacity=".35" clip-path="url(#${id}-b)"/>
+    <path d="${linea}" fill="none" stroke="var(--tinta-2)" stroke-width="1.2"/>
+    <line x1="${X(Date.parse(fecha))}" x2="${X(Date.parse(fecha))}" y1="0" y2="${H - bot}" stroke="var(--acento)" stroke-dasharray="3 2"/>
+    ${meses.filter((t) => X(t) < W - 60).map((t) => `<text x="${X(t) + 2}" y="${H - 2}">${esc(fmtMesCorto.format(new Date(t)))}</text>`).join("")}
+    <text x="${W - 2}" y="${top + 8}" text-anchor="end">+${num(ymax, 1)}</text><text x="${W - 2}" y="${H - bot - 2}" text-anchor="end">−${num(ymax, 1)}</text>
+  </svg>`;
+}
+// Diagrama de fases de la MJO (RMM1 contra RMM2): los últimos 40 días.
+function faseMJO(r) {
+  const pts = r.serie.slice(-40).map((p) => [p[2].rmm1, p[2].rmm2]);
+  if (pts.length < 2) return '<p class="tenue">Sin serie.</p>';
+  const S = 200, c = S / 2, k = (S / 2 - 14) / Math.max(3, ...pts.flat().map(Math.abs));
+  const P = ([x, y]) => [c + x * k, c - y * k];
+  const tray = pts.map((p, i) => { const [x, y] = P(p); return `${i ? "L" : "M"}${x.toFixed(1)},${y.toFixed(1)}`; }).join("");
+  const [ux, uy] = P(pts[pts.length - 1]);
+  const diag = [45, 135].map((a) => { const r2 = c - 4, dx = Math.cos(a * Math.PI / 180) * r2, dy = Math.sin(a * Math.PI / 180) * r2;
+    return `<line x1="${c - dx}" y1="${c + dy}" x2="${c + dx}" y2="${c - dy}" stroke="var(--grilla)"/>`; }).join("");
+  const num8 = [1, 2, 3, 4, 5, 6, 7, 8].map((f) => { const a = (180 + 45 * (f - 1) + 22.5) * Math.PI / 180, rr = c - 10;
+    return `<text x="${c + Math.cos(a) * rr}" y="${c - Math.sin(a) * rr + 3}" text-anchor="middle" style="font-weight:700">${f}</text>`; }).join("");
+  return `<svg viewBox="0 0 ${S} ${S}" style="max-width:230px;margin:auto" role="img" aria-label="Diagrama de fases de la MJO">
+    <line x1="4" x2="${S - 4}" y1="${c}" y2="${c}" stroke="var(--grilla)"/><line y1="4" y2="${S - 4}" x1="${c}" x2="${c}" stroke="var(--grilla)"/>${diag}
+    <circle cx="${c}" cy="${c}" r="${k}" fill="var(--grilla)" opacity=".6"/>${num8}
+    <text x="${c}" y="${S - 2}" text-anchor="middle">océano Índico</text><text x="${c}" y="9" text-anchor="middle">Pacífico oeste</text>
+    <text x="${S - 3}" y="${c - 4}" text-anchor="end">cont. marítimo</text><text x="3" y="${c - 4}">hem. occid./África</text>
+    <path d="${tray}" fill="none" stroke="var(--s7)" stroke-width="1.6"/><circle cx="${ux}" cy="${uy}" r="4" fill="var(--s7)"/>
+  </svg><div class="exp">Últimos ${pts.length} días; el punto es el día elegido. Dentro del círculo gris (amplitud menor que 1): débil.</div>`;
+}
+function dibujarIndicesDetalle() {
+  const d = ci.datos;
+  if (!d) return;
+  $("#ci-grilla").innerHTML = d.indices.filter((r) => r.serie.length || r.valor).map((r) => {
+    const v = r.valor, p = r.periodo;
+    const ahora = v ? `<b>${esc(v.fase)}</b> · ${r.id === "mjo" ? `amplitud ${num(v.valor, 2)}` : esc(numCI(v.valor) + (r.unidad ? " " + r.unidad : ""))}
+      <span class="tenue">(dato ${r.frecuencia} del ${esc(cuandoDato(r))}${v.vigente ? "" : ", viejo para esta fecha"})</span>
+      ${v.episodio ? `<br><span class="tenue">Episodio oficial de ${esc(v.episodio)} (5 trimestres seguidos).</span>` : ""}
+      ${v.nota ? `<br><span class="tenue">${esc(v.nota)}</span>` : ""}` : '<span class="tenue">sin dato para esta fecha</span>';
+    const per = p ? `En el período: <b>${esc(p.fase)}</b>${r.id === "mjo" ? "" : ` (media ${esc(numCI(p.media))}, de ${esc(numCI(p.min))} a ${esc(numCI(p.max))}; ${p.n} datos)`}`
+      : "En el período: sin datos.";
+    return `<div class="ci-tarj"><h4><span class="ci-punto ${claseSigno(r)}"></span>${esc(r.nombre)}</h4>
+      <div class="ahora">${ahora}</div><div class="per">${per}</div>
+      ${r.id === "mjo" ? faseMJO(r) : sparkIndice(r, d.fecha)}
+      <div class="exp">${esc(r.que)}${r.efecto ? ` <i>${esc(r.efecto)}</i>` : ""}</div></div>`;
+  }).join("") || '<p class="tenue">Todavía no hay índices bajados.</p>';
+}
+function iniciarIndices() {
+  $("#ci-ver").addEventListener("click", () => {
+    ci.abierto = !ci.abierto;
+    $("#ci-det").hidden = !ci.abierto;
+    $("#ci-ver").setAttribute("aria-expanded", String(ci.abierto));
+    $("#ci-ver").textContent = ci.abierto ? "Ocultar ▴" : "Ver evolución y período ▾";
+    if (ci.abierto) dibujarIndicesDetalle();
+  });
+  ["#ci-desde", "#ci-hasta"].forEach((s) => $(s).addEventListener("change", () => actualizarIndices(true)));
+  document.querySelectorAll("[data-ci-dias]").forEach((b) => b.addEventListener("click", () => {
+    $("#ci-hasta").value = ci.fecha;
+    $("#ci-desde").value = new Date(Date.parse(ci.fecha) - Number(b.dataset.ciDias) * 24 * HORA).toISOString().slice(0, 10);
+    actualizarIndices(true);
+  }));
+  actualizarIndices();
 }
 
 // ---------- Diagnóstico por ciudad (meteograma) ----------

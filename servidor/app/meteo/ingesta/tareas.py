@@ -112,6 +112,14 @@ class Ingesta:
             h = hasta.date() if hasta else hoy
             reg["filas"] = observado.calcular(self.conn, self.cfg["verificacion"], d, h)
 
+    def correr_indices(self):
+        """Índices climáticos (ENSO, SAM, MJO...): archivos chicos de NOAA y del BoM."""
+        from .. import indices
+        with db.registrar_tarea(self.conn, "indices") as reg:
+            r = indices.bajar(os.environ.get("ARCHIVO_DIR", "/archivo"), self.sesion)
+            reg["filas"] = sum(1 for s in r.values() if not s.startswith("FALLÓ"))
+            log.info("indices: %s", "; ".join(f"{k}: {s}" for k, s in r.items()))
+
     def correr_cartas(self, desde=None, hasta=None):
         """Sin fechas: la vuelta normal. Con fechas: rellenar ese período (satélite y Ogimet)."""
         from ..cartas import descarga
@@ -162,6 +170,8 @@ class Ingesta:
             return self.correr_pronosticos()
         if tarea == "cartas":
             return self.correr_cartas(desde, hasta if desde else None)
+        if tarea == "indices":
+            return self.correr_indices()
         if tarea == "verificacion":
             # Sin --desde/--hasta (servicio, "una"): los últimos días.
             return self.correr_verificacion(desde if desde else None, hasta if desde else None)

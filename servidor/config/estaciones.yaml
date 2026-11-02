@@ -24,6 +24,7 @@ frecuencias_min:
   pronosticos: 60
   verificacion: 180
   cartas: 60
+  indices: 720        # índices climáticos (ENSO, SAM, MJO...): cambian despacio
 
 estaciones:
 
