@@ -133,15 +133,32 @@ td.nw { white-space: nowrap; }
 .chip.c-nada { border-color: color-mix(in srgb, var(--demora) 70%, transparent); background: color-mix(in srgb, var(--demora) 16%, transparent); color: var(--tinta); }
 .causas-total { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 12px; }
 .causas-total .chip { font-size: 13px; padding: 3px 10px; }
+.cuenta { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 13px; }
+#d-nota { width: min(600px, 94vw); border: 1px solid var(--borde); border-radius: 12px; background: var(--superficie); color: var(--tinta); padding: 18px; }
+#d-nota::backdrop { background: rgba(0,0,0,.45); }
+#d-nota form { display: flex; flex-direction: column; gap: 10px; }
+#d-nota label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--tinta-2); }
+#d-nota label.marca { flex-direction: row; align-items: center; gap: 6px; }
+#d-nota h2 { margin: 0; font-size: 18px; }
+.lb-lista { display: flex; flex-direction: column; gap: 8px; }
+.lb-nota { border: 1px solid var(--borde); border-radius: 8px; padding: 10px 12px; background: var(--superficie); }
+.lb-nota .cab { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; font-size: 12.5px; color: var(--tinta-2); }
+.lb-nota .texto { margin: 6px 0 4px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.lb-tipo { font-weight: 650; padding: 1px 8px; border-radius: 99px; color: #fff; font-size: 11.5px; }
+.lb-tipo.vi { background: var(--s1); } .lb-tipo.llamo_atencion { background: var(--s4); } .lb-tipo.duda { background: var(--s5); } .lb-tipo.pregunta { background: var(--s7); }
+.lb-etq { border: 1px solid var(--borde); border-radius: 99px; padding: 0 7px; font-size: 11.5px; }
+.lb-nota .acc { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+.lb-nota .acc .boton { padding: 2px 9px; font-size: 12px; }
+.lb-resp { margin-top: 6px; padding: 6px 10px; border-left: 3px solid var(--s3); background: color-mix(in srgb, var(--s3) 8%, transparent); white-space: pre-wrap; }
 #d-inc { width: min(520px, 94vw); border: 1px solid var(--borde); border-radius: 12px; background: var(--superficie); color: var(--tinta); padding: 18px; }
 #d-inc::backdrop { background: rgba(0,0,0,.45); }
 #d-inc form { display: flex; flex-direction: column; gap: 10px; }
 #d-inc label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--tinta-2); }
 #d-inc label.marca { flex-direction: row; align-items: center; gap: 6px; }
 #d-inc input, #d-inc select, #d-inc textarea { font: inherit; color: var(--tinta); background: var(--superficie); border: 1px solid var(--eje); border-radius: 8px; padding: 6px 8px; }
-#d-inc .fila-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-@media (max-width: 480px) { #d-inc .fila-2 { grid-template-columns: 1fr; } }
-#d-inc .acciones { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+#d-inc .fila-2, #d-nota .fila-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 480px) { #d-inc .fila-2, #d-nota .fila-2 { grid-template-columns: 1fr; } }
+#d-inc .acciones, #d-nota .acciones { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
 .d-inc-err { color: var(--caida); margin: 0; font-size: 13px; }
 .cifras { display: flex; gap: 32px; flex-wrap: wrap; margin-bottom: 16px; }
 .cifra b { display: block; font-size: 26px; font-weight: 650; }
@@ -388,8 +405,10 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
     <button role="tab" data-tab="verif" aria-selected="false">Verificación</button>
     <button role="tab" data-tab="cartas" aria-selected="false">Cartas</button>
     <button role="tab" data-tab="estado" aria-selected="false">Estado de la red</button>
+    <button role="tab" data-tab="perfil" aria-selected="false" hidden>Mi perfil</button>
   </nav>
   <span class="tenue" id="actualizado"></span>
+  <div class="cuenta" id="cuenta"></div>
 </header>
 
 <main>
@@ -791,6 +810,7 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
           <button class="boton" id="cpr-z0" title="Ver la carta entera (0)">⟲</button>
         </span>
         <label class="en-linea" title="Puntos en las ciudades del pronóstico del grupo (tecla C)"><input type="checkbox" id="cpr-ciudades" checked> Ciudades</label>
+        <button class="boton anotar" id="cpr-anotar" hidden title="Anotar en tu libreta algo de este plazo del pronóstico">📝 Anotar</button>
       </div>
       <div class="cpr-dias" id="cpr-dias"></div>
       <h3 id="cpr-titulo" style="margin:6px 0 2px; font-size:16px"></h3>
@@ -823,6 +843,7 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
         <button class="boton" id="c-mas" title="6 horas después (flecha derecha)">+6 h ›</button>
         <button class="boton" id="c-mas-dia" title="Un día después">+1 día »</button>
         <button class="boton" id="c-ultima">Última</button>
+        <button class="boton anotar" id="c-anotar" hidden title="Anotar en tu libreta algo de las cartas de esta hora">📝 Anotar</button>
         <label class="en-linea" title="Al pasar el mouse por una carta, una cruz marca el mismo punto en las cartas de la misma proyección">
           <input type="checkbox" id="f-c-cursor" checked> Cursor sincronizado</label>
         <label>Vista
@@ -875,6 +896,7 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
       <div class="filtros">
         <h2 style="margin:0; font-size:18px; flex:1 1 280px">Diagnóstico por ciudad <span class="tenue" style="font-weight:400">(lo que pasó: superficie medida y GFS en altura)</span></h2>
         <label class="en-linea">Ciudad <select id="cmd-ciudad"><option>La Plata</option></select></label>
+        <button class="boton anotar" id="cmd-anotar" hidden title="Anotar en tu libreta algo del diagnóstico de esta ciudad">📝 Anotar</button>
         <label class="en-linea">Período
           <select id="cmd-dias"><option value="3">3 días</option><option value="5" selected>5 días</option><option value="10">10 días</option></select>
         </label>
@@ -914,6 +936,7 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
         <button class="boton" id="c-d-alejar" title="Alejar">−</button>
         <button class="boton" id="c-d-acercar" title="Acercar">+</button>
         <button class="boton" id="c-d-ajustar" title="Ver entera">Entera</button>
+        <button class="boton anotar" id="c-anotar-visor" hidden title="Anotar en tu libreta algo de esta carta">📝 Anotar</button>
         <button class="boton" id="c-cerrar">Cerrar</button>
       </div>
       <div class="barra" id="c-herr">
@@ -1007,7 +1030,69 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
       </form>
     </dialog>
   </section>
+
+  <!-- ============================ MI PERFIL ============================ -->
+  <section id="tab-perfil" hidden>
+    <div class="tarjeta">
+      <div class="filtros">
+        <h2 style="margin:0; font-size:18px; flex:1 1 260px" id="pf-titulo">Mis pronósticos</h2>
+        <label class="en-linea" id="pf-l-usuario" hidden>De <select id="pf-usuario"></select></label>
+        <label class="en-linea">Período
+          <select id="pf-dias"><option value="30">30 días</option><option value="90" selected>90 días</option><option value="365">1 año</option></select>
+        </label>
+      </div>
+      <p class="ayuda" id="pf-nota"></p>
+      <div class="tabla-scroll" style="max-height:none"><table id="pf-resumen"></table></div>
+      <details style="margin-top:8px"><summary>Día por día</summary>
+        <div class="tabla-scroll"><table id="pf-dias-tabla"></table></div>
+      </details>
+    </div>
+    <div class="tarjeta" style="margin-top:16px">
+      <div class="filtros">
+        <h2 style="margin:0; font-size:18px; flex:1 1 260px">Libreta</h2>
+        <label class="en-linea">Tipo
+          <select id="lb-tipo"><option value="">todas</option><option value="vi">lo que vi</option><option value="llamo_atencion">me llamó la atención</option>
+            <option value="duda">dudas</option><option value="pregunta">preguntas para la reunión</option></select></label>
+        <label class="en-linea"><input type="checkbox" id="lb-mias"> Solo las mías</label>
+        <label class="en-linea">Etiqueta <input type="text" id="lb-etiqueta" placeholder="ej. frente frío" style="width:130px"></label>
+        <button class="boton" id="lb-nueva">📝 Nueva nota</button>
+      </div>
+      <p class="ayuda">Tus notas privadas solo las ves vos; las compartidas, todos los que ingresaron. "Abrir" lleva a la carta, la corrida o la ciudad donde se escribió.</p>
+      <div id="lb-lista" class="lb-lista"></div>
+    </div>
+    <div class="tarjeta" style="margin-top:16px">
+      <h2 style="margin:0 0 4px; font-size:18px">Reunión sinóptica</h2>
+      <p class="ayuda">Las preguntas compartidas para la reunión: pendientes arriba; las tratadas, con la conclusión. Las marca quien la escribió o un coordinador.</p>
+      <div id="rs-lista" class="lb-lista"></div>
+    </div>
+  </section>
 </main>
+
+<dialog id="d-nota">
+  <form id="f-nota">
+    <h2 id="d-nota-tit">Nueva nota</h2>
+    <p class="tenue" id="d-nota-ctx" style="margin:0"></p>
+    <div class="fila-2">
+      <label>Tipo <select name="tipo">
+        <option value="vi">Lo que vi</option><option value="llamo_atencion">Me llamó la atención</option>
+        <option value="duda">Duda</option><option value="pregunta">Pregunta para la reunión</option></select></label>
+      <label>Día que se analiza <input type="date" name="fecha_evento"></label>
+    </div>
+    <label>Nota <textarea name="texto" rows="6" maxlength="10000" required
+      placeholder="Ej.: la vaguada en 500 hPa está más al oeste que ayer; el chorro en 250 se intensifica sobre Uruguay…"></textarea></label>
+    <label>Etiquetas <span class="tenue">(separadas por coma)</span>
+      <input type="text" name="etiquetas" list="lb-sugeridas" placeholder="frente frío, ciclogénesis"></label>
+    <datalist id="lb-sugeridas"><option value="frente frío"><option value="frente cálido"><option value="ciclogénesis"><option value="vaguada">
+      <option value="río atmosférico"><option value="tormentas"><option value="niebla"><option value="helada"><option value="ola de calor">
+      <option value="sudestada"><option value="baja segregada"><option value="error del modelo"></datalist>
+    <label class="marca"><input type="checkbox" name="compartida"> Compartir con el grupo <span class="tenue">(las preguntas para la reunión se comparten siempre)</span></label>
+    <p class="d-inc-err" id="d-nota-err" hidden></p>
+    <div class="acciones">
+      <button type="button" class="boton" id="d-nota-cancelar">Cancelar</button>
+      <button type="submit" class="boton primario">Guardar</button>
+    </div>
+  </form>
+</dialog>
 
 <script src="vendor/leaflet/leaflet.js"></script>
 <script src="vendor/chart-4.4.1.umd.js"></script>
@@ -1110,7 +1195,7 @@ function abrir(tab) {
   document.querySelectorAll("nav button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
   document.querySelectorAll("main > section").forEach((s) => (s.hidden = s.id !== `tab-${tab}`));
   if (tab === "mapa" && mapa) setTimeout(() => mapa.invalidateSize(), 50);
-  if (!cargadas[tab]) { cargadas[tab] = true; ({ emas: iniciarEmas, smn: iniciarSmn, series: iniciarSeries, lluvia: cargarLluvia, verif: iniciarVerif, cartas: iniciarCartas, estado: () => { cargarEstado(); iniciarBitacora().catch((e) => { $("#tabla-disp").innerHTML = `<tr><td>Error: ${esc(e.message)}</td></tr>`; }); } }[tab] || (() => {}))(); }
+  if (!cargadas[tab]) { cargadas[tab] = true; ({ emas: iniciarEmas, smn: iniciarSmn, series: iniciarSeries, lluvia: cargarLluvia, verif: iniciarVerif, cartas: iniciarCartas, perfil: iniciarPerfil, estado: () => { cargarEstado(); iniciarBitacora().catch((e) => { $("#tabla-disp").innerHTML = `<tr><td>Error: ${esc(e.message)}</td></tr>`; }); } }[tab] || (() => {}))(); }
 }
 document.querySelectorAll("nav button").forEach((b) => b.addEventListener("click", () => abrir(b.dataset.tab)));
 
@@ -3889,6 +3974,228 @@ async function cargarBitacora() {
 }
 
 // ======================================================================
+// CUENTA: ingreso con Google, Mi perfil y la libreta (ver cuentas.py)
+// ======================================================================
+// Todo esto aparece solo si alguien ingresó; sin ingreso, la página sigue igual.
+let YO = null, CUENTA = { login: false };
+const NOMBRE_TIPO = { vi: "Lo que vi", llamo_atencion: "Me llamó la atención", duda: "Duda", pregunta: "Pregunta para la reunión" };
+// Pedidos que modifican algo: con el encabezado X-Pedido (el servidor lo exige).
+async function apiEnviar(url, metodo, datos) {
+  const r = await fetch(url, { method: metodo, headers: { "Content-Type": "application/json", "X-Pedido": "libreta" },
+                               body: datos === undefined ? undefined : JSON.stringify(datos) });
+  const d = r.status === 204 ? {} : await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.detail || r.statusText);
+  return d;
+}
+const diaArg = (t) => new Date(+t - 3 * HORA).toISOString().slice(0, 10);     // fecha argentina de un instante
+
+async function cargarCuenta() {
+  try { CUENTA = await api("/api/yo"); } catch (_) { return; }
+  YO = CUENTA.usuario;
+  const c = $("#cuenta");
+  if (YO) {
+    c.innerHTML = `<span>👤 ${esc(YO.nombre)}</span><button class="boton" id="cuenta-salir">Salir</button>`;
+    $("#cuenta-salir").addEventListener("click", async () => { await apiEnviar("/auth/salir", "POST"); location.hash = ""; location.reload(); });
+  } else if (CUENTA.login) {
+    // El ingreso vuelve siempre a la dirección pública (https): desde otra, se va para allá.
+    const base = CUENTA.url_publica && location.origin !== CUENTA.url_publica ? CUENTA.url_publica : "";
+    c.innerHTML = `<a class="boton" href="${esc(base)}/auth/google" title="Para pronosticadores del grupo: perfil, métricas y libreta">Ingresar con Google</a>`;
+  } else c.innerHTML = "";
+  $('nav button[data-tab="perfil"]').hidden = !YO;
+  document.querySelectorAll(".anotar").forEach((b) => (b.hidden = !YO));
+  if (YO && location.hash === "#perfil") abrir("perfil");
+}
+
+// ----- Mi perfil -----
+let pfDatos = null;
+async function iniciarPerfil() {
+  $("#pf-dias").addEventListener("change", cargarMisPronosticos);
+  $("#pf-usuario").addEventListener("change", cargarMisPronosticos);
+  ["#lb-tipo", "#lb-mias"].forEach((s) => $(s).addEventListener("change", cargarLibreta));
+  $("#lb-etiqueta").addEventListener("change", cargarLibreta);
+  $("#lb-nueva").addEventListener("click", () => abrirNota({ fecha_evento: diaArg(Date.now()), contexto: {} }));
+  if (YO && ["coordinador", "admin"].includes(YO.rol)) {
+    const us = await api("/api/yo/usuarios");
+    $("#pf-usuario").innerHTML = us.map((u) => `<option value="${u.id}">${esc(u.nombre)}${u.firmas.length ? "" : " (sin firma)"}</option>`).join("");
+    $("#pf-usuario").value = YO.id;
+    $("#pf-l-usuario").hidden = false;
+  }
+  cargarMisPronosticos();
+  cargarLibreta();
+}
+async function cargarMisPronosticos() {
+  const dias = Number($("#pf-dias").value), hasta = new Date(Date.now() - 27 * HORA).toISOString().slice(0, 10);
+  const desde = new Date(Date.now() - (dias + 1) * 24 * HORA).toISOString().slice(0, 10);
+  const uid = $("#pf-l-usuario").hidden ? "" : `&usuario_id=${$("#pf-usuario").value}`;
+  let d;
+  try { d = await api(`/api/yo/pronosticos?desde=${desde}&hasta=${hasta}${uid}`); }
+  catch (err) { $("#pf-nota").textContent = `No se pudo cargar: ${err.message}`; return; }
+  pfDatos = d;
+  const propio = d.usuario.id === YO.id;
+  $("#pf-titulo").textContent = propio ? "Mis pronósticos" : `Pronósticos de ${d.usuario.nombre}`;
+  if (!d.usuario.firmas.length) {
+    $("#pf-nota").textContent = "Todavía no está cargado cómo firmás los pronósticos en el portal: pedile a un coordinador que lo agregue a tu usuario.";
+    $("#pf-resumen").innerHTML = ""; $("#pf-dias-tabla").innerHTML = ""; return;
+  }
+  $("#pf-nota").textContent = `${d.dias.length} días pronosticados del ${d.desde} al ${d.hasta} (firmas: ${d.usuario.firmas.join(", ")}). ` +
+    "Se cuenta la versión vigente de cada pronóstico (si otro lo corrigió, ese día es de quien lo corrigió). Error medio absoluto (MAE) y sesgo en °C: " +
+    "sesgo positivo = pronosticaste más calor del que hizo. Mismas cuentas que la pestaña Verificación (mínima de 21 a 21 hs).";
+  const n = (x, dec = 1) => (x === null || x === undefined ? "–" : num(x, dec));
+  const plazos = Object.keys(d.resumen).sort((a, b) => a - b);
+  const celdaT = (r) => r && r.n ? `${n(r.mae)} <span class="tenue">(${r.sesgo > 0 ? "+" : ""}${n(r.sesgo)}, n=${r.n})</span>` : "–";
+  $("#pf-resumen").innerHTML = `<tr><th>Plazo</th><th>Mínima</th><th>Máxima</th><th>Lluvia: aciertos</th><th>Viento: dirección</th></tr>` +
+    plazos.map((p) => { const r = d.resumen[p];
+      return `<tr><td>${p === "0" ? "mismo día" : `+${p} día${p === "1" ? "" : "s"}`}</td><td>${celdaT(r.tmin_urbana)}</td><td>${celdaT(r.tmax_urbana)}</td>
+        <td>${r.pp && r.pp.n ? `${Math.round(100 * r.pp.pc)} % <span class="tenue">(n=${r.pp.n})</span>` : "–"}</td>
+        <td>${r.viento_dir && r.viento_dir.n ? `${r.viento_dir.pct} % <span class="tenue">(n=${r.viento_dir.n})</span>` : "–"}</td></tr>`; }).join("");
+  $("#pf-dias-tabla").innerHTML = `<tr><th>Día</th><th>Ciudad</th><th>Plazo</th><th>Mín pron / obs</th><th>Máx pron / obs</th><th>Lluvia pron / obs</th><th></th></tr>` +
+    d.dias.slice().reverse().map((f, i) => {
+      const t = (el) => `${n(f[el].pron, 0)} / ${n(f[el].obs)}`;
+      const ll = (v) => (v === null || v === undefined ? "–" : v ? "sí" : "no");
+      return `<tr><td>${esc(f.fecha)}</td><td>${esc(f.ciudad)}</td><td>${f.plazo}</td><td>${t("tmin_urbana")}</td><td>${t("tmax_urbana")}</td>
+        <td>${ll(f.pp.pron)} / ${ll(f.pp.obs)}</td>
+        <td><button class="boton pf-cartas" data-fecha="${esc(f.fecha)}" style="padding:1px 8px">Ver cartas</button>
+            <button class="boton pf-anotar" data-fecha="${esc(f.fecha)}" data-ciudad="${esc(f.ciudad)}" style="padding:1px 8px">📝</button></td></tr>`;
+    }).join("");
+  document.querySelectorAll(".pf-cartas").forEach((b) => b.addEventListener("click", () => irACartas(b.dataset.fecha + "T12:00:00Z")));
+  document.querySelectorAll(".pf-anotar").forEach((b) => b.addEventListener("click", () =>
+    abrirNota({ fecha_evento: b.dataset.fecha, contexto: { seccion: "meteograma", ciudad: b.dataset.ciudad, ts: b.dataset.fecha + "T12:00:00Z" } })));
+}
+
+// ----- Libreta -----
+function tarjetaNota(nt, reunion = false) {
+  const fecha = nt.fecha_evento || String(nt.creada).slice(0, 10);
+  const puede = nt.mia || ["coordinador", "admin"].includes(YO.rol);
+  return `<div class="lb-nota" data-id="${nt.id}">
+    <div class="cab"><span class="lb-tipo ${esc(nt.tipo)}">${esc(NOMBRE_TIPO[nt.tipo] || nt.tipo)}</span><b>${esc(fecha)}</b>
+      ${nt.mia ? "" : `<span>· ${esc(nt.autor)}</span>`}<span>${nt.compartida ? "· compartida" : "· privada"}</span>
+      ${nt.etiquetas.map((e) => `<span class="lb-etq">${esc(e)}</span>`).join("")}</div>
+    <div class="texto">${esc(nt.texto)}</div>
+    ${nt.tratada ? `<div class="lb-resp"><b>Tratada en la reunión${nt.tratada_por ? ` (${esc(nt.tratada_por)})` : ""}.</b>${nt.respuesta ? "\n" + esc(nt.respuesta) : ""}</div>` : ""}
+    <div class="acc">${Object.keys(nt.contexto || {}).length ? `<button class="boton" data-acc="abrir">Abrir</button>` : ""}
+      ${nt.mia && !reunion ? `<button class="boton" data-acc="editar">Editar</button><button class="boton" data-acc="borrar">Borrar</button>` : ""}
+      ${reunion && nt.compartida && (puede) ? `<button class="boton" data-acc="tratar">${nt.tratada ? "Editar conclusión" : "Marcar tratada"}</button>` : ""}</div>
+  </div>`;
+}
+let lbNotas = [];
+async function cargarLibreta() {
+  const q = new URLSearchParams();
+  if ($("#lb-tipo").value) q.set("tipo", $("#lb-tipo").value);
+  if ($("#lb-mias").checked) q.set("mias", "true");
+  if ($("#lb-etiqueta").value.trim()) q.set("etiqueta", $("#lb-etiqueta").value.trim());
+  const [notas, preguntas] = await Promise.all([api(`/api/yo/notas?${q}`), api("/api/yo/notas?tipo=pregunta")]);
+  lbNotas = [...notas, ...preguntas];
+  $("#lb-lista").innerHTML = notas.length ? notas.map((n) => tarjetaNota(n)).join("") : '<p class="tenue">Todavía no hay notas con ese filtro.</p>';
+  const comp = preguntas.filter((n) => n.compartida);
+  const pend = comp.filter((n) => !n.tratada), hechas = comp.filter((n) => n.tratada).slice(0, 20);
+  $("#rs-lista").innerHTML = (pend.length ? `<div class="panel-titulo">Pendientes (${pend.length})</div>` + pend.map((n) => tarjetaNota(n, true)).join("")
+    : '<p class="tenue">No hay preguntas pendientes.</p>') +
+    (hechas.length ? `<div class="panel-titulo" style="margin-top:8px">Tratadas</div>` + hechas.map((n) => tarjetaNota(n, true)).join("") : "");
+}
+async function accionNota(e) {
+  const b = e.target.closest("button[data-acc]");
+  if (!b) return;
+  const id = Number(b.closest(".lb-nota").dataset.id), nt = lbNotas.find((x) => x.id === id);
+  if (!nt) return;
+  if (b.dataset.acc === "abrir") abrirContexto(nt.contexto);
+  if (b.dataset.acc === "editar") abrirNota(nt);
+  if (b.dataset.acc === "borrar" && confirm("¿Borrar esta nota?")) { await apiEnviar(`/api/yo/notas/${id}`, "DELETE"); cargarLibreta(); }
+  if (b.dataset.acc === "tratar") {
+    const resp = prompt("Conclusión de la reunión (opcional):", nt.respuesta || "");
+    if (resp === null) return;
+    await apiEnviar(`/api/yo/notas/${id}/reunion`, "PUT", { tratada: true, respuesta: resp });
+    cargarLibreta();
+  }
+}
+$("#lb-lista").addEventListener("click", accionNota);
+$("#rs-lista").addEventListener("click", accionNota);
+
+// ----- La nota (nueva o editar) -----
+let notaEditando = null;
+function describirContexto(c) {
+  if (!c || !Object.keys(c).length) return "Sin carta asociada.";
+  const t = c.ts ? new Date(c.ts) : null;
+  const cuando = t ? `${fmtCartaTitulo.format(t)}, ${String(t.getUTCHours()).padStart(2, "0")} UTC` : "";
+  if (c.seccion === "gfs") return `Pronóstico GFS · corrida ${c.corrida}, +${c.plazo} h${c.carta ? " · " + c.carta : ""}`;
+  if (c.seccion === "meteograma") return `Diagnóstico de ${c.ciudad || ""}${cuando ? " · " + cuando : ""}`;
+  return `Cartas de análisis · ${cuando}${c.producto ? " · " + c.producto : ""}`;
+}
+function abrirNota(nt) {
+  notaEditando = nt.id ? nt : null;
+  const f = $("#f-nota");
+  f.reset();
+  $("#d-nota-tit").textContent = nt.id ? "Editar nota" : "Nueva nota";
+  f.tipo.value = nt.tipo || "vi";
+  f.texto.value = nt.texto || "";
+  f.etiquetas.value = (nt.etiquetas || []).join(", ");
+  f.fecha_evento.value = nt.fecha_evento || "";
+  f.compartida.checked = !!nt.compartida;
+  f.dataset.contexto = JSON.stringify(nt.contexto || {});
+  $("#d-nota-ctx").textContent = describirContexto(nt.contexto);
+  $("#d-nota-err").hidden = true;
+  $("#d-nota").showModal();
+  f.texto.focus();
+}
+$("#f-nota").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const datos = { tipo: f.tipo.value, texto: f.texto.value, fecha_evento: f.fecha_evento.value || null,
+    etiquetas: f.etiquetas.value.split(",").map((x) => x.trim()).filter(Boolean),
+    compartida: f.compartida.checked || f.tipo.value === "pregunta", contexto: JSON.parse(f.dataset.contexto || "{}") };
+  try {
+    if (notaEditando) await apiEnviar(`/api/yo/notas/${notaEditando.id}`, "PUT", datos);
+    else await apiEnviar("/api/yo/notas", "POST", datos);
+  } catch (err) { $("#d-nota-err").textContent = err.message; $("#d-nota-err").hidden = false; return; }
+  $("#d-nota").close();
+  if (cargadas.perfil) cargarLibreta();
+});
+$("#d-nota-cancelar").addEventListener("click", () => $("#d-nota").close());
+
+// Los botones "Anotar": la nota guarda dónde se escribió.
+$("#c-anotar").addEventListener("click", () => {
+  const t = tsCarta(); abrirNota({ fecha_evento: diaArg(t), contexto: { seccion: "analisis", ts: t.toISOString() } });
+});
+$("#c-anotar-visor").addEventListener("click", () => {
+  const t = tsCarta(); abrirNota({ fecha_evento: diaArg(t), contexto: { seccion: "analisis", ts: t.toISOString(), producto: cartaVisor } });
+});
+$("#cpr-anotar").addEventListener("click", () => {
+  const plazo = cpr.plazos[cpr.i], v = validaGFS(plazo);
+  abrirNota({ fecha_evento: diaArg(v), contexto: { seccion: "gfs", corrida: claveCorrida(cpr.inicio), plazo, vista: cpr.vista,
+    carta: (cpr.productos[cpr.a] || {}).id || "", ts: v.toISOString() } });
+});
+$("#cmd-anotar").addEventListener("click", () => {
+  const t = tsCarta(); abrirNota({ fecha_evento: diaArg(t), contexto: { seccion: "meteograma", ciudad: $("#cmd-ciudad").value, ts: t.toISOString() } });
+});
+
+// Volver al lugar de una nota.
+function irACartas(ts) {
+  abrir("cartas");
+  const t = new Date(ts);
+  const ir = () => { $("#f-c-fecha").value = t.toISOString().slice(0, 10); $("#f-c-hora").value = String(t.getUTCHours() - t.getUTCHours() % 6); cargarCartas(); };
+  setTimeout(ir, cargadas.cartas ? 0 : 600);
+}
+async function abrirContexto(c) {
+  if (c.seccion === "gfs") {
+    abrir("cartas");
+    await cargarPronosticoGFS(c.corrida && cpr.corridas && cpr.corridas[0] && claveCorrida(cpr.corridas[0].inicio) === c.corrida ? null : c.corrida);
+    const k = cpr.plazos.indexOf(Number(c.plazo)); if (k >= 0) cpr.i = k;
+    const a = cpr.productos.findIndex((p) => p.id === c.carta); if (a >= 0) cpr.a = a;
+    if (c.vista) { cpr.vista = c.vista; $("#cpr-vista").value = c.vista; }
+    mostrarPlazoGFS();
+    $("#cpr").scrollIntoView({ behavior: "smooth" });
+    return;
+  }
+  if (c.ts) irACartas(c.ts);
+  setTimeout(() => {
+    if (c.seccion === "meteograma" && c.ciudad) {
+      $("#cmd-ciudad").innerHTML = $("#cmd-ciudad").options.length > 1 ? $("#cmd-ciudad").innerHTML : `<option>${esc(c.ciudad)}</option>`;
+      $("#cmd-ciudad").value = c.ciudad; cmdClave = null; cargarDiagnostico();
+      $("#cmd").scrollIntoView({ behavior: "smooth" });
+    } else if (c.producto) abrirCarta(c.producto);
+  }, 1200);
+}
+
+// ======================================================================
 // Copia pública de las cartas (WEB_MODO=cartas): solo esa pestaña. El
 // servidor igual rechaza todo lo demás; esto es para que la página no lo pida.
 (async () => {
@@ -3898,8 +4205,10 @@ async function cargarBitacora() {
     $("header h1").textContent = "Cartas de diagnóstico";
     document.title = "Cartas de diagnóstico";
     abrir("cartas");
+    cargarCuenta();
     return;
   }
+  cargarCuenta();
   cargarMapa().catch((e) => { $("#lista").innerHTML = `<p>Error cargando estaciones: ${esc(e.message)}</p>`; });
   setInterval(() => { cargarMapa(); if (cargadas.estado) cargarEstado(); }, 5 * 60e3);  // refresca cada 5 min
 })();
