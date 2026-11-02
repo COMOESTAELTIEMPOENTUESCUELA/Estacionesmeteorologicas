@@ -289,7 +289,7 @@ el borde de sus tarjetas):
 1. **Pronóstico** (violeta): la tarjeta "Pronóstico GFS".
 2. **Diagnóstico** (verde): las cartas de análisis de cada
    hora, el pronóstico del grupo contra lo observado, el meteograma con el
-   corte tiempo-altura, el sondeo y las observaciones de la hora.
+   corte tiempo-altura y las observaciones de la hora.
 
 En las cartas de análisis, los casilleros **"Mostrar:"** ocultan o muestran
 cada grupo: Modelo (análisis del GFS y de Bentley), Satélite, Rayos (GLM) y
@@ -370,26 +370,15 @@ análisis (los niveles del perfil). Para fechas viejas:
 `historico cartas --desde ... --hasta ...` (si las cartas ya están, baja solo
 lo de los puntos). API: `/api/cartas/punto?ciudad=&desde=&hasta=[&perfiles=true]`.
 
-## Sondeo (diagrama Skew-T)
+## Sondeo (sacado de la página)
 
-Tarjeta "Sondeo" de Cartas: el perfil vertical de la ciudad del meteograma a
-la hora de la carta, en un diagrama Skew-T-log p (dibujado en la página, sin
-bibliotecas): temperatura (rojo), rocío (verde), la parcela de superficie
-(negro punteado), adiabáticas secas y húmedas de referencia, la isoterma de
-0 °C y las barbas del viento. Con una tabla de índices: CAPE y CIN de la
-parcela de superficie, agua precipitable, altura de la isoterma de 0 °C, NCL
-(base de las nubes), K y LI (calculados en `sondeos.py`; comparados con
-MetPy: misma agua precipitable, NCL, K, y CAPE a ±2 %).
-
-- **Sondeo del GFS**: el perfil del análisis en la ciudad (1000 a 100 hPa, con
-  la superficie del modelo abajo), guardado con cada análisis (`puntos.py`).
-- **Radiosondeo real de Ezeiza** (punteado, para comparar): de IGRA (NOAA),
-  el archivo de radiosondeos del mundo, que se actualiza todos los días con
-  1 o 2 días de atraso. Cada 6 h se baja el archivo del año de la estación y
-  se guardan los sondeos que falten en `cartas/_sondeos/87576/`. Se configura
-  en `sondeos:` de `config/cartas.yaml`. El SMN lanza en Ezeiza a las 12 UTC.
-
-API: `/api/cartas/sondeo?ciudad=&ts=`.
+El 02/11/2026 se sacó la tarjeta "Sondeo" (Skew-T del GFS y radiosondeo real
+de Ezeiza): no hay datos como para verificarlo. Queda el código del servidor
+(`sondeos.py`: lectura de IGRA e índices CAPE, CIN, PW, NCL, K, LI;
+`/api/cartas/sondeo`) y se siguen guardando los perfiles del GFS (los usa el
+corte tiempo-altura). Para bajar otra vez los radiosondeos reales,
+descomentar `sondeos:` en `config/cartas.yaml`; el dibujo del Skew-T está en
+la historia de git (commit edfdab0).
 
 ## Pronóstico del grupo para el día de la carta
 
