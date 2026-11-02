@@ -140,6 +140,15 @@ td.nw { white-space: nowrap; }
 #d-nota label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--tinta-2); }
 #d-nota label.marca { flex-direction: row; align-items: center; gap: 6px; }
 #d-nota h2 { margin: 0; font-size: 18px; }
+.pf-placa { border-collapse: collapse; width: 100%; font-size: 13px; }
+.pf-placa th, .pf-placa td { border-bottom: 1px solid var(--borde); padding: 6px 8px; vertical-align: top; text-align: left; }
+.pf-placa th small { display: block; font-weight: 400; color: var(--tenue); }
+.pf-placa td.emitido { white-space: nowrap; }
+.pf-celda { display: flex; flex-direction: column; gap: 2px; white-space: nowrap; }
+.pf-celda .dia { font-size: 11.5px; color: var(--tenue); }
+.pf-celda .acc { display: flex; gap: 4px; margin-top: 2px; }
+.pf-celda .acc button { padding: 0 6px; font-size: 11.5px; }
+.pf-ciudad-tit { margin: 14px 0 4px; font-size: 15px; }
 .lb-lista { display: flex; flex-direction: column; gap: 8px; }
 .lb-nota { border: 1px solid var(--borde); border-radius: 8px; padding: 10px 12px; background: var(--superficie); }
 .lb-nota .cab { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; font-size: 12.5px; color: var(--tinta-2); }
@@ -1078,7 +1087,12 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
   <!-- ============================ MI PERFIL ============================ -->
   <section id="tab-perfil" hidden>
     <div class="tarjeta" id="pf-grupo" hidden style="margin-bottom:16px">
-      <h2 style="margin:0 0 4px; font-size:18px">Todo el grupo</h2>
+      <div class="filtros">
+        <h2 style="margin:0; font-size:18px; flex:1 1 260px">Todo el grupo</h2>
+        <label class="en-linea">Plazo
+          <select id="pf-grupo-plazo"><option value="0">Día 1 (mismo día)</option><option value="1">Día 2 (+1)</option>
+            <option value="2">Día 3 (+2)</option><option value="3">Día 4 (+3)</option></select></label>
+      </div>
       <p class="ayuda" id="pf-grupo-nota"></p>
       <div class="tabla-scroll" style="max-height:none"><table id="pf-grupo-tabla"></table></div>
     </div>
@@ -1092,9 +1106,14 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
       </div>
       <p class="ayuda" id="pf-nota"></p>
       <div class="tabla-scroll" style="max-height:none"><table id="pf-resumen"></table></div>
-      <details style="margin-top:8px"><summary>Día por día</summary>
-        <div class="tabla-scroll"><table id="pf-dias-tabla"></table></div>
-      </details>
+      <div class="filtros" style="margin-top:14px">
+        <h3 style="margin:0; font-size:16px; flex:1 1 260px">Pronóstico por pronóstico</h3>
+        <label class="en-linea">Ciudad <select id="pf-ciudad"><option value="">todas</option></select></label>
+      </div>
+      <p class="ayuda">Cada fila es un pronóstico (el día que se emitió) y cada columna, uno de sus días: Día 1 es el mismo día, Día 2 el siguiente…
+        En cada celda, pronosticado / observado; el color es el error (<span class="err e-ok">≤2</span> <span class="err e-medio">≤4</span> <span class="err e-mal">&gt;4 °C</span>,
+        ▲ hizo más calor de lo pronosticado, ▼ más frío) y en la lluvia, ✓ acierto o ✗ error.</p>
+      <div id="pf-placas"></div>
     </div>
     <div class="tarjeta" style="margin-top:16px">
       <div class="filtros">
@@ -4175,6 +4194,7 @@ let pfDatos = null;
 async function iniciarPerfil() {
   $("#pf-dias").addEventListener("change", cargarMisPronosticos);
   $("#pf-usuario").addEventListener("change", cargarMisPronosticos);
+  $("#pf-ciudad").addEventListener("change", dibujarPlacasPerfil);
   ["#lb-tipo", "#lb-mias"].forEach((s) => $(s).addEventListener("change", cargarLibreta));
   $("#lb-etiqueta").addEventListener("change", cargarLibreta);
   $("#lb-nueva").addEventListener("click", () => abrirNota({ fecha_evento: diaArg(Date.now()), contexto: {} }));
@@ -4192,6 +4212,7 @@ async function iniciarPerfil() {
     $("#lb-l-todas").hidden = YO.rol !== "admin";
     $("#pf-grupo").hidden = false;
     $("#pf-dias").addEventListener("change", cargarGrupo);
+    $("#pf-grupo-plazo").addEventListener("change", dibujarGrupo);
     $("#pf-grupo-tabla").addEventListener("click", (e) => {
       const b = e.target.closest("button[data-ver]");
       if (!b) return;
@@ -4216,20 +4237,32 @@ async function cargarGrupo() {
   try { d = await api(`/api/yo/pronosticos/grupo?desde=${desde}&hasta=${hasta}`); }
   catch (err) { $("#pf-grupo-nota").textContent = `No se pudo cargar: ${err.message}`; return; }
   $("#pf-grupo-nota").textContent = `Del ${d.desde} al ${d.hasta}: ${d.pronosticadores.length} firmas con pronósticos. ` +
-    "Error medio absoluto (MAE, °C) y aciertos de lluvia, del pronóstico del mismo día y del día siguiente. Con pocos días (n chico) la cifra cambia mucho: miralo como orientación.";
+    "Error medio absoluto (MAE, °C) y sesgo (+ = pronosticó más calor del que hizo) del plazo elegido; aciertos de lluvia y de dirección del viento. Con pocos días la cifra cambia mucho: miralo como orientación.";
   // Las firmas sin usuario también se pueden elegir en "De:".
   const sinUsuario = d.pronosticadores.filter((p) => !p.usuario);
   $("#pf-usuario").querySelectorAll('option[value^="f:"]').forEach((o) => o.remove());
   sinUsuario.forEach((p) => $("#pf-usuario").insertAdjacentHTML("beforeend", `<option value="f:${esc(p.firma)}">${esc(p.firma)} (firma, sin usuario)</option>`));
+  pfGrupo = d;
+  dibujarGrupo();
+}
+let pfGrupo = null;
+function dibujarGrupo() {
+  const d = pfGrupo;
+  if (!d) return;
+  const pl = $("#pf-grupo-plazo").value;
   const n = (x) => (x === null || x === undefined ? "–" : num(x, 1));
-  const c = (r, el) => r && r[el] && r[el].n ? `${n(r[el].mae)} <span class="tenue">(n=${r[el].n})</span>` : "–";
-  const ll = (r) => r && r.pp && r.pp.n ? `${Math.round(100 * r.pp.pc)} %` : "–";
-  $("#pf-grupo-tabla").innerHTML = `<tr><th>Firma</th><th>Usuario</th><th>Días</th><th>Mín · mismo día</th><th>Mín · día sig.</th>
-      <th>Máx · mismo día</th><th>Máx · día sig.</th><th>Lluvia · mismo día</th><th></th></tr>` +
-    d.pronosticadores.map((p) => { const r0 = p.resumen["0"], r1 = p.resumen["1"];
-      return `<tr><td><b>${esc(p.firma)}</b></td><td>${p.usuario ? esc(p.usuario.nombre) : '<span class="tenue">sin usuario</span>'}</td><td>${p.dias}</td>
-        <td>${c(r0, "tmin_urbana")}</td><td>${c(r1, "tmin_urbana")}</td><td>${c(r0, "tmax_urbana")}</td><td>${c(r1, "tmax_urbana")}</td><td>${ll(r0)}</td>
-        <td><button class="boton" style="padding:1px 8px" data-ver="${p.usuario ? `u:${p.usuario.id}` : `f:${esc(p.firma)}`}">Ver detalle</button></td></tr>`; }).join("");
+  const t = (r) => r && r.n ? `${n(r.mae)} <span class="tenue">(${r.sesgo > 0 ? "+" : ""}${n(r.sesgo)})</span>` : "–";
+  const conDatos = (r) => r && ((r.tmin_urbana && r.tmin_urbana.n) || (r.tmax_urbana && r.tmax_urbana.n) || (r.pp && r.pp.n));
+  const filas = d.pronosticadores.map((p) => ({ p, r: p.resumen[pl] })).filter((x) => conDatos(x.r))
+    .sort((a, b) => (b.r.tmin_urbana?.n || 0) - (a.r.tmin_urbana?.n || 0));
+  $("#pf-grupo-tabla").innerHTML = `<tr><th>Firma</th><th>Usuario</th><th>Días</th><th>Mínima: error medio <small class="tenue">(sesgo)</small></th>
+      <th>Máxima</th><th>Lluvia: aciertos</th><th>Viento: dirección</th><th></th></tr>` +
+    (filas.length ? filas.map(({ p, r }) => `<tr><td><b>${esc(p.firma)}</b></td><td>${p.usuario ? esc(p.usuario.nombre) : '<span class="tenue">sin usuario</span>'}</td>
+        <td>${r.tmin_urbana?.n || r.tmax_urbana?.n || 0}</td><td>${t(r.tmin_urbana)}</td><td>${t(r.tmax_urbana)}</td>
+        <td>${r.pp && r.pp.n ? `${Math.round(100 * r.pp.pc)} %` : "–"}</td>
+        <td>${r.viento_dir && r.viento_dir.n ? `${r.viento_dir.pct} %` : "–"}</td>
+        <td><button class="boton" style="padding:1px 8px" data-ver="${p.usuario ? `u:${p.usuario.id}` : `f:${esc(p.firma)}`}">Ver detalle</button></td></tr>`).join("")
+      : `<tr><td colspan="8" class="tenue">Nadie tiene pronósticos de ese plazo con observación en el período.</td></tr>`);
 }
 async function cargarMisPronosticos() {
   const [desde, hasta] = periodoPerfil();
@@ -4243,12 +4276,12 @@ async function cargarMisPronosticos() {
   if (!propio && !d.usuario.firmas.length) {
     $("#pf-titulo").textContent = `Pronósticos de ${d.usuario.nombre}`;
     $("#pf-nota").textContent = "Este usuario no tiene firma cargada (cómo firma en el portal): agregala con el comando del servidor (--firma).";
-    $("#pf-resumen").innerHTML = ""; $("#pf-dias-tabla").innerHTML = ""; return;
+    $("#pf-resumen").innerHTML = ""; $("#pf-placas").innerHTML = ""; return;
   }
   $("#pf-titulo").textContent = propio ? "Mis pronósticos" : `Pronósticos de ${d.usuario.nombre}`;
   if (!d.usuario.firmas.length) {
     $("#pf-nota").textContent = "Todavía no está cargado cómo firmás los pronósticos en el portal: pedile a un coordinador que lo agregue a tu usuario.";
-    $("#pf-resumen").innerHTML = ""; $("#pf-dias-tabla").innerHTML = ""; return;
+    $("#pf-resumen").innerHTML = ""; $("#pf-placas").innerHTML = ""; return;
   }
   $("#pf-nota").textContent = `${d.dias.length} días pronosticados del ${d.desde} al ${d.hasta} (firmas: ${d.usuario.firmas.join(", ")}). ` +
     "Se cuenta la versión vigente de cada pronóstico (si otro lo corrigió, ese día es de quien lo corrigió). Error medio absoluto (MAE) y sesgo en °C: " +
@@ -4256,22 +4289,50 @@ async function cargarMisPronosticos() {
   const n = (x, dec = 1) => (x === null || x === undefined ? "–" : num(x, dec));
   const plazos = Object.keys(d.resumen).sort((a, b) => a - b);
   const celdaT = (r) => r && r.n ? `${n(r.mae)} <span class="tenue">(${r.sesgo > 0 ? "+" : ""}${n(r.sesgo)}, n=${r.n})</span>` : "–";
-  $("#pf-resumen").innerHTML = `<tr><th>Plazo</th><th>Mínima</th><th>Máxima</th><th>Lluvia: aciertos</th><th>Viento: dirección</th></tr>` +
+  $("#pf-resumen").innerHTML = `<tr><th>Plazo</th><th>Mínima: error medio <small class="tenue">(sesgo, días)</small></th><th>Máxima</th>
+      <th>Lluvia: aciertos</th><th>Viento: dirección</th></tr>` +
     plazos.map((p) => { const r = d.resumen[p];
-      return `<tr><td>${p === "0" ? "mismo día" : `+${p} día${p === "1" ? "" : "s"}`}</td><td>${celdaT(r.tmin_urbana)}</td><td>${celdaT(r.tmax_urbana)}</td>
+      return `<tr><td><b>${esc(nombrePlazo(p))}</b></td><td>${celdaT(r.tmin_urbana)}</td><td>${celdaT(r.tmax_urbana)}</td>
         <td>${r.pp && r.pp.n ? `${Math.round(100 * r.pp.pc)} % <span class="tenue">(n=${r.pp.n})</span>` : "–"}</td>
         <td>${r.viento_dir && r.viento_dir.n ? `${r.viento_dir.pct} % <span class="tenue">(n=${r.viento_dir.n})</span>` : "–"}</td></tr>`; }).join("");
-  $("#pf-dias-tabla").innerHTML = `<tr><th>Día</th><th>Ciudad</th><th>Plazo</th><th>Mín pron / obs</th><th>Máx pron / obs</th><th>Lluvia pron / obs</th><th></th></tr>` +
-    d.dias.slice().reverse().map((f, i) => {
-      const t = (el) => `${n(f[el].pron, 0)} / ${n(f[el].obs)}`;
-      const ll = (v) => (v === null || v === undefined ? "–" : v ? "sí" : "no");
-      return `<tr><td>${esc(f.fecha)}</td><td>${esc(f.ciudad)}</td><td>${f.plazo}</td><td>${t("tmin_urbana")}</td><td>${t("tmax_urbana")}</td>
-        <td>${ll(f.pp.pron)} / ${ll(f.pp.obs)}</td>
-        <td><button class="boton pf-cartas" data-fecha="${esc(f.fecha)}" style="padding:1px 8px">Ver cartas</button>
-            <button class="boton pf-anotar" data-fecha="${esc(f.fecha)}" data-ciudad="${esc(f.ciudad)}" style="padding:1px 8px">📝</button></td></tr>`;
-    }).join("");
-  document.querySelectorAll(".pf-cartas").forEach((b) => b.addEventListener("click", () => irACartas(b.dataset.fecha + "T12:00:00Z")));
-  document.querySelectorAll(".pf-anotar").forEach((b) => b.addEventListener("click", () =>
+  // Ciudades del período (para el filtro), La Plata primero.
+  const ciudades = [...new Set(d.dias.map((f) => f.ciudad))].sort((a, b) => (a !== "La Plata") - (b !== "La Plata") || a.localeCompare(b));
+  const antes = $("#pf-ciudad").value;
+  $("#pf-ciudad").innerHTML = '<option value="">todas</option>' + ciudades.map((c) => `<option>${esc(c)}</option>`).join("");
+  if (ciudades.includes(antes)) $("#pf-ciudad").value = antes;
+  dibujarPlacasPerfil();
+}
+const nombrePlazo = (p) => (Number(p) === 0 ? "Día 1 (mismo día)" : `Día ${Number(p) + 1} (+${p})`);
+const fmtDiaCorto = new Intl.DateTimeFormat("es-AR", { timeZone: "UTC", weekday: "short", day: "numeric", month: "numeric" });
+const diaCorto = (iso) => fmtDiaCorto.format(new Date(iso + "T12:00:00Z"));
+// Una tabla por ciudad: cada fila es un pronóstico (por el día en que se
+// emitió) y cada columna uno de sus días, como la placa del grupo.
+function dibujarPlacasPerfil() {
+  const d = pfDatos;
+  if (!d) return;
+  const sel = $("#pf-ciudad").value;
+  const porCiudad = new Map();
+  for (const f of d.dias) {
+    if (sel && f.ciudad !== sel) continue;
+    if (!porCiudad.has(f.ciudad)) porCiudad.set(f.ciudad, new Map());
+    const em = porCiudad.get(f.ciudad);
+    if (!em.has(f.fecha_emision)) em.set(f.fecha_emision, { publicado: f.publicado_el, anticipado: f.anticipado, dias: {} });
+    em.get(f.fecha_emision).dias[f.plazo] = f;
+  }
+  const plazos = [...new Set(d.dias.map((f) => f.plazo))].sort((a, b) => a - b);
+  const celda = (f) => !f ? '<td class="tenue">–</td>' : `<td><div class="pf-celda">
+      <span class="dia">${esc(diaCorto(f.fecha))}</span>
+      <span>mín ${celdaTemp(f.tmin_urbana)}</span><span>máx ${celdaTemp(f.tmax_urbana)}</span><span>lluvia ${celdaPP(f.pp)}</span>
+      <span class="acc"><button class="boton pf-cartas" data-fecha="${esc(f.fecha)}" title="Ver las cartas de ese día">cartas</button>
+        <button class="boton pf-anotar" data-fecha="${esc(f.fecha)}" data-ciudad="${esc(f.ciudad)}" title="Anotar sobre este día">📝</button></span></div></td>`;
+  $("#pf-placas").innerHTML = porCiudad.size ? [...porCiudad].map(([ciudad, em]) => `<h4 class="pf-ciudad-tit">${esc(ciudad)}</h4>
+    <div class="tabla-scroll" style="max-height:none"><table class="pf-placa">
+      <tr><th>Emitido</th>${plazos.map((p) => `<th>Día ${p + 1}<small>${p === 0 ? "mismo día" : `+${p} día${p > 1 ? "s" : ""}`}</small></th>`).join("")}</tr>
+      ${[...em].sort((a, b) => b[0].localeCompare(a[0])).map(([fecha, x]) => `<tr><td class="emitido"><b>${esc(diaCorto(fecha))}</b>
+        ${x.anticipado ? `<br><span class="tenue">publicado la noche anterior</span>` : ""}</td>${plazos.map((p) => celda(x.dias[p])).join("")}</tr>`).join("")}
+    </table></div>`).join("") : '<p class="tenue">Sin pronósticos en el período.</p>';
+  document.querySelectorAll("#pf-placas .pf-cartas").forEach((b) => b.addEventListener("click", () => irACartas(b.dataset.fecha + "T12:00:00Z")));
+  document.querySelectorAll("#pf-placas .pf-anotar").forEach((b) => b.addEventListener("click", () =>
     abrirNota({ fecha_evento: b.dataset.fecha, contexto: { seccion: "meteograma", ciudad: b.dataset.ciudad, ts: b.dataset.fecha + "T12:00:00Z" } })));
 }
 
