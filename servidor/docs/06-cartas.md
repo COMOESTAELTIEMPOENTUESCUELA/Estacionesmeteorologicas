@@ -281,6 +281,21 @@ próxima vuelta. Para ver qué arma la página:
 docker compose exec ingesta python -m meteo.ingesta diagnostico-ogimet
 ```
 
+## Orden de la pestaña Cartas
+
+Dos secciones bien separadas, cada una con su banda y su color (también en
+el borde de sus tarjetas):
+
+1. **Pronóstico — lo que viene** (violeta): la tarjeta "Pronóstico GFS".
+2. **Diagnóstico — lo que pasó** (verde): las cartas de análisis de cada
+   hora, el pronóstico del grupo contra lo observado, el meteograma con el
+   corte tiempo-altura, el sondeo y las observaciones de la hora.
+
+En las cartas de análisis, los casilleros **"Mostrar:"** ocultan o muestran
+cada grupo: Modelo (análisis del GFS y de Bentley), Satélite, Rayos (GLM) y
+SYNOP (mapas de Ogimet). Se recuerda en el navegador. El grupo sale de la
+`fuente` de cada carta (`GRUPOS_FUENTE` en index.html).
+
 ## En el visualizador
 
 - **Placa** (de entrada): todas las cartas de esa hora en una pantalla, como

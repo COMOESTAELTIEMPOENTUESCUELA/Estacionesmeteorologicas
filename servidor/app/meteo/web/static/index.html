@@ -201,6 +201,26 @@ img.con-fondo { background-color: #fff !important; background-size: 100% 100%; b
   border: 1px solid var(--borde); border-radius: 8px; padding: 8px 10px; font-size: 13px; line-height: 1.35;
   box-shadow: 0 4px 14px rgba(0,0,0,.25); white-space: pre-line; }
 .c-estacion b { font-size: 14px; }
+/* Secciones de la pestaña Cartas: Pronóstico (lo que viene) y Diagnóstico
+   (lo que pasó), bien distinguidas: banda con su color y borde del mismo color
+   en las tarjetas de cada una. */
+.cartas-seccion { display: flex; align-items: center; gap: 14px; margin: 18px 0 10px; padding: 10px 14px; border-radius: 10px; }
+.cartas-seccion:first-child { margin-top: 0; }
+.cartas-seccion h2 { margin: 0; font-size: 19px; }
+.cartas-seccion p { margin: 2px 0 0; font-size: 13px; color: var(--tinta-2); }
+.cartas-seccion .etq { font: 700 12px/1 system-ui, sans-serif; letter-spacing: .12em; text-transform: uppercase; color: #fff;
+  padding: 7px 10px; border-radius: 6px; white-space: nowrap; }
+.cartas-seccion.pron { background: color-mix(in srgb, var(--s7) 12%, transparent); border: 1px solid color-mix(in srgb, var(--s7) 40%, transparent); }
+.cartas-seccion.pron .etq { background: var(--s7); }
+.cartas-seccion.diag { background: color-mix(in srgb, var(--s3) 12%, transparent); border: 1px solid color-mix(in srgb, var(--s3) 40%, transparent); }
+.cartas-seccion.diag .etq { background: var(--s3); }
+#cpr { border-left: 5px solid var(--s7); }
+#c-analisis, #cp, #cmd, #csd, #co { border-left: 5px solid var(--s3); }
+#tab-cartas > .tarjeta + .tarjeta { margin-top: 16px; }
+.c-grupos { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; margin: 8px 0 2px; font-size: 13px; }
+.c-grupo { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border: 1px solid var(--borde); border-radius: 99px;
+  background: var(--superficie); cursor: pointer; user-select: none; }
+.c-grupo:has(input:not(:checked)) { opacity: .55; text-decoration: line-through; }
 /* Pronóstico GFS */
 #cpr:focus { outline: none; }
 #cpr.activa { box-shadow: 0 0 0 2px var(--ins-amarillo, #f5c518); }
@@ -280,14 +300,14 @@ img.con-fondo { background-color: #fff !important; background-size: 100% 100%; b
 
 #tab-cartas > .tarjeta { background: var(--ins-fondo); border-color: var(--ins-sombra); }
 /* Panel de mando: la barra de controles */
-#tab-cartas > .tarjeta:first-child > .filtros, #c-dialogo .barra:not(:first-child) {
+#c-analisis > .filtros, #c-dialogo .barra:not(:first-child) {
   background: var(--ins-panel); color: var(--ins-panel-texto); border-radius: 8px; padding: 10px 12px; color-scheme: dark; }
-#tab-cartas > .tarjeta:first-child > .filtros label, #c-dialogo .barra label { color: var(--ins-panel-texto); font-family: var(--ins-mono);
+#c-analisis > .filtros label, #c-dialogo .barra label { color: var(--ins-panel-texto); font-family: var(--ins-mono);
   font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; }
-#tab-cartas > .tarjeta:first-child > .filtros .boton, #c-dialogo .barra:not(:first-child) .boton {
+#c-analisis > .filtros .boton, #c-dialogo .barra:not(:first-child) .boton {
   background: var(--ins-panel-2); color: #e6ecf1; border: 1px solid transparent; border-radius: 6px; }
-#tab-cartas > .tarjeta:first-child > .filtros .boton:hover, #c-dialogo .barra:not(:first-child) .boton:hover { border-color: var(--ins-amarillo); }
-#tab-cartas > .tarjeta:first-child > .filtros select, #tab-cartas > .tarjeta:first-child > .filtros input[type="text"],
+#c-analisis > .filtros .boton:hover, #c-dialogo .barra:not(:first-child) .boton:hover { border-color: var(--ins-amarillo); }
+#c-analisis > .filtros select, #c-analisis > .filtros input[type="text"],
 #c-dialogo .barra select { background: var(--ins-panel-2); color: #e6ecf1; border: 1px solid #33414e; border-radius: 6px; font-family: var(--ins-mono); }
 #c-ultima, #c-anim, #c-herr .herr.activa { background: var(--ins-amarillo) !important; color: #17212b !important; font-weight: 600; outline: none !important; }
 #c-dialogo .barra .tenue { color: var(--ins-panel-texto); }
@@ -725,42 +745,12 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
 
   <!-- ============================ CARTAS ============================ -->
   <section id="tab-cartas" hidden>
-    <div class="tarjeta">
-      <div class="filtros">
-        <label>Fecha <input type="date" id="f-c-fecha"></label>
-        <label>Hora
-          <select id="f-c-hora">
-            <option value="0">00 UTC (21 hs del día anterior)</option>
-            <option value="6">06 UTC (03 hs)</option>
-            <option value="12" selected>12 UTC (09 hs)</option>
-            <option value="18">18 UTC (15 hs)</option>
-          </select>
-        </label>
-        <button class="boton" id="c-menos-dia" title="Un día antes">« −1 día</button>
-        <button class="boton" id="c-menos" title="6 horas antes (flecha izquierda)">‹ −6 h</button>
-        <button class="boton" id="c-mas" title="6 horas después (flecha derecha)">+6 h ›</button>
-        <button class="boton" id="c-mas-dia" title="Un día después">+1 día »</button>
-        <button class="boton" id="c-ultima">Última</button>
-        <label class="en-linea" title="Al pasar el mouse por una carta, una cruz marca el mismo punto en las cartas de la misma proyección">
-          <input type="checkbox" id="f-c-cursor" checked> Cursor sincronizado</label>
-        <label>Vista
-          <select id="f-c-vista">
-            <option value="placa">Placa (todas juntas)</option>
-            <option value="grande">Grandes (de a dos)</option>
-          </select>
-        </label>
-      </div>
-      <h2 id="c-titulo" style="margin:4px 0 2px; font-size:20px"></h2>
-      <p class="ayuda" id="c-nota"></p>
-      <div class="cartas-grid" id="c-grid"></div>
-      <p class="ayuda" style="margin-top:12px">Cartas de diagnóstico (análisis, no pronóstico) que el servidor archiva solo, cada hora.
-        Fuentes: <a href="https://www.atmos.albany.edu/student/abentley/realtime.html" target="_blank" rel="noopener">Alicia Bentley</a> (análisis GFS),
-        satélite GOES-19 (NOAA) y <a href="https://www.ogimet.com/" target="_blank" rel="noopener">Ogimet</a> (observaciones; la precipitación de 24 h y las temperaturas extremas se informan a las 12 UTC).
-        Flechas ← → del teclado: 6 horas antes o después. Tocá una carta para verla en grande:
-        ahí se hace zoom con la rueda del mouse (o pellizcando en el celular), se mueve arrastrando,
-        doble clic acerca o vuelve, y ← → cambian la hora sin perder el zoom (↑ ↓ cambian de carta).</p>
+    <div class="cartas-seccion pron" id="sec-pron" hidden>
+      <span class="etq">Pronóstico</span>
+      <div><h2>Lo que viene</h2>
+        <p>Cartas del GFS de la última corrida, de +0 a +192 h (modelo: sirve como guía).</p></div>
     </div>
-    <div class="tarjeta" id="cpr" style="margin-top:16px" hidden tabindex="-1">
+    <div class="tarjeta" id="cpr" hidden tabindex="-1">
       <div class="filtros">
         <h2 style="margin:0; font-size:18px; flex:1 1 280px">Pronóstico GFS <span class="tenue" style="font-weight:400">(con el formato de las cartas de Bentley)</span></h2>
         <label class="en-linea">Corrida <select id="cpr-corrida"></select></label>
@@ -818,6 +808,54 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
         <kbd>+</kbd> <kbd>−</kbd> <kbd>0</kbd> zoom (o <kbd>Ctrl</kbd> + rueda, doble clic; arrastrar para mover) · <kbd>C</kbd> ciudades</p>
       <div class="cartas-grid cpr-grid" id="cpr-grid"></div>
       <p class="ayuda cpr-pos" id="cpr-pos">&nbsp;</p>
+    </div>
+    <div class="cartas-seccion diag" id="sec-diag">
+      <span class="etq">Diagnóstico</span>
+      <div><h2>Lo que pasó</h2>
+        <p>Análisis de cada hora (cartas archivadas, satélite, observaciones), el pronóstico del grupo contra lo observado,
+          el meteograma, el corte tiempo-altura y el sondeo de la fecha elegida.</p></div>
+    </div>
+    <div class="tarjeta" id="c-analisis">
+      <div class="filtros">
+        <label>Fecha <input type="date" id="f-c-fecha"></label>
+        <label>Hora
+          <select id="f-c-hora">
+            <option value="0">00 UTC (21 hs del día anterior)</option>
+            <option value="6">06 UTC (03 hs)</option>
+            <option value="12" selected>12 UTC (09 hs)</option>
+            <option value="18">18 UTC (15 hs)</option>
+          </select>
+        </label>
+        <button class="boton" id="c-menos-dia" title="Un día antes">« −1 día</button>
+        <button class="boton" id="c-menos" title="6 horas antes (flecha izquierda)">‹ −6 h</button>
+        <button class="boton" id="c-mas" title="6 horas después (flecha derecha)">+6 h ›</button>
+        <button class="boton" id="c-mas-dia" title="Un día después">+1 día »</button>
+        <button class="boton" id="c-ultima">Última</button>
+        <label class="en-linea" title="Al pasar el mouse por una carta, una cruz marca el mismo punto en las cartas de la misma proyección">
+          <input type="checkbox" id="f-c-cursor" checked> Cursor sincronizado</label>
+        <label>Vista
+          <select id="f-c-vista">
+            <option value="placa">Placa (todas juntas)</option>
+            <option value="grande">Grandes (de a dos)</option>
+          </select>
+        </label>
+      </div>
+      <div class="c-grupos" id="c-grupos" role="group" aria-label="Qué cartas mostrar">
+        <span class="tenue">Mostrar:</span>
+        <label class="c-grupo"><input type="checkbox" value="modelo" checked> Modelo <span class="tenue">(análisis del GFS y de Bentley)</span></label>
+        <label class="c-grupo"><input type="checkbox" value="satelite" checked> Satélite</label>
+        <label class="c-grupo"><input type="checkbox" value="rayos" checked> Rayos (GLM)</label>
+        <label class="c-grupo"><input type="checkbox" value="synop" checked> SYNOP <span class="tenue">(mapas de Ogimet)</span></label>
+      </div>
+      <h2 id="c-titulo" style="margin:4px 0 2px; font-size:20px"></h2>
+      <p class="ayuda" id="c-nota"></p>
+      <div class="cartas-grid" id="c-grid"></div>
+      <p class="ayuda" style="margin-top:12px">Cartas de diagnóstico (análisis, no pronóstico) que el servidor archiva solo, cada hora.
+        Fuentes: <a href="https://www.atmos.albany.edu/student/abentley/realtime.html" target="_blank" rel="noopener">Alicia Bentley</a> (análisis GFS),
+        satélite GOES-19 (NOAA) y <a href="https://www.ogimet.com/" target="_blank" rel="noopener">Ogimet</a> (observaciones; la precipitación de 24 h y las temperaturas extremas se informan a las 12 UTC).
+        Flechas ← → del teclado: 6 horas antes o después. Tocá una carta para verla en grande:
+        ahí se hace zoom con la rueda del mouse (o pellizcando en el celular), se mueve arrastrando,
+        doble clic acerca o vuelve, y ← → cambian la hora sin perder el zoom (↑ ↓ cambian de carta).</p>
     </div>
     <div class="tarjeta" id="cp" style="margin-top:16px">
       <div class="filtros">
@@ -2242,7 +2280,7 @@ async function cargarPronosticoGFS(corrida = null) {
   const plazoAntes = cpr.plazos[cpr.i];
   cpr.productos = d.productos.filter((p) => p.cuadros.length);
   cpr.ciudades = d.ciudades || {};
-  $("#cpr").hidden = !cpr.productos.length;
+  $("#cpr").hidden = $("#sec-pron").hidden = !cpr.productos.length;
   if (!cpr.productos.length) return;
   cpr.corrida = corrida;
   cpr.plazos = [...new Set(cpr.productos.flatMap((p) => p.cuadros.map((c) => c.plazo_h)))].sort((a, b) => a - b);
@@ -2592,6 +2630,15 @@ async function iniciarCartas() {
   });
   iniciarVisor();
   iniciarDiagnostico();
+  // Grupos de cartas visibles (se recuerdan en el navegador).
+  try {
+    const ocultos = JSON.parse(localStorage.getItem("cartas-ocultas") || "[]");
+    document.querySelectorAll("#c-grupos input").forEach((c) => { c.checked = !ocultos.includes(c.value); });
+  } catch (_) {}
+  $("#c-grupos").addEventListener("change", () => {
+    try { localStorage.setItem("cartas-ocultas", JSON.stringify([...document.querySelectorAll("#c-grupos input:not(:checked)")].map((c) => c.value))); } catch (_) {}
+    cargarCartas();
+  });
   $("#f-cp-plazo").addEventListener("change", cargarPronoDia);
   document.addEventListener("keydown", (e) => {
     if (teclaGFS(e)) return;            // el teclado lo está usando el pronóstico GFS
@@ -2619,6 +2666,12 @@ const tituloCarta = (p) => (p.nivel ? p.nivel + " · " : "") + p.nombre;
 // Ogimet entre sí): un mismo punto de la imagen es el mismo lugar del mapa.
 // "grupo" en el YAML junta cartas de distinta fuente con el mismo marco (ej.
 // las de Bentley y nuestras cartas de análisis con su formato).
+// Grupos de cartas que se pueden mostrar u ocultar (casilleros "Mostrar:").
+const GRUPOS_FUENTE = { bentley: "modelo", gfs_analisis: "modelo", gfs: "modelo", star: "satelite", glm: "rayos", ogimet: "synop" };
+function gruposVisibles() {
+  return new Set([...document.querySelectorAll("#c-grupos input:checked")].map((c) => c.value));
+}
+const cartaVisible = (p, visibles = gruposVisibles()) => visibles.has(GRUPOS_FUENTE[p.fuente] || "modelo");
 const grupoCarta = (p) => p.grupo || `${p.fuente}:${p.dominio || p.zona || ""}`;
 
 // Cursor sincronizado: una cruz en el mismo punto de las otras cartas del grupo.
@@ -2642,7 +2695,8 @@ async function cargarCartas() {
   const placa = $("#f-c-vista").value === "placa";
   const deLaHora = r.productos.filter((p) => p.horas_utc.includes(t.getUTCHours()));
   const otras = r.productos.filter((p) => !p.horas_utc.includes(t.getUTCHours()));
-  cartasHora = deLaHora.filter((p) => p.url);
+  const visibles = gruposVisibles();
+  cartasHora = deLaHora.filter((p) => p.url && cartaVisible(p, visibles));
   const claves = Object.keys(cartasDisp);
   $("#c-nota").textContent = !r.productos.length ? "No hay cartas configuradas (config/cartas.yaml)."
     : !claves.length ? "Todavía no hay cartas archivadas. El servidor las baja solo cada hora: en la primera vuelta trae los últimos 14 días."
@@ -2650,7 +2704,7 @@ async function cargarCartas() {
       + (placa && otras.length ? ` ${otras.map((p) => p.nombre.replace(/ \(observaciones\)/, "")).join(", ")}: solo a las 12 UTC.` : "");
   // En la placa no se ocupa lugar con las cartas que no corresponden a esta hora.
   // Las que ya no se bajan (ej. Bentley) aparecen solo donde hay algo archivado.
-  const mostrar = (placa ? deLaHora : r.productos).filter((p) => p.url || !p.solo_archivo);
+  const mostrar = (placa ? deLaHora : r.productos).filter((p) => (p.url || !p.solo_archivo) && cartaVisible(p, visibles));
   $("#c-grid").classList.toggle("placa", placa);
   $("#c-grid").innerHTML = mostrar.map((p) => `<figure class="carta">
       <figcaption title="${esc(tituloCarta(p))}${dibujosDe(p, t).length ? " (con análisis dibujado)" : ""}">${dibujosDe(p, t).length ? "✏️ " : ""}<b>${esc(p.nivel || "")}</b> · ${esc(p.nombre)}</figcaption>
