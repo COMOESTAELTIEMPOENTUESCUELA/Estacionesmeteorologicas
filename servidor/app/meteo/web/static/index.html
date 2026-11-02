@@ -3186,6 +3186,10 @@ async function cargarObsHora(t) {
 let cpMapa = null, cpCapa = null, cpClave = "";
 const fmtDiaSemana = new Intl.DateTimeFormat("es-AR", { timeZone: "UTC", weekday: "long" });
 
+// El error medio, con el mismo color que el error de cada día (≤2 / ≤4 / >4 °C).
+function maeColor(mae) {
+  return mae === null || mae === undefined ? "–" : `<span class="err ${claseErr(mae)}" title="error medio ${num(mae)} °C">${num(mae)}</span>`;
+}
 function claseErr(e) { const a = Math.abs(e); return a <= 2 ? "e-ok" : a <= 4 ? "e-medio" : "e-mal"; }
 function celdaTemp(t) {
   if (!t || t.pron === null || t.pron === undefined) return "–";
@@ -4251,7 +4255,7 @@ function dibujarGrupo() {
   if (!d) return;
   const pl = $("#pf-grupo-plazo").value;
   const n = (x) => (x === null || x === undefined ? "–" : num(x, 1));
-  const t = (r) => r && r.n ? `${n(r.mae)} <span class="tenue">(${r.sesgo > 0 ? "+" : ""}${n(r.sesgo)})</span>` : "–";
+  const t = (r) => r && r.n ? `${maeColor(r.mae)} <span class="tenue">(${r.sesgo > 0 ? "+" : ""}${n(r.sesgo)})</span> ${chipNivel(r.nivel)}` : "–";
   const conDatos = (r) => r && ((r.tmin_urbana && r.tmin_urbana.n) || (r.tmax_urbana && r.tmax_urbana.n) || (r.pp && r.pp.n));
   const filas = d.pronosticadores.map((p) => ({ p, r: p.resumen[pl] })).filter((x) => conDatos(x.r))
     .sort((a, b) => (b.r.tmin_urbana?.n || 0) - (a.r.tmin_urbana?.n || 0));
@@ -4285,15 +4289,16 @@ async function cargarMisPronosticos() {
   }
   $("#pf-nota").textContent = `${d.dias.length} días pronosticados del ${d.desde} al ${d.hasta} (firmas: ${d.usuario.firmas.join(", ")}). ` +
     "Se cuenta la versión vigente de cada pronóstico (si otro lo corrigió, ese día es de quien lo corrigió). Error medio absoluto (MAE) y sesgo en °C: " +
-    "sesgo positivo = pronosticaste más calor del que hizo. Mismas cuentas que la pestaña Verificación (mínima de 21 a 21 hs).";
+    "sesgo positivo = pronosticaste más calor del que hizo. Color del error: verde hasta 2 °C, amarillo hasta 4, rojo más de 4; el punto indica " +
+    "cuánto creerle según la cantidad de días (gris exploratorio, amarillo indicativo, verde robusto). Mismas cuentas que la pestaña Verificación (mínima de 21 a 21 hs).";
   const n = (x, dec = 1) => (x === null || x === undefined ? "–" : num(x, dec));
   const plazos = Object.keys(d.resumen).sort((a, b) => a - b);
-  const celdaT = (r) => r && r.n ? `${n(r.mae)} <span class="tenue">(${r.sesgo > 0 ? "+" : ""}${n(r.sesgo)}, n=${r.n})</span>` : "–";
+  const celdaT = (r) => r && r.n ? `${maeColor(r.mae)} <span class="tenue">(${r.sesgo > 0 ? "+" : ""}${n(r.sesgo)}, n=${r.n})</span> ${chipNivel(r.nivel)}` : "–";
   $("#pf-resumen").innerHTML = `<tr><th>Plazo</th><th>Mínima: error medio <small class="tenue">(sesgo, días)</small></th><th>Máxima</th>
       <th>Lluvia: aciertos</th><th>Viento: dirección</th></tr>` +
     plazos.map((p) => { const r = d.resumen[p];
       return `<tr><td><b>${esc(nombrePlazo(p))}</b></td><td>${celdaT(r.tmin_urbana)}</td><td>${celdaT(r.tmax_urbana)}</td>
-        <td>${r.pp && r.pp.n ? `${Math.round(100 * r.pp.pc)} % <span class="tenue">(n=${r.pp.n})</span>` : "–"}</td>
+        <td>${r.pp && r.pp.n ? `${Math.round(100 * r.pp.pc)} % <span class="tenue">(n=${r.pp.n})</span> ${chipNivel(r.pp.nivel)}` : "–"}</td>
         <td>${r.viento_dir && r.viento_dir.n ? `${r.viento_dir.pct} % <span class="tenue">(n=${r.viento_dir.n})</span>` : "–"}</td></tr>`; }).join("");
   // Ciudades del período (para el filtro), La Plata primero.
   const ciudades = [...new Set(d.dias.map((f) => f.ciudad))].sort((a, b) => (a !== "La Plata") - (b !== "La Plata") || a.localeCompare(b));
