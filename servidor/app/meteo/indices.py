@@ -206,6 +206,44 @@ INDICES = {
                 fases=("positiva (cálida)", "negativa (fría)", "neutral"),
                 que="Patrón de la temperatura del mar del Pacífico norte que cambia en décadas. Puede reforzar o atenuar al ENSO."),
 }
+# Para consultar: de dónde sale cada índice, qué es, y de dónde sale el
+# umbral que usamos para decir "en fase". Los umbrales marcados "criterio de
+# esta página" NO son oficiales: son una convención razonable para la
+# franja de colores (se pueden cambiar arriba, en "umbral").
+PSL_LISTA = ("NOAA PSL: lista de índices climáticos (definiciones)", "https://psl.noaa.gov/data/climateindices/list/")
+CONSULTAR = {
+    "oni": dict(umbral="oficial de NOAA (±0,5 °C; episodio con 5 trimestres seguidos)", links=[
+        ("NOAA CPC: tabla del ONI y criterio de episodios", "https://origin.cpc.ncep.noaa.gov/products/analysis_monitoring/ensostuff/ONI_v5.php"),
+        ("NOAA CPC: discusión mensual del ENSO", "https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/enso_advisory/ensodisc.shtml")]),
+    "nino34": dict(umbral="el mismo del ONI (±0,5 °C), aplicado a la semana", links=[
+        ("NOAA CPC: índices de temperatura del mar (Niño 1+2, 3, 3.4, 4)", "https://www.cpc.ncep.noaa.gov/data/indices/"),
+        ("NOAA CPC: discusión mensual del ENSO", "https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/enso_advisory/ensodisc.shtml")]),
+    "nino12": dict(umbral="criterio de esta página (±0,5 °C, como el Niño 3.4)", links=[
+        ("NOAA CPC: índices de temperatura del mar", "https://www.cpc.ncep.noaa.gov/data/indices/")]),
+    "soi": dict(umbral="criterio de esta página (±1 desvío)", links=[
+        PSL_LISTA, ("NOAA CPC: SOI", "https://www.cpc.ncep.noaa.gov/data/indices/soi")]),
+    "sam": dict(umbral="criterio de esta página (±0,5 desvío)", links=[
+        ("NOAA CPC: índice AAO / SAM (diario y mensual)", "https://www.cpc.ncep.noaa.gov/products/precip/CWlink/daily_ao_index/aao/aao.shtml"),
+        ("Silvestri y Vera (2003), SAM y lluvia en el sudeste de Sudamérica (GRL)", "https://doi.org/10.1029/2003GL018277")]),
+    "sam_mensual": dict(umbral="criterio de esta página (±0,5 desvío)", links=[
+        ("NOAA CPC: índice AAO / SAM", "https://www.cpc.ncep.noaa.gov/products/precip/CWlink/daily_ao_index/aao/aao.shtml")]),
+    "mjo": dict(umbral="habitual en la literatura: amplitud 1 (Wheeler y Hendon, 2004)", links=[
+        ("BoM (Australia): monitoreo de la MJO y datos RMM", "http://www.bom.gov.au/climate/mjo/"),
+        ("NOAA CPC: MJO, diagnóstico y pronóstico", "https://www.cpc.ncep.noaa.gov/products/precip/CWlink/MJO/mjo.shtml"),
+        ("Wheeler y Hendon (2004), el índice RMM (Monthly Weather Review)",
+         "https://doi.org/10.1175/1520-0493(2004)132<1917:AARMMI>2.0.CO;2")]),
+    "dmi": dict(umbral="el que usa el BoM (±0,4 °C)", links=[
+        ("NOAA PSL: serie del DMI", "https://psl.noaa.gov/gcos_wgsp/Timeseries/DMI/"),
+        ("BoM (Australia): ENSO y dipolo del Índico", "http://www.bom.gov.au/climate/enso/"),
+        ("Chan, Behera y Yamagata (2008), el dipolo del Índico y la lluvia en Sudamérica (GRL)", "https://doi.org/10.1029/2008GL034204")]),
+    "tna": dict(umbral="criterio de esta página (±0,3 °C)", links=[PSL_LISTA]),
+    "tsa": dict(umbral="criterio de esta página (±0,3 °C)", links=[PSL_LISTA]),
+    "dipolo_atl": dict(umbral="criterio de esta página (±0,3 °C)", links=[
+        PSL_LISTA, ("(es la resta TNA − TSA, calculada en este servidor con las dos series de PSL)", None)]),
+    "pdo": dict(umbral="criterio de esta página (±0,5)", links=[
+        ("NOAA NCEI: PDO (definición y datos)", "https://www.ncei.noaa.gov/access/monitoring/pdo/")]),
+}
+
 REGION_MJO = {1: "hemisferio occidental y África", 2: "océano Índico", 3: "océano Índico", 4: "continente marítimo",
               5: "continente marítimo", 6: "Pacífico oeste", 7: "Pacífico oeste", 8: "hemisferio occidental y África"}
 
@@ -346,6 +384,7 @@ def estado(raiz, fecha, desde=None, hasta=None, serie_desde=None, solo=None):
         datos, bajado = leer(raiz, k)
         r = {"id": k, "nombre": ind["nombre"], "grupo": ind["grupo"], "unidad": ind["unidad"], "frecuencia": ind["frecuencia"],
              "umbral": ind["umbral"], "fases": ind["fases"], "que": ind["que"], "efecto": ind.get("efecto"), "fuente": ind.get("url"), "bajado": bajado,
+             "umbral_origen": CONSULTAR[k]["umbral"], "links": [{"texto": t, "url": u} for t, u in CONSULTAR[k]["links"]],
              "valor": None, "periodo": None, "serie": []}
         if not datos:
             salida.append(r)

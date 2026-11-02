@@ -138,3 +138,10 @@ def test_api_un_indice(cliente, tmp_path, monkeypatch):
     d = cliente.get("/api/cartas/indices?fecha=2026-10-28&solo=sam&meses=600").json()
     assert [x["id"] for x in d["indices"]] == ["sam"] and len(d["indices"][0]["serie"]) == 2
     assert indices.INDICES["oni"].get("efecto") is None
+
+
+def test_todos_tienen_fuentes():
+    for k in indices.INDICES:
+        c = indices.CONSULTAR[k]
+        assert c["umbral"] and c["links"], k
+        assert all(u is None or u.startswith(("https://", "http://www.bom.gov.au/")) for _, u in c["links"]), k

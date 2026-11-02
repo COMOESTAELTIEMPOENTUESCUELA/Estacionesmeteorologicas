@@ -506,6 +506,27 @@ fecha se va ahí.
 | TNA, TSA y su diferencia | Atlántico tropical norte, sur y el dipolo del Atlántico tropical (TNA − TSA) | mensual | NOAA PSL |
 | PDO | Pacífico norte, escala de décadas | mensual | NOAA NCEI |
 
+Cada tarjeta tiene "Fuentes y para consultar": el archivo original que se
+baja, la página oficial que explica el índice y, cuando corresponde, el
+trabajo científico citado en los textos. También dice de dónde sale el
+umbral de fase: el del ONI (NOAA), el del DMI (BoM) y la amplitud 1 de la MJO
+(Wheeler y Hendon 2004) son los habituales; los demás (SAM, SOI, TNA, TSA,
+dipolo del Atlántico, PDO, Niño 1+2) son un **criterio de esta página** para
+pintar la franja, no una definición oficial. Los textos explicativos son un
+resumen propio de esas fuentes. Están en `CONSULTAR` en `app/meteo/indices.py`.
+
+Para leer más:
+- ENSO: https://origin.cpc.ncep.noaa.gov/products/analysis_monitoring/ensostuff/ONI_v5.php
+  y https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/enso_advisory/ensodisc.shtml
+- SAM: https://www.cpc.ncep.noaa.gov/products/precip/CWlink/daily_ao_index/aao/aao.shtml
+  y Silvestri y Vera (2003) https://doi.org/10.1029/2003GL018277
+- MJO: http://www.bom.gov.au/climate/mjo/ , https://www.cpc.ncep.noaa.gov/products/precip/CWlink/MJO/mjo.shtml
+  y Wheeler y Hendon (2004) https://doi.org/10.1175/1520-0493(2004)132<1917:AARMMI>2.0.CO;2
+- Dipolo del Índico: https://psl.noaa.gov/gcos_wgsp/Timeseries/DMI/ y Chan, Behera y Yamagata (2008)
+  https://doi.org/10.1029/2008GL034204
+- Atlántico tropical, SOI y otros: https://psl.noaa.gov/data/climateindices/list/
+- PDO: https://www.ncei.noaa.gov/access/monitoring/pdo/
+
 La ingesta los baja cada 12 h (tarea `indices`) y guarda un JSON por índice
 en `ARCHIVO_DIR/indices/`. Si una fuente falla, queda el último archivo
 bueno. A mano:

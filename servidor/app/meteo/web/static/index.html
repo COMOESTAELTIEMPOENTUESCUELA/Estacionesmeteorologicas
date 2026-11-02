@@ -315,6 +315,9 @@ img.con-fondo { background-color: #fff !important; background-size: 100% 100%; b
 .ci-tarj .ahora { font-size: 13px; }
 .ci-tarj .per { font-size: 12.5px; color: var(--tinta-2); }
 .ci-tarj .exp { font-size: 12px; color: var(--tenue); }
+.ci-links summary { cursor: pointer; color: var(--acento); }
+.ci-links ul { margin: 4px 0 0; padding-left: 18px; }
+.ci-links li { margin: 2px 0; }
 .ci-tarj svg { width: 100%; height: auto; display: block; }
 .ci-tarj svg text { font: 9px system-ui, sans-serif; fill: var(--tenue); }
 .ci-tarj .spark { cursor: zoom-in; border-radius: 6px; }
@@ -1278,6 +1281,7 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
   <div class="gci-nav" id="gci-nav" title="La serie entera: arrastrá o tocá para moverte"></div>
   <h3 style="font-size:14px;margin:10px 0 0">Cambios de fase <span class="tenue" style="font-weight:400" id="gci-cambios-n"></span></h3>
   <div class="gci-cambios"><table id="gci-cambios"></table></div>
+  <div id="gci-links"></div>
 </dialog>
 
 <dialog id="d-nota">
@@ -3210,6 +3214,14 @@ function faseMJO(r) {
     <path d="${tray}" fill="none" stroke="var(--s7)" stroke-width="1.6"/><circle cx="${ux}" cy="${uy}" r="4" fill="var(--s7)"/>
   </svg><div class="exp">Últimos ${pts.length} días; el punto es el día elegido. Dentro del círculo gris (amplitud menor que 1): débil.</div>`;
 }
+// "Para consultar": los datos crudos, qué es cada índice y de dónde sale el umbral.
+function linksIndice(r) {
+  const a = (u, t) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)}</a>`;
+  return `<details class="exp ci-links"><summary>Fuentes y para consultar</summary><ul>
+    ${r.fuente ? `<li>${a(r.fuente, "Datos que usa esta página (archivo original)")}</li>` : ""}
+    ${(r.links || []).map((l) => `<li>${l.url ? a(l.url, l.texto) : esc(l.texto)}</li>`).join("")}
+    <li>Umbral de fase: ${esc(r.umbral_origen || "")}.</li></ul></details>`;
+}
 function dibujarIndicesDetalle() {
   const d = ci.datos;
   if (!d) return;
@@ -3224,7 +3236,8 @@ function dibujarIndicesDetalle() {
     return `<div class="ci-tarj"><h4><span class="ci-punto ${claseSigno(r)}"></span>${esc(r.nombre)}</h4>
       <div class="ahora">${ahora}</div><div class="per">${per}</div>
       <div class="spark" data-ci-ampliar="${esc(r.id)}" title="Tocá para ampliar: zoom, valores y cambios de fase">${r.id === "mjo" ? faseMJO(r) : sparkIndice(r, d.fecha)}</div>
-      <div class="exp">${esc(r.que)}${r.efecto ? ` <i>${esc(r.efecto)}</i>` : ""}</div></div>`;
+      <div class="exp">${esc(r.que)}${r.efecto ? ` <i>${esc(r.efecto)}</i>` : ""}</div>
+      ${linksIndice(r)}</div>`;
   }).join("") || '<p class="tenue">Todavía no hay índices bajados.</p>';
 }
 // ----- Gráfico ampliado de un índice: zoom, valor en cada fecha y cambios de fase -----
@@ -3249,6 +3262,7 @@ async function abrirGraficoIndice(id) {
   gci.r = r;
   gci.pts = r.serie.map((p) => [Date.parse(p[0]), p[1], p[2]]);
   gci.zoom = null;
+  $("#gci-links").innerHTML = linksIndice(r).replace("<details", "<details open");
   $("#gci-tit").textContent = `${r.nombre}${r.id === "mjo" ? " · amplitud" : r.unidad ? ` (${r.unidad})` : ""}`;
   if (!$("#d-ci").open) $("#d-ci").showModal();      // primero abrirlo: así se sabe el ancho disponible
   dibujarGraficoIndice();                            // calcula todo lo cargado (gci.F)
