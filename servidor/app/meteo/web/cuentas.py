@@ -61,6 +61,11 @@ DURACION = timedelta(days=30)
 TIPOS_NOTA = ("vi", "llamo_atencion", "duda", "pregunta")
 # Del contexto de una nota solo se guardan estas claves (texto o número corto).
 CLAVES_CONTEXTO = ("ts", "producto", "corrida", "plazo", "carta", "vista", "ciudad", "desde", "hasta", "seccion")
+# La imagen pegada a una nota ("pizarra"): lo que manda la página (data URL
+# PNG/JPEG/WebP) se abre con Pillow y se vuelve a codificar en WebP, así se
+# guarda siempre una imagen limpia y chica, sin importar lo que llegó.
+MAX_IMAGEN_ENTRADA = 4_000_000        # bytes de la data URL
+MAX_LADO = 1600                       # px: más grande se achica
 SQL = Path(__file__).parent / "cuentas.sql"
 
 _pools = {}
@@ -333,6 +338,51 @@ def _limpiar_nota(datos):
     return tipo, texto, etiquetas, bool(datos.get("compartida")), contexto, fecha
 
 
+def _limpiar_imagen(dato):
+    """data URL -> (bytes WebP, ancho, alto). Rechaza lo que no sea imagen."""
+    import binascii
+    import io
+
+    from PIL import Image, UnidentifiedImageError
+    if not isinstance(dato, str) or len(dato) > MAX_IMAGEN_ENTRADA:
+        raise HTTPException(400, "imagen: muy grande (hasta ~3 MB)")
+    cabeza, _, cuerpo = dato.partition(",")
+    if cabeza not in ("data:image/png;base64", "data:image/jpeg;base64", "data:image/webp;base64"):
+        raise HTTPException(400, "imagen: PNG, JPEG o WebP en base64")
+    try:
+        img = Image.open(io.BytesIO(base64.b64decode(cuerpo, validate=True)))
+        if img.width * img.height > 40_000_000:
+            raise HTTPException(400, "imagen: demasiados píxeles")
+        img.load()
+    except (binascii.Error, UnidentifiedImageError, OSError, Image.DecompressionBombError):
+        raise HTTPException(400, "imagen: no se pudo leer")
+    img = img.convert("RGB")
+    img.thumbnail((MAX_LADO, MAX_LADO * 3))
+    salida = io.BytesIO()
+    img.save(salida, "WEBP", quality=82, method=4)
+    return salida.getvalue(), img.width, img.height
+
+
+def _preparar_imagen(datos):
+    """Con "imagen" en el pedido: una data URL la reemplaza, null la saca.
+    Sin esa clave, la imagen queda como estaba (devuelve None)."""
+    if "imagen" not in datos:
+        return None
+    return "sacar" if datos["imagen"] is None else _limpiar_imagen(datos["imagen"])
+
+
+def _guardar_imagen(nota_id, imagen):
+    if imagen is None:
+        return
+    if imagen == "sacar":
+        _escribir("DELETE FROM nota_imagen WHERE nota_id = %s", (nota_id,))
+        return
+    webp, ancho, alto = imagen
+    _escribir("""INSERT INTO nota_imagen (nota_id, datos, ancho, alto) VALUES (%s, %s, %s, %s)
+                 ON CONFLICT (nota_id) DO UPDATE SET datos = EXCLUDED.datos, ancho = EXCLUDED.ancho,
+                 alto = EXCLUDED.alto, creada = now()""", (nota_id, webp, ancho, alto))
+
+
 @router.get("/api/yo/notas")
 def notas(request: Request, desde: date | None = None, hasta: date | None = None, tipo: str = "",
           mias: bool = False, pendientes: bool = False, etiqueta: str = "", autor_id: int | None = None,
@@ -360,29 +410,83 @@ def notas(request: Request, desde: date | None = None, hasta: date | None = None
         cond.append("%s = ANY(n.etiquetas)"); params.append(etiqueta.lower())
     filas = _leer(f"""
         SELECT n.id, n.usuario_id, us.nombre AS autor, n.creada, n.actualizada, n.tipo, n.texto, n.etiquetas,
-               n.compartida, n.fecha_evento, n.contexto, n.tratada, n.respuesta, tr.nombre AS tratada_por
+               n.compartida, n.fecha_evento, n.contexto, n.tratada, n.respuesta, tr.nombre AS tratada_por,
+               ni.creada AS captura_el
         FROM nota n JOIN usuario us ON us.id = n.usuario_id LEFT JOIN usuario tr ON tr.id = n.tratada_por
+        LEFT JOIN nota_imagen ni ON ni.nota_id = n.id
         WHERE {' AND '.join(cond)} ORDER BY COALESCE(n.fecha_evento, n.creada::date) DESC, n.creada DESC LIMIT 500""",
                   tuple(params))
     for f in filas:
         f["mia"] = f.pop("usuario_id") == u["id"]
+        f["imagen"] = _miniatura(f["contexto"] or {})
+        cap = f.pop("captura_el")
+        f["captura"] = f"/api/yo/notas/{f['id']}/imagen?v={int(cap.timestamp())}" if cap else None
+    # Comentarios (los muestra el muro del grupo).
+    ids = [f["id"] for f in filas]
+    comentarios = {}
+    if ids:
+        for c in _leer("""
+            SELECT c.id, c.nota_id, c.usuario_id, us.nombre AS autor, c.creada, c.texto
+            FROM nota_comentario c JOIN usuario us ON us.id = c.usuario_id
+            WHERE c.nota_id = ANY(%s) ORDER BY c.creada""", (ids,)):
+            c["mio"] = c.pop("usuario_id") == u["id"]
+            comentarios.setdefault(c.pop("nota_id"), []).append(c)
+    for f in filas:
+        f["comentarios"] = comentarios.get(f["id"], [])
     return filas
+
+
+ARCHIVO_DIR = os.environ.get("ARCHIVO_DIR", "/archivo")
+
+
+def _miniatura(c):
+    """La imagen de la carta donde se escribió la nota (para el muro), o None:
+    la carta de análisis (su miniatura, o la imagen) o la del pronóstico GFS."""
+    from ..cartas import archivo, pronostico
+    try:
+        if c.get("seccion") == "gfs" and c.get("carta") and c.get("corrida"):
+            nombre = f"{c['carta']}_{c['corrida']}_f{int(c['plazo']):03d}.png"
+            ruta = pronostico.carpeta(ARCHIVO_DIR, c["carta"]) / nombre
+            return f"/cartas-img/{pronostico.CARPETA}/{c['carta']}/{nombre}" if ruta.exists() else None
+        if c.get("ts"):
+            ts = datetime.fromisoformat(str(c["ts"]).replace("Z", "+00:00"))
+            ts = ts.replace(hour=ts.hour - ts.hour % 6, minute=0, second=0, microsecond=0)
+            raiz = Path(ARCHIVO_DIR) / "cartas"
+            for producto in [c.get("producto"), "gfs_ana_mslp_jet", "bentley_mslp_jet"]:
+                if not producto:
+                    continue
+                m = archivo.ruta_miniatura(ARCHIVO_DIR, producto, ts)
+                if m.exists():
+                    return "/cartas-img/" + m.relative_to(raiz).as_posix()
+                base = archivo.ruta(ARCHIVO_DIR, producto, ts)
+                for ext in ("png", "jpg", "gif"):
+                    if base.with_suffix(f".{ext}").exists():
+                        return "/cartas-img/" + base.with_suffix(f".{ext}").relative_to(raiz).as_posix()
+    except (ValueError, TypeError, KeyError):
+        return None
+    return None
 
 
 @router.post("/api/yo/notas")
 async def nueva_nota(request: Request):
     u = requiere_usuario(request)
-    tipo, texto, etiquetas, compartida, contexto, fecha = _limpiar_nota(await request.json())
-    return _escribir("""
+    datos = await request.json()
+    tipo, texto, etiquetas, compartida, contexto, fecha = _limpiar_nota(datos)
+    imagen = _preparar_imagen(datos)          # antes: que una imagen mala no deje la nota a medias
+    fila = _escribir("""
         INSERT INTO nota (usuario_id, tipo, texto, etiquetas, compartida, contexto, fecha_evento)
         VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id""",
                      (u["id"], tipo, texto, etiquetas, compartida, Jsonb(contexto), fecha))[0]
+    _guardar_imagen(fila["id"], imagen)
+    return fila
 
 
 @router.put("/api/yo/notas/{nota_id}")
 async def editar_nota(nota_id: int, request: Request):
     u = requiere_usuario(request)
-    tipo, texto, etiquetas, compartida, contexto, fecha = _limpiar_nota(await request.json())
+    datos = await request.json()
+    tipo, texto, etiquetas, compartida, contexto, fecha = _limpiar_nota(datos)
+    imagen = _preparar_imagen(datos)
     filas = _escribir("""
         UPDATE nota SET tipo = %s, texto = %s, etiquetas = %s, compartida = %s, contexto = %s, fecha_evento = %s,
                         actualizada = now()
@@ -390,7 +494,21 @@ async def editar_nota(nota_id: int, request: Request):
                       (tipo, texto, etiquetas, compartida, Jsonb(contexto), fecha, nota_id, u["id"]))
     if not filas:
         raise HTTPException(404, "No existe o no es tuya")
+    _guardar_imagen(nota_id, imagen)
     return filas[0]
+
+
+@router.get("/api/yo/notas/{nota_id}/imagen")
+def imagen_nota(nota_id: int, request: Request):
+    """La imagen pegada a la nota: solo para quien puede ver la nota."""
+    u = requiere_usuario(request)
+    filas = _leer("""SELECT ni.datos FROM nota_imagen ni JOIN nota n ON n.id = ni.nota_id
+                     WHERE ni.nota_id = %s AND (n.compartida OR n.usuario_id = %s OR %s)""",
+                  (nota_id, u["id"], u["rol"] == "admin"))
+    if not filas:
+        raise HTTPException(404, "No existe o no la podés ver")
+    return Response(bytes(filas[0]["datos"]), media_type="image/webp",
+                    headers={"Cache-Control": "private, max-age=86400", "X-Content-Type-Options": "nosniff"})
 
 
 @router.put("/api/yo/notas/{nota_id}/reunion")
@@ -407,6 +525,29 @@ async def tratar_en_reunion(nota_id: int, request: Request):
     if not filas:
         raise HTTPException(404, "No existe, no es compartida o no la podés modificar")
     return filas[0]
+
+
+@router.post("/api/yo/notas/{nota_id}/comentarios")
+async def comentar(nota_id: int, request: Request):
+    """Comentar una nota compartida (o una propia)."""
+    u = requiere_usuario(request)
+    texto = str((await request.json()).get("texto") or "").strip()
+    if not 1 <= len(texto) <= 2000:
+        raise HTTPException(400, "El comentario tiene que tener entre 1 y 2.000 caracteres")
+    if not _leer("SELECT 1 FROM nota WHERE id = %s AND (compartida OR usuario_id = %s OR %s)",
+                 (nota_id, u["id"], u["rol"] == "admin")):
+        raise HTTPException(404, "No existe o no la podés ver")
+    return _escribir("INSERT INTO nota_comentario (nota_id, usuario_id, texto) VALUES (%s, %s, %s) RETURNING id",
+                     (nota_id, u["id"], texto))[0]
+
+
+@router.delete("/api/yo/comentarios/{comentario_id}")
+def borrar_comentario(comentario_id: int, request: Request):
+    u = requiere_usuario(request)
+    if not _escribir("DELETE FROM nota_comentario WHERE id = %s AND (usuario_id = %s OR %s) RETURNING id",
+                     (comentario_id, u["id"], u["rol"] == "admin")):
+        raise HTTPException(404, "No existe o no es tuyo")
+    return {"ok": True}
 
 
 @router.delete("/api/yo/notas/{nota_id}")

@@ -158,6 +158,60 @@ td.nw { white-space: nowrap; }
 .lb-etq { border: 1px solid var(--borde); border-radius: 99px; padding: 0 7px; font-size: 11.5px; }
 .lb-nota .acc { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
 .lb-nota .acc .boton { padding: 2px 9px; font-size: 12px; }
+/* Muros (del grupo, mío) y reunión: notas como "papelitos" en columnas */
+.muro-tabs { display: flex; gap: 4px; flex-wrap: wrap; border-bottom: 1px solid var(--borde); margin: -4px 0 12px; }
+.muro-tabs button { border: 0; background: none; color: var(--tinta-2); font: inherit; font-weight: 600; padding: 8px 12px; cursor: pointer;
+  border-bottom: 3px solid transparent; margin-bottom: -1px; }
+.muro-tabs button.activa { color: var(--tinta); border-bottom-color: var(--acento); }
+.muro-tabs .cuenta-n { background: var(--s7); color: #fff; border-radius: 99px; padding: 0 7px; font-size: 11.5px; margin-left: 4px; }
+.muro-comp { border: 1px solid var(--borde); border-radius: 10px; padding: 10px; margin-bottom: 10px; background: var(--plano); }
+.muro-comp textarea { width: 100%; resize: vertical; min-height: 44px; font: inherit; border: 1px solid var(--borde); border-radius: 8px;
+  padding: 8px; background: var(--superficie); color: var(--tinta); }
+.muro-comp .fila { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 6px; font-size: 13px; }
+.muro-comp .fila .crece { flex: 1; }
+.muro-comp input[type=text], .muro-filtros input[type=search] { font: inherit; font-size: 13px; padding: 5px 9px; border: 1px solid var(--borde);
+  border-radius: 8px; background: var(--superficie); color: var(--tinta); }
+.muro-filtros { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin-bottom: 8px; font-size: 13px; }
+.chip-f { border: 1px solid var(--borde); background: var(--superficie); color: var(--tinta-2); border-radius: 99px; padding: 2px 10px;
+  font: inherit; font-size: 12.5px; cursor: pointer; }
+.chip-f.activa { background: var(--tinta); color: var(--superficie); border-color: var(--tinta); }
+.muro-dia { margin: 14px 0 6px; font-size: 13px; color: var(--tinta-2); display: flex; gap: 8px; align-items: center; }
+.muro-dia::after { content: ""; flex: 1; border-top: 1px solid var(--borde); }
+.muro-col { columns: 300px; column-gap: 10px; }
+.postit { break-inside: avoid; margin: 0 0 10px; border: 1px solid var(--borde); border-radius: 10px; background: var(--superficie);
+  border-top: 4px solid var(--c, var(--s1)); padding: 9px 11px; display: flex; flex-direction: column; gap: 6px; }
+.postit.vi { --c: var(--s1); } .postit.llamo_atencion { --c: var(--s4); } .postit.duda { --c: var(--s5); } .postit.pregunta { --c: var(--s7); }
+.postit .cab { display: flex; gap: 8px; align-items: center; font-size: 12.5px; color: var(--tinta-2); }
+.postit .avatar { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 12px; flex: none; }
+.postit .cab .quien { display: flex; flex-direction: column; line-height: 1.2; min-width: 0; }
+.postit .cab .quien b { color: var(--tinta); }
+.postit .cab .der { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+.postit .img { position: relative; display: block; border-radius: 6px; overflow: hidden; border: 1px solid var(--borde); background: #fff; }
+.postit .img img { display: block; width: 100%; height: auto; max-height: 420px; object-fit: contain; }
+.postit .img span { position: absolute; left: 6px; bottom: 6px; background: rgba(0,0,0,.65); color: #fff; font-size: 11px; padding: 1px 7px; border-radius: 99px; }
+.postit .texto { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; }
+.postit .ctx { font-size: 12px; color: var(--tenue); background: none; border: 0; padding: 0; text-align: left; cursor: pointer; font: inherit; font-size: 12px; }
+.postit .ctx:hover { color: var(--acento); text-decoration: underline; }
+.postit .etqs { display: flex; gap: 4px; flex-wrap: wrap; }
+.postit .etqs button { border: 1px solid var(--borde); border-radius: 99px; padding: 0 7px; font-size: 11.5px; background: none; color: var(--tinta-2); cursor: pointer; }
+.postit .acc { display: flex; gap: 6px; flex-wrap: wrap; }
+.postit .acc .boton { padding: 1px 8px; font-size: 12px; }
+.postit .coment { border-top: 1px dashed var(--borde); padding-top: 6px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.postit .coment .c { overflow-wrap: anywhere; }
+.postit .coment .c span { white-space: pre-wrap; }
+.postit .coment .c small { color: var(--tenue); }
+.postit .coment .c button { border: 0; background: none; color: var(--tenue); cursor: pointer; font-size: 11px; }
+.postit .coment form { display: flex; gap: 4px; }
+.postit .coment input { flex: 1; min-width: 0; font: inherit; font-size: 13px; padding: 3px 8px; border: 1px solid var(--borde); border-radius: 99px;
+  background: var(--plano); color: var(--tinta); }
+/* La pizarra del diálogo de la nota: la imagen pegada, para marcar encima */
+#d-nota { width: min(760px, 96vw); }
+.pizarra { border: 1px solid var(--borde); border-radius: 8px; padding: 6px; display: flex; flex-direction: column; gap: 6px; }
+.pizarra .barra { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12.5px; color: var(--tinta-2); }
+.pizarra .barra .lapiz { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--superficie); outline: 1px solid var(--borde); cursor: pointer; padding: 0; }
+.pizarra .barra .lapiz.activa { outline: 2px solid var(--tinta); }
+.pizarra .lienzo-p { max-height: 52vh; overflow: auto; background: #fff; border-radius: 6px; }
+.pizarra canvas { display: block; width: 100%; height: auto; touch-action: none; cursor: crosshair; }
 .lb-resp { margin-top: 6px; padding: 6px 10px; border-left: 3px solid var(--s3); background: color-mix(in srgb, var(--s3) 8%, transparent); white-space: pre-wrap; }
 #d-inc { width: min(520px, 94vw); border: 1px solid var(--borde); border-radius: 12px; background: var(--superficie); color: var(--tinta); padding: 18px; }
 #d-inc::backdrop { background: rgba(0,0,0,.45); }
@@ -865,6 +919,7 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
       <div class="filtros">
         <h2 style="margin:0; font-size:18px; flex:1 1 280px" id="cpm-titulo">Meteograma del pronóstico</h2>
         <label class="en-linea">Ciudad <select id="cpm-ciudad"><option>La Plata</option></select></label>
+        <button class="boton anotar" id="cpm-anotar" hidden title="Anotar algo del meteograma (se pega la imagen para marcar encima)">📝 Anotar</button>
       </div>
       <p class="ayuda" id="cpm-nota"></p>
       <div id="cpm-paneles"></div>
@@ -1115,25 +1170,33 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
         ▲ hizo más calor de lo pronosticado, ▼ más frío) y en la lluvia, ✓ acierto o ✗ error.</p>
       <div id="pf-placas"></div>
     </div>
-    <div class="tarjeta" style="margin-top:16px">
-      <div class="filtros">
-        <h2 style="margin:0; font-size:18px; flex:1 1 260px">Libreta</h2>
-        <label class="en-linea">Tipo
-          <select id="lb-tipo"><option value="">todas</option><option value="vi">lo que vi</option><option value="llamo_atencion">me llamó la atención</option>
-            <option value="duda">dudas</option><option value="pregunta">preguntas para la reunión</option></select></label>
-        <label class="en-linea"><input type="checkbox" id="lb-mias"> Solo las mías</label>
+    <div class="tarjeta" style="margin-top:16px" id="muro">
+      <div class="muro-tabs" role="tablist">
+        <button data-muro="grupo" class="activa">Muro del grupo</button>
+        <button data-muro="mio">Mi muro</button>
+        <button data-muro="reunion">Reunión sinóptica<span class="cuenta-n" id="rs-n" hidden></span></button>
+      </div>
+      <div class="muro-comp" id="muro-comp">
+        <textarea id="mc-texto" rows="2" maxlength="10000" placeholder="¿Qué viste hoy? Ej.: la vaguada en 500 está más al oeste que ayer…"></textarea>
+        <div class="fila">
+          <select id="mc-tipo" title="Tipo de nota"><option value="vi">Lo que vi</option><option value="llamo_atencion">Me llamó la atención</option>
+            <option value="duda">Duda</option><option value="pregunta">Pregunta para la reunión</option></select>
+          <input type="text" id="mc-etiquetas" list="lb-sugeridas" placeholder="etiquetas, separadas por coma" class="crece" style="min-width:140px">
+          <label class="en-linea" id="mc-l-comp"><input type="checkbox" id="mc-comp"> Compartir</label>
+          <button class="boton" id="mc-mas" title="Abrir el formulario completo: fecha, imagen para marcar encima…">🖼️ Con imagen…</button>
+          <button class="boton primario" id="mc-publicar">Publicar</button>
+        </div>
+      </div>
+      <div class="muro-filtros">
+        <span id="mf-tipos"><button class="chip-f activa" data-tipo="">Todas</button><button class="chip-f" data-tipo="vi">Lo que vi</button><button class="chip-f" data-tipo="llamo_atencion">Me llamó la atención</button><button class="chip-f" data-tipo="duda">Dudas</button><button class="chip-f" data-tipo="pregunta">Preguntas</button></span>
+        <input type="search" id="mf-buscar" placeholder="Buscar…" style="width:150px">
+        <span id="mf-etq" hidden></span>
         <label class="en-linea" id="lb-l-autor" hidden>Autor <select id="lb-autor"><option value="">todos</option></select></label>
         <label class="en-linea" id="lb-l-todas" hidden title="Solo administradores"><input type="checkbox" id="lb-todas"> Incluir las privadas de todos</label>
-        <label class="en-linea">Etiqueta <input type="text" id="lb-etiqueta" placeholder="ej. frente frío" style="width:130px"></label>
-        <button class="boton" id="lb-nueva">📝 Nueva nota</button>
       </div>
-      <p class="ayuda">Tus notas privadas las ves vos y los administradores del grupo; las compartidas, todos los que ingresaron. "Abrir" lleva a la carta, la corrida o la ciudad donde se escribió.</p>
-      <div id="lb-lista" class="lb-lista"></div>
-    </div>
-    <div class="tarjeta" style="margin-top:16px">
-      <h2 style="margin:0 0 4px; font-size:18px">Reunión sinóptica</h2>
-      <p class="ayuda">Las preguntas compartidas para la reunión: pendientes arriba; las tratadas, con la conclusión. Las marca quien la escribió o un coordinador.</p>
-      <div id="rs-lista" class="lb-lista"></div>
+      <p class="ayuda" id="muro-ayuda"></p>
+      <div id="lb-lista"></div>
+      <div id="rs-lista" hidden></div>
     </div>
   </section>
 </main>
@@ -1155,6 +1218,21 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
     <datalist id="lb-sugeridas"><option value="frente frío"><option value="frente cálido"><option value="ciclogénesis"><option value="vaguada">
       <option value="río atmosférico"><option value="tormentas"><option value="niebla"><option value="helada"><option value="ola de calor">
       <option value="sudestada"><option value="baja segregada"><option value="error del modelo"></datalist>
+    <div class="pizarra" id="d-nota-piz" hidden>
+      <div class="barra"><span>Imagen de la nota · marcá encima:</span>
+        <button type="button" class="lapiz activa" data-color="#dc2626" style="background:#dc2626" title="Lápiz rojo"></button>
+        <button type="button" class="lapiz" data-color="#1d4ed8" style="background:#1d4ed8" title="Lápiz azul"></button>
+        <button type="button" class="lapiz" data-color="#16a34a" style="background:#16a34a" title="Lápiz verde"></button>
+        <button type="button" class="lapiz" data-color="#111827" style="background:#111827" title="Lápiz negro"></button>
+        <button type="button" class="boton chico" id="piz-deshacer" title="Deshacer el último trazo">↶</button>
+        <button type="button" class="boton chico" id="piz-quitar" title="No pegar ninguna imagen en esta nota" style="margin-left:auto">✕ Quitar imagen</button></div>
+      <div class="lienzo-p"><canvas id="piz-canvas"></canvas></div>
+    </div>
+    <div class="barra-img" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:13px">
+      <button type="button" class="boton chico" id="d-nota-pegar" hidden>🖼️ Pegar la imagen de donde estabas</button>
+      <label class="boton chico" style="flex-direction:row;cursor:pointer">📎 Subir una imagen<input type="file" id="d-nota-archivo" accept="image/png,image/jpeg,image/webp" hidden></label>
+      <span class="tenue">Queda en la nota para que la vean quienes la ven (si es compartida, todo el grupo).</span>
+    </div>
     <label class="marca"><input type="checkbox" name="compartida"> Compartir con el grupo <span class="tenue">(si no, la ven solo vos y los administradores; las preguntas para la reunión se comparten siempre)</span></label>
     <p class="d-inc-err" id="d-nota-err" hidden></p>
     <div class="acciones">
@@ -3744,9 +3822,9 @@ async function guardarDibujoYa() {
 
 // ----- descargar la carta con el dibujo -----
 const cargarImagen = (src) => new Promise((ok, mal) => { const i = new Image(); i.onload = () => ok(i); i.onerror = mal; i.src = src; });
-async function exportarPNG() {
+async function componerCarta() {
   const p = cartasHora.find((c) => c.id === cartaVisor), img = $("#c-vista img");
-  if (!p || !img.naturalWidth) return;
+  if (!p || !img.naturalWidth) return null;
   const w = img.naturalWidth, h = img.naturalHeight, lienzo = document.createElement("canvas");
   lienzo.width = w; lienzo.height = h + 34;
   const g = lienzo.getContext("2d");
@@ -3760,6 +3838,11 @@ async function exportarPNG() {
   // Abajo, qué carta es y de qué hora (para la placa o una presentación).
   g.fillStyle = "#111827"; g.font = "600 16px system-ui, sans-serif"; g.textBaseline = "middle";
   g.fillText(`${tituloCarta(p)} — ${$("#c-titulo").textContent}`, 10, h + 17);
+  return lienzo;
+}
+async function exportarPNG() {
+  const p = cartasHora.find((c) => c.id === cartaVisor), lienzo = await componerCarta();
+  if (!lienzo) return;
   lienzo.toBlob((b) => {
     const a = document.createElement("a");
     a.href = URL.createObjectURL(b);
@@ -4199,10 +4282,6 @@ async function iniciarPerfil() {
   $("#pf-dias").addEventListener("change", cargarMisPronosticos);
   $("#pf-usuario").addEventListener("change", cargarMisPronosticos);
   $("#pf-ciudad").addEventListener("change", dibujarPlacasPerfil);
-  ["#lb-tipo", "#lb-mias"].forEach((s) => $(s).addEventListener("change", cargarLibreta));
-  $("#lb-etiqueta").addEventListener("change", cargarLibreta);
-  $("#lb-nueva").addEventListener("click", () => abrirNota({ fecha_evento: diaArg(Date.now()), contexto: {} }));
-  ["#lb-autor", "#lb-todas"].forEach((s) => $(s).addEventListener("change", cargarLibreta));
   if (YO && ["coordinador", "admin"].includes(YO.rol)) {
     // Coordinadores y administradores: las métricas de cualquiera (por usuario
     // o por firma, aunque no tenga usuario), el resumen del grupo y el autor.
@@ -4227,7 +4306,7 @@ async function iniciarPerfil() {
     await cargarGrupo();
   }
   cargarMisPronosticos();
-  cargarLibreta();
+  iniciarMuro();
 }
 let pfUsuarios = [];
 function periodoPerfil() {
@@ -4341,42 +4420,160 @@ function dibujarPlacasPerfil() {
     abrirNota({ fecha_evento: b.dataset.fecha, contexto: { seccion: "meteograma", ciudad: b.dataset.ciudad, ts: b.dataset.fecha + "T12:00:00Z" } })));
 }
 
-// ----- Libreta -----
-function tarjetaNota(nt, reunion = false) {
-  const fecha = nt.fecha_evento || String(nt.creada).slice(0, 10);
-  const puede = nt.mia || ["coordinador", "admin"].includes(YO.rol);
-  return `<div class="lb-nota" data-id="${nt.id}">
-    <div class="cab"><span class="lb-tipo ${esc(nt.tipo)}">${esc(NOMBRE_TIPO[nt.tipo] || nt.tipo)}</span><b>${esc(fecha)}</b>
-      ${nt.mia ? "" : `<span>· ${esc(nt.autor)}</span>`}<span>${nt.compartida ? "· compartida" : "· privada"}</span>
-      ${nt.etiquetas.map((e) => `<span class="lb-etq">${esc(e)}</span>`).join("")}</div>
-    <div class="texto">${esc(nt.texto)}</div>
-    ${nt.tratada ? `<div class="lb-resp"><b>Tratada en la reunión${nt.tratada_por ? ` (${esc(nt.tratada_por)})` : ""}.</b>${nt.respuesta ? "\n" + esc(nt.respuesta) : ""}</div>` : ""}
-    <div class="acc">${Object.keys(nt.contexto || {}).length ? `<button class="boton" data-acc="abrir">Abrir</button>` : ""}
-      ${nt.mia && !reunion ? `<button class="boton" data-acc="editar">Editar</button><button class="boton" data-acc="borrar">Borrar</button>` : ""}
-      ${reunion && nt.compartida && (puede) ? `<button class="boton" data-acc="tratar">${nt.tratada ? "Editar conclusión" : "Marcar tratada"}</button>` : ""}</div>
-  </div>`;
-}
+// ----- Muros: el del grupo, el mío y la reunión sinóptica -----
+// Cada nota es un "papelito" con el color de su tipo, agrupadas por el día
+// que se analiza. Si se escribió desde una carta, lleva su imagen; si quien
+// la escribió dibujó o marcó encima (la pizarra), esa imagen.
+const muro = { vista: "grupo", tipo: "", buscar: "", etiqueta: "" };
 let lbNotas = [];
+const TIPO_CORTO = { vi: "Lo que vi", llamo_atencion: "Me llamó la atención", duda: "Duda", pregunta: "Pregunta" };
+const COLORES_AVATAR = ["--s1", "--s2", "--s3", "--s4", "--s5", "--s6", "--s7", "--s8"];
+const colorAvatar = (nombre) => css(COLORES_AVATAR[[...String(nombre)].reduce((a, c) => a + c.charCodeAt(0), 0) % 8]);
+const fmtEscrita = new Intl.DateTimeFormat("es-AR", { timeZone: "America/Argentina/Buenos_Aires", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+const fmtDiaMuro = new Intl.DateTimeFormat("es-AR", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long" });
+function nombreDiaMuro(iso) {
+  const hoy = diaArg(Date.now()), ayer = diaArg(Date.now() - 24 * HORA);
+  const largo = fmtDiaMuro.format(new Date(iso + "T12:00:00Z"));
+  return iso === hoy ? `Hoy · ${largo}` : iso === ayer ? `Ayer · ${largo}` : largo[0].toUpperCase() + largo.slice(1);
+}
+function hace(t) {
+  const min = (Date.now() - Date.parse(t)) / 60e3;
+  return min < 1 ? "recién" : min < 60 ? `hace ${Math.round(min)} min` : min < 24 * 60 ? `hace ${Math.round(min / 60)} h` : fmtEscrita.format(new Date(t));
+}
+function tarjetaNota(nt, reunion = false) {
+  const puede = nt.mia || ["coordinador", "admin"].includes(YO.rol);
+  const conCtx = Object.keys(nt.contexto || {}).length;
+  const img = nt.captura ? `<a class="img" href="${esc(nt.captura)}" target="_blank" rel="noopener" title="Ver la imagen grande"><img src="${esc(nt.captura)}" loading="lazy" alt="Imagen de la nota"><span>✏️ pizarra</span></a>`
+    : nt.imagen ? `<a class="img" href="#" data-acc="abrir" title="Abrir la carta donde se escribió"><img src="${esc(nt.imagen)}" loading="lazy" alt="Carta"><span>carta</span></a>` : "";
+  const coment = nt.compartida ? `<div class="coment">
+      ${nt.comentarios.map((c) => `<div class="c"><b>${esc(c.autor)}</b> <span>${esc(c.texto)}</span> <small>${esc(hace(c.creada))}</small>${c.mio || YO.rol === "admin" ? `<button data-borrar-c="${c.id}" title="Borrar el comentario">✕</button>` : ""}</div>`).join("")}
+      <form data-coment="${nt.id}"><input name="t" maxlength="2000" placeholder="Comentar…" autocomplete="off"><button class="boton chico">↵</button></form></div>` : "";
+  return `<article class="postit ${esc(nt.tipo)}" data-id="${nt.id}">
+    <div class="cab"><span class="avatar" style="background:${colorAvatar(nt.autor)}">${esc(String(nt.autor || "?").slice(0, 1).toUpperCase())}</span>
+      <span class="quien"><b>${nt.mia ? "Vos" : esc(nt.autor)}</b><span title="${esc(fmtEscrita.format(new Date(nt.creada)))}">${esc(hace(nt.creada))}</span></span>
+      <span class="der"><span class="lb-tipo ${esc(nt.tipo)}" title="${esc(NOMBRE_TIPO[nt.tipo] || "")}">${esc(TIPO_CORTO[nt.tipo] || nt.tipo)}</span>${nt.compartida ? "" : '<span title="Privada: la ven vos y los administradores">🔒</span>'}</span></div>
+    ${img}
+    <div class="texto">${esc(nt.texto)}</div>
+    ${conCtx ? `<button class="ctx" data-acc="abrir" title="Ir a donde se escribió">📍 ${esc(describirContexto(nt.contexto))}</button>` : ""}
+    ${nt.etiquetas.length ? `<div class="etqs">${nt.etiquetas.map((e) => `<button data-etq="${esc(e)}" title="Ver solo las notas con esta etiqueta">#${esc(e)}</button>`).join("")}</div>` : ""}
+    ${nt.tratada ? `<div class="lb-resp"><b>Tratada en la reunión${nt.tratada_por ? ` (${esc(nt.tratada_por)})` : ""}.</b>${nt.respuesta ? "\n" + esc(nt.respuesta) : ""}</div>` : ""}
+    ${nt.mia || (reunion && nt.compartida && puede) ? `<div class="acc">
+      ${nt.mia ? `<button class="boton" data-acc="editar">Editar</button><button class="boton" data-acc="borrar">Borrar</button>` : ""}
+      ${reunion && nt.compartida && puede ? `<button class="boton" data-acc="tratar">${nt.tratada ? "Editar conclusión" : "Marcar tratada"}</button>` : ""}</div>` : ""}
+    ${coment}
+  </article>`;
+}
+const AYUDA_MURO = {
+  grupo: "Lo que compartió el grupo, por el día que se analiza. Comentá abajo de cada nota. La imagen es la carta donde se escribió, o la pizarra: lo que dibujó o marcó quien la escribió (tocala para verla grande).",
+  mio: "Tus notas. Las privadas (🔒) las ves vos y los administradores del grupo; las compartidas, todos los que ingresaron. 📍 lleva a la carta, la corrida o la ciudad donde se escribió.",
+  reunion: "Las preguntas compartidas para la reunión: pendientes arriba; las tratadas, con la conclusión. Las marca quien la escribió o un coordinador.",
+};
 async function cargarLibreta() {
-  const q = new URLSearchParams();
-  if ($("#lb-tipo").value) q.set("tipo", $("#lb-tipo").value);
-  if ($("#lb-mias").checked) q.set("mias", "true");
-  if ($("#lb-etiqueta").value.trim()) q.set("etiqueta", $("#lb-etiqueta").value.trim());
-  if (!$("#lb-l-autor").hidden && $("#lb-autor").value) q.set("autor_id", $("#lb-autor").value);
-  if (!$("#lb-l-todas").hidden && $("#lb-todas").checked) q.set("todas", "true");
-  const [notas, preguntas] = await Promise.all([api(`/api/yo/notas?${q}`), api("/api/yo/notas?tipo=pregunta")]);
-  lbNotas = [...notas, ...preguntas];
-  $("#lb-lista").innerHTML = notas.length ? notas.map((n) => tarjetaNota(n)).join("") : '<p class="tenue">Todavía no hay notas con ese filtro.</p>';
-  const comp = preguntas.filter((n) => n.compartida);
-  const pend = comp.filter((n) => !n.tratada), hechas = comp.filter((n) => n.tratada).slice(0, 20);
-  $("#rs-lista").innerHTML = (pend.length ? `<div class="panel-titulo">Pendientes (${pend.length})</div>` + pend.map((n) => tarjetaNota(n, true)).join("")
-    : '<p class="tenue">No hay preguntas pendientes.</p>') +
-    (hechas.length ? `<div class="panel-titulo" style="margin-top:8px">Tratadas</div>` + hechas.map((n) => tarjetaNota(n, true)).join("") : "");
+  const v = muro.vista, q = new URLSearchParams();
+  if (v === "mio") q.set("mias", "true");
+  if (v === "reunion") q.set("tipo", "pregunta");
+  else if (muro.tipo) q.set("tipo", muro.tipo);
+  if (muro.etiqueta) q.set("etiqueta", muro.etiqueta);
+  if (!$("#lb-l-autor").hidden && $("#lb-autor").value && v !== "mio") q.set("autor_id", $("#lb-autor").value);
+  const todas = v === "grupo" && !$("#lb-l-todas").hidden && $("#lb-todas").checked;
+  if (todas) q.set("todas", "true");
+  let notas, pend;
+  try { [notas, pend] = await Promise.all([api(`/api/yo/notas?${q}`), api("/api/yo/notas?tipo=pregunta&pendientes=true")]); }
+  catch (err) { $("#lb-lista").innerHTML = `<p class="tenue">No se pudo cargar: ${esc(err.message)}</p>`; return; }
+  const nPend = pend.filter((n) => n.compartida).length;
+  $("#rs-n").hidden = !nPend; $("#rs-n").textContent = nPend;
+  lbNotas = v === "mio" || todas ? notas : notas.filter((n) => n.compartida);
+  dibujarMuro();
+}
+function dibujarMuro() {
+  const v = muro.vista, b = muro.buscar.trim().toLowerCase();
+  const notas = lbNotas.filter((n) => !b || [n.texto, n.autor, ...n.etiquetas].join(" ").toLowerCase().includes(b));
+  $("#muro-ayuda").textContent = AYUDA_MURO[v];
+  $("#lb-lista").hidden = v === "reunion"; $("#rs-lista").hidden = v !== "reunion";
+  if (v === "reunion") {
+    const pend = notas.filter((n) => !n.tratada), hechas = notas.filter((n) => n.tratada).slice(0, 30);
+    $("#rs-lista").innerHTML = (pend.length ? `<h4 class="muro-dia">Pendientes (${pend.length})</h4><div class="muro-col">${pend.map((n) => tarjetaNota(n, true)).join("")}</div>`
+      : '<p class="tenue">No hay preguntas pendientes.</p>') +
+      (hechas.length ? `<h4 class="muro-dia">Tratadas</h4><div class="muro-col">${hechas.map((n) => tarjetaNota(n, true)).join("")}</div>` : "");
+    return;
+  }
+  const dias = new Map();
+  for (const n of notas) {
+    const d = n.fecha_evento || diaArg(Date.parse(n.creada));
+    if (!dias.has(d)) dias.set(d, []);
+    dias.get(d).push(n);
+  }
+  $("#lb-lista").innerHTML = dias.size ? [...dias].map(([d, ns]) => `<h4 class="muro-dia">${esc(nombreDiaMuro(d))}</h4>
+      <div class="muro-col">${ns.map((n) => tarjetaNota(n)).join("")}</div>`).join("")
+    : `<p class="tenue">${v === "mio" ? "Todavía no escribiste notas" : "Nadie compartió notas todavía"}${muro.tipo || muro.etiqueta || b ? " con ese filtro" : ""}.
+       Escribí arriba, o usá los botones 📝 Anotar de Cartas: la nota guarda la carta (y lo que dibujes o marques encima).</p>`;
+}
+function verMuro(v) {
+  muro.vista = v;
+  document.querySelectorAll(".muro-tabs button").forEach((b) => b.classList.toggle("activa", b.dataset.muro === v));
+  $("#mc-l-comp").hidden = v !== "mio";
+  $("#mc-tipo").disabled = v === "reunion";
+  if (v === "reunion") $("#mc-tipo").value = "pregunta";
+  else if ($("#mc-tipo").value === "pregunta") $("#mc-tipo").value = "vi";
+  $("#mf-tipos").hidden = v === "reunion";
+  $("#mc-texto").placeholder = v === "reunion" ? "¿Qué querés preguntar en la reunión?"
+    : v === "grupo" ? "¿Qué viste hoy? Se comparte con el grupo. Ej.: la vaguada en 500 está más al oeste que ayer…"
+    : "Una nota para vos (marcá Compartir para que la vea el grupo)…";
+  cargarLibreta();
+}
+function filtroEtiqueta(e) {
+  muro.etiqueta = e;
+  $("#mf-etq").hidden = !e;
+  $("#mf-etq").innerHTML = e ? `<button class="chip-f activa" title="Sacar el filtro">#${esc(e)} ✕</button>` : "";
+  cargarLibreta();
+}
+function datosComposer() {
+  const tipo = $("#mc-tipo").value;
+  return { tipo, texto: $("#mc-texto").value.trim(), fecha_evento: diaArg(Date.now()), contexto: {},
+    etiquetas: $("#mc-etiquetas").value.split(",").map((x) => x.trim()).filter(Boolean),
+    compartida: muro.vista !== "mio" || tipo === "pregunta" || $("#mc-comp").checked };
+}
+function iniciarMuro() {
+  document.querySelectorAll(".muro-tabs button").forEach((b) => b.addEventListener("click", () => verMuro(b.dataset.muro)));
+  $("#mf-tipos").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-tipo]"); if (!b) return;
+    muro.tipo = b.dataset.tipo;
+    $("#mf-tipos").querySelectorAll("button").forEach((x) => x.classList.toggle("activa", x === b));
+    cargarLibreta();
+  });
+  $("#mf-buscar").addEventListener("input", () => { muro.buscar = $("#mf-buscar").value; dibujarMuro(); });
+  $("#mf-etq").addEventListener("click", () => filtroEtiqueta(""));
+  ["#lb-autor", "#lb-todas"].forEach((s) => $(s).addEventListener("change", cargarLibreta));
+  $("#mc-publicar").addEventListener("click", async () => {
+    const d = datosComposer();
+    if (!d.texto) { $("#mc-texto").focus(); return; }
+    $("#mc-publicar").disabled = true;
+    try { await apiEnviar("/api/yo/notas", "POST", d); $("#mc-texto").value = ""; $("#mc-etiquetas").value = ""; cargarLibreta(); }
+    catch (err) { alert(`No se pudo guardar: ${err.message}`); }
+    finally { $("#mc-publicar").disabled = false; }
+  });
+  $("#mc-mas").addEventListener("click", () => abrirNota(datosComposer()));
+  for (const lista of ["#lb-lista", "#rs-lista"]) {
+    $(lista).addEventListener("click", accionNota);
+    $(lista).addEventListener("submit", async (e) => {
+      const f = e.target.closest("form[data-coment]"); if (!f) return;
+      e.preventDefault();
+      const texto = f.t.value.trim(); if (!texto) return;
+      try { await apiEnviar(`/api/yo/notas/${f.dataset.coment}/comentarios`, "POST", { texto }); cargarLibreta(); }
+      catch (err) { alert(`No se pudo comentar: ${err.message}`); }
+    });
+  }
+  verMuro("grupo");
 }
 async function accionNota(e) {
-  const b = e.target.closest("button[data-acc]");
+  const etq = e.target.closest("[data-etq]");
+  if (etq) { filtroEtiqueta(etq.dataset.etq); return; }
+  const bc = e.target.closest("[data-borrar-c]");
+  if (bc) { if (confirm("¿Borrar el comentario?")) { await apiEnviar(`/api/yo/comentarios/${bc.dataset.borrarC}`, "DELETE"); cargarLibreta(); } return; }
+  const b = e.target.closest("[data-acc]");
   if (!b) return;
-  const id = Number(b.closest(".lb-nota").dataset.id), nt = lbNotas.find((x) => x.id === id);
+  e.preventDefault();
+  const id = Number(b.closest(".postit").dataset.id), nt = lbNotas.find((x) => x.id === id);
   if (!nt) return;
   if (b.dataset.acc === "abrir") abrirContexto(nt.contexto);
   if (b.dataset.acc === "editar") abrirNota(nt);
@@ -4388,8 +4585,103 @@ async function accionNota(e) {
     cargarLibreta();
   }
 }
-$("#lb-lista").addEventListener("click", accionNota);
-$("#rs-lista").addEventListener("click", accionNota);
+
+// ----- La pizarra: la imagen pegada a la nota, para marcar encima -----
+// Se arma una imagen (la carta con el dibujo, el meteograma, una imagen
+// subida) en un lienzo; los trazos se pintan arriba y al guardar se manda
+// todo junto como una sola imagen (el servidor la guarda en WebP).
+const piz = { base: null, trazos: [], actual: null, color: "#dc2626", cambio: false, quitar: false, fuente: null };
+function pizarraCon(img, original = false) {
+  let w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+  if (!w || !h) return;
+  const k = Math.min(1, 1600 / w); w = Math.round(w * k); h = Math.round(h * k);
+  const base = document.createElement("canvas");
+  base.width = w; base.height = h;
+  const g = base.getContext("2d");
+  g.fillStyle = "#fff"; g.fillRect(0, 0, w, h); g.drawImage(img, 0, 0, w, h);
+  Object.assign(piz, { base, trazos: [], actual: null, cambio: !original, quitar: false });
+  const c = $("#piz-canvas"); c.width = w; c.height = h;
+  pintarPizarra();
+  $("#d-nota-piz").hidden = false; $("#d-nota-pegar").hidden = true;
+}
+function pintarPizarra() {
+  const c = $("#piz-canvas"), g = c.getContext("2d");
+  if (!piz.base) return;
+  g.drawImage(piz.base, 0, 0);
+  g.lineWidth = Math.max(2.5, c.width / 280); g.lineCap = g.lineJoin = "round";
+  for (const t of [...piz.trazos, piz.actual].filter(Boolean)) {
+    g.strokeStyle = t.color; g.beginPath();
+    t.p.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y)));
+    if (t.p.length === 1) g.lineTo(t.p[0][0] + 0.5, t.p[0][1]);
+    g.stroke();
+  }
+}
+function quitarPizarra() {
+  Object.assign(piz, { base: null, trazos: [], actual: null, cambio: false, quitar: true });
+  $("#d-nota-piz").hidden = true; $("#d-nota-pegar").hidden = !piz.fuente;
+}
+async function pegarFuente() {
+  if (!piz.fuente) return;
+  $("#d-nota-pegar").disabled = true;
+  try { const i = await piz.fuente(); if (i) pizarraCon(i); } catch (_) {}
+  $("#d-nota-pegar").disabled = false;
+}
+(function iniciarPizarra() {
+  const c = $("#piz-canvas");
+  const punto = (e) => { const r = c.getBoundingClientRect(); return [(e.clientX - r.left) * c.width / r.width, (e.clientY - r.top) * c.height / r.height]; };
+  c.addEventListener("pointerdown", (e) => { c.setPointerCapture(e.pointerId); piz.actual = { color: piz.color, p: [punto(e)] }; pintarPizarra(); });
+  c.addEventListener("pointermove", (e) => { if (piz.actual) { piz.actual.p.push(punto(e)); pintarPizarra(); } });
+  const fin = () => { if (piz.actual) { piz.trazos.push(piz.actual); piz.actual = null; piz.cambio = true; pintarPizarra(); } };
+  c.addEventListener("pointerup", fin); c.addEventListener("pointercancel", fin);
+  document.querySelectorAll("#d-nota-piz .lapiz").forEach((b) => b.addEventListener("click", () => {
+    piz.color = b.dataset.color;
+    document.querySelectorAll("#d-nota-piz .lapiz").forEach((x) => x.classList.toggle("activa", x === b));
+  }));
+  $("#piz-deshacer").addEventListener("click", () => { piz.trazos.pop(); pintarPizarra(); });
+  $("#piz-quitar").addEventListener("click", quitarPizarra);
+  $("#d-nota-pegar").addEventListener("click", pegarFuente);
+  $("#d-nota-archivo").addEventListener("change", async (e) => {
+    const f = e.target.files[0]; e.target.value = "";
+    if (!f) return;
+    const url = URL.createObjectURL(f);
+    try { pizarraCon(await cargarImagen(url)); } catch (_) { alert("No se pudo abrir esa imagen."); }
+    URL.revokeObjectURL(url);
+  });
+})();
+// El meteograma (sus paneles) en una sola imagen, con el título.
+function componerMeteograma(sel, titulo) {
+  const cvs = [...document.querySelectorAll(`${sel} canvas`)].filter((c) => c.clientWidth);
+  if (!cvs.length) return null;
+  const W = 1200, k = W / cvs[0].clientWidth, TIT = 26;
+  const altos = cvs.map((c) => Math.round(c.clientHeight * k));
+  const lienzo = document.createElement("canvas");
+  lienzo.width = W; lienzo.height = 40 + altos.reduce((a, h) => a + h + TIT, 0);
+  const g = lienzo.getContext("2d");
+  g.fillStyle = css("--superficie") || "#fff"; g.fillRect(0, 0, lienzo.width, lienzo.height);
+  g.fillStyle = css("--tinta") || "#111"; g.textBaseline = "middle";
+  g.font = "700 20px system-ui, sans-serif"; g.fillText(titulo, 10, 20);
+  let y = 40;
+  cvs.forEach((c, i) => {
+    g.font = "600 15px system-ui, sans-serif";
+    g.fillText(c.closest(".panel").previousElementSibling?.textContent.trim() || "", 10, y + TIT / 2);
+    y += TIT;
+    g.drawImage(c, 0, y, W, altos[i]);
+    y += altos[i];
+  });
+  return lienzo;
+}
+// Las cartas del pronóstico GFS que se están mirando, en una imagen (de a dos por fila).
+async function componerGFS() {
+  const imgs = [...document.querySelectorAll("#cpr-grid .cpr-lienzo img")].filter((i) => i.naturalWidth);
+  if (!imgs.length) return null;
+  const col = imgs.length === 1 ? 1 : 2, w = imgs[0].naturalWidth, h = imgs[0].naturalHeight, filas = Math.ceil(imgs.length / col);
+  const lienzo = document.createElement("canvas");
+  lienzo.width = w * col; lienzo.height = h * filas;
+  const g = lienzo.getContext("2d");
+  g.fillStyle = "#fff"; g.fillRect(0, 0, lienzo.width, lienzo.height);
+  imgs.forEach((im, i) => g.drawImage(im, (i % col) * w, Math.floor(i / col) * h, w, h));
+  return lienzo;
+}
 
 // ----- La nota (nueva o editar) -----
 let notaEditando = null;
@@ -4397,12 +4689,17 @@ function describirContexto(c) {
   if (!c || !Object.keys(c).length) return "Sin carta asociada.";
   const t = c.ts ? new Date(c.ts) : null;
   const cuando = t ? `${fmtCartaTitulo.format(t)}, ${String(t.getUTCHours()).padStart(2, "0")} UTC` : "";
+  if (c.seccion === "gfs" && c.ciudad) return `Meteograma del pronóstico GFS · ${c.ciudad} · corrida ${c.corrida}`;
   if (c.seccion === "gfs") return `Pronóstico GFS · corrida ${c.corrida}, +${c.plazo} h${c.carta ? " · " + c.carta : ""}`;
   if (c.seccion === "meteograma") return `Diagnóstico de ${c.ciudad || ""}${cuando ? " · " + cuando : ""}`;
   return `Cartas de análisis · ${cuando}${c.producto ? " · " + c.producto : ""}`;
 }
-function abrirNota(nt) {
+function abrirNota(nt, fuente = null) {
   notaEditando = nt.id ? nt : null;
+  Object.assign(piz, { base: null, trazos: [], actual: null, cambio: false, quitar: false, fuente });
+  $("#d-nota-piz").hidden = true; $("#d-nota-pegar").hidden = !fuente;
+  if (nt.captura) cargarImagen(nt.captura).then((i) => pizarraCon(i, true)).catch(() => {});
+  else if (fuente) pegarFuente();
   const f = $("#f-nota");
   f.reset();
   $("#d-nota-tit").textContent = nt.id ? "Editar nota" : "Nueva nota";
@@ -4423,11 +4720,20 @@ $("#f-nota").addEventListener("submit", async (e) => {
   const datos = { tipo: f.tipo.value, texto: f.texto.value, fecha_evento: f.fecha_evento.value || null,
     etiquetas: f.etiquetas.value.split(",").map((x) => x.trim()).filter(Boolean),
     compartida: f.compartida.checked || f.tipo.value === "pregunta", contexto: JSON.parse(f.dataset.contexto || "{}") };
+  if (piz.base && piz.cambio) {
+    const c = $("#piz-canvas");
+    datos.imagen = c.toDataURL("image/webp", 0.85);
+    if (!datos.imagen.startsWith("data:image/webp")) datos.imagen = c.toDataURL("image/jpeg", 0.88);   // navegadores sin WebP
+  } else if (!piz.base && piz.quitar && notaEditando?.captura) datos.imagen = null;
+  const boton = f.querySelector('button[type="submit"]');
+  boton.disabled = true;
   try {
     if (notaEditando) await apiEnviar(`/api/yo/notas/${notaEditando.id}`, "PUT", datos);
     else await apiEnviar("/api/yo/notas", "POST", datos);
   } catch (err) { $("#d-nota-err").textContent = err.message; $("#d-nota-err").hidden = false; return; }
+  finally { boton.disabled = false; }
   $("#d-nota").close();
+  if (!notaEditando && $("#mc-texto").value.trim() === datos.texto) { $("#mc-texto").value = ""; $("#mc-etiquetas").value = ""; }
   if (cargadas.perfil) cargarLibreta();
 });
 $("#d-nota-cancelar").addEventListener("click", () => $("#d-nota").close());
@@ -4437,15 +4743,24 @@ $("#c-anotar").addEventListener("click", () => {
   const t = tsCarta(); abrirNota({ fecha_evento: diaArg(t), contexto: { seccion: "analisis", ts: t.toISOString() } });
 });
 $("#c-anotar-visor").addEventListener("click", () => {
-  const t = tsCarta(); abrirNota({ fecha_evento: diaArg(t), contexto: { seccion: "analisis", ts: t.toISOString(), producto: cartaVisor } });
+  const t = tsCarta();
+  abrirNota({ fecha_evento: diaArg(t), contexto: { seccion: "analisis", ts: t.toISOString(), producto: cartaVisor } }, componerCarta);
 });
 $("#cpr-anotar").addEventListener("click", () => {
   const plazo = cpr.plazos[cpr.i], v = validaGFS(plazo);
   abrirNota({ fecha_evento: diaArg(v), contexto: { seccion: "gfs", corrida: claveCorrida(cpr.inicio), plazo, vista: cpr.vista,
-    carta: (cpr.productos[cpr.a] || {}).id || "", ts: v.toISOString() } });
+    carta: (cpr.productos[cpr.a] || {}).id || "", ts: v.toISOString() } }, componerGFS);
 });
 $("#cmd-anotar").addEventListener("click", () => {
-  const t = tsCarta(); abrirNota({ fecha_evento: diaArg(t), contexto: { seccion: "meteograma", ciudad: $("#cmd-ciudad").value, ts: t.toISOString() } });
+  const t = tsCarta(), ciudad = $("#cmd-ciudad").value;
+  abrirNota({ fecha_evento: diaArg(t), contexto: { seccion: "meteograma", ciudad, ts: t.toISOString() } },
+            async () => componerMeteograma("#cmd-paneles", `Diagnóstico · ${ciudad}`));
+});
+$("#cpm-anotar").addEventListener("click", () => {
+  const plazo = cpr.plazos[cpr.i], v = cpr.plazos.length ? validaGFS(plazo) : new Date(), ciudad = $("#cpm-ciudad").value;
+  abrirNota({ fecha_evento: diaArg(v), contexto: { seccion: "gfs", corrida: claveCorrida(cpr.inicio), plazo, vista: cpr.vista,
+    carta: (cpr.productos[cpr.a] || {}).id || "", ts: v.toISOString(), ciudad } },
+            async () => componerMeteograma("#cpm-paneles", $("#cpm-titulo").textContent));
 });
 
 // Volver al lugar de una nota.
@@ -4464,7 +4779,11 @@ async function abrirContexto(c) {
     const a = cpr.productos.findIndex((p) => p.id === c.carta); if (a >= 0) cpr.a = a;
     if (c.vista) { cpr.vista = c.vista; $("#cpr-vista").value = c.vista; }
     mostrarPlazoGFS();
-    $("#cpr").scrollIntoView({ behavior: "smooth" });
+    if (c.ciudad) {
+      if (![...$("#cpm-ciudad").options].some((o) => o.value === c.ciudad)) $("#cpm-ciudad").insertAdjacentHTML("beforeend", `<option>${esc(c.ciudad)}</option>`);
+      $("#cpm-ciudad").value = c.ciudad; cpmClave = null; await cargarMeteogramaPron();
+      $("#cpm").scrollIntoView({ behavior: "smooth" });
+    } else $("#cpr").scrollIntoView({ behavior: "smooth" });
     return;
   }
   if (c.ts) irACartas(c.ts);

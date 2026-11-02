@@ -196,3 +196,65 @@ def test_admin_ve_las_notas_privadas_de_todos(cliente, cuentas, monkeypatch):
         with cuentas._pools["e"].connection() as conn:
             conn.execute("DELETE FROM usuario WHERE email = 'admin@gmail.com'")
             conn.commit()
+
+
+def test_muro_comentarios_y_miniatura(cliente, cuentas, monkeypatch, tmp_path):
+    """El muro del grupo: comentarios en las notas compartidas (no en las
+    privadas de otros) y la imagen de la carta donde se escribió la nota."""
+    from datetime import datetime, timezone
+
+    from meteo.cartas import archivo
+    monkeypatch.setattr(cuentas, "ARCHIVO_DIR", str(tmp_path))
+    archivo.guardar(tmp_path, "gfs_ana_mslp_jet", datetime(2026, 10, 28, 0, tzinfo=timezone.utc), bytes([0x89]) + b"PNG\r\n\x1a\n" + b"0" * 50)
+    cliente.cookies.clear()
+    ingresar(cliente, cuentas, monkeypatch, "ana@gmail.com")
+    comp = cliente.post("/api/yo/notas", json={"texto": "frente frío entrando", "tipo": "vi", "compartida": True,
+                                               "contexto": {"seccion": "analisis", "ts": "2026-10-28T00:00:00Z"}}, headers=X).json()["id"]
+    priv = cliente.post("/api/yo/notas", json={"texto": "privada", "tipo": "vi"}, headers=X).json()["id"]
+    n = [x for x in cliente.get("/api/yo/notas").json() if x["id"] == comp][0]
+    assert n["imagen"] == "/cartas-img/gfs_ana_mslp_jet/2026/10/gfs_ana_mslp_jet_2026102800.png" and n["comentarios"] == []
+    cliente.cookies.clear()
+    ingresar(cliente, cuentas, monkeypatch, "beto@gmail.com")
+    assert cliente.post(f"/api/yo/notas/{comp}/comentarios", json={"texto": "coincido, ver el chorro"}, headers=X).status_code == 200
+    assert cliente.post(f"/api/yo/notas/{priv}/comentarios", json={"texto": "x"}, headers=X).status_code == 404
+    assert cliente.post(f"/api/yo/notas/{comp}/comentarios", json={"texto": ""}, headers=X).status_code == 400
+    c = [x for x in cliente.get("/api/yo/notas").json() if x["id"] == comp][0]["comentarios"]
+    assert [(x["autor"], x["texto"], x["mio"]) for x in c] == [("Beto", "coincido, ver el chorro", True)]
+    cliente.cookies.clear()
+    ingresar(cliente, cuentas, monkeypatch, "ana@gmail.com")
+    assert cliente.delete(f"/api/yo/comentarios/{c[0]['id']}", headers=X).status_code == 404     # no es de Ana
+
+
+def test_imagen_pegada_a_la_nota(cliente, cuentas, monkeypatch):
+    """La "pizarra": la nota lleva una imagen (carta dibujada, meteograma
+    marcado); se recodifica en WebP y solo la ve quien puede ver la nota."""
+    import base64
+    import io
+
+    from PIL import Image
+    buf = io.BytesIO()
+    Image.new("RGB", (3000, 600), (200, 30, 30)).save(buf, "PNG")
+    dato = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+    cliente.cookies.clear()
+    ingresar(cliente, cuentas, monkeypatch, "ana@gmail.com")
+    assert cliente.post("/api/yo/notas", json={"texto": "x", "imagen": "data:image/png;base64,AAAA"}, headers=X).status_code == 400
+    assert cliente.post("/api/yo/notas", json={"texto": "x", "imagen": "data:text/html;base64,PGI+"}, headers=X).status_code == 400
+    priv = cliente.post("/api/yo/notas", json={"texto": "mi pizarra", "imagen": dato}, headers=X).json()["id"]
+    comp = cliente.post("/api/yo/notas", json={"texto": "para todos", "compartida": True, "imagen": dato}, headers=X).json()["id"]
+    n = {x["id"]: x for x in cliente.get("/api/yo/notas").json()}
+    assert n[priv]["captura"].startswith(f"/api/yo/notas/{priv}/imagen?v=")
+    r = cliente.get(f"/api/yo/notas/{priv}/imagen")
+    assert r.status_code == 200 and r.headers["content-type"] == "image/webp"
+    assert Image.open(io.BytesIO(r.content)).size == (1600, 320)          # achicada
+    # Editar sin "imagen" la deja; con null la saca.
+    assert cliente.put(f"/api/yo/notas/{comp}", json={"texto": "para todos!", "compartida": True}, headers=X).status_code == 200
+    assert cliente.get(f"/api/yo/notas/{comp}/imagen").status_code == 200
+    cliente.cookies.clear()
+    ingresar(cliente, cuentas, monkeypatch, "beto@gmail.com")
+    assert cliente.get(f"/api/yo/notas/{priv}/imagen").status_code == 404       # privada de Ana
+    assert cliente.get(f"/api/yo/notas/{comp}/imagen").status_code == 200
+    cliente.cookies.clear()
+    assert cliente.get(f"/api/yo/notas/{comp}/imagen").status_code == 401       # sin sesión
+    ingresar(cliente, cuentas, monkeypatch, "ana@gmail.com")
+    cliente.put(f"/api/yo/notas/{comp}", json={"texto": "sin imagen", "compartida": True, "imagen": None}, headers=X)
+    assert cliente.get(f"/api/yo/notas/{comp}/imagen").status_code == 404

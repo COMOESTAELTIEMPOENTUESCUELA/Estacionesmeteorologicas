@@ -51,3 +51,25 @@ CREATE TABLE IF NOT EXISTS nota (
 );
 CREATE INDEX IF NOT EXISTS nota_usuario ON nota (usuario_id, creada);
 CREATE INDEX IF NOT EXISTS nota_fecha ON nota (fecha_evento);
+
+-- Comentarios en las notas compartidas (el "muro del grupo").
+CREATE TABLE IF NOT EXISTS nota_comentario (
+    id         serial PRIMARY KEY,
+    nota_id    int NOT NULL REFERENCES nota(id) ON DELETE CASCADE,
+    usuario_id int NOT NULL REFERENCES usuario(id) ON DELETE CASCADE,
+    creada     timestamptz NOT NULL DEFAULT now(),
+    texto      text NOT NULL CHECK (length(texto) BETWEEN 1 AND 2000)
+);
+CREATE INDEX IF NOT EXISTS nota_comentario_nota ON nota_comentario (nota_id, creada);
+
+-- La "pizarra": una imagen pegada a la nota (la carta con lo que se dibujó,
+-- el meteograma con lo que se marcó). Va en la base (y no en una carpeta
+-- pública) para que la vean solo quienes pueden ver la nota, y para que el
+-- backup de la base la incluya. El servidor la vuelve a codificar (WebP).
+CREATE TABLE IF NOT EXISTS nota_imagen (
+    nota_id  int PRIMARY KEY REFERENCES nota(id) ON DELETE CASCADE,
+    datos    bytea NOT NULL,
+    ancho    int NOT NULL,
+    alto     int NOT NULL,
+    creada   timestamptz NOT NULL DEFAULT now()
+);

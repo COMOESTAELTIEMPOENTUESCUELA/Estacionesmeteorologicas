@@ -8,22 +8,36 @@ La página de Cartas (también la copia pública) sigue igual para todos. Quien
   dirección del viento), con las mismas cuentas que la pestaña Verificación.
   Se cuenta la **versión vigente** de cada pronóstico: si otro lo corrigió,
   ese día es de quien lo corrigió. Los coordinadores pueden ver los de cada uno.
-- **Libreta**: notas de "lo que vi", "me llamó la atención", dudas y
-  preguntas para la reunión, con etiquetas. Se escriben con los botones
-  **📝 Anotar** de Cartas (cartas de análisis, visor grande, pronóstico GFS,
-  diagnóstico por ciudad) y guardan **dónde** se escribieron: "Abrir" vuelve
-  a esa carta, corrida y plazo, o ciudad. Privadas por defecto (las ven su
-  autor y los administradores; la página lo avisa); las compartidas, todos
-  los que ingresaron.
+- **Muros de notas** (en Mi perfil, tres pestañas):
+  - **Muro del grupo**: las notas compartidas de todos, como papelitos con el
+    color de su tipo ("lo que vi", "me llamó la atención", duda, pregunta),
+    agrupadas por el día que se analiza. Cada una se puede **comentar**.
+  - **Mi muro**: las notas propias, privadas (🔒) y compartidas.
+  - **Reunión sinóptica**: las preguntas compartidas, pendientes arriba (el
+    número en la pestaña). En la reunión se marcan tratadas y se anota la
+    conclusión (quien la escribió o un coordinador).
+
+  Arriba se escribe una nota rápida; con filtros por tipo, búsqueda y
+  etiquetas (tocar una #etiqueta filtra por ella). También se escriben con
+  los botones **📝 Anotar** de Cartas (cartas de análisis, visor grande,
+  pronóstico GFS, meteograma del pronóstico, diagnóstico por ciudad), que
+  guardan **dónde** se escribió: 📍 vuelve a esa carta, corrida y plazo, o
+  ciudad. Privadas por defecto (las ven su autor y los administradores; la
+  página lo avisa); las compartidas, todos los que ingresaron.
+- **La pizarra**: al anotar desde el visor de una carta, el pronóstico GFS o
+  un meteograma, la nota **pega la imagen** de lo que se estaba mirando (la
+  carta con lo que se dibujó encima, el meteograma completo) y se puede
+  **marcar encima** con el lápiz (rojo, azul, verde, negro). También se puede
+  subir una imagen propia (📎). Esa imagen queda en la nota: en el muro la
+  ven todos los que pueden ver la nota. Se guarda en la base (tabla
+  `nota_imagen`, en WebP, hasta 1600 px), no en una carpeta pública: solo
+  la entrega `/api/yo/notas/{id}/imagen` a quien tiene sesión y permiso.
 - **Coordinadores y administradores**: la tabla **"Todo el grupo"** (una
   fila por firma, aunque esa persona no tenga usuario: MAE de mínima y
   máxima del mismo día y del día siguiente, aciertos de lluvia) con "Ver
   detalle", el selector "De:" (por usuario o por firma) y el filtro de
-  autor en la libreta. Los **administradores** además pueden ver las notas
+  autor en el muro. Los **administradores** además pueden ver las notas
   privadas de todos ("Incluir las privadas de todos").
-- **Reunión sinóptica**: las preguntas compartidas, pendientes arriba. En la
-  reunión se marcan tratadas y se anota la conclusión (quien la escribió o
-  un coordinador).
 
 Código: `app/meteo/web/cuentas.py` (y `cuentas.sql`, que la web crea sola).
 
@@ -42,7 +56,9 @@ Código: `app/meteo/web/cuentas.py` (y `cuentas.sql`, que la web crea sola).
 - **En la copia pública** solo se abren `/auth/...` y `/api/yo/...` (con
   sesión); todo lo demás sigue siendo de solo lectura.
 - **Dar de baja** a alguien (`desactivar`) cierra sus sesiones al instante.
-- **Backup**: las notas son datos del grupo que no se pueden recuperar si se
+- **Imágenes subidas**: el servidor las abre y las vuelve a codificar (WebP):
+  lo que se guarda es siempre una imagen limpia, nunca el archivo tal cual llegó.
+- **Backup**: las notas (y sus imágenes, que están en la base) son datos del grupo que no se pueden recuperar si se
   rompe el disco. Conviene la copia diaria fuera de la PC (pendiente).
 
 ## Puesta en marcha (una sola vez)
@@ -89,4 +105,4 @@ todos y marca preguntas tratadas) y `admin` (además puede borrar cualquier nota
 
 ## Pendiente
 
-- Adjuntos en las notas (imágenes, PDF de bibliografía; videos como links).
+- Adjuntos en las notas: PDF de bibliografía y videos como links (las imágenes ya se pueden pegar).
