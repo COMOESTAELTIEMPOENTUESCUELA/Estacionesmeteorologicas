@@ -151,9 +151,7 @@ INDICES = {
                 url="https://www.cpc.ncep.noaa.gov/data/indices/oni.ascii.txt", leer=leer_oni,
                 fases=("El Niño", "La Niña", "Neutral"),
                 que="Anomalía de la temperatura del mar en la región Niño 3.4 (Pacífico ecuatorial central), promedio de 3 meses. "
-                    "Es el índice oficial de NOAA: hay episodio Niño/Niña si pasa ±0,5 °C durante 5 trimestres seguidos.",
-                efecto="El Niño suele traer más lluvia en el Litoral y la Pampa húmeda (sobre todo en primavera y verano) y "
-                       "La Niña, menos lluvia y más riesgo de sequía. Es una tendencia, no una regla para cada día."),
+                    "Es el índice oficial de NOAA: hay episodio Niño/Niña si pasa ±0,5 °C durante 5 trimestres seguidos."),
     "nino34": dict(nombre="Niño 3.4 semanal", grupo="ENSO", unidad="°C", frecuencia="semanal", umbral=0.5, vigencia=14,
                    url="https://www.cpc.ncep.noaa.gov/data/indices/wksst9120.for", leer=lambda t: leer_nino_semanal(t, 2),
                    fases=("cálido", "frío", "neutral"),
@@ -337,15 +335,17 @@ def _ultimo(datos, f):
     return lo - 1
 
 
-def estado(raiz, fecha, desde=None, hasta=None, serie_desde=None):
+def estado(raiz, fecha, desde=None, hasta=None, serie_desde=None, solo=None):
     """Para cada índice: el valor vigente en `fecha`, el resumen del período
     desde-hasta (si se pide) y la serie desde `serie_desde` hasta `fecha`."""
     salida = []
     serie_desde = serie_desde or fecha - timedelta(days=365)
     for k, ind in INDICES.items():
+        if solo and k != solo:
+            continue
         datos, bajado = leer(raiz, k)
         r = {"id": k, "nombre": ind["nombre"], "grupo": ind["grupo"], "unidad": ind["unidad"], "frecuencia": ind["frecuencia"],
-             "umbral": ind["umbral"], "que": ind["que"], "efecto": ind.get("efecto"), "fuente": ind.get("url"), "bajado": bajado,
+             "umbral": ind["umbral"], "fases": ind["fases"], "que": ind["que"], "efecto": ind.get("efecto"), "fuente": ind.get("url"), "bajado": bajado,
              "valor": None, "periodo": None, "serie": []}
         if not datos:
             salida.append(r)

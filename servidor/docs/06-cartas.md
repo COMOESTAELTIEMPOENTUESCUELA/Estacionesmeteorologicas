@@ -484,6 +484,13 @@ con su curva del último año, el resumen de un período elegido (promedio, o
 en la MJO cuántos días estuvo activa y en qué fase) y el diagrama de fases
 de la MJO.
 
+Tocando cualquier curva se abre **ampliada**: pasando el mouse (o tocando)
+se ve el valor y la fecha de cada dato; **arrastrando** sobre un tramo se
+hace zoom (doble clic o "Sacar el zoom" para volver); arriba se elige cuánto
+mostrar (6 meses a toda la serie). Abajo, la lista de **cambios de fase** del
+tramo que se ve (cuándo pasó de neutral a positivo, etc., con el umbral de
+cada índice); tocando una fecha se hace zoom ahí.
+
 | Índice | Qué mide | Frecuencia | Fuente |
 |---|---|---|---|
 | ONI | ENSO oficial: Niño 3.4, promedio de 3 meses (episodio = 5 trimestres seguidos pasando ±0,5 °C) | trimestral | NOAA CPC |

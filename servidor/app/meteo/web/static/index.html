@@ -317,6 +317,20 @@ img.con-fondo { background-color: #fff !important; background-size: 100% 100%; b
 .ci-tarj .exp { font-size: 12px; color: var(--tenue); }
 .ci-tarj svg { width: 100%; height: auto; display: block; }
 .ci-tarj svg text { font: 9px system-ui, sans-serif; fill: var(--tenue); }
+.ci-tarj .spark { cursor: zoom-in; border-radius: 6px; }
+.ci-tarj .spark:hover { background: var(--plano); }
+#d-ci { width: min(1000px, 96vw); border: 1px solid var(--borde); border-radius: 12px; background: var(--superficie); color: var(--tinta); padding: 16px; }
+#d-ci::backdrop { background: rgba(0,0,0,.45); }
+#d-ci h2 { margin: 0; font-size: 18px; flex: 1 1 auto; }
+.gci-barra { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0; font-size: 13px; }
+.gci { position: relative; user-select: none; }
+.gci svg { width: 100%; height: auto; display: block; touch-action: pan-y; cursor: crosshair; }
+.gci svg text { font: 11px system-ui, sans-serif; fill: var(--tenue); }
+.gci-tip { position: absolute; pointer-events: none; background: var(--tinta); color: var(--superficie); font-size: 12.5px; padding: 4px 8px;
+  border-radius: 6px; white-space: nowrap; transform: translate(-50%, -110%); }
+.gci-cambios { max-height: 220px; overflow: auto; font-size: 13px; margin-top: 8px; }
+.gci-cambios td { padding: 3px 8px; }
+.gci-cambios button { border: 0; background: none; color: var(--acento); cursor: pointer; font: inherit; padding: 0; }
 .cartas-nav { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
 @media (max-width: 720px) { .cartas-nav { grid-template-columns: 1fr; } }
 .cartas-nav button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 12px 16px; border-radius: 10px;
@@ -1242,6 +1256,21 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
     </div>
   </section>
 </main>
+
+<dialog id="d-ci">
+  <div style="display:flex;gap:10px;align-items:center"><h2 id="gci-tit"></h2><button class="boton" id="gci-cerrar">Cerrar</button></div>
+  <div class="gci-barra">
+    <span>Mostrar:</span>
+    <button class="boton chico" data-gci-meses="6">6 meses</button><button class="boton chico" data-gci-meses="12">1 año</button>
+    <button class="boton chico" data-gci-meses="24">2 años</button><button class="boton chico" data-gci-meses="60">5 años</button>
+    <button class="boton chico" data-gci-meses="600">toda la serie</button>
+    <button class="boton chico" id="gci-reset" hidden>↺ Sacar el zoom</button>
+    <span class="tenue">Arrastrá sobre el gráfico para hacer zoom en un tramo; pasá el mouse (o tocá) para ver el valor y la fecha.</span>
+  </div>
+  <div class="gci" id="gci"><div class="gci-tip" id="gci-tip" hidden></div></div>
+  <h3 style="font-size:14px;margin:10px 0 0">Cambios de fase <span class="tenue" style="font-weight:400" id="gci-cambios-n"></span></h3>
+  <div class="gci-cambios"><table id="gci-cambios"></table></div>
+</dialog>
 
 <dialog id="d-nota">
   <form id="f-nota">
@@ -3186,11 +3215,182 @@ function dibujarIndicesDetalle() {
       : "En el período: sin datos.";
     return `<div class="ci-tarj"><h4><span class="ci-punto ${claseSigno(r)}"></span>${esc(r.nombre)}</h4>
       <div class="ahora">${ahora}</div><div class="per">${per}</div>
-      ${r.id === "mjo" ? faseMJO(r) : sparkIndice(r, d.fecha)}
+      <div class="spark" data-ci-ampliar="${esc(r.id)}" title="Tocá para ampliar: zoom, valores y cambios de fase">${r.id === "mjo" ? faseMJO(r) : sparkIndice(r, d.fecha)}</div>
       <div class="exp">${esc(r.que)}${r.efecto ? ` <i>${esc(r.efecto)}</i>` : ""}</div></div>`;
   }).join("") || '<p class="tenue">Todavía no hay índices bajados.</p>';
 }
+// ----- Gráfico ampliado de un índice: zoom, valor en cada fecha y cambios de fase -----
+const gci = { r: null, pts: [], t0: 0, t1: 0, zoom: null, arrastre: null, meses: 12 };
+const fmtDiaGci = new Intl.DateTimeFormat("es-AR", { timeZone: "UTC", day: "numeric", month: "short", year: "numeric" });
+const signoCI = (r, v, x) => (r.id === "mjo" ? (v >= 1 ? `fase ${x?.fase}` : "débil") : v >= r.umbral ? "+" : v <= -r.umbral ? "-" : "0");
+function textoFaseCI(r, v, x) {
+  if (r.id === "mjo") return v >= 1 ? `fase ${x?.fase}` : "débil";
+  const [pos, neg, neu] = r.id === "oni" ? ["Niño", "Niña", "neutral"] : r.fases || ["positivo", "negativo", "neutral"];
+  return v >= r.umbral ? pos : v <= -r.umbral ? neg : neu;
+}
+async function abrirGraficoIndice(id, meses = gci.meses) {
+  gci.meses = meses;
+  let d;
+  try { d = await api(`/api/cartas/indices?fecha=${ci.fecha}&solo=${encodeURIComponent(id)}&meses=${meses}`); }
+  catch (err) { alert(`No se pudo cargar: ${err.message}`); return; }
+  const r = d.indices[0];
+  if (!r) return;
+  gci.r = r;
+  gci.pts = r.serie.map((p) => [Date.parse(p[0]), p[1], p[2]]);
+  gci.zoom = null;
+  $("#gci-tit").textContent = `${r.nombre}${r.id === "mjo" ? " · amplitud" : r.unidad ? ` (${r.unidad})` : ""}`;
+  document.querySelectorAll("[data-gci-meses]").forEach((b) => b.classList.toggle("primario", Number(b.dataset.gciMeses) === meses));
+  if (!$("#d-ci").open) $("#d-ci").showModal();      // primero abrirlo: así se sabe el ancho disponible
+  dibujarGraficoIndice();
+}
+function ticksFecha(t0, t1) {
+  const dias = (t1 - t0) / (24 * HORA), salida = [];
+  const d = new Date(t0); d.setUTCHours(0, 0, 0, 0);
+  if (dias <= 75) {                                    // cada semana
+    for (; +d <= t1; d.setUTCDate(d.getUTCDate() + 7)) salida.push([+d, `${d.getUTCDate()}/${d.getUTCMonth() + 1}`]);
+  } else if (dias <= 1100) {                           // cada 1, 2 o 3 meses
+    const paso = dias <= 200 ? 1 : dias <= 500 ? 2 : 3;
+    d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() + 1);
+    for (; +d <= t1; d.setUTCMonth(d.getUTCMonth() + paso)) salida.push([+d, fmtMesCorto.format(d)]);
+  } else {                                             // cada 1, 2, 5 o 10 años
+    const paso = [1, 2, 5, 10].find((p) => dias / 365 / p <= 12) || 10;
+    d.setUTCMonth(0, 1); d.setUTCFullYear(Math.ceil(d.getUTCFullYear() / paso) * paso);
+    for (; +d <= t1; d.setUTCFullYear(d.getUTCFullYear() + paso)) salida.push([+d, String(d.getUTCFullYear())]);
+  }
+  return salida;
+}
+const GCI = { W: 960, H: 340, iz: 46, de: 12, ar: 12, ab: 26 };
+function dibujarGraficoIndice() {
+  const r = gci.r, todos = gci.pts;
+  if (!todos.length) { $("#gci").querySelector("svg")?.remove(); return; }
+  const fecha = Date.parse(ci.fecha);
+  const [t0, t1] = gci.zoom || [todos[0][0], Math.max(todos[todos.length - 1][0], fecha)];
+  const pts = todos.filter(([t]) => t >= t0 && t <= t1);
+  gci.t0 = t0; gci.t1 = t1;
+  $("#gci-reset").hidden = !gci.zoom;
+  // El ancho del dibujo es el de la pantalla: así el texto queda siempre del mismo tamaño.
+  GCI.W = Math.max(320, Math.round($("#gci").clientWidth || 960));
+  GCI.H = GCI.W < 600 ? 250 : 340;
+  const { W, H, iz, de, ar, ab } = GCI;
+  const vals = pts.map((p) => p[1]);
+  let y0, y1;
+  if (r.id === "mjo") { y0 = 0; y1 = Math.max(2, ...vals) * 1.08; }
+  else { const m = Math.max(r.umbral * 2, ...vals.map(Math.abs)) * 1.08; y0 = -m; y1 = m; }
+  const X = (t) => iz + ((t - t0) / (t1 - t0 || 1)) * (W - iz - de), Y = (v) => ar + (H - ar - ab) * (1 - (v - y0) / (y1 - y0));
+  gci.X = X; gci.Y = Y;
+  const linea = pts.map(([t, v], i) => `${i ? "L" : "M"}${X(t).toFixed(1)},${Y(v).toFixed(1)}`).join("");
+  const base = r.id === "mjo" ? 1 : 0;
+  const area = pts.length ? `${linea}L${X(pts[pts.length - 1][0]).toFixed(1)},${Y(base)}L${X(pts[0][0]).toFixed(1)},${Y(base)}Z` : "";
+  const pasoY = [0.25, 0.5, 1, 2, 5, 10].find((p) => (y1 - y0) / p <= 8) || 10;
+  const ys = [];
+  for (let v = Math.ceil(y0 / pasoY) * pasoY; v <= y1; v += pasoY) ys.push(+v.toFixed(2));
+  const banda = r.id === "mjo" ? `<rect x="${iz}" y="${Y(1)}" width="${W - iz - de}" height="${Y(0) - Y(1)}" fill="var(--grilla)" opacity=".7"/>`
+    : `<rect x="${iz}" y="${Y(r.umbral)}" width="${W - iz - de}" height="${Y(-r.umbral) - Y(r.umbral)}" fill="var(--grilla)" opacity=".7"/>`;
+  // Cambios de fase (en todo lo cargado), marcados con una línea fina.
+  const cambios = [];
+  for (let i = 1; i < todos.length; i++) {
+    const a = signoCI(r, todos[i - 1][1], todos[i - 1][2]), b = signoCI(r, todos[i][1], todos[i][2]);
+    if (a !== b) cambios.push({ t: todos[i][0], de: textoFaseCI(r, todos[i - 1][1], todos[i - 1][2]), a: textoFaseCI(r, todos[i][1], todos[i][2]), v: todos[i][1] });
+  }
+  gci.cambios = cambios;
+  const enVista = cambios.filter((c) => c.t >= t0 && c.t <= t1);
+  const svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(r.nombre)}">
+    <defs><clipPath id="gci-a"><rect x="${iz}" y="0" width="${W}" height="${Y(base)}"/></clipPath>
+      <clipPath id="gci-b"><rect x="${iz}" y="${Y(base)}" width="${W}" height="${H}"/></clipPath>
+      <clipPath id="gci-c"><rect x="${iz}" y="0" width="${W - iz - de}" height="${H}"/></clipPath></defs>
+    ${banda}
+    ${ys.map((v) => `<line x1="${iz}" x2="${W - de}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--grilla)"/><text x="${iz - 6}" y="${Y(v) + 4}" text-anchor="end">${v > 0 ? "+" : ""}${v}</text>`).join("")}
+    ${ticksFecha(t0, t1).map(([t, txt]) => `<line x1="${X(t)}" x2="${X(t)}" y1="${H - ab}" y2="${H - ab + 4}" stroke="var(--eje)"/><text x="${X(t)}" y="${H - 8}" text-anchor="middle">${esc(txt)}</text>`).join("")}
+    <line x1="${iz}" x2="${W - de}" y1="${Y(base)}" y2="${Y(base)}" stroke="var(--eje)"/>
+    <g clip-path="url(#gci-c)">
+      ${r.id === "mjo" ? "" : `<path d="${area}" fill="#dc2626" opacity=".3" clip-path="url(#gci-a)"/><path d="${area}" fill="#2563eb" opacity=".3" clip-path="url(#gci-b)"/>`}
+      ${enVista.length < 80 ? enVista.map((c) => `<line x1="${X(c.t)}" x2="${X(c.t)}" y1="${ar}" y2="${H - ab}" stroke="var(--tenue)" stroke-dasharray="2 3" opacity=".6"/>`).join("") : ""}
+      <path d="${linea}" fill="none" stroke="${r.id === "mjo" ? "var(--s7)" : "var(--tinta-2)"}" stroke-width="1.5"/>
+      ${pts.length <= 120 ? pts.map(([t, v]) => `<circle cx="${X(t).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="2.2" fill="var(--tinta-2)"/>`).join("") : ""}
+      <line x1="${X(fecha)}" x2="${X(fecha)}" y1="${ar}" y2="${H - ab}" stroke="var(--acento)" stroke-width="1.5"/>
+    </g>
+    <line id="gci-cursor" y1="${ar}" y2="${H - ab}" stroke="var(--tinta)" opacity=".5" visibility="hidden"/>
+    <circle id="gci-punto" r="4.5" fill="var(--acento)" stroke="var(--superficie)" stroke-width="2" visibility="hidden"/>
+    <rect id="gci-sel" y="${ar}" height="${H - ar - ab}" fill="var(--acento)" opacity=".15" visibility="hidden"/>
+  </svg>`;
+  $("#gci").querySelector("svg")?.remove();
+  $("#gci").insertAdjacentHTML("beforeend", svg);
+  // Lista de cambios de fase: los más recientes arriba; tocando uno se hace zoom ahí.
+  $("#gci-cambios-n").textContent = `(${enVista.length} en el tramo que se ve${r.id === "mjo" ? "; la fase cuenta solo con amplitud mayor que 1" : `; umbral ±${num(r.umbral, 1)}`})`;
+  $("#gci-cambios").innerHTML = enVista.length ? enVista.slice().reverse().slice(0, 300).map((c, i) =>
+      `<tr><td><button data-gci-ir="${c.t}">${esc(fmtDiaGci.format(new Date(c.t)))}</button></td><td>${esc(c.de)} → <b>${esc(c.a)}</b></td><td class="tenue">${numCI(c.v)}</td></tr>`).join("")
+    : '<tr><td class="tenue">No cambió de fase en el tramo que se ve.</td></tr>';
+}
+function puntoCercano(t) {
+  const p = gci.pts;
+  let lo = 0, hi = p.length - 1;
+  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (p[m][0] < t) lo = m; else hi = m; }
+  return Math.abs(p[lo][0] - t) <= Math.abs(p[hi][0] - t) ? p[lo] : p[hi];
+}
+function iniciarGraficoIndice() {
+  const caja = $("#gci");
+  const tiempo = (e) => {
+    const svg = caja.querySelector("svg"), b = svg.getBoundingClientRect();
+    const x = (e.clientX - b.left) * GCI.W / b.width;
+    return [x, gci.t0 + (x - GCI.iz) / (GCI.W - GCI.iz - GCI.de) * (gci.t1 - gci.t0), b];
+  };
+  caja.addEventListener("pointermove", (e) => {
+    const svg = caja.querySelector("svg"); if (!svg || !gci.pts.length) return;
+    const [x, t, b] = tiempo(e);
+    if (gci.arrastre !== null) {
+      const sel = svg.querySelector("#gci-sel");
+      sel.setAttribute("x", Math.min(gci.arrastre, x)); sel.setAttribute("width", Math.abs(x - gci.arrastre)); sel.setAttribute("visibility", "visible");
+    }
+    const p = puntoCercano(Math.min(Math.max(t, gci.t0), gci.t1));
+    if (!p || p[0] < gci.t0 || p[0] > gci.t1) return;
+    const px = gci.X(p[0]), py = gci.Y(p[1]);
+    svg.querySelector("#gci-cursor").setAttribute("x1", px); svg.querySelector("#gci-cursor").setAttribute("x2", px);
+    svg.querySelector("#gci-cursor").setAttribute("visibility", "visible");
+    const pu = svg.querySelector("#gci-punto"); pu.setAttribute("cx", px); pu.setAttribute("cy", py); pu.setAttribute("visibility", "visible");
+    const r = gci.r, tip = $("#gci-tip");
+    tip.hidden = false;
+    tip.innerHTML = `<b>${esc(fmtDiaGci.format(new Date(p[0])))}</b> · ${r.id === "mjo" ? `amplitud ${num(p[1], 2)}, ${esc(textoFaseCI(r, p[1], p[2]))}`
+      : `${esc(numCI(p[1]))}${r.unidad ? " " + esc(r.unidad) : ""} · ${esc(textoFaseCI(r, p[1], p[2]))}`}`;
+    const cb = caja.getBoundingClientRect();
+    tip.style.left = `${Math.min(Math.max(px * b.width / GCI.W, 90), cb.width - 90)}px`;
+    tip.style.top = `${py * b.height / GCI.H}px`;
+  });
+  caja.addEventListener("pointerleave", () => {
+    $("#gci-tip").hidden = true;
+    caja.querySelectorAll("#gci-cursor, #gci-punto").forEach((x) => x.setAttribute("visibility", "hidden"));
+  });
+  caja.addEventListener("pointerdown", (e) => { if (e.pointerType === "mouse" && e.button !== 0) return; gci.arrastre = tiempo(e)[0]; });
+  const soltar = (e) => {
+    if (gci.arrastre === null) return;
+    const [x] = tiempo(e), a = gci.arrastre;
+    gci.arrastre = null;
+    caja.querySelector("#gci-sel")?.setAttribute("visibility", "hidden");
+    if (Math.abs(x - a) < 8) return;                    // fue un toque, no un arrastre
+    const aT = (v) => gci.t0 + (v - GCI.iz) / (GCI.W - GCI.iz - GCI.de) * (gci.t1 - gci.t0);
+    const [z0, z1] = [aT(Math.min(a, x)), aT(Math.max(a, x))];
+    if (z1 - z0 < 3 * 24 * HORA) return;
+    gci.zoom = [z0, z1];
+    dibujarGraficoIndice();
+  };
+  caja.addEventListener("pointerup", soltar);
+  window.addEventListener("pointerup", () => { if (gci.arrastre !== null) { gci.arrastre = null; caja.querySelector("#gci-sel")?.setAttribute("visibility", "hidden"); } });
+  caja.addEventListener("dblclick", () => { gci.zoom = null; dibujarGraficoIndice(); });
+  $("#gci-reset").addEventListener("click", () => { gci.zoom = null; dibujarGraficoIndice(); });
+  $("#gci-cerrar").addEventListener("click", () => $("#d-ci").close());
+  window.addEventListener("resize", () => { if ($("#d-ci").open) dibujarGraficoIndice(); });
+  document.querySelectorAll("[data-gci-meses]").forEach((b) => b.addEventListener("click", () => abrirGraficoIndice(gci.r.id, Number(b.dataset.gciMeses))));
+  $("#gci-cambios").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-gci-ir]"); if (!b) return;
+    const t = Number(b.dataset.gciIr), m = Math.max(20, (gci.t1 - gci.t0) / (24 * HORA) / 8) * 24 * HORA;
+    gci.zoom = [t - m, t + m];
+    dibujarGraficoIndice();
+  });
+  $("#ci-grilla").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-ci-ampliar]"); if (b) abrirGraficoIndice(b.dataset.ciAmpliar, 12);
+  });
+}
 function iniciarIndices() {
+  iniciarGraficoIndice();
   $("#ci-ver").addEventListener("click", () => {
     ci.abierto = !ci.abierto;
     $("#ci-det").hidden = !ci.abierto;

@@ -129,3 +129,12 @@ def test_api(cliente, tmp_path, monkeypatch):
     sam = [x for x in d["indices"] if x["id"] == "sam"][0]
     assert sam["valor"]["fase"] == "positivo" and sam["periodo"]["n"] == 2 and len(sam["serie"]) == 2
     assert cliente.get("/api/cartas/indices?desde=2026-10-28&hasta=2026-10-01").status_code == 400
+
+
+def test_api_un_indice(cliente, tmp_path, monkeypatch):
+    from meteo.web import app as web
+    monkeypatch.setattr(web, "ARCHIVO_DIR", str(tmp_path))
+    indices.guardar(tmp_path, "sam", indices.leer_diario(SAM_DIARIO))
+    d = cliente.get("/api/cartas/indices?fecha=2026-10-28&solo=sam&meses=600").json()
+    assert [x["id"] for x in d["indices"]] == ["sam"] and len(d["indices"][0]["serie"]) == 2
+    assert indices.INDICES["oni"].get("efecto") is None

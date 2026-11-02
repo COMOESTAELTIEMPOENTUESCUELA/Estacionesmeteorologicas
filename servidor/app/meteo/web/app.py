@@ -805,7 +805,7 @@ def pronostico_punto(ciudad: str, corrida: str | None = None):
 
 @app.get("/api/cartas/indices")
 def indices_climaticos(fecha: date | None = None, desde: date | None = None, hasta: date | None = None,
-                       meses: int = 12):
+                       meses: int = 12, solo: str | None = None):
     """Índices climáticos (ENSO, SAM, MJO, Índico, Atlántico, PDO): el estado
     en `fecha`, el resumen del período desde-hasta y la serie de los últimos
     `meses` meses (ver meteo/indices.py)."""
@@ -813,9 +813,9 @@ def indices_climaticos(fecha: date | None = None, desde: date | None = None, has
     fecha = fecha or date.today()
     if desde and hasta and desde > hasta:
         raise HTTPException(400, "desde tiene que ser anterior a hasta")
-    meses = max(1, min(meses, 60))
+    meses = max(1, min(meses, 600))       # 600: toda la serie (para el gráfico ampliado)
     return {"fecha": fecha.isoformat(), "desde": desde and desde.isoformat(), "hasta": hasta and hasta.isoformat(),
-            "indices": indices.estado(ARCHIVO_DIR, fecha, desde, hasta, fecha - timedelta(days=31 * meses))}
+            "indices": indices.estado(ARCHIVO_DIR, fecha, desde, hasta, fecha - timedelta(days=31 * meses), solo)}
 
 
 @app.get("/api/cartas/punto")
