@@ -207,7 +207,7 @@ img.con-fondo { background-color: #fff !important; background-size: 100% 100%; b
 .cartas-seccion { display: flex; align-items: center; gap: 14px; margin: 18px 0 10px; padding: 10px 14px; border-radius: 10px; }
 .cartas-seccion:first-child { margin-top: 0; }
 .cartas-seccion h2 { margin: 0; font-size: 19px; }
-.cartas-seccion p { margin: 2px 0 0; font-size: 13px; color: var(--tinta-2); }
+.cartas-seccion p { margin: 0; font-size: 13px; color: var(--tinta-2); }
 .cartas-seccion .etq { font: 700 12px/1 system-ui, sans-serif; letter-spacing: .12em; text-transform: uppercase; color: #fff;
   padding: 7px 10px; border-radius: 6px; white-space: nowrap; }
 .cartas-seccion.pron { background: color-mix(in srgb, var(--s7) 12%, transparent); border: 1px solid color-mix(in srgb, var(--s7) 40%, transparent); }
@@ -747,8 +747,7 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
   <section id="tab-cartas" hidden>
     <div class="cartas-seccion pron" id="sec-pron" hidden>
       <span class="etq">Pronóstico</span>
-      <div><h2>Lo que viene</h2>
-        <p>Cartas del GFS de la última corrida, de +0 a +192 h (modelo: sirve como guía).</p></div>
+      <div><p>Cartas del GFS de la última corrida, de +0 a +192 h (modelo: sirve como guía).</p></div>
     </div>
     <div class="tarjeta" id="cpr" hidden tabindex="-1">
       <div class="filtros">
@@ -811,8 +810,7 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
     </div>
     <div class="cartas-seccion diag" id="sec-diag">
       <span class="etq">Diagnóstico</span>
-      <div><h2>Lo que pasó</h2>
-        <p>Análisis de cada hora (cartas archivadas, satélite, observaciones), el pronóstico del grupo contra lo observado,
+      <div><p>Análisis de cada hora (cartas archivadas, satélite, observaciones), el pronóstico del grupo contra lo observado,
           el meteograma, el corte tiempo-altura y el sondeo de la fecha elegida.</p></div>
     </div>
     <div class="tarjeta" id="c-analisis">

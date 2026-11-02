@@ -286,8 +286,8 @@ docker compose exec ingesta python -m meteo.ingesta diagnostico-ogimet
 Dos secciones bien separadas, cada una con su banda y su color (también en
 el borde de sus tarjetas):
 
-1. **Pronóstico — lo que viene** (violeta): la tarjeta "Pronóstico GFS".
-2. **Diagnóstico — lo que pasó** (verde): las cartas de análisis de cada
+1. **Pronóstico** (violeta): la tarjeta "Pronóstico GFS".
+2. **Diagnóstico** (verde): las cartas de análisis de cada
    hora, el pronóstico del grupo contra lo observado, el meteograma con el
    corte tiempo-altura, el sondeo y las observaciones de la hora.
 
