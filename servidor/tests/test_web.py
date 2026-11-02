@@ -7,16 +7,6 @@ DSN = os.environ.get("TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(not DSN, reason="sin TEST_DATABASE_URL")
 
 
-@pytest.fixture(scope="module")
-def cliente():
-    os.environ["DATABASE_URL"] = DSN
-    from fastapi.testclient import TestClient
-
-    from meteo.web.app import app
-    with TestClient(app) as c:
-        yield c
-
-
 def test_estaciones(cliente):
     r = cliente.get("/api/estaciones")
     assert r.status_code == 200

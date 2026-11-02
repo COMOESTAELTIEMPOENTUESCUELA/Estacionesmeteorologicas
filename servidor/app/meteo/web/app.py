@@ -54,16 +54,19 @@ pool = ConnectionPool(
             "row_factory": dict_row},
 )
 
-# Lo ÚNICO que la web escribe: los dibujos de análisis sobre las cartas y la
-# bitácora de las estaciones (fallas y mantenimiento). Va por una conexión
-# aparte, para que todo lo demás siga en solo lectura.
-# En la copia pública (modo cartas) no existe: ahí no se escribe nada.
-pool_escritura = None if os.environ.get("WEB_MODO", "completo") == "cartas" else ConnectionPool(
+# Lo ÚNICO que la web escribe: los dibujos de análisis sobre las cartas, la
+# bitácora de las estaciones (fallas y mantenimiento) y las cuentas y la
+# libreta de los pronosticadores (cuentas.py). Va por una conexión aparte,
+# para que todo lo demás siga en solo lectura. En la copia pública (modo
+# cartas) solo se usa para las cuentas: el resto de la escritura no está
+# permitido ahí (ver solo_lo_permitido).
+pool_escritura = ConnectionPool(
     DSN, min_size=0, max_size=2, open=False,
     kwargs={"options": "-c statement_timeout=10000", "row_factory": dict_row},
 )
 # Tablas que crea la propia web al arrancar (si no existen).
-TABLAS_PROPIAS = [Path(__file__).parent / "dibujos.sql", Path(__file__).parent / "incidentes.sql"]
+TABLAS_PROPIAS = [Path(__file__).parent / "dibujos.sql", Path(__file__).parent / "incidentes.sql",
+                  Path(__file__).parent / "cuentas.sql"]
 
 
 @asynccontextmanager
@@ -84,6 +87,12 @@ async def ciclo_de_vida(_app):
 
 
 app = FastAPI(title="Servidor meteorológico", docs_url="/api/docs", redoc_url=None, lifespan=ciclo_de_vida)
+
+# Cuentas de los pronosticadores: ingreso con Google, perfil y libreta.
+from . import cuentas  # noqa: E402
+
+cuentas.configurar(pool, pool_escritura)
+app.include_router(cuentas.router)
 
 
 # ---------------------------------------------------------------------------
@@ -127,12 +136,15 @@ def credenciales_validas(cabecera):
 # página: aunque alguien escriba a mano otra dirección, no la obtiene.
 WEB_MODO = os.environ.get("WEB_MODO", "completo")
 PERMITIDO_EN_CARTAS = ("/api/modo", "/api/cartas", "/api/verificacion/dia", "/cartas-img/", "/vendor/")
+# Lo único que se puede MODIFICAR en la copia pública: el ingreso y lo
+# personal de cada pronosticador (con sesión; ver cuentas.py).
+CUENTAS = ("/auth/", "/api/yo")
 
 
 def permitido(ruta):
     if WEB_MODO != "cartas":
         return True
-    return ruta in ("/", "/index.html") or ruta.startswith(PERMITIDO_EN_CARTAS)
+    return ruta in ("/", "/index.html") or ruta.startswith(PERMITIDO_EN_CARTAS + CUENTAS)
 
 
 @app.middleware("http")
@@ -152,7 +164,7 @@ async def guardar_cartas_en_el_navegador(request, siguiente):
 async def solo_lo_permitido(request, siguiente):
     if not permitido(request.url.path):
         return Response("No disponible.", status_code=404)
-    if WEB_MODO == "cartas" and request.method not in ("GET", "HEAD"):
+    if WEB_MODO == "cartas" and request.method not in ("GET", "HEAD") and not request.url.path.startswith(CUENTAS):
         return Response("La copia pública es solo para mirar.", status_code=405)
     return await siguiente(request)
 

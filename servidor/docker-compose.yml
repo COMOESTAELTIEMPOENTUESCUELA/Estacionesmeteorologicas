@@ -72,6 +72,11 @@ services:
       # Si están definidos en .env, la página pide usuario y contraseña.
       WEB_USUARIO: ${WEB_USUARIO:-}
       WEB_CLAVE: ${WEB_CLAVE:-}
+      # Ingreso con Google de los pronosticadores (perfil y libreta, ver
+      # docs/07-cuentas.md). Sin estos datos, todo sigue igual sin ingreso.
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      URL_PUBLICA: ${URL_PUBLICA:-}
       CARTAS_CONFIG: /config/cartas.yaml
       ARCHIVO_DIR: /archivo
     volumes:
@@ -100,6 +105,11 @@ services:
       # Contraseña propia (opcional) para la copia pública; vacía = abierta.
       WEB_USUARIO: ${CARTAS_USUARIO:-}
       WEB_CLAVE: ${CARTAS_CLAVE:-}
+      # Ingreso con Google de los pronosticadores (perfil y libreta, ver
+      # docs/07-cuentas.md). Sin estos datos, todo sigue igual sin ingreso.
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      URL_PUBLICA: ${URL_PUBLICA:-}
       CARTAS_CONFIG: /config/cartas.yaml
       ARCHIVO_DIR: /archivo
     volumes:
