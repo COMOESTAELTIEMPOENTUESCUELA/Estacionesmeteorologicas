@@ -21,9 +21,9 @@ Seguridad, paso por paso:
 - Todo lo que modifica algo (/api/yo con POST, PUT, DELETE) exige además el
   encabezado "X-Pedido": un formulario de otro sitio no lo puede agregar sin
   permiso del navegador (CORS), así que no puede falsificar pedidos.
-- Permisos: las notas privadas solo las ve quien las escribió; las
-  compartidas, todos los que ingresaron. Las métricas de cada uno, él y los
-  coordinadores.
+- Permisos: las notas privadas las ve quien las escribió y los
+  administradores (la página lo avisa); las compartidas, todos los que
+  ingresaron. Las métricas de cada uno, él y los coordinadores.
 
 Configuración (.env): GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET y URL_PUBLICA
 (la dirección https con que se entra, ej. https://xxx.ts.net). Sin eso, el
@@ -215,31 +215,17 @@ def yo(request: Request):
     return {"login": login_disponible(), "url_publica": URL_PUBLICA, "usuario": u}
 
 
-@router.get("/api/yo/pronosticos")
-def mis_pronosticos(request: Request, desde: date | None = None, hasta: date | None = None, usuario_id: int | None = None):
-    """Los pronósticos del usuario (por su firma) contra lo observado, y sus
-    medidas de error por plazo (las mismas de la pestaña Verificación).
-    Un coordinador puede pedir los de otro (usuario_id)."""
-    from ..verificacion import puntajes
-    u = requiere_usuario(request)
-    quien = u
-    if usuario_id and usuario_id != u["id"]:
-        if not es_coordinador(u):
-            raise HTTPException(403, "Solo los coordinadores ven las métricas de otros")
-        filas = _leer("SELECT id, email, nombre, rol, firmas FROM usuario WHERE id = %s", (usuario_id,))
-        if not filas:
-            raise HTTPException(404, "usuario desconocido")
-        quien = filas[0]
+def _rango(desde, hasta):
     hasta = hasta or datetime.now(timezone(timedelta(hours=-3))).date() - timedelta(days=1)
     desde = desde or hasta - timedelta(days=90)
     if desde > hasta or (hasta - desde).days > 3 * 366:
         raise HTTPException(400, "Rango de fechas inválido (máximo 3 años)")
-    salida = {"usuario": {k: quien[k] for k in ("id", "nombre", "firmas")}, "desde": desde, "hasta": hasta,
-              "resumen": {}, "dias": []}
-    if not quien["firmas"]:
-        return salida
-    # Primero la versión vigente de cada pronóstico (de quien sea) y DESPUÉS
-    # las de esta persona: si otro corrigió su pronóstico, cuenta la corrección.
+    return desde, hasta
+
+
+def _vigentes(desde, hasta):
+    """La versión VIGENTE de cada pronóstico del período (de quien sea)."""
+    from ..verificacion import puntajes
     dias = _leer("""
         SELECT e.ciudad, e.fecha_pronostico, e.capturado, e.publicado_por, e.es_correccion,
                COALESCE((e.contenido -> 'publicado_el' ->> 0)::date,
@@ -247,16 +233,74 @@ def mis_pronosticos(request: Request, desde: date | None = None, hasta: date | N
                d.fecha, d.plazo_dias, d.temp_min, d.temp_max, d.temp_min_suburbana, d.temp_max_suburbana, d.periodos
         FROM pronostico_dia d JOIN pronostico_emision e ON e.id = d.emision_id
         WHERE d.fecha BETWEEN %s AND %s""", (desde, hasta))
-    vigentes = [d for d in puntajes.elegir_emisiones(dias, "final") if d["publicado_por"] in quien["firmas"]]
+    return puntajes.elegir_emisiones(dias, "final")
+
+
+def _pares(vigentes, desde, hasta):
+    """Pronóstico contra lo observado, día por día."""
+    from ..verificacion import puntajes
     ciudades = sorted({d["ciudad"] for d in vigentes})
     observado = {(r["ciudad"], r["fecha"], r["elemento"]): r for r in _leer("""
         SELECT ciudad, fecha, elemento, valor, categoria, estacion_id, detalle FROM verif_observado
         WHERE ciudad = ANY(%s) AND fecha BETWEEN %s AND %s""", (ciudades, desde - timedelta(days=5), hasta))}
     filas = puntajes.armar_pares(vigentes, observado)
     filas.sort(key=lambda f: (f["fecha"], f["ciudad"], f["plazo"]))
+    return filas
+
+
+@router.get("/api/yo/pronosticos")
+def mis_pronosticos(request: Request, desde: date | None = None, hasta: date | None = None,
+                    usuario_id: int | None = None, firma: str = ""):
+    """Los pronósticos del usuario (por su firma) contra lo observado, y sus
+    medidas de error por plazo (las mismas de la pestaña Verificación).
+    Un coordinador puede pedir los de otro (usuario_id) o los de una firma
+    (aunque esa persona no tenga usuario)."""
+    from ..verificacion import puntajes
+    u = requiere_usuario(request)
+    quien = u
+    if firma or (usuario_id and usuario_id != u["id"]):
+        if not es_coordinador(u):
+            raise HTTPException(403, "Solo los coordinadores ven las métricas de otros")
+        if firma:
+            quien = {"id": None, "nombre": firma, "firmas": [firma]}
+        else:
+            filas = _leer("SELECT id, email, nombre, rol, firmas FROM usuario WHERE id = %s", (usuario_id,))
+            if not filas:
+                raise HTTPException(404, "usuario desconocido")
+            quien = filas[0]
+    desde, hasta = _rango(desde, hasta)
+    salida = {"usuario": {k: quien[k] for k in ("id", "nombre", "firmas")}, "desde": desde, "hasta": hasta,
+              "resumen": {}, "dias": []}
+    if not quien["firmas"]:
+        return salida
+    # Primero la versión vigente de cada pronóstico (de quien sea) y DESPUÉS
+    # las de esta persona: si otro corrigió su pronóstico, cuenta la corrección.
+    filas = _pares([d for d in _vigentes(desde, hasta) if d["publicado_por"] in quien["firmas"]], desde, hasta)
     salida["resumen"] = puntajes.resumen(filas)
     salida["dias"] = filas
     return salida
+
+
+@router.get("/api/yo/pronosticos/grupo")
+def pronosticos_del_grupo(request: Request, desde: date | None = None, hasta: date | None = None):
+    """Para los coordinadores: el resumen de CADA firma del período (aunque no
+    tenga usuario), con el mismo criterio que Mis pronósticos."""
+    from ..verificacion import puntajes
+    u = requiere_usuario(request)
+    if not es_coordinador(u):
+        raise HTTPException(403, "Solo coordinadores")
+    desde, hasta = _rango(desde, hasta)
+    vigentes = _vigentes(desde, hasta)
+    todas = _pares(vigentes, desde, hasta)
+    usuarios = {f: x for x in _leer("SELECT id, nombre, firmas FROM usuario WHERE activo") for f in x["firmas"]}
+    salida = []
+    for firma in sorted({f["pronosticador"] for f in todas if f["pronosticador"]}):
+        filas = [f for f in todas if f["pronosticador"] == firma]
+        us = usuarios.get(firma)
+        salida.append({"firma": firma, "usuario": {"id": us["id"], "nombre": us["nombre"]} if us else None,
+                       "dias": len(filas), "emisiones": len({(f["ciudad"], f["fecha_emision"]) for f in filas}),
+                       "resumen": puntajes.resumen(filas)})
+    return {"desde": desde, "hasta": hasta, "pronosticadores": salida}
 
 
 @router.get("/api/yo/usuarios")
@@ -291,12 +335,19 @@ def _limpiar_nota(datos):
 
 @router.get("/api/yo/notas")
 def notas(request: Request, desde: date | None = None, hasta: date | None = None, tipo: str = "",
-          mias: bool = False, pendientes: bool = False, etiqueta: str = ""):
-    """Las notas propias y las compartidas por los demás (con su autor)."""
+          mias: bool = False, pendientes: bool = False, etiqueta: str = "", autor_id: int | None = None,
+          todas: bool = False):
+    """Las notas propias y las compartidas por los demás (con su autor).
+    Un ADMINISTRADOR, con todas=true, ve también las privadas de todos (la
+    página avisa a cada uno que las privadas las ven los administradores)."""
     u = requiere_usuario(request)
-    cond, params = ["(n.usuario_id = %s OR n.compartida)"], [u["id"]]
+    if todas and u["rol"] != "admin":
+        raise HTTPException(403, "Solo los administradores ven las notas privadas de otros")
+    cond, params = (["true"], []) if todas else (["(n.usuario_id = %s OR n.compartida)"], [u["id"]])
     if mias:
         cond.append("n.usuario_id = %s"); params.append(u["id"])
+    if autor_id:
+        cond.append("n.usuario_id = %s"); params.append(autor_id)
     if desde:
         cond.append("n.fecha_evento >= %s"); params.append(desde)
     if hasta:

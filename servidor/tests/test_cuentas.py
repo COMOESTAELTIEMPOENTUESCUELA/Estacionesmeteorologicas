@@ -141,6 +141,15 @@ def test_mis_pronosticos_y_permisos(cliente, cuentas, monkeypatch):
         ingresar(cliente, cuentas, monkeypatch, "coord@gmail.com")
         ana = m._leer("SELECT id FROM usuario WHERE email = 'ana@gmail.com'")[0]["id"]
         assert len(cliente.get(f"/api/yo/pronosticos?usuario_id={ana}&desde=2026-10-01&hasta=2026-10-31").json()["dias"]) == 1
+        # Por firma, aunque no tenga usuario ("Otro"), y el resumen de todo el grupo.
+        assert [f["tmin_urbana"]["pron"] for f in cliente.get(
+            "/api/yo/pronosticos?firma=Otro&desde=2026-10-01&hasta=2026-10-31").json()["dias"]] == [13]
+        g = {x["firma"]: x for x in cliente.get("/api/yo/pronosticos/grupo?desde=2026-10-01&hasta=2026-10-31").json()["pronosticadores"]}
+        assert g["AnaP"]["usuario"]["nombre"] == "Ana" and g["AnaP"]["dias"] == 1 and g["Otro"]["usuario"] is None
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "beto@gmail.com")
+        assert cliente.get("/api/yo/pronosticos/grupo").status_code == 403
+        assert cliente.get("/api/yo/pronosticos?firma=AnaP").status_code == 403
     finally:
         with m._pools["e"].connection() as conn:
             conn.execute("DELETE FROM pronostico_emision WHERE ciudad = 'Ciudad Test'")
@@ -164,3 +173,26 @@ def test_usuario_desactivado_pierde_la_sesion(cliente, cuentas, monkeypatch):
     assert cliente.get("/api/yo").json()["usuario"]["nombre"] == "Beto"
     cuentas.main(["desactivar", "--email", "beto@gmail.com"])
     assert cliente.get("/api/yo").json()["usuario"] is None
+
+
+def test_admin_ve_las_notas_privadas_de_todos(cliente, cuentas, monkeypatch):
+    cuentas.main(["agregar", "--email", "admin@gmail.com", "--nombre", "Admin", "--rol", "admin"])
+    try:
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "beto@gmail.com")
+        privada = cliente.post("/api/yo/notas", json={"texto": "privada de Beto", "tipo": "duda"}, headers=X).json()["id"]
+        assert cliente.get("/api/yo/notas?todas=true").status_code == 403          # Beto no es admin
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "coord@gmail.com")
+        assert privada not in [n["id"] for n in cliente.get("/api/yo/notas").json()]
+        assert cliente.get("/api/yo/notas?todas=true").status_code == 403          # coordinador tampoco
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "admin@gmail.com")
+        assert privada not in [n["id"] for n in cliente.get("/api/yo/notas").json()]
+        beto = cuentas._leer("SELECT id FROM usuario WHERE email = 'beto@gmail.com'")[0]["id"]
+        vistas = cliente.get(f"/api/yo/notas?todas=true&autor_id={beto}").json()
+        assert [(n["id"], n["autor"], n["compartida"]) for n in vistas] == [(privada, "Beto", False)]
+    finally:
+        with cuentas._pools["e"].connection() as conn:
+            conn.execute("DELETE FROM usuario WHERE email = 'admin@gmail.com'")
+            conn.commit()

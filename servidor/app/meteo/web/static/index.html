@@ -1077,6 +1077,11 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
 
   <!-- ============================ MI PERFIL ============================ -->
   <section id="tab-perfil" hidden>
+    <div class="tarjeta" id="pf-grupo" hidden style="margin-bottom:16px">
+      <h2 style="margin:0 0 4px; font-size:18px">Todo el grupo</h2>
+      <p class="ayuda" id="pf-grupo-nota"></p>
+      <div class="tabla-scroll" style="max-height:none"><table id="pf-grupo-tabla"></table></div>
+    </div>
     <div class="tarjeta">
       <div class="filtros">
         <h2 style="margin:0; font-size:18px; flex:1 1 260px" id="pf-titulo">Mis pronósticos</h2>
@@ -1098,10 +1103,12 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
           <select id="lb-tipo"><option value="">todas</option><option value="vi">lo que vi</option><option value="llamo_atencion">me llamó la atención</option>
             <option value="duda">dudas</option><option value="pregunta">preguntas para la reunión</option></select></label>
         <label class="en-linea"><input type="checkbox" id="lb-mias"> Solo las mías</label>
+        <label class="en-linea" id="lb-l-autor" hidden>Autor <select id="lb-autor"><option value="">todos</option></select></label>
+        <label class="en-linea" id="lb-l-todas" hidden title="Solo administradores"><input type="checkbox" id="lb-todas"> Incluir las privadas de todos</label>
         <label class="en-linea">Etiqueta <input type="text" id="lb-etiqueta" placeholder="ej. frente frío" style="width:130px"></label>
         <button class="boton" id="lb-nueva">📝 Nueva nota</button>
       </div>
-      <p class="ayuda">Tus notas privadas solo las ves vos; las compartidas, todos los que ingresaron. "Abrir" lleva a la carta, la corrida o la ciudad donde se escribió.</p>
+      <p class="ayuda">Tus notas privadas las ves vos y los administradores del grupo; las compartidas, todos los que ingresaron. "Abrir" lleva a la carta, la corrida o la ciudad donde se escribió.</p>
       <div id="lb-lista" class="lb-lista"></div>
     </div>
     <div class="tarjeta" style="margin-top:16px">
@@ -1129,7 +1136,7 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
     <datalist id="lb-sugeridas"><option value="frente frío"><option value="frente cálido"><option value="ciclogénesis"><option value="vaguada">
       <option value="río atmosférico"><option value="tormentas"><option value="niebla"><option value="helada"><option value="ola de calor">
       <option value="sudestada"><option value="baja segregada"><option value="error del modelo"></datalist>
-    <label class="marca"><input type="checkbox" name="compartida"> Compartir con el grupo <span class="tenue">(las preguntas para la reunión se comparten siempre)</span></label>
+    <label class="marca"><input type="checkbox" name="compartida"> Compartir con el grupo <span class="tenue">(si no, la ven solo vos y los administradores; las preguntas para la reunión se comparten siempre)</span></label>
     <p class="d-inc-err" id="d-nota-err" hidden></p>
     <div class="acciones">
       <button type="button" class="boton" id="d-nota-cancelar">Cancelar</button>
@@ -4171,24 +4178,73 @@ async function iniciarPerfil() {
   ["#lb-tipo", "#lb-mias"].forEach((s) => $(s).addEventListener("change", cargarLibreta));
   $("#lb-etiqueta").addEventListener("change", cargarLibreta);
   $("#lb-nueva").addEventListener("click", () => abrirNota({ fecha_evento: diaArg(Date.now()), contexto: {} }));
+  ["#lb-autor", "#lb-todas"].forEach((s) => $(s).addEventListener("change", cargarLibreta));
   if (YO && ["coordinador", "admin"].includes(YO.rol)) {
+    // Coordinadores y administradores: las métricas de cualquiera (por usuario
+    // o por firma, aunque no tenga usuario), el resumen del grupo y el autor.
     const us = await api("/api/yo/usuarios");
-    $("#pf-usuario").innerHTML = us.map((u) => `<option value="${u.id}">${esc(u.nombre)}${u.firmas.length ? "" : " (sin firma)"}</option>`).join("");
-    $("#pf-usuario").value = YO.id;
+    pfUsuarios = us;
+    $("#pf-usuario").innerHTML = us.map((u) => `<option value="u:${u.id}">${esc(u.nombre)}${u.firmas.length ? "" : " (sin firma)"}</option>`).join("");
+    $("#pf-usuario").value = `u:${YO.id}`;
     $("#pf-l-usuario").hidden = false;
+    $("#lb-autor").innerHTML = '<option value="">todos</option>' + us.map((u) => `<option value="${u.id}">${esc(u.nombre)}</option>`).join("");
+    $("#lb-l-autor").hidden = false;
+    $("#lb-l-todas").hidden = YO.rol !== "admin";
+    $("#pf-grupo").hidden = false;
+    $("#pf-dias").addEventListener("change", cargarGrupo);
+    $("#pf-grupo-tabla").addEventListener("click", (e) => {
+      const b = e.target.closest("button[data-ver]");
+      if (!b) return;
+      $("#pf-usuario").value = b.dataset.ver;
+      cargarMisPronosticos();
+      $("#pf-titulo").scrollIntoView({ behavior: "smooth" });
+    });
+    await cargarGrupo();
   }
   cargarMisPronosticos();
   cargarLibreta();
 }
+let pfUsuarios = [];
+function periodoPerfil() {
+  const dias = Number($("#pf-dias").value);
+  return [new Date(Date.now() - (dias + 1) * 24 * HORA).toISOString().slice(0, 10), new Date(Date.now() - 27 * HORA).toISOString().slice(0, 10)];
+}
+// Resumen de todo el grupo: una fila por firma, con el error del pronóstico del mismo día y del día siguiente.
+async function cargarGrupo() {
+  const [desde, hasta] = periodoPerfil();
+  let d;
+  try { d = await api(`/api/yo/pronosticos/grupo?desde=${desde}&hasta=${hasta}`); }
+  catch (err) { $("#pf-grupo-nota").textContent = `No se pudo cargar: ${err.message}`; return; }
+  $("#pf-grupo-nota").textContent = `Del ${d.desde} al ${d.hasta}: ${d.pronosticadores.length} firmas con pronósticos. ` +
+    "Error medio absoluto (MAE, °C) y aciertos de lluvia, del pronóstico del mismo día y del día siguiente. Con pocos días (n chico) la cifra cambia mucho: miralo como orientación.";
+  // Las firmas sin usuario también se pueden elegir en "De:".
+  const sinUsuario = d.pronosticadores.filter((p) => !p.usuario);
+  $("#pf-usuario").querySelectorAll('option[value^="f:"]').forEach((o) => o.remove());
+  sinUsuario.forEach((p) => $("#pf-usuario").insertAdjacentHTML("beforeend", `<option value="f:${esc(p.firma)}">${esc(p.firma)} (firma, sin usuario)</option>`));
+  const n = (x) => (x === null || x === undefined ? "–" : num(x, 1));
+  const c = (r, el) => r && r[el] && r[el].n ? `${n(r[el].mae)} <span class="tenue">(n=${r[el].n})</span>` : "–";
+  const ll = (r) => r && r.pp && r.pp.n ? `${Math.round(100 * r.pp.pc)} %` : "–";
+  $("#pf-grupo-tabla").innerHTML = `<tr><th>Firma</th><th>Usuario</th><th>Días</th><th>Mín · mismo día</th><th>Mín · día sig.</th>
+      <th>Máx · mismo día</th><th>Máx · día sig.</th><th>Lluvia · mismo día</th><th></th></tr>` +
+    d.pronosticadores.map((p) => { const r0 = p.resumen["0"], r1 = p.resumen["1"];
+      return `<tr><td><b>${esc(p.firma)}</b></td><td>${p.usuario ? esc(p.usuario.nombre) : '<span class="tenue">sin usuario</span>'}</td><td>${p.dias}</td>
+        <td>${c(r0, "tmin_urbana")}</td><td>${c(r1, "tmin_urbana")}</td><td>${c(r0, "tmax_urbana")}</td><td>${c(r1, "tmax_urbana")}</td><td>${ll(r0)}</td>
+        <td><button class="boton" style="padding:1px 8px" data-ver="${p.usuario ? `u:${p.usuario.id}` : `f:${esc(p.firma)}`}">Ver detalle</button></td></tr>`; }).join("");
+}
 async function cargarMisPronosticos() {
-  const dias = Number($("#pf-dias").value), hasta = new Date(Date.now() - 27 * HORA).toISOString().slice(0, 10);
-  const desde = new Date(Date.now() - (dias + 1) * 24 * HORA).toISOString().slice(0, 10);
-  const uid = $("#pf-l-usuario").hidden ? "" : `&usuario_id=${$("#pf-usuario").value}`;
+  const [desde, hasta] = periodoPerfil();
+  const sel = $("#pf-l-usuario").hidden ? "" : $("#pf-usuario").value;
+  const uid = !sel ? "" : sel.startsWith("f:") ? `&firma=${encodeURIComponent(sel.slice(2))}` : `&usuario_id=${sel.slice(2)}`;
   let d;
   try { d = await api(`/api/yo/pronosticos?desde=${desde}&hasta=${hasta}${uid}`); }
   catch (err) { $("#pf-nota").textContent = `No se pudo cargar: ${err.message}`; return; }
   pfDatos = d;
   const propio = d.usuario.id === YO.id;
+  if (!propio && !d.usuario.firmas.length) {
+    $("#pf-titulo").textContent = `Pronósticos de ${d.usuario.nombre}`;
+    $("#pf-nota").textContent = "Este usuario no tiene firma cargada (cómo firma en el portal): agregala con el comando del servidor (--firma).";
+    $("#pf-resumen").innerHTML = ""; $("#pf-dias-tabla").innerHTML = ""; return;
+  }
   $("#pf-titulo").textContent = propio ? "Mis pronósticos" : `Pronósticos de ${d.usuario.nombre}`;
   if (!d.usuario.firmas.length) {
     $("#pf-nota").textContent = "Todavía no está cargado cómo firmás los pronósticos en el portal: pedile a un coordinador que lo agregue a tu usuario.";
@@ -4240,6 +4296,8 @@ async function cargarLibreta() {
   if ($("#lb-tipo").value) q.set("tipo", $("#lb-tipo").value);
   if ($("#lb-mias").checked) q.set("mias", "true");
   if ($("#lb-etiqueta").value.trim()) q.set("etiqueta", $("#lb-etiqueta").value.trim());
+  if (!$("#lb-l-autor").hidden && $("#lb-autor").value) q.set("autor_id", $("#lb-autor").value);
+  if (!$("#lb-l-todas").hidden && $("#lb-todas").checked) q.set("todas", "true");
   const [notas, preguntas] = await Promise.all([api(`/api/yo/notas?${q}`), api("/api/yo/notas?tipo=pregunta")]);
   lbNotas = [...notas, ...preguntas];
   $("#lb-lista").innerHTML = notas.length ? notas.map((n) => tarjetaNota(n)).join("") : '<p class="tenue">Todavía no hay notas con ese filtro.</p>';

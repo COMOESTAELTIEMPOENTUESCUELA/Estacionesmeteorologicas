@@ -12,8 +12,15 @@ La página de Cartas (también la copia pública) sigue igual para todos. Quien
   preguntas para la reunión, con etiquetas. Se escriben con los botones
   **📝 Anotar** de Cartas (cartas de análisis, visor grande, pronóstico GFS,
   diagnóstico por ciudad) y guardan **dónde** se escribieron: "Abrir" vuelve
-  a esa carta, corrida y plazo, o ciudad. Privadas por defecto; las
-  compartidas las ven todos los que ingresaron.
+  a esa carta, corrida y plazo, o ciudad. Privadas por defecto (las ven su
+  autor y los administradores; la página lo avisa); las compartidas, todos
+  los que ingresaron.
+- **Coordinadores y administradores**: la tabla **"Todo el grupo"** (una
+  fila por firma, aunque esa persona no tenga usuario: MAE de mínima y
+  máxima del mismo día y del día siguiente, aciertos de lluvia) con "Ver
+  detalle", el selector "De:" (por usuario o por firma) y el filtro de
+  autor en la libreta. Los **administradores** además pueden ver las notas
+  privadas de todos ("Incluir las privadas de todos").
 - **Reunión sinóptica**: las preguntas compartidas, pendientes arriba. En la
   reunión se marcan tratadas y se anota la conclusión (quien la escribió o
   un coordinador).
