@@ -484,12 +484,16 @@ con su curva del último año, el resumen de un período elegido (promedio, o
 en la MJO cuántos días estuvo activa y en qué fase) y el diagrama de fases
 de la MJO.
 
-Tocando cualquier curva se abre **ampliada**: pasando el mouse (o tocando)
-se ve el valor y la fecha de cada dato; **arrastrando** sobre un tramo se
-hace zoom (doble clic o "Sacar el zoom" para volver); arriba se elige cuánto
-mostrar (6 meses a toda la serie). Abajo, la lista de **cambios de fase** del
-tramo que se ve (cuándo pasó de neutral a positivo, etc., con el umbral de
-cada índice); tocando una fecha se hace zoom ahí.
+Tocando cualquier curva se abre **ampliada**, y se maneja como un mapa:
+**ruedita** del mouse (o **pellizcar** en el celular, o los botones ＋ －) para
+el zoom, **arrastrar** para moverse en el tiempo (o ◀ ▶ y las flechas del
+teclado), y pasando el mouse o tocando un punto se ve su valor y fecha.
+Abajo está la **serie entera** con un recuadro de lo que se ve: arrastrándolo
+se va a otra época. Se cargan 10 años de los diarios y la serie completa de
+los demás, y se arranca en el último año ("Ver: 6 meses … todo" cambia el
+largo). Debajo, la lista de **cambios de fase** del tramo que se ve (cuándo
+pasó de neutral a positivo, etc., con el umbral de cada índice); tocando una
+fecha se va ahí.
 
 | Índice | Qué mide | Frecuencia | Fuente |
 |---|---|---|---|
