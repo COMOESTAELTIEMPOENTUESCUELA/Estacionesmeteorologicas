@@ -221,6 +221,21 @@ img.con-fondo { background-color: #fff !important; background-size: 100% 100%; b
 /* Secciones de la pestaña Cartas: Pronóstico (lo que viene) y Diagnóstico
    (lo que pasó), bien distinguidas: banda con su color y borde del mismo color
    en las tarjetas de cada una. */
+/* Botonera de arriba: Pronóstico / Diagnóstico / Pronóstico del grupo. Cada
+   una muestra solo sus tarjetas (las que tienen ese data-cvista). */
+.cartas-nav { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+@media (max-width: 720px) { .cartas-nav { grid-template-columns: 1fr; } }
+.cartas-nav button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 12px 16px; border-radius: 10px;
+  border: 2px solid var(--borde); background: var(--superficie); color: var(--tinta); cursor: pointer; font: inherit; text-align: left; }
+.cartas-nav button b { font-size: 17px; }
+.cartas-nav button span { font-size: 12.5px; color: var(--tinta-2); }
+.cartas-nav button.pron[aria-selected="true"] { border-color: var(--s7); background: color-mix(in srgb, var(--s7) 14%, var(--superficie)); }
+.cartas-nav button.diag[aria-selected="true"] { border-color: var(--s3); background: color-mix(in srgb, var(--s3) 14%, var(--superficie)); }
+.cartas-nav button.grupo[aria-selected="true"] { border-color: var(--s2); background: color-mix(in srgb, var(--s2) 14%, var(--superficie)); }
+.cartas-nav button:not([aria-selected="true"]):hover { border-color: var(--eje); }
+.cv-oculta { display: none !important; }
+.cartas-seccion.grupo { background: color-mix(in srgb, var(--s2) 12%, transparent); border: 1px solid color-mix(in srgb, var(--s2) 40%, transparent); }
+.cartas-seccion.grupo .etq { background: var(--s2); }
 .cartas-seccion { display: flex; align-items: center; gap: 14px; margin: 18px 0 10px; padding: 10px 14px; border-radius: 10px; }
 .cartas-seccion:first-child { margin-top: 0; }
 .cartas-seccion h2 { margin: 0; font-size: 19px; }
@@ -231,8 +246,9 @@ img.con-fondo { background-color: #fff !important; background-size: 100% 100%; b
 .cartas-seccion.pron .etq { background: var(--s7); }
 .cartas-seccion.diag { background: color-mix(in srgb, var(--s3) 12%, transparent); border: 1px solid color-mix(in srgb, var(--s3) 40%, transparent); }
 .cartas-seccion.diag .etq { background: var(--s3); }
-#cpr { border-left: 5px solid var(--s7); }
-#c-analisis, #cp, #cmd, #co { border-left: 5px solid var(--s3); }
+#cpr, #cpm { border-left: 5px solid var(--s7); }
+#c-analisis, #cmd, #co { border-left: 5px solid var(--s3); }
+#cp { border-left: 5px solid var(--s2); }
 #tab-cartas > .tarjeta + .tarjeta { margin-top: 16px; }
 .c-grupos { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; margin: 8px 0 2px; font-size: 13px; }
 .c-grupo { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border: 1px solid var(--borde); border-radius: 99px;
@@ -758,11 +774,16 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
 
   <!-- ============================ CARTAS ============================ -->
   <section id="tab-cartas" hidden>
-    <div class="cartas-seccion pron" id="sec-pron" hidden>
+    <div class="cartas-nav" id="cartas-nav" role="tablist" aria-label="Qué mirar">
+      <button role="tab" data-cvista="pron" class="pron"><b>Pronóstico</b><span>cartas del GFS y meteograma</span></button>
+      <button role="tab" data-cvista="diag" class="diag"><b>Diagnóstico</b><span>lo que pasó: análisis, satélite, observaciones</span></button>
+      <button role="tab" data-cvista="grupo" class="grupo"><b>Pronóstico del grupo</b><span>contra lo observado</span></button>
+    </div>
+    <div class="cartas-seccion pron" id="sec-pron" data-cvista="pron" hidden>
       <span class="etq">Pronóstico</span>
       <div><p>Cartas del GFS de la última corrida, de +0 a +192 h (modelo: sirve como guía).</p></div>
     </div>
-    <div class="tarjeta" id="cpr" hidden tabindex="-1">
+    <div class="tarjeta" id="cpr" data-cvista="pron" hidden tabindex="-1">
       <div class="filtros">
         <h2 style="margin:0; font-size:18px; flex:1 1 280px">Pronóstico GFS <span class="tenue" style="font-weight:400">(con el formato de las cartas de Bentley)</span></h2>
         <label class="en-linea">Corrida <select id="cpr-corrida"></select></label>
@@ -822,12 +843,19 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
       <div class="cartas-grid cpr-grid" id="cpr-grid"></div>
       <p class="ayuda cpr-pos" id="cpr-pos">&nbsp;</p>
     </div>
-    <div class="cartas-seccion diag" id="sec-diag">
-      <span class="etq">Diagnóstico</span>
-      <div><p>Análisis de cada hora (cartas archivadas, satélite, observaciones), el pronóstico del grupo contra lo observado,
-          el meteograma y el corte tiempo-altura de la fecha elegida.</p></div>
+    <div class="tarjeta" id="cpm" data-cvista="pron">
+      <div class="filtros">
+        <h2 style="margin:0; font-size:18px; flex:1 1 280px" id="cpm-titulo">Meteograma del pronóstico</h2>
+        <label class="en-linea">Ciudad <select id="cpm-ciudad"><option>La Plata</option></select></label>
+      </div>
+      <p class="ayuda" id="cpm-nota"></p>
+      <div id="cpm-paneles"></div>
     </div>
-    <div class="tarjeta" id="c-analisis">
+    <div class="cartas-seccion diag" id="sec-diag" data-cvista="diag">
+      <span class="etq">Diagnóstico</span>
+      <div><p>Análisis de cada hora (cartas archivadas, satélite, observaciones), el meteograma y el corte tiempo-altura de la fecha elegida.</p></div>
+    </div>
+    <div class="tarjeta" id="c-analisis" data-cvista="diag">
       <div class="filtros">
         <label>Fecha <input type="date" id="f-c-fecha"></label>
         <label>Hora
@@ -870,9 +898,16 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
         ahí se hace zoom con la rueda del mouse (o pellizcando en el celular), se mueve arrastrando,
         doble clic acerca o vuelve, y ← → cambian la hora sin perder el zoom (↑ ↓ cambian de carta).</p>
     </div>
-    <div class="tarjeta" id="cp" style="margin-top:16px">
+    <div class="cartas-seccion grupo" id="sec-grupo" data-cvista="grupo">
+      <span class="etq">Pronóstico del grupo</span>
+      <div><p>Lo que pronosticó el grupo para cada ciudad contra lo que se observó ese día. Para los errores acumulados: pestaña Verificación (o Mi perfil).</p></div>
+    </div>
+    <div class="tarjeta" id="cp" data-cvista="grupo">
       <div class="filtros">
         <h2 style="margin:0; font-size:18px; flex:1 1 280px" id="cp-titulo">Pronóstico del grupo</h2>
+        <button class="boton" id="cp-ant" title="Un día antes">‹ día</button>
+        <input type="date" id="cp-fecha">
+        <button class="boton" id="cp-sig" title="Un día después">día ›</button>
         <label>Pronóstico
           <select id="f-cp-plazo">
             <option value="0">del mismo día</option>
@@ -892,7 +927,7 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
         <span class="err e-ok">≤2</span> <span class="err e-medio">≤4</span> <span class="err e-mal">&gt;4 °C</span>;
         ▲ hizo más calor de lo pronosticado, ▼ más frío. Tocá una ciudad para ver el pronóstico por período; "Ogimet ↗" abre los SYNOP de su aeropuerto para ese día (horas en UTC: el día civil va de las 03 UTC a las 03 UTC del día siguiente; la lluvia de 24 h y los extremos están en el parte de las 12 UTC del día siguiente).</p>
     </div>
-    <div class="tarjeta" id="cmd" style="margin-top:16px">
+    <div class="tarjeta" id="cmd" data-cvista="diag">
       <div class="filtros">
         <h2 style="margin:0; font-size:18px; flex:1 1 280px">Diagnóstico por ciudad <span class="tenue" style="font-weight:400">(lo que pasó: superficie medida y GFS en altura)</span></h2>
         <label class="en-linea">Ciudad <select id="cmd-ciudad"><option>La Plata</option></select></label>
@@ -920,7 +955,7 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
         </ul>
       </details>
     </div>
-    <div class="tarjeta" id="co" style="margin-top:16px">
+    <div class="tarjeta" id="co" data-cvista="diag">
       <h2 style="margin:0 0 4px; font-size:18px" id="co-titulo">Observaciones de la hora</h2>
       <p class="ayuda" id="co-nota"></p>
       <div class="panel-titulo">Estaciones del SMN <span class="tenue">(el SYNOP de esa hora)</span></div>
@@ -1529,7 +1564,9 @@ function panel(canvas, datasets, { unidad, tipo = "line", xmin, xmax, min, max, 
   const tinta2 = css("--tinta-2"), tenue = css("--tenue"), grilla = css("--grilla");
   // marca: una línea vertical punteada en ese instante (ej. la hora de la carta).
   const lineaMarca = marca === undefined ? [] : [{ id: "marca", afterDatasetsDraw(chart) {
-    const x = chart.scales.x.getPixelForValue(marca), { top, bottom, left, right } = chart.chartArea;
+    const valor = typeof marca === "function" ? marca() : marca;
+    if (valor === null || valor === undefined) return;
+    const x = chart.scales.x.getPixelForValue(valor), { top, bottom, left, right } = chart.chartArea;
     if (x < left || x > right) return;
     const ctx = chart.ctx; ctx.save(); ctx.setLineDash([4, 3]); ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, bottom);
     ctx.lineWidth = 1.5; ctx.strokeStyle = css("--tinta-2"); ctx.stroke(); ctx.restore();
@@ -2374,6 +2411,7 @@ async function cargarPronosticoGFS(corrida = null) {
   // Precargar las imágenes de la corrida, para que la animación y el teclado sean fluidos.
   cpr.productos.forEach((p) => p.cuadros.forEach((c) => { const im = new Image(); im.src = c.url; }));
   mostrarPlazoGFS();
+  cargarMeteogramaPron();
 }
 
 const validaGFS = (plazo, inicio = cpr.inicio) => new Date(+inicio + plazo * HORA);
@@ -2470,6 +2508,7 @@ function mostrarPlazoGFS() {
   g.classList.toggle("puntos", $("#cpr-ciudades").checked);
   g.innerHTML = html;
   aplicarZoomGFS();
+  marcarPlazoMeteograma();
   if (!verif) document.querySelectorAll("#cpr-dias button").forEach((b) =>
     b.classList.toggle("actual", fmtDia.format(validaGFS(cpr.plazos[Number(b.dataset.k)])) === fmtDia.format(validaGFS(plazo))));
   try { localStorage.setItem("gfs-vista", JSON.stringify({ vista: cpr.vista, a: cpr.a, b: cpr.b, delta: $("#cpr-delta").value,
@@ -2657,7 +2696,24 @@ function iniciarPronosticoGFS() {
   cargarPronosticoGFS();
 }
 
+// Botonera de arriba: muestra solo las tarjetas de la sección elegida.
+function verSeccionCartas(v) {
+  document.querySelectorAll("#tab-cartas [data-cvista]").forEach((el) => {
+    if (el.closest("#cartas-nav")) el.setAttribute("aria-selected", String(el.dataset.cvista === v));
+    else el.classList.toggle("cv-oculta", el.dataset.cvista !== v);
+  });
+  try { localStorage.setItem("cartas-seccion", v); } catch (_) {}
+  if (v === "grupo" && cpMapa) setTimeout(() => cpMapa.invalidateSize(), 50);
+}
 async function iniciarCartas() {
+  let sec = "pron";
+  try { sec = localStorage.getItem("cartas-seccion") || "pron"; } catch (_) {}
+  verSeccionCartas(sec);
+  $("#cartas-nav").addEventListener("click", (e) => { const b = e.target.closest("button[data-cvista]"); if (b) verSeccionCartas(b.dataset.cvista); });
+  $("#cp-fecha").addEventListener("change", () => { if ($("#cp-fecha").value) { $("#f-c-fecha").value = $("#cp-fecha").value; $("#f-c-hora").value = "12"; cargarCartas(); } });
+  $("#cp-ant").addEventListener("click", () => moverCarta(-24));
+  $("#cp-sig").addEventListener("click", () => moverCarta(24));
+  iniciarMeteogramaPron();
   iniciarPronosticoGFS();
   cartasDisp = await api("/api/cartas/disponibles");
   const claves = Object.keys(cartasDisp);
@@ -2694,6 +2750,7 @@ async function iniciarCartas() {
   document.addEventListener("keydown", (e) => {
     if (teclaGFS(e)) return;            // el teclado lo está usando el pronóstico GFS
     if ($("#tab-cartas").hidden || ["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement.tagName)) return;
+    if ($("#c-analisis").classList.contains("cv-oculta") && !$("#c-dialogo").open) return;   // las flechas mueven las cartas solo en Diagnóstico
     if (e.key === "ArrowLeft") { e.preventDefault(); moverCarta(-6); }
     if (e.key === "ArrowRight") { e.preventDefault(); moverCarta(6); }
     if ($("#c-dialogo").open && e.key === "ArrowUp") { e.preventDefault(); otraCarta(-1); }
@@ -2779,6 +2836,77 @@ async function cargarCartas() {
   cargarPronoDia();
   cargarDiagnostico();
   cargarObsHora(t);
+}
+
+// ---------- Meteograma del pronóstico (GFS en la ciudad, cada plazo) ----------
+// La línea punteada marca el plazo que se está mirando en las cartas del GFS.
+let cpmClave = null;
+function iniciarMeteogramaPron() {
+  try { const c = localStorage.getItem("pron-ciudad"); if (c) $("#cpm-ciudad").innerHTML = `<option>${esc(c)}</option>`; } catch (_) {}
+  $("#cpm-ciudad").addEventListener("change", () => {
+    try { localStorage.setItem("pron-ciudad", $("#cpm-ciudad").value); } catch (_) {}
+    cargarMeteogramaPron();
+  });
+}
+function marcarPlazoMeteograma() {
+  document.querySelectorAll("#cpm-paneles canvas").forEach((c) => { const g = graficosPanel.get(c); if (g) g.draw(); });
+}
+async function cargarMeteogramaPron() {
+  const ciudad = $("#cpm-ciudad").value || "La Plata", corrida = cpr.corrida || "";
+  const clave = `${ciudad}|${corrida}|${cpr.inicio ? +cpr.inicio : ""}`;
+  if (clave === cpmClave) return;
+  cpmClave = clave;
+  let r;
+  try { r = await api(`/api/cartas/pronostico/punto?ciudad=${encodeURIComponent(ciudad)}${corrida ? `&corrida=${corrida}` : ""}`); }
+  catch (err) { $("#cpm-nota").textContent = `No se pudo cargar: ${err.message}`; return; }
+  if (cpmClave !== clave) return;
+  if ($("#cpm-ciudad").options.length < 2) {
+    $("#cpm-ciudad").innerHTML = r.ciudades.map((c) => `<option>${esc(c)}</option>`).join("");
+    $("#cpm-ciudad").value = ciudad;
+  }
+  const P = r.plazos.filter((p) => Object.keys(p).length > 2);
+  if (!P.length) {
+    $("#cpm-paneles").innerHTML = "";
+    $("#cpm-nota").textContent = "Todavía no hay valores del pronóstico en las ciudades: se guardan con cada corrida nueva desde que se instaló esta función.";
+    return;
+  }
+  const ini = Date.parse(r.inicio);
+  $("#cpm-titulo").innerHTML = `Meteograma del pronóstico · ${esc(ciudad)} <span class="tenue" style="font-weight:400">(corrida del ${esc(fmtCorrida(new Date(ini)))})</span>`;
+  $("#cpm-nota").textContent = "El GFS en el punto de la ciudad, cada 6 h hasta +192 h (hora argentina). Es el modelo, a ~50 km de resolución: " +
+    "sirve para ver la evolución (cuándo entra un frente, cuándo llueve), no el valor exacto. La línea punteada es el plazo que estás mirando en las cartas de arriba.";
+  const pts = (f) => P.map((p) => [p.valida, f(p)]).filter(([, v]) => v !== null && v !== undefined);
+  const x = { xmin: ini, xmax: ini + 192 * HORA, marca: () => (cpr.plazos.length && cpr.inicio && +cpr.inicio === ini ? +validaGFS(cpr.plazos[cpr.i]) : null) };
+  const linea = (etq, puntos, slot) => ({ ...serieLinea(etq, puntos, slot), pointRadius: 2 });
+  // Viento con barbas: el campo trae [nudos, dirección].
+  const conBarbas = (etq, sacar, slot, factor = 1) => {
+    const ds = linea(etq, pts((p) => { const v = sacar(p); return v ? +(v[0] * factor).toFixed(1) : null; }), slot);
+    const por = new Map(P.map((p) => [Date.parse(p.valida), sacar(p)]));
+    ds.data.forEach((d) => { const v = por.get(d.x); if (v && d.y !== null) { d.nudos = v[0]; d.dir = v[1]; } });
+    ds.barbas = true;
+    return ds;
+  };
+  const sup = (k) => (p) => (p.sup ? p.sup[k] : null);
+  const paneles = [
+    ["Temperatura y rocío a 2 m", "°C", (cv) => panel(cv, [linea("Temperatura", pts(sup("t")), 2), linea("Rocío", pts(sup("td")), 1)], { unidad: "°C", ...x })],
+    ["Lluvia en 6 h", "mm (cada barra: las 6 h que terminan a esa hora)", (cv) => panel(cv,
+      [{ label: "Lluvia en 6 h", data: pts((p) => p.pp6).map(([t, v]) => ({ x: Date.parse(t), y: v })), backgroundColor: css("--s1"), borderRadius: 2, barThickness: 8 }],
+      { unidad: "mm", tipo: "bar", min: 0, ...x })],
+    ["Presión a nivel del mar", "hPa", (cv) => { const ds = [linea("Presión", pts((p) => p.pnm), 7)];
+      return panel(cv, ds, { unidad: "hPa", rango: rangoAjustado(ds), ticksY: { callback: (v) => String(Math.round(v)) }, ...x }); }],
+    ["Viento a 10 m", "km/h · barbas: de dónde viene (nudos)", (cv) => panel(cv, [conBarbas("Viento", (p) => p.sup && p.sup.v, 1, 1.852)],
+      { unidad: "km/h", min: 0, ...x, complementos: [barbasPuntos] })],
+    ["850 hPa (~1500 m): temperatura y rocío", "°C", (cv) => panel(cv, [linea("T 850", pts((p) => p.t850), 2), linea("Td 850", pts((p) => p.td850), 1)], { unidad: "°C", ...x })],
+    ["Espesor 1000-500 hPa", "dam · baja con el aire frío", (cv) => { const ds = [linea("Espesor", pts((p) => p.espesor), 7)];
+      return panel(cv, ds, { unidad: "dam", rango: rangoAjustado(ds, 2), ...x }); }],
+    ["Viento en altura", "nudos · barbas: de dónde viene", (cv) => panel(cv,
+      [conBarbas("850 hPa", (p) => p.v850, 3), conBarbas("500 hPa", (p) => p.v500, 4), conBarbas("250 hPa (chorro)", (p) => p.v250, 7)],
+      { unidad: "kt", min: 0, ...x, complementos: [barbasPuntos] })],
+    ["Agua precipitable", "mm", (cv) => panel(cv, [linea("Agua precipitable", pts((p) => p.pw), 1)], { unidad: "mm", min: 0, ...x })],
+    ["Inestabilidad (CAPE)", "J/kg", (cv) => panel(cv, [linea("CAPE", pts((p) => p.cape), 5)], { unidad: "J/kg", min: 0, ...x })],
+  ];
+  $("#cpm-paneles").innerHTML = paneles.map(([tit, u], j) => `<div class="panel-titulo">${esc(tit)}${u ? ` <span class="tenue">(${esc(u)})</span>` : ""}</div>
+    <div class="panel cp-panel"><canvas data-j="${j}"></canvas></div>`).join("");
+  paneles.forEach(([, , dibujar], j) => dibujar($(`#cpm-paneles canvas[data-j="${j}"]`)));
 }
 
 // ---------- Diagnóstico por ciudad (meteograma) ----------
@@ -3091,6 +3219,7 @@ async function cargarPronoDia() {
   cpClave = `${dia}|${plazo}`;
   const titulo = `${fmtDiaSemana.format(new Date(`${dia}T12:00:00Z`))} ${Number(dia.slice(8))}/${Number(dia.slice(5, 7))}`;
   $("#cp-titulo").textContent = `Pronóstico del grupo para el ${titulo}`;
+  $("#cp-fecha").value = dia;
   const r = await api(`/api/verificacion/dia?fecha=${dia}&plazo=${plazo}`);
   if (cpClave !== `${dia}|${plazo}`) return;          // llegó tarde: ya se pidió otro día
   const con = r.ciudades.filter((c) => c.pronostico);
@@ -4171,12 +4300,13 @@ $("#cmd-anotar").addEventListener("click", () => {
 function irACartas(ts) {
   abrir("cartas");
   const t = new Date(ts);
-  const ir = () => { $("#f-c-fecha").value = t.toISOString().slice(0, 10); $("#f-c-hora").value = String(t.getUTCHours() - t.getUTCHours() % 6); cargarCartas(); };
+  const ir = () => { verSeccionCartas("diag"); $("#f-c-fecha").value = t.toISOString().slice(0, 10); $("#f-c-hora").value = String(t.getUTCHours() - t.getUTCHours() % 6); cargarCartas(); };
   setTimeout(ir, cargadas.cartas ? 0 : 600);
 }
 async function abrirContexto(c) {
   if (c.seccion === "gfs") {
     abrir("cartas");
+    setTimeout(() => verSeccionCartas("pron"), cargadas.cartas ? 0 : 300);
     await cargarPronosticoGFS(c.corrida && cpr.corridas && cpr.corridas[0] && claveCorrida(cpr.corridas[0].inicio) === c.corrida ? null : c.corrida);
     const k = cpr.plazos.indexOf(Number(c.plazo)); if (k >= 0) cpr.i = k;
     const a = cpr.productos.findIndex((p) => p.id === c.carta); if (a >= 0) cpr.a = a;

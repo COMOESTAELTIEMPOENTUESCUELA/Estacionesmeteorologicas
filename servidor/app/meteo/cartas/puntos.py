@@ -36,6 +36,15 @@ PEDIDOS = ({(v, f"{n} mb") for v in ("TMP", "RH", "HGT", "UGRD", "VGRD") for n i
            | {(v, f"{n} mb") for v in ("SPFH",) for n in (1000, 975, 950, 925, 900, 850, 800, 750, 700,
                                                          650, 600, 550, 500, 450, 400, 350, 300)})
 
+# Para el METEOGRAMA DEL PRONÓSTICO (cada plazo de la corrida): lo de las
+# cartas (estilo_bentley.PEDIDOS) más la superficie, el agua precipitable, el
+# CAPE y la lluvia. La lluvia (APCP) de cada plazo de 6 h es la acumulada en
+# las últimas 6 h: es el primer APCP del índice (el segundo es desde el inicio).
+PEDIDOS_PRONOSTICO = {("PRES", "surface"), ("HGT", "surface"), ("TMP", "2 m above ground"),
+                      ("DPT", "2 m above ground"), ("UGRD", "10 m above ground"), ("VGRD", "10 m above ground"),
+                      ("PWAT", ATM), ("CAPE", "surface"), ("APCP", "surface")}
+CARPETA_PRONOSTICO = "_pronostico/_puntos"
+
 
 def valor(campo, lon, lat):
     """Interpolación bilineal en la grilla regular del campo (lat de norte a sur)."""
@@ -97,6 +106,9 @@ def extraer(campos, puntos=None):
             u, v = x("UGRD", f"{n} mb"), x("VGRD", f"{n} mb")
             if u is not None and v is not None:
                 r[f"v{n}"] = viento(u, v)
+        pp = x("APCP", "surface")
+        if pp is not None:
+            r["pp6"] = round(max(pp, 0.0), 1)                                 # mm en las últimas 6 h
         abs500 = x("ABSV", "500 mb")
         if abs500 is not None:
             f = 2 * 7.2921e-5 * math.sin(math.radians(lat))
@@ -176,5 +188,41 @@ def guardar(raiz, ts, valores):
 def leer(raiz, ts):
     try:
         return json.loads(ruta(raiz, ts).read_text(encoding="utf-8"))
+    except (FileNotFoundError, ValueError):
+        return None
+
+
+# ---------------------------------------------------------------------------
+# Pronóstico: los valores de cada plazo de una corrida, en un solo archivo
+# ---------------------------------------------------------------------------
+def ruta_pronostico(raiz, inicio):
+    return Path(raiz) / "cartas" / CARPETA_PRONOSTICO / f"gfs_{inicio.astimezone(timezone.utc):%Y%m%d%H}.json"
+
+
+def guardar_pronostico(raiz, inicio, por_plazo, conservar=None, ahora=None):
+    """por_plazo: {plazo: {ciudad: valores}} (sin el perfil). Con conservar
+    (timedelta), borra las corridas más viejas que eso."""
+    from datetime import datetime
+    destino = ruta_pronostico(raiz, inicio)
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    tmp = destino.with_suffix(".tmp")
+    tmp.write_text(json.dumps({"inicio": inicio.astimezone(timezone.utc).isoformat(),
+                               "plazos": {str(p): v for p, v in sorted(por_plazo.items())}},
+                              ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    tmp.replace(destino)
+    if conservar is not None:
+        limite = (ahora or datetime.now(timezone.utc)) - conservar
+        for f in destino.parent.glob("gfs_*.json"):
+            try:
+                t = datetime.strptime(f.stem[4:], "%Y%m%d%H").replace(tzinfo=timezone.utc)
+            except ValueError:
+                continue
+            if t < limite:
+                f.unlink(missing_ok=True)
+
+
+def leer_pronostico(raiz, inicio):
+    try:
+        return json.loads(ruta_pronostico(raiz, inicio).read_text(encoding="utf-8"))
     except (FileNotFoundError, ValueError):
         return None

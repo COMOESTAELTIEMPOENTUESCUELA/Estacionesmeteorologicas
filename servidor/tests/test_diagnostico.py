@@ -144,6 +144,10 @@ def test_pronostico_gfs_todos_los_plazos_de_la_ultima_corrida(tmp_path, monkeypa
     assert descarga._correr_pronostico_gfs(productos, tmp_path, Sesion(), ahora, analisis=analisis) == 33 * 4
     # El +0 h queda archivado para siempre como carta de análisis de esa hora.
     assert descarga.archivo.existe(tmp_path, "ana_ivt", datetime(2026, 10, 29, 6, tzinfo=UTC))
+    # Y los valores en cada ciudad de cada plazo, para el meteograma del pronóstico.
+    from meteo.cartas import puntos
+    vp = puntos.leer_pronostico(tmp_path, datetime(2026, 10, 29, 6, tzinfo=UTC))
+    assert len(vp["plazos"]) == 33 and "La Plata" in vp["plazos"]["48"]
     d = pronostico.leer(tmp_path, "pro_ivt")
     assert d["inicio"] == "2026-10-29T06:00:00+00:00" and len(d["cuadros"]) == 33
     assert d["cuadros"][-1]["plazo_h"] == 192 and d["cuadros"][-1]["valida"] == "2026-11-06T06:00:00+00:00"
@@ -344,3 +348,13 @@ def test_bajar_radiosondeos_de_igra(tmp_path):
     pedidos.clear()
     assert descarga._correr_sondeos(est, tmp_path, Sesion(), ahora=t + timedelta(hours=2)) == 0 and not pedidos  # antes de 6 h
     assert descarga._correr_sondeos(est, tmp_path, Sesion(), ahora=t + timedelta(hours=7)) == 0 and pedidos     # ya estaba
+
+
+def test_lluvia_de_6_horas_en_el_punto():
+    """La lluvia del pronóstico (APCP de las últimas 6 h) en la ciudad."""
+    from meteo.cartas import puntos
+    from meteo.cartas.gfs import Campo
+    lat = np.arange(-30, -40.1, -0.5)
+    lon = np.arange(-62, -54.9, 0.5)
+    campos = {("APCP", "surface"): Campo(lat, lon, np.full((len(lat), len(lon)), 7.25))}
+    assert puntos.extraer(campos, {"X": (-34.92, -57.95)})["X"]["pp6"] == 7.2

@@ -456,3 +456,19 @@ def test_api_sondeo(cliente, tmp_path, monkeypatch):
     assert "cape" in d["gfs"]["indices"] and d["real"]["nombre"] == "Ezeiza" and "pw" in d["real"]["indices"]
     sin = cliente.get("/api/cartas/sondeo?ciudad=La Plata&ts=2026-10-29T18:00Z").json()
     assert sin["gfs"] is None and sin["real"] is None
+
+
+def test_api_meteograma_del_pronostico(cliente, tmp_path, monkeypatch):
+    from datetime import datetime, timezone
+
+    from meteo.cartas import puntos
+    from meteo.web import app as web
+    monkeypatch.setattr(web, "ARCHIVO_DIR", str(tmp_path))
+    assert cliente.get("/api/cartas/pronostico/punto?ciudad=La Plata").json()["plazos"] == []
+    ini = datetime(2026, 11, 1, 0, tzinfo=timezone.utc)
+    puntos.guardar_pronostico(tmp_path, ini, {0: {"La Plata": {"pnm": 1015}}, 6: {"La Plata": {"pnm": 1012, "pp6": 3.5}}})
+    d = cliente.get("/api/cartas/pronostico/punto?ciudad=La Plata").json()
+    assert d["inicio"] == "2026-11-01T00:00:00Z"
+    assert d["plazos"][1] == {"plazo": 6, "valida": "2026-11-01T06:00:00Z", "pnm": 1012, "pp6": 3.5}
+    assert cliente.get("/api/cartas/pronostico/punto?ciudad=La Plata&corrida=2026110100").json()["plazos"][0]["pnm"] == 1015
+    assert cliente.get("/api/cartas/pronostico/punto?ciudad=Narnia").status_code == 404

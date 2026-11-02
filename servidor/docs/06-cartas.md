@@ -283,13 +283,25 @@ docker compose exec ingesta python -m meteo.ingesta diagnostico-ogimet
 
 ## Orden de la pestaña Cartas
 
-Dos secciones bien separadas, cada una con su banda y su color (también en
-el borde de sus tarjetas):
+Arriba, tres botones; cada uno muestra solo su parte (se recuerda en el
+navegador), con su color en la banda y en el borde de sus tarjetas:
 
-1. **Pronóstico** (violeta): la tarjeta "Pronóstico GFS".
-2. **Diagnóstico** (verde): las cartas de análisis de cada
-   hora, el pronóstico del grupo contra lo observado, el meteograma con el
-   corte tiempo-altura y las observaciones de la hora.
+1. **Pronóstico** (violeta): las cartas del GFS y el **meteograma del
+   pronóstico** (el GFS en la ciudad, cada 6 h hasta +192 h: temperatura y
+   rocío a 2 m, lluvia en 6 h, presión, viento a 10 m, 850 hPa, espesor,
+   vientos en altura, agua precipitable y CAPE). La línea punteada del
+   meteograma marca el plazo que se está mirando en las cartas.
+2. **Diagnóstico** (verde): las cartas de análisis de cada hora, el
+   diagnóstico por ciudad (meteograma de lo que pasó y corte tiempo-altura)
+   y las observaciones de la hora. Las flechas del teclado mueven las cartas
+   de análisis solo en esta sección.
+3. **Pronóstico del grupo** (naranja): lo que pronosticó el grupo contra lo
+   observado, con su propio selector de día.
+
+Los valores del meteograma del pronóstico se guardan con cada corrida (los
+mismos archivos que las cartas, más superficie, agua precipitable, CAPE y la
+lluvia de las últimas 6 h): `cartas/_pronostico/_puntos/gfs_AAAAMMDDHH.json`,
+8 días como las cartas. API: `/api/cartas/pronostico/punto?ciudad=[&corrida=]`.
 
 En las cartas de análisis, los casilleros **"Mostrar:"** ocultan o muestran
 cada grupo: Modelo (análisis del GFS y de Bentley), Satélite, Rayos (GLM) y

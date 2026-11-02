@@ -388,7 +388,7 @@ def _correr_pronostico_gfs(productos, raiz, sesion, ahora=None, analisis=()):
     analisis: productos (fuente gfs_analisis) donde se ARCHIVA para siempre el
     +0 h de cada corrida, como las cartas de análisis de cada hora.
     Devuelve cuántas imágenes dibujó."""
-    from . import estilo_bentley as eb, gfs, pronostico
+    from . import estilo_bentley as eb, gfs, pronostico, puntos
     inicio = _ultima_corrida_gfs(sesion, eb.PLAZOS[-1], ahora)
     if inicio is None:
         return 0
@@ -400,9 +400,11 @@ def _correr_pronostico_gfs(productos, raiz, sesion, ahora=None, analisis=()):
     log.info("cartas: pronóstico GFS de la corrida %s, dibujando %d plazos", inicio, len(eb.PLAZOS))
     tmps = {p["id"]: pronostico.empezar(raiz, p["id"]) for p in productos}
     cuadros = {p["id"]: [] for p in productos}
+    valores = {}            # para el meteograma del pronóstico: {plazo: {ciudad: valores}}
     try:
         for plazo in eb.PLAZOS:
-            campos = _bajar_gfs(inicio, eb.PEDIDOS, eb.REGION, sesion, plazo=plazo)
+            campos = _bajar_gfs(inicio, eb.PEDIDOS | puntos.PEDIDOS_PRONOSTICO, eb.REGION, sesion, plazo=plazo)
+            valores[plazo] = {c: {k: v for k, v in x.items() if k != "perfil"} for c, x in puntos.extraer(campos).items()}
             imagenes = eb.dibujar(campos, inicio, plazo)
             if plazo == 0:
                 for p in analisis:
@@ -420,6 +422,7 @@ def _correr_pronostico_gfs(productos, raiz, sesion, ahora=None, analisis=()):
     for p in productos:
         pronostico.publicar(raiz, p["id"], tmps[p["id"]], inicio, cuadros[p["id"]],
                             conservar=GFS_PRONO_CONSERVAR, ahora=ahora, extra=extra)
+    puntos.guardar_pronostico(raiz, inicio, valores, conservar=GFS_PRONO_CONSERVAR, ahora=ahora)
     log.info("cartas: pronóstico GFS de la corrida %s listo (%d plazos)", inicio, len(eb.PLAZOS))
     return len(eb.PLAZOS) * len(productos)
 

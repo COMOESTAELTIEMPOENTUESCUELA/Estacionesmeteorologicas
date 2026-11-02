@@ -779,6 +779,30 @@ def cartas_pronostico(corrida: str | None = None):
     return {"productos": salida, "ciudades": ciudades}
 
 
+@app.get("/api/cartas/pronostico/punto")
+def pronostico_punto(ciudad: str, corrida: str | None = None):
+    """Meteograma del PRONÓSTICO: los valores del GFS en la ciudad para cada
+    plazo de una corrida (la última, o corrida=AAAAMMDDHH)."""
+    from ..cartas import puntos
+    from ..ciudades import PUNTOS_GFS
+    if ciudad not in PUNTOS_GFS:
+        raise HTTPException(404, "ciudad desconocida")
+    if corrida and not (len(corrida) == 10 and corrida.isdigit()):
+        raise HTTPException(400, "corrida: AAAAMMDDHH")
+    if corrida:
+        inicio = datetime.strptime(corrida, "%Y%m%d%H").replace(tzinfo=timezone.utc)
+    else:
+        # La última corrida que tiene los valores guardados.
+        archivos = sorted((Path(ARCHIVO_DIR) / "cartas" / puntos.CARPETA_PRONOSTICO).glob("gfs_*.json"))
+        if not archivos:
+            return {"ciudad": ciudad, "inicio": None, "plazos": [], "ciudades": list(PUNTOS_GFS)}
+        inicio = datetime.strptime(archivos[-1].stem[4:], "%Y%m%d%H").replace(tzinfo=timezone.utc)
+    d = puntos.leer_pronostico(ARCHIVO_DIR, inicio) or {"plazos": {}}
+    filas = [{"plazo": int(p), "valida": _iso(inicio + timedelta(hours=int(p))), **(v.get(ciudad) or {})}
+             for p, v in sorted(d["plazos"].items(), key=lambda x: int(x[0]))]
+    return {"ciudad": ciudad, "inicio": _iso(inicio) if d["plazos"] else None, "plazos": filas, "ciudades": list(PUNTOS_GFS)}
+
+
 @app.get("/api/cartas/punto")
 def diagnostico_punto(ciudad: str, desde: datetime, hasta: datetime, perfiles: bool = False):
     """Meteograma de diagnóstico de una ciudad: lo que pasó arriba (los
