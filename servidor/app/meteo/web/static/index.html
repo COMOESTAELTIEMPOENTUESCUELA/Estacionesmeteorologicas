@@ -187,6 +187,15 @@ td.nw { white-space: nowrap; }
 .num { text-align: right; }
 .cartas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(480px, 100%), 1fr)); gap: 14px; }
 /* Placa: todas las cartas de la hora en una pantalla, como la placa del equipo */
+/* Cartas de análisis en filas por origen, con la leyenda a la izquierda. */
+.c-filas { display: flex; flex-direction: column; gap: 12px; }
+.c-fila { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 10px; align-items: start; }
+.c-fila-etq { position: sticky; top: 8px; padding: 10px 12px; border-radius: 8px; font-size: 12.5px; line-height: 1.35;
+  background: var(--ins-tarjeta, var(--superficie)); border-left: 4px solid var(--s3); color: var(--ins-tinta, var(--tinta)); }
+.c-fila-etq b { display: block; font-size: 13.5px; margin-bottom: 2px; }
+.c-fila-etq.propia { border-left-color: var(--s7); }
+.c-fila-etq.externa { border-left-color: var(--s4); }
+@media (max-width: 720px) { .c-fila { grid-template-columns: minmax(0, 1fr); } .c-fila-etq { position: static; } }
 .cartas-grid.placa { grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 8px; }
 .cartas-grid.placa .carta figcaption { font-size: 12px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .carta { margin: 0; }
@@ -890,7 +899,7 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
       </div>
       <h2 id="c-titulo" style="margin:4px 0 2px; font-size:20px"></h2>
       <p class="ayuda" id="c-nota"></p>
-      <div class="cartas-grid" id="c-grid"></div>
+      <div class="c-filas" id="c-grid"></div>
       <p class="ayuda" style="margin-top:12px">Cartas de diagnóstico (análisis, no pronóstico) que el servidor archiva solo, cada hora.
         Fuentes: <a href="https://www.atmos.albany.edu/student/abentley/realtime.html" target="_blank" rel="noopener">Alicia Bentley</a> (análisis GFS),
         satélite GOES-19 (NOAA) y <a href="https://www.ogimet.com/" target="_blank" rel="noopener">Ogimet</a> (observaciones; la precipitación de 24 h y las temperaturas extremas se informan a las 12 UTC).
@@ -2774,6 +2783,15 @@ const tituloCarta = (p) => (p.nivel ? p.nivel + " · " : "") + p.nombre;
 // Ogimet entre sí): un mismo punto de la imagen es el mismo lugar del mapa.
 // "grupo" en el YAML junta cartas de distinta fuente con el mismo marco (ej.
 // las de Bentley y nuestras cartas de análisis con su formato).
+// De dónde sale cada carta: la leyenda a la izquierda de cada fila.
+const ORIGEN_CARTAS = {
+  gfs_analisis: { clave: "gfs", tipo: "propia", titulo: "GFS · cartas propias", texto: "Generadas en el servidor a partir del análisis de la corrida del GFS (NOAA)." },
+  gfs: { clave: "gfs", tipo: "propia", titulo: "GFS · cartas propias", texto: "Generadas en el servidor a partir del análisis de la corrida del GFS (NOAA)." },
+  bentley: { clave: "bentley", tipo: "externa", titulo: "Alicia Bentley", texto: "Descargadas de la página de Alicia Bentley (Universidad de Albany): análisis del GFS." },
+  star: { clave: "star", tipo: "externa", titulo: "Satélite GOES-19", texto: "Imágenes de NOAA (STAR)." },
+  glm: { clave: "glm", tipo: "propia", titulo: "Rayos", texto: "Generados en el servidor con el GLM del GOES-19 (NOAA)." },
+  ogimet: { clave: "ogimet", tipo: "externa", titulo: "Observaciones SYNOP", texto: "Mapas descargados de Ogimet." },
+};
 // Grupos de cartas que se pueden mostrar u ocultar (casilleros "Mostrar:").
 const GRUPOS_FUENTE = { bentley: "modelo", gfs_analisis: "modelo", gfs: "modelo", star: "satelite", glm: "rayos", ogimet: "synop" };
 function gruposVisibles() {
@@ -2813,8 +2831,15 @@ async function cargarCartas() {
   // En la placa no se ocupa lugar con las cartas que no corresponden a esta hora.
   // Las que ya no se bajan (ej. Bentley) aparecen solo donde hay algo archivado.
   const mostrar = (placa ? deLaHora : r.productos).filter((p) => (p.url || !p.solo_archivo) && cartaVisible(p, visibles));
-  $("#c-grid").classList.toggle("placa", placa);
-  $("#c-grid").innerHTML = mostrar.map((p) => `<figure class="carta">
+  // En filas por origen (en el orden del YAML), cada una con su leyenda.
+  const filas = [];
+  for (const p of mostrar) {
+    const o = ORIGEN_CARTAS[p.fuente] || { clave: p.fuente, titulo: p.fuente, texto: "" };
+    let f = filas.find((x) => x.o.clave === o.clave);
+    if (!f) filas.push(f = { o, cartas: [] });
+    f.cartas.push(p);
+  }
+  const figura = (p) => `<figure class="carta">
       <figcaption title="${esc(tituloCarta(p))}${dibujosDe(p, t).length ? " (con análisis dibujado)" : ""}">${dibujosDe(p, t).length ? "✏️ " : ""}<b>${esc(p.nivel || "")}</b> · ${esc(p.nombre)}</figcaption>
       ${p.url ? `<div class="carta-img" data-grupo="${esc(grupoCarta(p))}">${imgCarta(p, ` loading="lazy" data-id="${esc(p.id)}"`, placa)}${dibujosDe(p, t).map(svgDibujo).join("")}<div class="cruz" hidden></div></div>`
         : !p.horas_utc.includes(t.getUTCHours())
@@ -2823,7 +2848,10 @@ async function cargarCartas() {
           : p.solo_con_tormenta
             ? '<div class="falta chica">Sin tormentas informadas en la región a esta hora (solo se arma cuando algún SYNOP informa tormenta)</div>'
             : '<div class="falta">No archivada para esta hora</div>'}
-    </figure>`).join("");
+    </figure>`;
+  $("#c-grid").innerHTML = filas.map((f) => `<div class="c-fila">
+      <div class="c-fila-etq ${f.o.tipo || ""}"><b>${esc(f.o.titulo)}</b>${esc(f.o.texto)}</div>
+      <div class="cartas-grid${placa ? " placa" : ""}">${f.cartas.map(figura).join("")}</div></div>`).join("");
   document.querySelectorAll("#c-grid .c-ir-hora").forEach((b) => b.addEventListener("click", () => {
     $("#f-c-hora").value = b.dataset.hora; cargarCartas();
   }));
