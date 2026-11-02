@@ -99,7 +99,10 @@ estaciones:
         field1: temp
         field4: hum
         field5: precip
-        field6: pres_est
+        # La presión llega REDUCIDA AL NIVEL DEL MAR (verificado el 2/11/2026:
+        # Campbell - presión de estación del SMN = +2,41 hPa en 1417 horas, y el
+        # SMN reduce 2,75 hPa; o sea Campbell = nivel del mar del SMN - 0,3).
+        field6: pnm
         # El viento llega en km/h: se pasa a m/s (verificado contra La Plata
         # Aero el 10/10/2026: 13 "m/s" vs 4,3 m/s; dividido 3,6 coincide).
         field7: {variable: viento_vel, factor: 0.277778}
