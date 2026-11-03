@@ -114,7 +114,8 @@ def usuario_actual(request: Request):
     token = request.cookies.get(COOKIE)
     if token and _pools:
         filas = _leer("""
-            SELECT u.id, u.email, u.nombre, u.rol, u.firmas FROM sesion s JOIN usuario u ON u.id = s.usuario_id
+            SELECT u.id, u.email, u.nombre, u.rol, u.firmas, u.bio, u.metricas_publicas
+            FROM sesion s JOIN usuario u ON u.id = s.usuario_id
             WHERE s.huella = %s AND s.expira > now() AND u.activo""", (_huella(token),))
         u = filas[0] if filas else None
     request.state.usuario = u
@@ -132,6 +133,12 @@ def requiere_usuario(request: Request):
 
 def es_coordinador(u):
     return u["rol"] in ("coordinador", "admin")
+
+
+def puede_ver_metricas(u, de):
+    """Las métricas de alguien las ve esa persona, los coordinadores y, si
+    eligió mostrarlas, todo el grupo."""
+    return de.get("id") == u["id"] or es_coordinador(u) or bool(de.get("metricas_publicas"))
 
 
 # ---------------------------------------------------------------------------
@@ -263,16 +270,17 @@ def mis_pronosticos(request: Request, desde: date | None = None, hasta: date | N
     from ..verificacion import puntajes
     u = requiere_usuario(request)
     quien = u
-    if firma or (usuario_id and usuario_id != u["id"]):
+    if firma:
         if not es_coordinador(u):
-            raise HTTPException(403, "Solo los coordinadores ven las métricas de otros")
-        if firma:
-            quien = {"id": None, "nombre": firma, "firmas": [firma]}
-        else:
-            filas = _leer("SELECT id, email, nombre, rol, firmas FROM usuario WHERE id = %s", (usuario_id,))
-            if not filas:
-                raise HTTPException(404, "usuario desconocido")
-            quien = filas[0]
+            raise HTTPException(403, "Solo los coordinadores ven las métricas de una firma sin usuario")
+        quien = {"id": None, "nombre": firma, "firmas": [firma]}
+    elif usuario_id and usuario_id != u["id"]:
+        filas = _leer("SELECT id, email, nombre, rol, firmas, metricas_publicas FROM usuario WHERE id = %s", (usuario_id,))
+        if not filas:
+            raise HTTPException(404, "usuario desconocido")
+        quien = filas[0]
+        if not puede_ver_metricas(u, quien):
+            raise HTTPException(403, "Sus métricas son privadas (las ven esa persona y los coordinadores)")
     desde, hasta = _rango(desde, hasta)
     salida = {"usuario": {k: quien[k] for k in ("id", "nombre", "firmas")}, "desde": desde, "hasta": hasta,
               "resumen": {}, "dias": []}
@@ -408,16 +416,22 @@ def notas(request: Request, desde: date | None = None, hasta: date | None = None
         cond.append("NOT n.tratada")
     if etiqueta:
         cond.append("%s = ANY(n.etiquetas)"); params.append(etiqueta.lower())
+    return _notas_con_extras(u, cond, params)
+
+
+def _notas_con_extras(u, cond, params, limite=500):
+    """Las notas que cumplen `cond`, con su autor, imagen, comentarios y reacciones."""
     filas = _leer(f"""
         SELECT n.id, n.usuario_id, us.nombre AS autor, n.creada, n.actualizada, n.tipo, n.texto, n.etiquetas,
                n.compartida, n.fecha_evento, n.contexto, n.tratada, n.respuesta, tr.nombre AS tratada_por,
                ni.creada AS captura_el
         FROM nota n JOIN usuario us ON us.id = n.usuario_id LEFT JOIN usuario tr ON tr.id = n.tratada_por
         LEFT JOIN nota_imagen ni ON ni.nota_id = n.id
-        WHERE {' AND '.join(cond)} ORDER BY COALESCE(n.fecha_evento, n.creada::date) DESC, n.creada DESC LIMIT 500""",
+        WHERE {' AND '.join(cond)} ORDER BY COALESCE(n.fecha_evento, n.creada::date) DESC, n.creada DESC LIMIT {int(limite)}""",
                   tuple(params))
     for f in filas:
-        f["mia"] = f.pop("usuario_id") == u["id"]
+        f["autor_id"] = f.pop("usuario_id")
+        f["mia"] = f["autor_id"] == u["id"]
         f["imagen"] = _miniatura(f["contexto"] or {})
         cap = f.pop("captura_el")
         f["captura"] = f"/api/yo/notas/{f['id']}/imagen?v={int(cap.timestamp())}" if cap else None
@@ -431,9 +445,202 @@ def notas(request: Request, desde: date | None = None, hasta: date | None = None
             WHERE c.nota_id = ANY(%s) ORDER BY c.creada""", (ids,)):
             c["mio"] = c.pop("usuario_id") == u["id"]
             comentarios.setdefault(c.pop("nota_id"), []).append(c)
+    reac = _reacciones(u, [f"nota:{f['id']}" for f in filas])
     for f in filas:
         f["comentarios"] = comentarios.get(f["id"], [])
+        f["reacciones"] = reac.get(f"nota:{f['id']}", {"conteo": {}, "mias": []})
     return filas
+
+
+# ---------------------------------------------------------------------------
+# Red del grupo: reacciones, comentarios en los pronósticos, perfil y el muro
+# ---------------------------------------------------------------------------
+TIPOS_REACCION = ("util", "acuerdo", "duda", "aplauso")
+
+
+def _reacciones(u, objetos):
+    """{objeto: {"conteo": {tipo: n}, "mias": [tipos], "quienes": {tipo: [nombres]}}}"""
+    if not objetos:
+        return {}
+    salida = {}
+    for r in _leer("""SELECT r.objeto, r.tipo, r.usuario_id, us.nombre FROM reaccion r JOIN usuario us ON us.id = r.usuario_id
+                      WHERE r.objeto = ANY(%s) ORDER BY r.creada""", (list(objetos),)):
+        x = salida.setdefault(r["objeto"], {"conteo": {}, "mias": [], "quienes": {}})
+        x["conteo"][r["tipo"]] = x["conteo"].get(r["tipo"], 0) + 1
+        x["quienes"].setdefault(r["tipo"], []).append(r["nombre"])
+        if r["usuario_id"] == u["id"]:
+            x["mias"].append(r["tipo"])
+    return salida
+
+
+def objeto_pronostico(ciudad, fecha, firma):
+    return f"pron|{ciudad}|{fecha}|{firma}"
+
+
+def _existe_objeto(u, objeto):
+    """¿Existe y lo puede ver? (una nota visible o una publicación de pronóstico)."""
+    if objeto.startswith("nota:") and objeto[5:].isdigit():
+        return bool(_leer("SELECT 1 FROM nota WHERE id = %s AND (compartida OR usuario_id = %s OR %s)",
+                          (int(objeto[5:]), u["id"], u["rol"] == "admin")))
+    partes = objeto.split("|")
+    if len(partes) == 4 and partes[0] == "pron":
+        try:
+            fecha = date.fromisoformat(partes[2])
+        except ValueError:
+            return False
+        return bool(_leer("SELECT 1 FROM pronostico_emision WHERE ciudad = %s AND fecha_pronostico = %s AND publicado_por = %s LIMIT 1",
+                          (partes[1], fecha, partes[3])))
+    return False
+
+
+@router.post("/api/yo/reacciones")
+async def reaccionar(request: Request):
+    """Poner o sacar una reacción (es un interruptor)."""
+    u = requiere_usuario(request)
+    datos = await request.json()
+    objeto, tipo = str(datos.get("objeto") or "")[:300], datos.get("tipo")
+    if tipo not in TIPOS_REACCION:
+        raise HTTPException(400, f"tipo: uno de {', '.join(TIPOS_REACCION)}")
+    if not _existe_objeto(u, objeto):
+        raise HTTPException(404, "No existe o no lo podés ver")
+    if not _escribir("DELETE FROM reaccion WHERE objeto = %s AND usuario_id = %s AND tipo = %s RETURNING 1", (objeto, u["id"], tipo)):
+        _escribir("INSERT INTO reaccion (objeto, usuario_id, tipo) VALUES (%s, %s, %s)", (objeto, u["id"], tipo))
+    return _reacciones(u, [objeto]).get(objeto, {"conteo": {}, "mias": [], "quienes": {}})
+
+
+@router.post("/api/yo/pronostico/comentarios")
+async def comentar_pronostico(request: Request):
+    u = requiere_usuario(request)
+    datos = await request.json()
+    objeto, texto = str(datos.get("objeto") or "")[:300], str(datos.get("texto") or "").strip()
+    if not 1 <= len(texto) <= 2000:
+        raise HTTPException(400, "El comentario tiene que tener entre 1 y 2.000 caracteres")
+    if not objeto.startswith("pron|") or not _existe_objeto(u, objeto):
+        raise HTTPException(404, "Ese pronóstico no existe")
+    return _escribir("INSERT INTO comentario_pronostico (objeto, usuario_id, texto) VALUES (%s, %s, %s) RETURNING id",
+                     (objeto, u["id"], texto))[0]
+
+
+@router.delete("/api/yo/pronostico/comentarios/{comentario_id}")
+def borrar_comentario_pronostico(comentario_id: int, request: Request):
+    u = requiere_usuario(request)
+    if not _escribir("DELETE FROM comentario_pronostico WHERE id = %s AND (usuario_id = %s OR %s) RETURNING id",
+                     (comentario_id, u["id"], u["rol"] == "admin")):
+        raise HTTPException(404, "No existe o no es tuyo")
+    return {"ok": True}
+
+
+@router.put("/api/yo/perfil")
+async def editar_perfil(request: Request):
+    """La presentación propia y si se muestran las métricas al grupo."""
+    u = requiere_usuario(request)
+    datos = await request.json()
+    bio = str(datos.get("bio") or "").strip()[:500] or None
+    _escribir("UPDATE usuario SET bio = %s, metricas_publicas = %s WHERE id = %s",
+              (bio, bool(datos.get("metricas_publicas")), u["id"]))
+    return {"ok": True}
+
+
+HOY_ARG = lambda: datetime.now(timezone(timedelta(hours=-3))).date()
+
+
+@router.get("/api/yo/personas")
+def personas(request: Request):
+    """Quiénes están en el grupo: cada usuario (y las firmas sin usuario), con
+    su actividad de los últimos 90 días y, si se pueden ver, sus números."""
+    from ..verificacion import puntajes
+    u = requiere_usuario(request)
+    hasta = HOY_ARG() - timedelta(days=1)
+    desde = hasta - timedelta(days=90)
+    pares = _pares(_vigentes(desde, hasta), desde, hasta)
+    notas_n = {r["usuario_id"]: r["n"] for r in _leer(
+        "SELECT usuario_id, count(*) AS n FROM nota WHERE compartida OR usuario_id = %s GROUP BY usuario_id", (u["id"],))}
+    salida, con_usuario = [], set()
+    for p in _leer("SELECT id, nombre, rol, firmas, bio, metricas_publicas, ultimo_ingreso FROM usuario WHERE activo ORDER BY nombre"):
+        mias = [f for f in pares if f["pronosticador"] in p["firmas"]]
+        con_usuario.update(p["firmas"])
+        ver = puede_ver_metricas(u, p)
+        salida.append({**p, "notas": notas_n.get(p["id"], 0), "dias_pronosticados": len(mias),
+                       "emisiones": len({(f["ciudad"], f["fecha_emision"]) for f in mias}),
+                       "metricas_visibles": ver, "resumen": puntajes.resumen(mias) if ver and mias else None,
+                       "yo": p["id"] == u["id"]})
+    for firma in sorted({f["pronosticador"] for f in pares if f["pronosticador"]} - con_usuario):
+        mias = [f for f in pares if f["pronosticador"] == firma]
+        ver = es_coordinador(u)
+        salida.append({"id": None, "nombre": firma, "rol": None, "firmas": [firma], "bio": None, "sin_cuenta": True,
+                       "notas": 0, "dias_pronosticados": len(mias), "emisiones": len({(f["ciudad"], f["fecha_emision"]) for f in mias}),
+                       "metricas_visibles": ver, "resumen": puntajes.resumen(mias) if ver else None, "yo": False})
+    return {"desde": desde, "hasta": hasta, "personas": salida}
+
+
+@router.get("/api/yo/muro")
+def muro(request: Request, hasta: date | None = None, dias: int = 7, autor_id: int | None = None, firma: str = ""):
+    """El inicio de la red: notas compartidas (y las propias) y pronósticos
+    publicados, con lo observado, de `dias` días hasta `hasta` (lo más nuevo
+    primero). Con autor_id (o firma), solo lo de esa persona."""
+    u = requiere_usuario(request)
+    hasta = hasta or HOY_ARG()
+    dias = max(1, min(dias, 31))
+    desde = hasta - timedelta(days=dias - 1)
+    firmas = None
+    if autor_id:
+        p = _leer("SELECT firmas FROM usuario WHERE id = %s", (autor_id,))
+        if not p:
+            raise HTTPException(404, "usuario desconocido")
+        firmas = set(p[0]["firmas"])
+    elif firma:
+        firmas = {firma}
+    items = []
+    # Notas: por el día en que se escribieron.
+    if not firma:
+        cond = ["(n.usuario_id = %s OR n.compartida)",
+                "(n.creada AT TIME ZONE 'America/Argentina/Buenos_Aires')::date BETWEEN %s AND %s"]
+        params = [u["id"], desde, hasta]
+        if autor_id:
+            cond.append("n.usuario_id = %s"); params.append(autor_id)
+        for n in _notas_con_extras(u, cond, params, limite=300):
+            items.append({"tipo": "nota", "ts": n["creada"], "nota": n})
+    # Pronósticos: los publicados en el período (con sus 4 días, aunque los
+    # últimos todavía no tengan observación).
+    emisiones = _leer("""
+        SELECT ciudad, fecha_pronostico, publicado_por, max(capturado) AS capturado, bool_or(es_correccion) AS correccion
+        FROM pronostico_emision WHERE fecha_pronostico BETWEEN %s AND %s AND publicado_por IS NOT NULL
+        GROUP BY 1, 2, 3""", (desde, hasta))
+    if firmas is not None:
+        emisiones = [e for e in emisiones if e["publicado_por"] in firmas]
+    if emisiones:
+        pares = _pares(_vigentes(desde, hasta + timedelta(days=6)), desde, hasta + timedelta(days=6))
+        usuarios = {f: x for x in _leer("SELECT id, nombre, firmas FROM usuario WHERE activo") for f in x["firmas"]}
+        por_emision = {}
+        for f in pares:
+            por_emision.setdefault((f["ciudad"], f["fecha_emision"], f["pronosticador"]), []).append(f)
+        objetos = [objeto_pronostico(e["ciudad"], e["fecha_pronostico"], e["publicado_por"]) for e in emisiones]
+        reac = _reacciones(u, objetos)
+        coment = {}
+        for c in _leer("""SELECT c.id, c.objeto, c.usuario_id, us.nombre AS autor, c.creada, c.texto
+                          FROM comentario_pronostico c JOIN usuario us ON us.id = c.usuario_id
+                          WHERE c.objeto = ANY(%s) ORDER BY c.creada""", (objetos,)):
+            c["mio"] = c.pop("usuario_id") == u["id"]
+            coment.setdefault(c.pop("objeto"), []).append(c)
+        for e, obj in zip(emisiones, objetos):
+            filas = sorted(por_emision.get((e["ciudad"], e["fecha_pronostico"], e["publicado_por"]), []), key=lambda f: f["plazo"])
+            if not filas:
+                continue        # todos sus días los corrigió otro: aparece la corrección
+            us = usuarios.get(e["publicado_por"])
+            items.append({"tipo": "pronostico", "ts": e["capturado"], "objeto": obj, "ciudad": e["ciudad"],
+                          "fecha_emision": e["fecha_pronostico"], "firma": e["publicado_por"], "correccion": e["correccion"],
+                          "usuario": {"id": us["id"], "nombre": us["nombre"]} if us else None,
+                          "anticipado": any(f["anticipado"] for f in filas),
+                          "dias": [{"fecha": f["fecha"], "plazo": f["plazo"], "tmin": f["tmin_urbana"], "tmax": f["tmax_urbana"],
+                                    "pp": {"pron": f["pp"]["pron"], "obs": f["pp"]["obs"], "tipo": f["pp"]["tipo"]}} for f in filas],
+                          "reacciones": reac.get(obj, {"conteo": {}, "mias": [], "quienes": {}}),
+                          "comentarios": coment.get(obj, [])})
+    items.sort(key=lambda x: x["ts"], reverse=True)
+    # ¿Hay algo más viejo? (para el botón "Ver más")
+    mas_viejo = _leer("""SELECT least((SELECT min(fecha_pronostico) FROM pronostico_emision),
+                                      (SELECT min(creada)::date FROM nota)) AS f""")[0]["f"]
+    return {"desde": desde, "hasta": hasta, "items": items,
+            "siguiente": (desde - timedelta(days=1)) if mas_viejo and mas_viejo < desde else None}
 
 
 ARCHIVO_DIR = os.environ.get("ARCHIVO_DIR", "/archivo")

@@ -73,3 +73,29 @@ CREATE TABLE IF NOT EXISTS nota_imagen (
     alto     int NOT NULL,
     creada   timestamptz NOT NULL DEFAULT now()
 );
+
+-- La parte "red social" del perfil: una presentación de cada uno, si muestra
+-- sus números al grupo, reacciones y comentarios en las notas y en los
+-- pronósticos publicados.
+ALTER TABLE usuario ADD COLUMN IF NOT EXISTS bio text;
+-- false: sus métricas (errores medios, aciertos) las ven solo él y los
+-- coordinadores. Los pronósticos día por día ya son públicos (Verificación).
+ALTER TABLE usuario ADD COLUMN IF NOT EXISTS metricas_publicas boolean NOT NULL DEFAULT false;
+
+-- objeto: "nota:12" o "pron|La Plata|2026-11-02|Mate" (ciudad, fecha del
+-- pronóstico y firma: una publicación).
+CREATE TABLE IF NOT EXISTS reaccion (
+    objeto     text NOT NULL,
+    usuario_id int  NOT NULL REFERENCES usuario(id) ON DELETE CASCADE,
+    tipo       text NOT NULL CHECK (tipo IN ('util', 'acuerdo', 'duda', 'aplauso')),
+    creada     timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (objeto, usuario_id, tipo)
+);
+CREATE TABLE IF NOT EXISTS comentario_pronostico (
+    id         serial PRIMARY KEY,
+    objeto     text NOT NULL,
+    usuario_id int  NOT NULL REFERENCES usuario(id) ON DELETE CASCADE,
+    creada     timestamptz NOT NULL DEFAULT now(),
+    texto      text NOT NULL CHECK (length(texto) BETWEEN 1 AND 2000)
+);
+CREATE INDEX IF NOT EXISTS comentario_pronostico_objeto ON comentario_pronostico (objeto, creada);

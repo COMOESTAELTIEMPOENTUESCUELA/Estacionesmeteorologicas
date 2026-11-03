@@ -159,6 +159,77 @@ td.nw { white-space: nowrap; }
 .lb-nota .acc { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
 .lb-nota .acc .boton { padding: 2px 9px; font-size: 12px; }
 /* Muros (del grupo, mío) y reunión: notas como "papelitos" en columnas */
+/* ---- Red del grupo (Mi perfil) ---- */
+.red { display: grid; grid-template-columns: 210px minmax(0, 1fr) 270px; gap: 16px; align-items: start; }
+.red > * { min-width: 0; }
+.red-izq, .red-der { position: sticky; top: 8px; display: flex; flex-direction: column; gap: 10px; }
+.red-yo { display: flex; gap: 10px; align-items: center; border: 1px solid var(--borde); border-radius: 12px; background: var(--superficie);
+  padding: 10px; cursor: pointer; text-align: left; font: inherit; color: var(--tinta); }
+.red-yo small { display: block; color: var(--tenue); font-size: 12px; }
+.red-nav { display: flex; flex-direction: column; gap: 2px; }
+.red-nav button { display: flex; gap: 10px; align-items: center; border: 0; background: none; color: var(--tinta); font: inherit; font-size: 15px;
+  padding: 9px 12px; border-radius: 99px; cursor: pointer; text-align: left; }
+.red-nav button:hover { background: var(--plano); }
+.red-nav button.activa { font-weight: 700; background: color-mix(in srgb, var(--acento) 12%, transparent); }
+.red-nav .cuenta-n { margin-left: auto; }
+.red-centro { min-width: 0; }
+.red-feed { display: flex; flex-direction: column; gap: 12px; max-width: 680px; }
+.red-feed .postit { margin: 0; }
+.red-mas { display: block; margin: 12px auto; }
+.avatar { width: 26px; height: 26px; border-radius: 50%; display: inline-grid; place-items: center; color: #fff; font-weight: 700; font-size: 12px; flex: none; }
+.avatar.grande { width: 40px; height: 40px; font-size: 17px; }
+.avatar.enorme { width: 84px; height: 84px; font-size: 36px; border: 4px solid var(--superficie); }
+.comp-fila { display: flex; gap: 10px; align-items: flex-start; }
+.comp-fila textarea { flex: 1; }
+[data-perfil] { cursor: pointer; }
+.quien b[data-perfil]:hover { text-decoration: underline; }
+/* Reacciones */
+.reac { display: flex; gap: 6px; flex-wrap: wrap; }
+.reac button { border: 1px solid var(--borde); background: var(--plano); color: var(--tinta-2); border-radius: 99px; padding: 2px 10px; font: inherit;
+  font-size: 12.5px; cursor: pointer; }
+.reac button.mia { border-color: var(--acento); color: var(--acento); background: color-mix(in srgb, var(--acento) 10%, transparent); font-weight: 600; }
+/* Tarjeta de pronóstico publicado */
+.postit.pron { --c: var(--s3); }
+.pron-tabla { border-collapse: collapse; width: 100%; font-size: 13px; }
+.pron-tabla th, .pron-tabla td { padding: 4px 6px; border-bottom: 1px solid var(--borde); text-align: center; white-space: nowrap; }
+.pron-tabla th { font-weight: 600; color: var(--tinta-2); font-size: 12px; position: static; background: none; }
+.pron-tabla th small { display: block; font-weight: 400; color: var(--tenue); }
+.pron-tabla td:first-child, .pron-tabla th:first-child { text-align: left; color: var(--tinta-2); }
+.pron-tabla .pend { color: var(--tenue); }
+.pron-res { font-size: 12.5px; color: var(--tinta-2); display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.insignia { border-radius: 99px; padding: 1px 9px; font-size: 12px; font-weight: 600; background: color-mix(in srgb, var(--ok) 15%, transparent); color: var(--tinta); }
+/* Perfil */
+.red-cab { padding: 0; overflow: hidden; }
+.red-cab .portada { height: 86px; background: linear-gradient(120deg, var(--c1, var(--s1)), var(--c2, var(--s3))); }
+.red-cab .cuerpo { padding: 0 16px 14px; margin-top: -42px; }
+.red-cab h2 { margin: 6px 0 0; font-size: 22px; }
+.red-cab .sub { color: var(--tinta-2); font-size: 13px; }
+.red-cab .bio { margin: 8px 0; white-space: pre-wrap; }
+.red-num { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 8px; font-size: 13px; color: var(--tinta-2); }
+.red-num b { display: block; font-size: 18px; color: var(--tinta); }
+.red-subtabs { display: flex; gap: 4px; border-bottom: 1px solid var(--borde); margin: 12px 0; }
+.red-subtabs button { border: 0; background: none; font: inherit; font-weight: 600; color: var(--tinta-2); padding: 8px 14px; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -1px; }
+.red-subtabs button.activa { color: var(--tinta); border-bottom-color: var(--acento); }
+.red-personas { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.persona { border: 1px solid var(--borde); border-radius: 12px; background: var(--superficie); padding: 12px; display: flex; flex-direction: column; gap: 6px;
+  cursor: pointer; text-align: left; font: inherit; color: var(--tinta); }
+.persona:hover { border-color: var(--acento); }
+.persona .top { display: flex; gap: 10px; align-items: center; }
+.persona small { color: var(--tenue); }
+.persona .bio { font-size: 13px; color: var(--tinta-2); }
+.red-mini { padding: 10px 12px; font-size: 13px; }
+.red-mini h4 { margin: 0 0 6px; font-size: 13.5px; }
+.red-mini .linea { display: flex; gap: 6px; align-items: baseline; padding: 4px 0; border-bottom: 1px dashed var(--borde); flex-wrap: wrap; }
+.red-mini .linea:last-child { border-bottom: 0; }
+@media (max-width: 1150px) { .red { grid-template-columns: 190px minmax(0, 1fr); } .red-der { display: none; } }
+@media (max-width: 760px) {
+  .red { grid-template-columns: 1fr; }
+  .red-izq { position: static; }
+  .red-yo { display: none; }
+  .red-nav { flex-direction: row; overflow-x: auto; gap: 4px; }
+  .red-nav button { white-space: nowrap; font-size: 14px; padding: 7px 10px; }
+  .muro-comp .avatar { display: none; }
+}
 .muro-tabs { display: flex; gap: 4px; flex-wrap: wrap; border-bottom: 1px solid var(--borde); margin: -4px 0 12px; }
 .muro-tabs button { border: 0; background: none; color: var(--tinta-2); font: inherit; font-weight: 600; padding: 8px 12px; cursor: pointer;
   border-bottom: 3px solid transparent; margin-bottom: -1px; }
@@ -1202,20 +1273,52 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
 
   <!-- ============================ MI PERFIL ============================ -->
   <section id="tab-perfil" hidden>
-    <div class="tarjeta" id="pf-grupo" hidden style="margin-bottom:16px">
-      <div class="filtros">
-        <h2 style="margin:0; font-size:18px; flex:1 1 260px">Todo el grupo</h2>
-        <label class="en-linea">Plazo
-          <select id="pf-grupo-plazo"><option value="0">Día 1 (mismo día)</option><option value="1">Día 2 (+1)</option>
-            <option value="2">Día 3 (+2)</option><option value="3">Día 4 (+3)</option></select></label>
-      </div>
-      <p class="ayuda" id="pf-grupo-nota"></p>
-      <div class="tabla-scroll" style="max-height:none"><table id="pf-grupo-tabla"></table></div>
-    </div>
+    <div class="red">
+      <aside class="red-izq">
+        <button class="red-yo" id="red-yo" data-perfil-yo title="Ver mi perfil"></button>
+        <div class="red-nav" id="red-nav" role="navigation" aria-label="Secciones del perfil">
+          <button data-rv="inicio" class="activa"><span>🏠</span> Inicio</button>
+          <button data-rv="perfil"><span>👤</span> Mi perfil</button>
+          <button data-rv="personas"><span>👥</span> El grupo</button>
+          <button data-rv="reunion"><span>❓</span> Reunión sinóptica <b class="cuenta-n" id="rs-n" hidden></b></button>
+          <button data-rv="metricas" id="rv-b-metricas" hidden><span>📊</span> Métricas del grupo</button>
+        </div>
+      </aside>
+
+      <div class="red-centro">
+        <!-- Inicio: lo que publicó el grupo (notas y pronósticos con lo observado) -->
+        <div class="rv" id="rv-inicio">
+          <div class="muro-comp" id="muro-comp">
+            <div class="comp-fila"><span class="avatar grande" id="mc-avatar"></span>
+              <textarea id="mc-texto" rows="2" maxlength="10000" placeholder="¿Qué viste hoy? Ej.: la vaguada en 500 está más al oeste que ayer…"></textarea></div>
+            <div class="fila">
+              <select id="mc-tipo" title="Tipo de nota"><option value="vi">👀 Lo que vi</option><option value="llamo_atencion">⚡ Me llamó la atención</option>
+                <option value="duda">🤔 Duda</option><option value="pregunta">❓ Pregunta para la reunión</option></select>
+              <input type="text" id="mc-etiquetas" list="lb-sugeridas" placeholder="#etiquetas, separadas por coma" class="crece" style="min-width:140px">
+              <label class="en-linea" title="La ven solo vos y los administradores"><input type="checkbox" id="mc-priv"> 🔒 Privada</label>
+              <button class="boton" id="mc-mas" title="Con fecha, imagen para marcar encima…">🖼️</button>
+              <button class="boton primario" id="mc-publicar">Publicar</button>
+            </div>
+          </div>
+          <div class="muro-filtros">
+            <span id="rf-tipos"><button class="chip-f activa" data-f="">Todo</button><button class="chip-f" data-f="pron">🌡️ Pronósticos</button><button class="chip-f" data-f="nota">📝 Notas</button><button class="chip-f" data-f="pregunta">❓ Preguntas</button></span>
+            <input type="search" id="mf-buscar" placeholder="Buscar (texto, persona, #etiqueta, ciudad)…" style="flex:1 1 180px;min-width:140px">
+            <label class="en-linea" id="lb-l-todas" hidden title="Solo administradores"><input type="checkbox" id="lb-todas"> Incluir las privadas de todos</label>
+          </div>
+          <div id="red-feed" class="red-feed"></div>
+          <button class="boton red-mas" id="red-mas" hidden>Ver días anteriores</button>
+        </div>
+
+        <!-- Perfil de una persona -->
+        <div class="rv" id="rv-perfil" hidden>
+          <div class="tarjeta red-cab" id="red-cab"></div>
+          <div class="red-subtabs"><button data-pt="pub" class="activa">Publicaciones</button><button data-pt="pron">Pronósticos y errores</button></div>
+          <div id="pt-pub"><div id="red-feed-perfil" class="red-feed"></div><button class="boton red-mas" id="red-mas-perfil" hidden>Ver días anteriores</button></div>
+          <div id="pt-pron" hidden>
     <div class="tarjeta">
       <div class="filtros">
         <h2 style="margin:0; font-size:18px; flex:1 1 260px" id="pf-titulo">Mis pronósticos</h2>
-        <label class="en-linea" id="pf-l-usuario" hidden>De <select id="pf-usuario"></select></label>
+        
         <label class="en-linea">Período
           <select id="pf-dias"><option value="30">30 días</option><option value="90" selected>90 días</option><option value="365">1 año</option></select>
         </label>
@@ -1231,33 +1334,43 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
         ▲ hizo más calor de lo pronosticado, ▼ más frío) y en la lluvia, ✓ acierto o ✗ error.</p>
       <div id="pf-placas"></div>
     </div>
-    <div class="tarjeta" style="margin-top:16px" id="muro">
-      <div class="muro-tabs" role="tablist">
-        <button data-muro="grupo" class="activa">Muro del grupo</button>
-        <button data-muro="mio">Mi muro</button>
-        <button data-muro="reunion">Reunión sinóptica<span class="cuenta-n" id="rs-n" hidden></span></button>
+          </div>
+        </div>
+
+        <!-- El grupo: quiénes están -->
+        <div class="rv" id="rv-personas" hidden>
+          <p class="ayuda">Todos los del grupo y las firmas que aparecen en los pronósticos (aunque no tengan cuenta). Los números (errores medios, aciertos)
+            los ve cada uno de sí mismo y los coordinadores; el resto, solo si esa persona eligió mostrarlos (🔓 en su perfil).</p>
+          <div class="red-personas" id="red-personas"></div>
+        </div>
+
+        <!-- Reunión sinóptica -->
+        <div class="rv" id="rv-reunion" hidden>
+          <div class="filtros"><p class="ayuda" style="flex:1;margin:0">Las preguntas compartidas para la reunión: pendientes arriba; las tratadas, con la conclusión.
+            Las marca quien la escribió o un coordinador.</p><button class="boton primario" id="rs-nueva">❓ Nueva pregunta</button></div>
+          <div id="rs-lista" class="red-feed"></div>
+        </div>
+
+        <!-- Métricas de todo el grupo (coordinadores) -->
+        <div class="rv" id="rv-metricas" hidden>
+    <div class="tarjeta" id="pf-grupo">
+      <div class="filtros">
+        <h2 style="margin:0; font-size:18px; flex:1 1 260px">Todo el grupo</h2>
+        <label class="en-linea">Plazo
+          <select id="pf-grupo-plazo"><option value="0">Día 1 (mismo día)</option><option value="1">Día 2 (+1)</option>
+            <option value="2">Día 3 (+2)</option><option value="3">Día 4 (+3)</option></select></label>
       </div>
-      <div class="muro-comp" id="muro-comp">
-        <textarea id="mc-texto" rows="2" maxlength="10000" placeholder="¿Qué viste hoy? Ej.: la vaguada en 500 está más al oeste que ayer…"></textarea>
-        <div class="fila">
-          <select id="mc-tipo" title="Tipo de nota"><option value="vi">Lo que vi</option><option value="llamo_atencion">Me llamó la atención</option>
-            <option value="duda">Duda</option><option value="pregunta">Pregunta para la reunión</option></select>
-          <input type="text" id="mc-etiquetas" list="lb-sugeridas" placeholder="etiquetas, separadas por coma" class="crece" style="min-width:140px">
-          <label class="en-linea" id="mc-l-comp"><input type="checkbox" id="mc-comp"> Compartir</label>
-          <button class="boton" id="mc-mas" title="Abrir el formulario completo: fecha, imagen para marcar encima…">🖼️ Con imagen…</button>
-          <button class="boton primario" id="mc-publicar">Publicar</button>
+      <p class="ayuda" id="pf-grupo-nota"></p>
+      <div class="tabla-scroll" style="max-height:none"><table id="pf-grupo-tabla"></table></div>
+    </div>
         </div>
       </div>
-      <div class="muro-filtros">
-        <span id="mf-tipos"><button class="chip-f activa" data-tipo="">Todas</button><button class="chip-f" data-tipo="vi">Lo que vi</button><button class="chip-f" data-tipo="llamo_atencion">Me llamó la atención</button><button class="chip-f" data-tipo="duda">Dudas</button><button class="chip-f" data-tipo="pregunta">Preguntas</button></span>
-        <input type="search" id="mf-buscar" placeholder="Buscar…" style="width:150px">
-        <span id="mf-etq" hidden></span>
-        <label class="en-linea" id="lb-l-autor" hidden>Autor <select id="lb-autor"><option value="">todos</option></select></label>
-        <label class="en-linea" id="lb-l-todas" hidden title="Solo administradores"><input type="checkbox" id="lb-todas"> Incluir las privadas de todos</label>
-      </div>
-      <p class="ayuda" id="muro-ayuda"></p>
-      <div id="lb-lista"></div>
-      <div id="rs-lista" hidden></div>
+
+      <aside class="red-der">
+        <div class="tarjeta red-mini"><h4>Ayer, pronosticado contra observado</h4><div id="red-ayer"><span class="tenue">Cargando…</span></div></div>
+        <div class="tarjeta red-mini"><h4>Para la reunión</h4><div id="red-preg"></div></div>
+        <p class="ayuda">Las notas privadas (🔒) las ven su autor y los administradores del grupo; lo demás, todos los que ingresaron.</p>
+      </aside>
     </div>
   </section>
 </main>
@@ -4755,110 +4868,304 @@ async function cargarCuenta() {
   if (YO && location.hash === "#perfil") abrir("perfil");
 }
 
-// ----- Mi perfil -----
-let pfDatos = null;
-async function iniciarPerfil() {
-  $("#pf-dias").addEventListener("change", cargarMisPronosticos);
-  $("#pf-usuario").addEventListener("change", cargarMisPronosticos);
-  $("#pf-ciudad").addEventListener("change", dibujarPlacasPerfil);
-  if (YO && ["coordinador", "admin"].includes(YO.rol)) {
-    // Coordinadores y administradores: las métricas de cualquiera (por usuario
-    // o por firma, aunque no tenga usuario), el resumen del grupo y el autor.
-    const us = await api("/api/yo/usuarios");
-    pfUsuarios = us;
-    $("#pf-usuario").innerHTML = us.map((u) => `<option value="u:${u.id}">${esc(u.nombre)}${u.firmas.length ? "" : " (sin firma)"}</option>`).join("");
-    $("#pf-usuario").value = `u:${YO.id}`;
-    $("#pf-l-usuario").hidden = false;
-    $("#lb-autor").innerHTML = '<option value="">todos</option>' + us.map((u) => `<option value="${u.id}">${esc(u.nombre)}</option>`).join("");
-    $("#lb-l-autor").hidden = false;
-    $("#lb-l-todas").hidden = YO.rol !== "admin";
-    $("#pf-grupo").hidden = false;
-    $("#pf-dias").addEventListener("change", cargarGrupo);
-    $("#pf-grupo-plazo").addEventListener("change", dibujarGrupo);
-    $("#pf-grupo-tabla").addEventListener("click", (e) => {
-      const b = e.target.closest("button[data-ver]");
-      if (!b) return;
-      $("#pf-usuario").value = b.dataset.ver;
-      cargarMisPronosticos();
-      $("#pf-titulo").scrollIntoView({ behavior: "smooth" });
-    });
-    await cargarGrupo();
-  }
-  cargarMisPronosticos();
-  iniciarMuro();
+// ======================================================================
+// MI PERFIL como red del grupo: Inicio (notas y pronósticos con lo
+// observado), perfiles, el grupo, la reunión sinóptica y las métricas.
+// ======================================================================
+const red = {
+  vista: "inicio", filtro: "", buscar: "",
+  inicio: { items: [], siguiente: null, hasta: null },          // el feed de Inicio
+  perfil: { quien: null, items: [], siguiente: null },          // el perfil abierto
+  personas: null, reunion: [],
+};
+const TIPO_CORTO = { vi: "Lo que vi", llamo_atencion: "Me llamó la atención", duda: "Duda", pregunta: "Pregunta" };
+const COLORES_AVATAR = ["--s1", "--s2", "--s3", "--s4", "--s5", "--s6", "--s7", "--s8"];
+const colorAvatar = (nombre) => css(COLORES_AVATAR[[...String(nombre)].reduce((a, c) => a + c.charCodeAt(0), 0) % 8]);
+const avatar = (nombre, clase = "") => `<span class="avatar ${clase}" style="background:${colorAvatar(nombre)}">${esc(String(nombre || "?").slice(0, 1).toUpperCase())}</span>`;
+const fmtEscrita = new Intl.DateTimeFormat("es-AR", { timeZone: "America/Argentina/Buenos_Aires", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+const fmtDiaMuro = new Intl.DateTimeFormat("es-AR", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long" });
+function nombreDiaMuro(iso) {
+  const hoy = diaArg(Date.now()), ayer = diaArg(Date.now() - 24 * HORA);
+  const largo = fmtDiaMuro.format(new Date(iso + "T12:00:00Z"));
+  return iso === hoy ? `Hoy · ${largo}` : iso === ayer ? `Ayer · ${largo}` : largo[0].toUpperCase() + largo.slice(1);
 }
-let pfUsuarios = [];
+function hace(t) {
+  const min = (Date.now() - Date.parse(t)) / 60e3;
+  return min < 1 ? "recién" : min < 60 ? `hace ${Math.round(min)} min` : min < 24 * 60 ? `hace ${Math.round(min / 60)} h` : fmtEscrita.format(new Date(t));
+}
+const esCoord = () => YO && ["coordinador", "admin"].includes(YO.rol);
+
+// ----- Reacciones (notas: 👍 🤝 🤔; pronósticos: 👏 🤔) -----
+const REAC = { util: ["👍", "Útil"], acuerdo: ["🤝", "De acuerdo"], duda: ["🤔", "Tengo dudas"], aplauso: ["👏", "¡Bien!"] };
+function barraReacciones(objeto, r, tipos) {
+  r = r || { conteo: {}, mias: [], quienes: {} };
+  return `<div class="reac" data-obj="${esc(objeto)}">${tipos.map((t) => {
+    const n = r.conteo[t] || 0, quienes = (r.quienes || {})[t] || [];
+    return `<button data-reac="${t}" class="${r.mias.includes(t) ? "mia" : ""}" title="${esc(REAC[t][1] + (quienes.length ? ": " + quienes.join(", ") : ""))}">${REAC[t][0]} ${esc(REAC[t][1])}${n ? ` · ${n}` : ""}</button>`;
+  }).join("")}</div>`;
+}
+function comentariosHTML(lista, form, borrarAttr) {
+  return `<div class="coment">
+    ${lista.map((c) => `<div class="c"><b>${esc(c.autor)}</b> <span>${esc(c.texto)}</span> <small>${esc(hace(c.creada))}</small>${c.mio || YO.rol === "admin" ? `<button ${borrarAttr}="${c.id}" title="Borrar el comentario">✕</button>` : ""}</div>`).join("")}
+    ${form}</div>`;
+}
+
+// ----- La tarjeta de una nota -----
+function tarjetaNota(nt, reunion = false) {
+  const puede = nt.mia || esCoord();
+  const conCtx = Object.keys(nt.contexto || {}).length;
+  const img = nt.captura ? `<a class="img" href="${esc(nt.captura)}" target="_blank" rel="noopener" title="Ver la imagen grande"><img src="${esc(nt.captura)}" loading="lazy" alt="Imagen de la nota"><span>✏️ pizarra</span></a>`
+    : nt.imagen ? `<a class="img" href="#" data-acc="abrir" title="Abrir la carta donde se escribió"><img src="${esc(nt.imagen)}" loading="lazy" alt="Carta"><span>carta</span></a>` : "";
+  const coment = nt.compartida ? comentariosHTML(nt.comentarios || [],
+    `<form data-coment="${nt.id}"><input name="t" maxlength="2000" placeholder="Comentar…" autocomplete="off"><button class="boton chico">↵</button></form>`, "data-borrar-c") : "";
+  return `<article class="postit ${esc(nt.tipo)}" data-id="${nt.id}">
+    <div class="cab"><span data-perfil="${nt.autor_id}">${avatar(nt.autor)}</span>
+      <span class="quien"><b data-perfil="${nt.autor_id}">${nt.mia ? "Vos" : esc(nt.autor)}</b><span title="${esc(fmtEscrita.format(new Date(nt.creada)))}">${esc(hace(nt.creada))}</span></span>
+      <span class="der"><span class="lb-tipo ${esc(nt.tipo)}" title="${esc(NOMBRE_TIPO[nt.tipo] || "")}">${esc(TIPO_CORTO[nt.tipo] || nt.tipo)}</span>${nt.compartida ? "" : '<span title="Privada: la ven el autor y los administradores">🔒</span>'}</span></div>
+    ${img}
+    <div class="texto">${esc(nt.texto)}</div>
+    ${conCtx ? `<button class="ctx" data-acc="abrir" title="Ir a donde se escribió">📍 ${esc(describirContexto(nt.contexto))}</button>` : ""}
+    ${nt.etiquetas.length ? `<div class="etqs">${nt.etiquetas.map((e) => `<button data-etq="${esc(e)}" title="Buscar esta etiqueta">#${esc(e)}</button>`).join("")}</div>` : ""}
+    ${nt.tratada ? `<div class="lb-resp"><b>Tratada en la reunión${nt.tratada_por ? ` (${esc(nt.tratada_por)})` : ""}.</b>${nt.respuesta ? "\n" + esc(nt.respuesta) : ""}</div>` : ""}
+    ${nt.compartida ? barraReacciones(`nota:${nt.id}`, nt.reacciones, ["util", "acuerdo", "duda"]) : ""}
+    ${nt.mia || (reunion && nt.compartida && puede) ? `<div class="acc">
+      ${nt.mia ? `<button class="boton" data-acc="editar">Editar</button><button class="boton" data-acc="borrar">Borrar</button>` : ""}
+      ${reunion && nt.compartida && puede ? `<button class="boton" data-acc="tratar">${nt.tratada ? "Editar conclusión" : "Marcar tratada"}</button>` : ""}</div>` : ""}
+    ${coment}
+  </article>`;
+}
+
+// ----- La tarjeta de un pronóstico publicado, con lo observado -----
+function resumenPron(it) {
+  const errs = [];
+  for (const d of it.dias) for (const k of ["tmin", "tmax"]) {
+    const t = d[k];
+    if (t && t.pron !== null && t.pron !== undefined && t.obs !== null && t.obs !== undefined) errs.push(Math.abs(t.obs - t.pron));
+  }
+  const ver = it.dias.filter((d) => [d.tmin?.obs, d.tmax?.obs, d.pp?.obs].some((x) => x !== null && x !== undefined)).length;
+  const lluvia = it.dias.filter((d) => d.pp && d.pp.obs !== null && d.pp.obs !== undefined && d.pp.pron !== null && d.pp.pron !== undefined);
+  return { errs, ver, mae: errs.length ? errs.reduce((a, b) => a + b, 0) / errs.length : null,
+           lluviaOk: lluvia.filter((d) => d.pp.obs === d.pp.pron).length, lluviaN: lluvia.length };
+}
+function tarjetaPron(it) {
+  const quien = it.usuario ? it.usuario.nombre : it.firma;
+  const yo = it.usuario && it.usuario.id === YO.id;
+  const perfil = it.usuario ? it.usuario.id : `f:${it.firma}`;
+  const r = resumenPron(it);
+  const celda = (t) => !t || t.pron === null || t.pron === undefined ? '<td class="pend">–</td>' : `<td>${celdaTemp(t)}</td>`;
+  const insignias = [];
+  if (r.errs.length >= 2 && r.errs.every((e) => e <= 1)) insignias.push("🎯 Temperaturas clavadas (±1 °C)");
+  if (r.lluviaN >= 2 && r.lluviaOk === r.lluviaN) insignias.push("☔ Acertó la lluvia");
+  return `<article class="postit pron" data-obj="${esc(it.objeto)}">
+    <div class="cab"><span data-perfil="${esc(perfil)}">${avatar(quien)}</span>
+      <span class="quien"><span><b data-perfil="${esc(perfil)}">${yo ? "Vos" : esc(quien)}</b> publicó el pronóstico para <b>${esc(it.ciudad)}</b></span>
+        <span title="${esc(fmtEscrita.format(new Date(it.ts)))}">${esc(hace(it.ts))}${it.anticipado ? " · la noche anterior" : ""}${it.correccion ? " · corrección" : ""}</span></span>
+      <span class="der"><span class="lb-tipo" style="background:var(--s3)">Pronóstico</span></span></div>
+    <div class="tabla-scroll" style="max-height:none"><table class="pron-tabla">
+      <tr><th></th>${it.dias.map((d) => `<th>Día ${d.plazo + 1}<small>${esc(diaCorto(d.fecha))}</small></th>`).join("")}</tr>
+      <tr><td>Mín</td>${it.dias.map((d) => celda(d.tmin)).join("")}</tr>
+      <tr><td>Máx</td>${it.dias.map((d) => celda(d.tmax)).join("")}</tr>
+      <tr><td>Lluvia</td>${it.dias.map((d) => `<td>${d.pp && d.pp.pron !== null && d.pp.pron !== undefined ? celdaPP(d.pp) : "–"}</td>`).join("")}</tr>
+    </table></div>
+    <div class="pron-res">${r.ver ? `Verificados ${r.ver} de ${it.dias.length} días` : "Todavía sin observaciones"}
+      ${r.mae !== null ? `· error medio de temperatura ${maeColor(r.mae)} °C` : ""}${r.lluviaN ? ` · lluvia ${r.lluviaOk}/${r.lluviaN}` : ""}
+      ${insignias.map((x) => `<span class="insignia">${esc(x)}</span>`).join("")}</div>
+    ${barraReacciones(it.objeto, it.reacciones, ["aplauso", "duda"])}
+    ${comentariosHTML(it.comentarios || [], `<form data-coment-pron="${esc(it.objeto)}"><input name="t" maxlength="2000" placeholder="Comentar el pronóstico…" autocomplete="off"><button class="boton chico">↵</button></form>`, "data-borrar-cp")}
+  </article>`;
+}
+
+// ----- Dibujar un feed (agrupado por día) -----
+function pasaFiltro(it) {
+  const f = red.filtro;
+  if (f === "pron" && it.tipo !== "pronostico") return false;
+  if (f === "nota" && (it.tipo !== "nota" || it.nota.tipo === "pregunta")) return false;
+  if (f === "pregunta" && !(it.tipo === "nota" && it.nota.tipo === "pregunta")) return false;
+  const b = red.buscar.trim().toLowerCase().replace(/^#/, "");
+  if (!b) return true;
+  const texto = it.tipo === "nota" ? [it.nota.texto, it.nota.autor, ...it.nota.etiquetas].join(" ")
+    : [it.firma, it.usuario?.nombre, it.ciudad, "pronóstico"].join(" ");
+  return texto.toLowerCase().includes(b);
+}
+function dibujarFeed(dest, estado, vacio) {
+  const items = estado.items.filter(pasaFiltro);
+  const dias = new Map();
+  for (const it of items) {
+    const d = diaArg(Date.parse(it.ts));
+    if (!dias.has(d)) dias.set(d, []);
+    dias.get(d).push(it);
+  }
+  $(dest).innerHTML = dias.size ? [...dias].map(([d, xs]) => `<h4 class="muro-dia">${esc(nombreDiaMuro(d))}</h4>` +
+      xs.map((it) => (it.tipo === "nota" ? tarjetaNota(it.nota) : tarjetaPron(it))).join("")).join("")
+    : `<p class="tenue">${vacio}${red.filtro || red.buscar ? " (con ese filtro)" : ""}.</p>`;
+}
+async function cargarFeed(estado, params, dest, boton, vacio, mas = false) {
+  const q = new URLSearchParams(params);
+  if (mas && estado.siguiente) q.set("hasta", estado.siguiente);
+  q.set("dias", "7");
+  let d;
+  try { d = await api(`/api/yo/muro?${q}`); }
+  catch (err) { $(dest).innerHTML = `<p class="tenue">No se pudo cargar: ${esc(err.message)}</p>`; return; }
+  estado.items = mas ? [...estado.items, ...d.items] : d.items;
+  estado.siguiente = d.siguiente;
+  // Con poco para mostrar, se trae una semana más sola.
+  if (estado.items.length < 6 && d.siguiente && !estado.auto) { estado.auto = true; return cargarFeed(estado, params, dest, boton, vacio, true); }
+  estado.auto = false;
+  $(boton).hidden = !estado.siguiente;
+  dibujarFeed(dest, estado, vacio);
+}
+const paramsInicio = () => ($("#lb-todas").checked && !$("#lb-l-todas").hidden ? { todas: "true" } : {});
+async function cargarInicio(mas = false) {
+  await cargarFeed(red.inicio, paramsInicio(), "#red-feed", "#red-mas",
+    "Todavía no hay nada. Escribí arriba lo que viste, o usá los botones 📝 Anotar de Cartas", mas);
+  dibujarAyer();
+}
+
+// ----- Columna derecha: ayer pronosticado contra observado, y la reunión -----
+function dibujarAyer() {
+  const ayer = diaArg(Date.now() - 24 * HORA);
+  const lineas = [];
+  for (const it of red.inicio.items) {
+    if (it.tipo !== "pronostico") continue;
+    const d = it.dias.find((x) => x.fecha === ayer);
+    if (!d || ![d.tmin?.obs, d.tmax?.obs].some((x) => x !== null && x !== undefined)) continue;
+    lineas.push(`<div class="linea"><b data-perfil="${esc(it.usuario ? it.usuario.id : "f:" + it.firma)}">${esc(it.usuario ? it.usuario.nombre : it.firma)}</b>
+      <span class="tenue">${esc(it.ciudad)} · día ${d.plazo + 1}</span><span>mín ${celdaTemp(d.tmin)}</span><span>máx ${celdaTemp(d.tmax)}</span></div>`);
+  }
+  $("#red-ayer").innerHTML = lineas.length ? lineas.slice(0, 8).join("") : '<span class="tenue">Sin pronósticos verificados de ayer todavía (la verificación se completa durante la mañana).</span>';
+}
+async function cargarReunion() {
+  let ns;
+  try { ns = await api("/api/yo/notas?tipo=pregunta"); } catch (_) { return; }
+  red.reunion = ns.filter((n) => n.compartida);
+  const pend = red.reunion.filter((n) => !n.tratada), hechas = red.reunion.filter((n) => n.tratada).slice(0, 30);
+  $("#rs-n").hidden = !pend.length; $("#rs-n").textContent = pend.length;
+  $("#red-preg").innerHTML = pend.length ? pend.slice(0, 4).map((n) => `<div class="linea"><span>${esc(n.texto.slice(0, 110))}${n.texto.length > 110 ? "…" : ""}</span>
+      <span class="tenue">— ${esc(n.autor)}</span></div>`).join("") + `<button class="boton chico" data-ir-rv="reunion" style="margin-top:6px">Ver las ${pend.length}</button>`
+    : '<span class="tenue">No hay preguntas pendientes.</span>';
+  $("#rs-lista").innerHTML = (pend.length ? `<h4 class="muro-dia">Pendientes (${pend.length})</h4>${pend.map((n) => tarjetaNota(n, true)).join("")}`
+    : '<p class="tenue">No hay preguntas pendientes.</p>') +
+    (hechas.length ? `<h4 class="muro-dia">Tratadas</h4>${hechas.map((n) => tarjetaNota(n, true)).join("")}` : "");
+}
+
+// ----- El grupo -----
+async function cargarPersonas(forzar = false) {
+  if (red.personas && !forzar) return red.personas;
+  try { red.personas = (await api("/api/yo/personas")).personas; } catch (_) { red.personas = []; }
+  return red.personas;
+}
+function numerosPersona(p) {
+  const r = p.resumen && p.resumen["0"];
+  if (!p.metricas_visibles) return `<small>🔒 Sus números son privados</small>`;
+  if (!r) return `<small>Sin pronósticos verificados en 90 días</small>`;
+  return `<small>Día 1 · mín ${maeColor(r.tmin_urbana?.mae)} · máx ${maeColor(r.tmax_urbana?.mae)}${r.pp && r.pp.n ? ` · lluvia ${Math.round(100 * r.pp.pc)} %` : ""}</small>`;
+}
+async function dibujarPersonas() {
+  const ps = await cargarPersonas(true);
+  $("#red-personas").innerHTML = ps.map((p) => `<button class="persona" data-perfil="${p.id ?? "f:" + esc(p.nombre)}">
+      <div class="top">${avatar(p.nombre, "grande")}<div><b>${esc(p.nombre)}${p.yo ? " (vos)" : ""}</b><br>
+        <small>${p.sin_cuenta ? "firma sin cuenta" : esc({ admin: "administrador", coordinador: "coordinador", pronosticador: "pronosticador" }[p.rol] || "")}${p.firmas.length && !p.sin_cuenta ? ` · firma ${esc(p.firmas.join(", "))}` : ""}</small></div></div>
+      ${p.bio ? `<div class="bio">${esc(p.bio.slice(0, 140))}${p.bio.length > 140 ? "…" : ""}</div>` : ""}
+      <small>${p.emisiones} pronósticos en 90 días · ${p.notas} notas</small>
+      ${numerosPersona(p)}
+    </button>`).join("") || '<p class="tenue">No se pudo cargar el grupo.</p>';
+}
+
+// ----- Perfil de una persona -----
+async function abrirPerfil(id) {
+  // id: número de usuario, o "f:Firma" para una firma sin cuenta.
+  const ps = await cargarPersonas();
+  const p = String(id).startsWith("f:") ? ps.find((x) => x.sin_cuenta && x.nombre === String(id).slice(2)) || { id: null, nombre: String(id).slice(2), firmas: [String(id).slice(2)], sin_cuenta: true }
+    : ps.find((x) => x.id === Number(id)) || { id: Number(id), nombre: "…", firmas: [] };
+  red.perfil = { quien: p, items: [], siguiente: null };
+  verRed("perfil", false);
+  document.querySelectorAll("#red-nav button").forEach((b) => b.classList.toggle("activa", b.dataset.rv === "perfil" && p.id === YO.id));
+  dibujarCabecera(p);
+  verPestanaPerfil("pub");
+  const params = p.id ? { autor_id: p.id } : { firma: p.nombre };
+  if (p.id && YO.rol === "admin") params.todas = "true";
+  red.perfil.params = params;
+  cargarFeed(red.perfil, params, "#red-feed-perfil", "#red-mas-perfil", `${p.id === YO.id ? "Todavía no publicaste" : "Todavía no publicó"} nada en estas semanas`);
+}
+function dibujarCabecera(p) {
+  const yo = p.id === YO.id;
+  const r = p.resumen && p.resumen["0"];
+  const numeros = !p.metricas_visibles ? `<div class="sub" style="margin-top:8px">🔒 Sus errores medios y aciertos son privados (los ven esa persona y los coordinadores). Sus pronósticos día por día, sí: abajo.</div>`
+    : `<div class="red-num"><span><b>${p.emisiones ?? "–"}</b>pronósticos (90 días)</span><span><b>${p.notas ?? 0}</b>notas</span>
+        ${r ? `<span><b>${maeColor(r.tmin_urbana?.mae)}</b>error medio mín (día 1)</span><span><b>${maeColor(r.tmax_urbana?.mae)}</b>error medio máx (día 1)</span>
+        ${r.pp && r.pp.n ? `<span><b>${Math.round(100 * r.pp.pc)} %</b>aciertos de lluvia</span>` : ""}` : ""}</div>`;
+  $("#red-cab").style.setProperty("--c1", colorAvatar(p.nombre));
+  $("#red-cab").innerHTML = `<div class="portada"></div><div class="cuerpo">${avatar(p.nombre, "enorme")}
+      <h2>${esc(p.nombre)}</h2>
+      <div class="sub">${p.sin_cuenta ? "Firma de los pronósticos (sin cuenta en la página)" : esc({ admin: "Administrador", coordinador: "Coordinador", pronosticador: "Pronosticador" }[p.rol] || "")}
+        ${p.firmas && p.firmas.length && !p.sin_cuenta ? ` · firma "${esc(p.firmas.join('", "'))}"` : ""}${yo ? (YO.metricas_publicas ? " · 🔓 números visibles para el grupo" : " · 🔒 números privados") : ""}</div>
+      ${p.bio ? `<div class="bio">${esc(p.bio)}</div>` : yo ? '<div class="bio tenue">Contale al grupo quién sos (Editar perfil).</div>' : ""}
+      ${numeros}
+      ${yo ? `<div style="margin-top:10px"><button class="boton" id="pf-editar">✏️ Editar perfil</button></div>
+        <form id="pf-form" hidden style="margin-top:10px;display:flex;flex-direction:column;gap:8px;max-width:520px">
+          <label>Presentación <textarea name="bio" rows="3" maxlength="500" placeholder="Ej.: estudiante de 4º año, me interesan las tormentas de verano…">${esc(YO.bio || "")}</textarea></label>
+          <label class="en-linea"><input type="checkbox" name="pub" ${YO.metricas_publicas ? "checked" : ""}> Mostrar mis números (errores medios, aciertos) a todo el grupo</label>
+          <div><button class="boton primario">Guardar</button></div></form>` : ""}
+    </div>`;
+  if (yo) {
+    $("#pf-editar").addEventListener("click", () => { $("#pf-form").hidden = !$("#pf-form").hidden; });
+    $("#pf-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const f = e.target;
+      try { await apiEnviar("/api/yo/perfil", "PUT", { bio: f.bio.value, metricas_publicas: f.pub.checked }); }
+      catch (err) { alert(`No se pudo guardar: ${err.message}`); return; }
+      YO.bio = f.bio.value.trim() || null; YO.metricas_publicas = f.pub.checked;
+      await cargarPersonas(true);
+      abrirPerfil(YO.id);
+    });
+  }
+}
+function verPestanaPerfil(t) {
+  document.querySelectorAll(".red-subtabs button").forEach((b) => b.classList.toggle("activa", b.dataset.pt === t));
+  $("#pt-pub").hidden = t !== "pub"; $("#pt-pron").hidden = t !== "pron";
+  if (t === "pron") cargarMisPronosticos();
+}
+
+// ----- Pronósticos y errores de la persona abierta (la tabla y las placas) -----
+let pfDatos = null;
 function periodoPerfil() {
   const dias = Number($("#pf-dias").value);
   return [new Date(Date.now() - (dias + 1) * 24 * HORA).toISOString().slice(0, 10), new Date(Date.now() - 27 * HORA).toISOString().slice(0, 10)];
 }
-// Resumen de todo el grupo: una fila por firma, con el error del pronóstico del mismo día y del día siguiente.
-async function cargarGrupo() {
-  const [desde, hasta] = periodoPerfil();
-  let d;
-  try { d = await api(`/api/yo/pronosticos/grupo?desde=${desde}&hasta=${hasta}`); }
-  catch (err) { $("#pf-grupo-nota").textContent = `No se pudo cargar: ${err.message}`; return; }
-  $("#pf-grupo-nota").textContent = `Del ${d.desde} al ${d.hasta}: ${d.pronosticadores.length} firmas con pronósticos. ` +
-    "Error medio absoluto (MAE, °C) y sesgo (+ = pronosticó más calor del que hizo) del plazo elegido; aciertos de lluvia y de dirección del viento. Con pocos días la cifra cambia mucho: miralo como orientación.";
-  // Las firmas sin usuario también se pueden elegir en "De:".
-  const sinUsuario = d.pronosticadores.filter((p) => !p.usuario);
-  $("#pf-usuario").querySelectorAll('option[value^="f:"]').forEach((o) => o.remove());
-  sinUsuario.forEach((p) => $("#pf-usuario").insertAdjacentHTML("beforeend", `<option value="f:${esc(p.firma)}">${esc(p.firma)} (firma, sin usuario)</option>`));
-  pfGrupo = d;
-  dibujarGrupo();
-}
-let pfGrupo = null;
-function dibujarGrupo() {
-  const d = pfGrupo;
-  if (!d) return;
-  const pl = $("#pf-grupo-plazo").value;
-  const n = (x) => (x === null || x === undefined ? "–" : num(x, 1));
-  const t = (r) => r && r.n ? `${maeColor(r.mae)} <span class="tenue">(${r.sesgo > 0 ? "+" : ""}${n(r.sesgo)})</span> ${chipNivel(r.nivel)}` : "–";
-  const conDatos = (r) => r && ((r.tmin_urbana && r.tmin_urbana.n) || (r.tmax_urbana && r.tmax_urbana.n) || (r.pp && r.pp.n));
-  const filas = d.pronosticadores.map((p) => ({ p, r: p.resumen[pl] })).filter((x) => conDatos(x.r))
-    .sort((a, b) => (b.r.tmin_urbana?.n || 0) - (a.r.tmin_urbana?.n || 0));
-  $("#pf-grupo-tabla").innerHTML = `<tr><th>Firma</th><th>Usuario</th><th>Días</th><th>Mínima: error medio <small class="tenue">(sesgo)</small></th>
-      <th>Máxima</th><th>Lluvia: aciertos</th><th>Viento: dirección</th><th></th></tr>` +
-    (filas.length ? filas.map(({ p, r }) => `<tr><td><b>${esc(p.firma)}</b></td><td>${p.usuario ? esc(p.usuario.nombre) : '<span class="tenue">sin usuario</span>'}</td>
-        <td>${r.tmin_urbana?.n || r.tmax_urbana?.n || 0}</td><td>${t(r.tmin_urbana)}</td><td>${t(r.tmax_urbana)}</td>
-        <td>${r.pp && r.pp.n ? `${Math.round(100 * r.pp.pc)} %` : "–"}</td>
-        <td>${r.viento_dir && r.viento_dir.n ? `${r.viento_dir.pct} %` : "–"}</td>
-        <td><button class="boton" style="padding:1px 8px" data-ver="${p.usuario ? `u:${p.usuario.id}` : `f:${esc(p.firma)}`}">Ver detalle</button></td></tr>`).join("")
-      : `<tr><td colspan="8" class="tenue">Nadie tiene pronósticos de ese plazo con observación en el período.</td></tr>`);
-}
 async function cargarMisPronosticos() {
+  const p = red.perfil.quien || { id: YO.id };
   const [desde, hasta] = periodoPerfil();
-  const sel = $("#pf-l-usuario").hidden ? "" : $("#pf-usuario").value;
-  const uid = !sel ? "" : sel.startsWith("f:") ? `&firma=${encodeURIComponent(sel.slice(2))}` : `&usuario_id=${sel.slice(2)}`;
+  const quien = !p.id ? `&firma=${encodeURIComponent(p.nombre)}` : p.id !== YO.id ? `&usuario_id=${p.id}` : "";
   let d;
-  try { d = await api(`/api/yo/pronosticos?desde=${desde}&hasta=${hasta}${uid}`); }
-  catch (err) { $("#pf-nota").textContent = `No se pudo cargar: ${err.message}`; return; }
-  pfDatos = d;
-  const propio = d.usuario.id === YO.id;
-  if (!propio && !d.usuario.firmas.length) {
-    $("#pf-titulo").textContent = `Pronósticos de ${d.usuario.nombre}`;
-    $("#pf-nota").textContent = "Este usuario no tiene firma cargada (cómo firma en el portal): agregala con el comando del servidor (--firma).";
+  try { d = await api(`/api/yo/pronosticos?desde=${desde}&hasta=${hasta}${quien}`); }
+  catch (err) {
+    $("#pf-titulo").textContent = `Pronósticos de ${p.nombre}`;
+    $("#pf-nota").textContent = /privad|403|coordinador/i.test(err.message)
+      ? "🔒 Sus errores medios son privados. Sus pronósticos día por día están en Publicaciones (y en la pestaña Verificación)."
+      : `No se pudo cargar: ${err.message}`;
     $("#pf-resumen").innerHTML = ""; $("#pf-placas").innerHTML = ""; return;
   }
+  pfDatos = d;
+  const propio = d.usuario.id === YO.id;
   $("#pf-titulo").textContent = propio ? "Mis pronósticos" : `Pronósticos de ${d.usuario.nombre}`;
   if (!d.usuario.firmas.length) {
-    $("#pf-nota").textContent = "Todavía no está cargado cómo firmás los pronósticos en el portal: pedile a un coordinador que lo agregue a tu usuario.";
+    $("#pf-nota").textContent = propio ? "Todavía no está cargado cómo firmás los pronósticos en el portal: pedile a un coordinador que lo agregue a tu usuario."
+      : "Este usuario no tiene firma cargada (cómo firma en el portal): agregala con el comando del servidor (--firma).";
     $("#pf-resumen").innerHTML = ""; $("#pf-placas").innerHTML = ""; return;
   }
   $("#pf-nota").textContent = `${d.dias.length} días pronosticados del ${d.desde} al ${d.hasta} (firmas: ${d.usuario.firmas.join(", ")}). ` +
     "Se cuenta la versión vigente de cada pronóstico (si otro lo corrigió, ese día es de quien lo corrigió). Error medio absoluto (MAE) y sesgo en °C: " +
-    "sesgo positivo = pronosticaste más calor del que hizo. Color del error: verde hasta 2 °C, amarillo hasta 4, rojo más de 4; el punto indica " +
+    "sesgo positivo = más calor del que hizo. Color del error: verde hasta 2 °C, amarillo hasta 4, rojo más de 4; el punto indica " +
     "cuánto creerle según la cantidad de días (gris exploratorio, amarillo indicativo, verde robusto). Mismas cuentas que la pestaña Verificación (mínima de 21 a 21 hs).";
   const n = (x, dec = 1) => (x === null || x === undefined ? "–" : num(x, dec));
   const plazos = Object.keys(d.resumen).sort((a, b) => a - b);
   const celdaT = (r) => r && r.n ? `${maeColor(r.mae)} <span class="tenue">(${r.sesgo > 0 ? "+" : ""}${n(r.sesgo)}, n=${r.n})</span> ${chipNivel(r.nivel)}` : "–";
   $("#pf-resumen").innerHTML = `<tr><th>Plazo</th><th>Mínima: error medio <small class="tenue">(sesgo, días)</small></th><th>Máxima</th>
       <th>Lluvia: aciertos</th><th>Viento: dirección</th></tr>` +
-    plazos.map((p) => { const r = d.resumen[p];
-      return `<tr><td><b>${esc(nombrePlazo(p))}</b></td><td>${celdaT(r.tmin_urbana)}</td><td>${celdaT(r.tmax_urbana)}</td>
+    plazos.map((pl) => { const r = d.resumen[pl];
+      return `<tr><td><b>${esc(nombrePlazo(pl))}</b></td><td>${celdaT(r.tmin_urbana)}</td><td>${celdaT(r.tmax_urbana)}</td>
         <td>${r.pp && r.pp.n ? `${Math.round(100 * r.pp.pc)} % <span class="tenue">(n=${r.pp.n})</span> ${chipNivel(r.pp.nivel)}` : "–"}</td>
         <td>${r.viento_dir && r.viento_dir.n ? `${r.viento_dir.pct} % <span class="tenue">(n=${r.viento_dir.n})</span>` : "–"}</td></tr>`; }).join("");
-  // Ciudades del período (para el filtro), La Plata primero.
   const ciudades = [...new Set(d.dias.map((f) => f.ciudad))].sort((a, b) => (a !== "La Plata") - (b !== "La Plata") || a.localeCompare(b));
   const antes = $("#pf-ciudad").value;
   $("#pf-ciudad").innerHTML = '<option value="">todas</option>' + ciudades.map((c) => `<option>${esc(c)}</option>`).join("");
@@ -4868,8 +5175,6 @@ async function cargarMisPronosticos() {
 const nombrePlazo = (p) => (Number(p) === 0 ? "Día 1 (mismo día)" : `Día ${Number(p) + 1} (+${p})`);
 const fmtDiaCorto = new Intl.DateTimeFormat("es-AR", { timeZone: "UTC", weekday: "short", day: "numeric", month: "numeric" });
 const diaCorto = (iso) => fmtDiaCorto.format(new Date(iso + "T12:00:00Z"));
-// Una tabla por ciudad: cada fila es un pronóstico (por el día en que se
-// emitió) y cada columna uno de sus días, como la placa del grupo.
 function dibujarPlacasPerfil() {
   const d = pfDatos;
   if (!d) return;
@@ -4899,130 +5204,97 @@ function dibujarPlacasPerfil() {
     abrirNota({ fecha_evento: b.dataset.fecha, contexto: { seccion: "meteograma", ciudad: b.dataset.ciudad, ts: b.dataset.fecha + "T12:00:00Z" } })));
 }
 
-// ----- Muros: el del grupo, el mío y la reunión sinóptica -----
-// Cada nota es un "papelito" con el color de su tipo, agrupadas por el día
-// que se analiza. Si se escribió desde una carta, lleva su imagen; si quien
-// la escribió dibujó o marcó encima (la pizarra), esa imagen.
-const muro = { vista: "grupo", tipo: "", buscar: "", etiqueta: "" };
-let lbNotas = [];
-const TIPO_CORTO = { vi: "Lo que vi", llamo_atencion: "Me llamó la atención", duda: "Duda", pregunta: "Pregunta" };
-const COLORES_AVATAR = ["--s1", "--s2", "--s3", "--s4", "--s5", "--s6", "--s7", "--s8"];
-const colorAvatar = (nombre) => css(COLORES_AVATAR[[...String(nombre)].reduce((a, c) => a + c.charCodeAt(0), 0) % 8]);
-const fmtEscrita = new Intl.DateTimeFormat("es-AR", { timeZone: "America/Argentina/Buenos_Aires", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
-const fmtDiaMuro = new Intl.DateTimeFormat("es-AR", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long" });
-function nombreDiaMuro(iso) {
-  const hoy = diaArg(Date.now()), ayer = diaArg(Date.now() - 24 * HORA);
-  const largo = fmtDiaMuro.format(new Date(iso + "T12:00:00Z"));
-  return iso === hoy ? `Hoy · ${largo}` : iso === ayer ? `Ayer · ${largo}` : largo[0].toUpperCase() + largo.slice(1);
+// ----- Métricas de todo el grupo (coordinadores) -----
+let pfGrupo = null;
+async function cargarGrupo() {
+  const [desde, hasta] = periodoPerfil();
+  let d;
+  try { d = await api(`/api/yo/pronosticos/grupo?desde=${desde}&hasta=${hasta}`); }
+  catch (err) { $("#pf-grupo-nota").textContent = `No se pudo cargar: ${err.message}`; return; }
+  $("#pf-grupo-nota").textContent = `Del ${d.desde} al ${d.hasta}: ${d.pronosticadores.length} firmas con pronósticos. ` +
+    "Error medio absoluto (MAE, °C) y sesgo (+ = pronosticó más calor del que hizo) del plazo elegido; aciertos de lluvia y de dirección del viento. Con pocos días la cifra cambia mucho: miralo como orientación.";
+  pfGrupo = d;
+  dibujarGrupo();
 }
-function hace(t) {
-  const min = (Date.now() - Date.parse(t)) / 60e3;
-  return min < 1 ? "recién" : min < 60 ? `hace ${Math.round(min)} min` : min < 24 * 60 ? `hace ${Math.round(min / 60)} h` : fmtEscrita.format(new Date(t));
+function dibujarGrupo() {
+  const d = pfGrupo;
+  if (!d) return;
+  const pl = $("#pf-grupo-plazo").value;
+  const n = (x) => (x === null || x === undefined ? "–" : num(x, 1));
+  const t = (r) => r && r.n ? `${maeColor(r.mae)} <span class="tenue">(${r.sesgo > 0 ? "+" : ""}${n(r.sesgo)})</span> ${chipNivel(r.nivel)}` : "–";
+  const conDatos = (r) => r && ((r.tmin_urbana && r.tmin_urbana.n) || (r.tmax_urbana && r.tmax_urbana.n) || (r.pp && r.pp.n));
+  const filas = d.pronosticadores.map((p) => ({ p, r: p.resumen[pl] })).filter((x) => conDatos(x.r))
+    .sort((a, b) => (b.r.tmin_urbana?.n || 0) - (a.r.tmin_urbana?.n || 0));
+  $("#pf-grupo-tabla").innerHTML = `<tr><th>Firma</th><th>Usuario</th><th>Días</th><th>Mínima: error medio <small class="tenue">(sesgo)</small></th>
+      <th>Máxima</th><th>Lluvia: aciertos</th><th>Viento: dirección</th><th></th></tr>` +
+    (filas.length ? filas.map(({ p, r }) => `<tr><td><b>${esc(p.firma)}</b></td><td>${p.usuario ? esc(p.usuario.nombre) : '<span class="tenue">sin usuario</span>'}</td>
+        <td>${r.tmin_urbana?.n || r.tmax_urbana?.n || 0}</td><td>${t(r.tmin_urbana)}</td><td>${t(r.tmax_urbana)}</td>
+        <td>${r.pp && r.pp.n ? `${Math.round(100 * r.pp.pc)} %` : "–"}</td>
+        <td>${r.viento_dir && r.viento_dir.n ? `${r.viento_dir.pct} %` : "–"}</td>
+        <td><button class="boton" style="padding:1px 8px" data-perfil="${p.usuario ? p.usuario.id : "f:" + esc(p.firma)}">Ver perfil</button></td></tr>`).join("")
+      : `<tr><td colspan="8" class="tenue">Nadie tiene pronósticos de ese plazo con observación en el período.</td></tr>`);
 }
-function tarjetaNota(nt, reunion = false) {
-  const puede = nt.mia || ["coordinador", "admin"].includes(YO.rol);
-  const conCtx = Object.keys(nt.contexto || {}).length;
-  const img = nt.captura ? `<a class="img" href="${esc(nt.captura)}" target="_blank" rel="noopener" title="Ver la imagen grande"><img src="${esc(nt.captura)}" loading="lazy" alt="Imagen de la nota"><span>✏️ pizarra</span></a>`
-    : nt.imagen ? `<a class="img" href="#" data-acc="abrir" title="Abrir la carta donde se escribió"><img src="${esc(nt.imagen)}" loading="lazy" alt="Carta"><span>carta</span></a>` : "";
-  const coment = nt.compartida ? `<div class="coment">
-      ${nt.comentarios.map((c) => `<div class="c"><b>${esc(c.autor)}</b> <span>${esc(c.texto)}</span> <small>${esc(hace(c.creada))}</small>${c.mio || YO.rol === "admin" ? `<button data-borrar-c="${c.id}" title="Borrar el comentario">✕</button>` : ""}</div>`).join("")}
-      <form data-coment="${nt.id}"><input name="t" maxlength="2000" placeholder="Comentar…" autocomplete="off"><button class="boton chico">↵</button></form></div>` : "";
-  return `<article class="postit ${esc(nt.tipo)}" data-id="${nt.id}">
-    <div class="cab"><span class="avatar" style="background:${colorAvatar(nt.autor)}">${esc(String(nt.autor || "?").slice(0, 1).toUpperCase())}</span>
-      <span class="quien"><b>${nt.mia ? "Vos" : esc(nt.autor)}</b><span title="${esc(fmtEscrita.format(new Date(nt.creada)))}">${esc(hace(nt.creada))}</span></span>
-      <span class="der"><span class="lb-tipo ${esc(nt.tipo)}" title="${esc(NOMBRE_TIPO[nt.tipo] || "")}">${esc(TIPO_CORTO[nt.tipo] || nt.tipo)}</span>${nt.compartida ? "" : '<span title="Privada: la ven vos y los administradores">🔒</span>'}</span></div>
-    ${img}
-    <div class="texto">${esc(nt.texto)}</div>
-    ${conCtx ? `<button class="ctx" data-acc="abrir" title="Ir a donde se escribió">📍 ${esc(describirContexto(nt.contexto))}</button>` : ""}
-    ${nt.etiquetas.length ? `<div class="etqs">${nt.etiquetas.map((e) => `<button data-etq="${esc(e)}" title="Ver solo las notas con esta etiqueta">#${esc(e)}</button>`).join("")}</div>` : ""}
-    ${nt.tratada ? `<div class="lb-resp"><b>Tratada en la reunión${nt.tratada_por ? ` (${esc(nt.tratada_por)})` : ""}.</b>${nt.respuesta ? "\n" + esc(nt.respuesta) : ""}</div>` : ""}
-    ${nt.mia || (reunion && nt.compartida && puede) ? `<div class="acc">
-      ${nt.mia ? `<button class="boton" data-acc="editar">Editar</button><button class="boton" data-acc="borrar">Borrar</button>` : ""}
-      ${reunion && nt.compartida && puede ? `<button class="boton" data-acc="tratar">${nt.tratada ? "Editar conclusión" : "Marcar tratada"}</button>` : ""}</div>` : ""}
-    ${coment}
-  </article>`;
+
+// ----- Navegación entre secciones -----
+function verRed(v, cargar = true) {
+  red.vista = v;
+  document.querySelectorAll("#red-nav button").forEach((b) => b.classList.toggle("activa", b.dataset.rv === v));
+  document.querySelectorAll("#tab-perfil .rv").forEach((x) => (x.hidden = x.id !== `rv-${v}`));
+  if (!cargar) return;
+  if (v === "inicio") cargarInicio();
+  if (v === "perfil") abrirPerfil(YO.id);
+  if (v === "personas") dibujarPersonas();
+  if (v === "reunion") cargarReunion();
+  if (v === "metricas") cargarGrupo();
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
-const AYUDA_MURO = {
-  grupo: "Lo que compartió el grupo, por el día que se analiza. Comentá abajo de cada nota. La imagen es la carta donde se escribió, o la pizarra: lo que dibujó o marcó quien la escribió (tocala para verla grande).",
-  mio: "Tus notas. Las privadas (🔒) las ves vos y los administradores del grupo; las compartidas, todos los que ingresaron. 📍 lleva a la carta, la corrida o la ciudad donde se escribió.",
-  reunion: "Las preguntas compartidas para la reunión: pendientes arriba; las tratadas, con la conclusión. Las marca quien la escribió o un coordinador.",
-};
-async function cargarLibreta() {
-  const v = muro.vista, q = new URLSearchParams();
-  if (v === "mio") q.set("mias", "true");
-  if (v === "reunion") q.set("tipo", "pregunta");
-  else if (muro.tipo) q.set("tipo", muro.tipo);
-  if (muro.etiqueta) q.set("etiqueta", muro.etiqueta);
-  if (!$("#lb-l-autor").hidden && $("#lb-autor").value && v !== "mio") q.set("autor_id", $("#lb-autor").value);
-  const todas = v === "grupo" && !$("#lb-l-todas").hidden && $("#lb-todas").checked;
-  if (todas) q.set("todas", "true");
-  let notas, pend;
-  try { [notas, pend] = await Promise.all([api(`/api/yo/notas?${q}`), api("/api/yo/notas?tipo=pregunta&pendientes=true")]); }
-  catch (err) { $("#lb-lista").innerHTML = `<p class="tenue">No se pudo cargar: ${esc(err.message)}</p>`; return; }
-  const nPend = pend.filter((n) => n.compartida).length;
-  $("#rs-n").hidden = !nPend; $("#rs-n").textContent = nPend;
-  lbNotas = v === "mio" || todas ? notas : notas.filter((n) => n.compartida);
-  dibujarMuro();
+// Vuelve a cargar lo que se está mirando (después de escribir, borrar, etc.).
+function cargarLibreta() {
+  if (red.vista === "perfil" && red.perfil.quien) cargarFeed(red.perfil, red.perfil.params || {}, "#red-feed-perfil", "#red-mas-perfil", "Nada publicado en estas semanas");
+  else if (red.vista === "inicio") cargarInicio();
+  cargarReunion();
 }
-function dibujarMuro() {
-  const v = muro.vista, b = muro.buscar.trim().toLowerCase();
-  const notas = lbNotas.filter((n) => !b || [n.texto, n.autor, ...n.etiquetas].join(" ").toLowerCase().includes(b));
-  $("#muro-ayuda").textContent = AYUDA_MURO[v];
-  $("#lb-lista").hidden = v === "reunion"; $("#rs-lista").hidden = v !== "reunion";
-  if (v === "reunion") {
-    const pend = notas.filter((n) => !n.tratada), hechas = notas.filter((n) => n.tratada).slice(0, 30);
-    $("#rs-lista").innerHTML = (pend.length ? `<h4 class="muro-dia">Pendientes (${pend.length})</h4><div class="muro-col">${pend.map((n) => tarjetaNota(n, true)).join("")}</div>`
-      : '<p class="tenue">No hay preguntas pendientes.</p>') +
-      (hechas.length ? `<h4 class="muro-dia">Tratadas</h4><div class="muro-col">${hechas.map((n) => tarjetaNota(n, true)).join("")}</div>` : "");
-    return;
-  }
-  const dias = new Map();
-  for (const n of notas) {
-    const d = n.fecha_evento || diaArg(Date.parse(n.creada));
-    if (!dias.has(d)) dias.set(d, []);
-    dias.get(d).push(n);
-  }
-  $("#lb-lista").innerHTML = dias.size ? [...dias].map(([d, ns]) => `<h4 class="muro-dia">${esc(nombreDiaMuro(d))}</h4>
-      <div class="muro-col">${ns.map((n) => tarjetaNota(n)).join("")}</div>`).join("")
-    : `<p class="tenue">${v === "mio" ? "Todavía no escribiste notas" : "Nadie compartió notas todavía"}${muro.tipo || muro.etiqueta || b ? " con ese filtro" : ""}.
-       Escribí arriba, o usá los botones 📝 Anotar de Cartas: la nota guarda la carta (y lo que dibujes o marques encima).</p>`;
+function buscarNota(id) {
+  for (const it of [...red.inicio.items, ...red.perfil.items]) if (it.tipo === "nota" && it.nota.id === id) return it.nota;
+  return red.reunion.find((n) => n.id === id);
 }
-function verMuro(v) {
-  muro.vista = v;
-  document.querySelectorAll(".muro-tabs button").forEach((b) => b.classList.toggle("activa", b.dataset.muro === v));
-  $("#mc-l-comp").hidden = v !== "mio";
-  $("#mc-tipo").disabled = v === "reunion";
-  if (v === "reunion") $("#mc-tipo").value = "pregunta";
-  else if ($("#mc-tipo").value === "pregunta") $("#mc-tipo").value = "vi";
-  $("#mf-tipos").hidden = v === "reunion";
-  $("#mc-texto").placeholder = v === "reunion" ? "¿Qué querés preguntar en la reunión?"
-    : v === "grupo" ? "¿Qué viste hoy? Se comparte con el grupo. Ej.: la vaguada en 500 está más al oeste que ayer…"
-    : "Una nota para vos (marcá Compartir para que la vea el grupo)…";
-  cargarLibreta();
+function buscarObjeto(obj) {
+  return [...red.inicio.items, ...red.perfil.items].filter((it) => (it.tipo === "nota" ? `nota:${it.nota.id}` : it.objeto) === obj)
+    .concat(red.reunion.filter((n) => `nota:${n.id}` === obj).map((n) => ({ tipo: "nota", nota: n })));
 }
-function filtroEtiqueta(e) {
-  muro.etiqueta = e;
-  $("#mf-etq").hidden = !e;
-  $("#mf-etq").innerHTML = e ? `<button class="chip-f activa" title="Sacar el filtro">#${esc(e)} ✕</button>` : "";
-  cargarLibreta();
+function redibujar() {
+  if (red.vista === "inicio") dibujarFeed("#red-feed", red.inicio, "Todavía no hay nada");
+  if (red.vista === "perfil") dibujarFeed("#red-feed-perfil", red.perfil, "Nada publicado en estas semanas");
+  if (red.vista === "reunion") cargarReunion();
 }
 function datosComposer() {
   const tipo = $("#mc-tipo").value;
   return { tipo, texto: $("#mc-texto").value.trim(), fecha_evento: diaArg(Date.now()), contexto: {},
-    etiquetas: $("#mc-etiquetas").value.split(",").map((x) => x.trim()).filter(Boolean),
-    compartida: muro.vista !== "mio" || tipo === "pregunta" || $("#mc-comp").checked };
+    etiquetas: $("#mc-etiquetas").value.split(",").map((x) => x.trim().replace(/^#/, "")).filter(Boolean),
+    compartida: tipo === "pregunta" || !$("#mc-priv").checked };
 }
-function iniciarMuro() {
-  document.querySelectorAll(".muro-tabs button").forEach((b) => b.addEventListener("click", () => verMuro(b.dataset.muro)));
-  $("#mf-tipos").addEventListener("click", (e) => {
-    const b = e.target.closest("[data-tipo]"); if (!b) return;
-    muro.tipo = b.dataset.tipo;
-    $("#mf-tipos").querySelectorAll("button").forEach((x) => x.classList.toggle("activa", x === b));
-    cargarLibreta();
+async function iniciarPerfil() {
+  $("#red-yo").innerHTML = `${avatar(YO.nombre, "grande")}<span><b>${esc(YO.nombre)}</b><small>${esc({ admin: "administrador", coordinador: "coordinador", pronosticador: "pronosticador" }[YO.rol] || "")}</small></span>`;
+  $("#mc-avatar").outerHTML = avatar(YO.nombre, "grande");
+  $("#red-nav").addEventListener("click", (e) => { const b = e.target.closest("[data-rv]"); if (b) verRed(b.dataset.rv); });
+  $("#red-yo").addEventListener("click", () => verRed("perfil"));
+  $("#rv-b-metricas").hidden = !esCoord();
+  $("#lb-l-todas").hidden = YO.rol !== "admin";
+  $("#lb-todas").addEventListener("change", () => cargarInicio());
+  $("#pf-dias").addEventListener("change", () => { cargarMisPronosticos(); if (red.vista === "metricas") cargarGrupo(); });
+  $("#pf-ciudad").addEventListener("change", dibujarPlacasPerfil);
+  $("#pf-grupo-plazo").addEventListener("change", dibujarGrupo);
+  document.querySelectorAll(".red-subtabs button").forEach((b) => b.addEventListener("click", () => verPestanaPerfil(b.dataset.pt)));
+  $("#rf-tipos").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-f]"); if (!b) return;
+    red.filtro = b.dataset.f;
+    $("#rf-tipos").querySelectorAll("button").forEach((x) => x.classList.toggle("activa", x === b));
+    dibujarFeed("#red-feed", red.inicio, "Todavía no hay nada");
   });
-  $("#mf-buscar").addEventListener("input", () => { muro.buscar = $("#mf-buscar").value; dibujarMuro(); });
-  $("#mf-etq").addEventListener("click", () => filtroEtiqueta(""));
-  ["#lb-autor", "#lb-todas"].forEach((s) => $(s).addEventListener("change", cargarLibreta));
+  $("#mf-buscar").addEventListener("input", () => { red.buscar = $("#mf-buscar").value; dibujarFeed("#red-feed", red.inicio, "Todavía no hay nada"); });
+  $("#red-mas").addEventListener("click", () => cargarInicio(true));
+  $("#red-mas-perfil").addEventListener("click", () => cargarFeed(red.perfil, red.perfil.params || {}, "#red-feed-perfil", "#red-mas-perfil", "Nada publicado", true));
+  $("#mc-tipo").addEventListener("change", () => { $("#mc-priv").disabled = $("#mc-tipo").value === "pregunta"; if ($("#mc-priv").disabled) $("#mc-priv").checked = false; });
   $("#mc-publicar").addEventListener("click", async () => {
     const d = datosComposer();
     if (!d.texto) { $("#mc-texto").focus(); return; }
@@ -5032,27 +5304,65 @@ function iniciarMuro() {
     finally { $("#mc-publicar").disabled = false; }
   });
   $("#mc-mas").addEventListener("click", () => abrirNota(datosComposer()));
-  for (const lista of ["#lb-lista", "#rs-lista"]) {
-    $(lista).addEventListener("click", accionNota);
-    $(lista).addEventListener("submit", async (e) => {
-      const f = e.target.closest("form[data-coment]"); if (!f) return;
-      e.preventDefault();
-      const texto = f.t.value.trim(); if (!texto) return;
-      try { await apiEnviar(`/api/yo/notas/${f.dataset.coment}/comentarios`, "POST", { texto }); cargarLibreta(); }
-      catch (err) { alert(`No se pudo comentar: ${err.message}`); }
-    });
-  }
-  verMuro("grupo");
+  $("#rs-nueva").addEventListener("click", () => abrirNota({ tipo: "pregunta", compartida: true, fecha_evento: diaArg(Date.now()), contexto: {} }));
+  // Todo lo que se toca dentro de la red (feeds, reunión, columnas, el grupo).
+  $("#tab-perfil").addEventListener("click", accionRed);
+  $("#tab-perfil").addEventListener("submit", enviarComentario);
+  verRed("inicio");
+  cargarReunion();
 }
-async function accionNota(e) {
-  const etq = e.target.closest("[data-etq]");
-  if (etq) { filtroEtiqueta(etq.dataset.etq); return; }
-  const bc = e.target.closest("[data-borrar-c]");
-  if (bc) { if (confirm("¿Borrar el comentario?")) { await apiEnviar(`/api/yo/comentarios/${bc.dataset.borrarC}`, "DELETE"); cargarLibreta(); } return; }
-  const b = e.target.closest("[data-acc]");
-  if (!b) return;
+async function enviarComentario(e) {
+  const f = e.target.closest("form[data-coment], form[data-coment-pron]");
+  if (!f) return;
   e.preventDefault();
-  const id = Number(b.closest(".postit").dataset.id), nt = lbNotas.find((x) => x.id === id);
+  const texto = f.t.value.trim(); if (!texto) return;
+  const nuevo = { autor: YO.nombre, creada: new Date().toISOString(), texto, mio: true };
+  try {
+    if (f.dataset.coment) {
+      nuevo.id = (await apiEnviar(`/api/yo/notas/${f.dataset.coment}/comentarios`, "POST", { texto })).id;
+      buscarObjeto(`nota:${f.dataset.coment}`).forEach((it) => (it.nota.comentarios = [...(it.nota.comentarios || []), nuevo]));
+    } else {
+      nuevo.id = (await apiEnviar("/api/yo/pronostico/comentarios", "POST", { objeto: f.dataset.comentPron, texto })).id;
+      buscarObjeto(f.dataset.comentPron).forEach((it) => (it.comentarios = [...(it.comentarios || []), nuevo]));
+    }
+  } catch (err) { alert(`No se pudo comentar: ${err.message}`); return; }
+  redibujar();
+}
+async function accionRed(e) {
+  const ir = e.target.closest("[data-ir-rv]");
+  if (ir) { verRed(ir.dataset.irRv); return; }
+  const per = e.target.closest("[data-perfil]");
+  if (per && per.dataset.perfil && per.dataset.perfil !== "null") { e.preventDefault(); abrirPerfil(per.dataset.perfil); return; }
+  const etq = e.target.closest("[data-etq]");
+  if (etq) { verRed("inicio", false); $("#mf-buscar").value = "#" + etq.dataset.etq; red.buscar = etq.dataset.etq; cargarInicio(); return; }
+  const rc = e.target.closest("[data-reac]");
+  if (rc) {
+    const obj = rc.closest(".reac").dataset.obj;
+    try {
+      const r = await apiEnviar("/api/yo/reacciones", "POST", { objeto: obj, tipo: rc.dataset.reac });
+      buscarObjeto(obj).forEach((it) => { if (it.tipo === "nota") it.nota.reacciones = r; else it.reacciones = r; });
+      const tipos = obj.startsWith("nota:") ? ["util", "acuerdo", "duda"] : ["aplauso", "duda"];
+      document.querySelectorAll(`.reac[data-obj="${CSS.escape(obj)}"]`).forEach((x) => (x.outerHTML = barraReacciones(obj, r, tipos)));
+    } catch (err) { alert(err.message); }
+    return;
+  }
+  const bc = e.target.closest("[data-borrar-c], [data-borrar-cp]");
+  if (bc) {
+    if (!confirm("¿Borrar el comentario?")) return;
+    if (bc.dataset.borrarC) await apiEnviar(`/api/yo/comentarios/${bc.dataset.borrarC}`, "DELETE");
+    else await apiEnviar(`/api/yo/pronostico/comentarios/${bc.dataset.borrarCp}`, "DELETE");
+    const id = Number(bc.dataset.borrarC || bc.dataset.borrarCp);
+    for (const it of [...red.inicio.items, ...red.perfil.items]) {
+      if (it.tipo === "nota") it.nota.comentarios = (it.nota.comentarios || []).filter((c) => c.id !== id || !bc.dataset.borrarC);
+      else it.comentarios = (it.comentarios || []).filter((c) => c.id !== id || !bc.dataset.borrarCp);
+    }
+    redibujar();
+    return;
+  }
+  const b = e.target.closest("[data-acc]");
+  if (!b || !b.closest(".postit")) return;
+  e.preventDefault();
+  const id = Number(b.closest(".postit").dataset.id), nt = buscarNota(id);
   if (!nt) return;
   if (b.dataset.acc === "abrir") abrirContexto(nt.contexto);
   if (b.dataset.acc === "editar") abrirNota(nt);
@@ -5061,7 +5371,7 @@ async function accionNota(e) {
     const resp = prompt("Conclusión de la reunión (opcional):", nt.respuesta || "");
     if (resp === null) return;
     await apiEnviar(`/api/yo/notas/${id}/reunion`, "PUT", { tratada: true, respuesta: resp });
-    cargarLibreta();
+    cargarReunion();
   }
 }
 

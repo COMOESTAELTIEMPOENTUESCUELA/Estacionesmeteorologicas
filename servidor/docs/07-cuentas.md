@@ -8,22 +8,31 @@ La página de Cartas (también la copia pública) sigue igual para todos. Quien
   dirección del viento), con las mismas cuentas que la pestaña Verificación.
   Se cuenta la **versión vigente** de cada pronóstico: si otro lo corrigió,
   ese día es de quien lo corrigió. Los coordinadores pueden ver los de cada uno.
-- **Muros de notas** (en Mi perfil, tres pestañas):
-  - **Muro del grupo**: las notas compartidas de todos, como papelitos con el
-    color de su tipo ("lo que vi", "me llamó la atención", duda, pregunta),
-    agrupadas por el día que se analiza. Cada una se puede **comentar**.
-  - **Mi muro**: las notas propias, privadas (🔒) y compartidas.
-  - **Reunión sinóptica**: las preguntas compartidas, pendientes arriba (el
-    número en la pestaña). En la reunión se marcan tratadas y se anota la
-    conclusión (quien la escribió o un coordinador).
+- **Mi perfil es una red del grupo**, con un menú a la izquierda:
+  - **Inicio**: lo que publicó el grupo, lo más nuevo arriba y por día. Mezcla
+    las **notas** (lo que vi, me llamó la atención, dudas, preguntas) con los
+    **pronósticos publicados**: cada uno muestra sus 4 días, lo pronosticado
+    contra lo observado (con los colores del error) y, cuando corresponde,
+    insignias ("🎯 temperaturas clavadas", "☔ acertó la lluvia"). Se
+    reacciona (👍 útil, 🤝 de acuerdo, 🤔 dudas; 👏 en los pronósticos) y se
+    comenta. Arriba se escribe (privada con 🔒); filtros por tipo y buscador
+    (texto, persona, #etiqueta, ciudad); "Ver días anteriores" va hacia atrás.
+  - **Perfil** de cada persona (tocando su nombre o avatar): presentación,
+    sus números (si se pueden ver), sus publicaciones y la pestaña
+    **Pronósticos y errores** (la tabla por plazo y las placas día por día).
+    En el propio, "Editar perfil": la presentación y si se muestran los
+    números al grupo.
+  - **El grupo**: todos, incluidas las firmas sin cuenta.
+  - **Reunión sinóptica**: las preguntas, pendientes arriba.
+  - **Métricas del grupo** (coordinadores): la tabla de todas las firmas.
+  - A la derecha: lo de **ayer, pronosticado contra observado**, y las
+    preguntas pendientes.
 
-  Arriba se escribe una nota rápida; con filtros por tipo, búsqueda y
-  etiquetas (tocar una #etiqueta filtra por ella). También se escriben con
-  los botones **📝 Anotar** de Cartas (cartas de análisis, visor grande,
-  pronóstico GFS, meteograma del pronóstico, diagnóstico por ciudad), que
-  guardan **dónde** se escribió: 📍 vuelve a esa carta, corrida y plazo, o
-  ciudad. Privadas por defecto (las ven su autor y los administradores; la
-  página lo avisa); las compartidas, todos los que ingresaron.
+  **Qué ve cada uno**: los pronósticos día por día con lo observado son
+  públicos (ya lo eran en Verificación). Los **números** de cada persona
+  (errores medios, aciertos) los ven ella, los coordinadores y, si ella lo
+  elige en su perfil (🔓), todo el grupo. Las notas privadas, su autor y los
+  administradores.
 - **La pizarra**: al anotar desde el visor de una carta, el pronóstico GFS o
   un meteograma, la nota **pega la imagen** de lo que se estaba mirando (la
   carta con lo que se dibujó encima, el meteograma completo) y se puede

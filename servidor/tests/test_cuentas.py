@@ -258,3 +258,64 @@ def test_imagen_pegada_a_la_nota(cliente, cuentas, monkeypatch):
     ingresar(cliente, cuentas, monkeypatch, "ana@gmail.com")
     cliente.put(f"/api/yo/notas/{comp}", json={"texto": "sin imagen", "compartida": True, "imagen": None}, headers=X)
     assert cliente.get(f"/api/yo/notas/{comp}/imagen").status_code == 404
+
+
+def test_red_muro_reacciones_y_metricas(cliente, cuentas, monkeypatch):
+    """La parte "red social": el inicio mezcla notas y pronósticos con lo
+    observado; reacciones y comentarios; métricas visibles solo si se elige."""
+    m = cuentas
+    with m._pools["e"].connection() as conn:
+        for fecha, tmin, obs in (("2026-10-10", 10, 9), ("2026-10-11", 12, 12.5)):
+            eid = conn.execute("""INSERT INTO pronostico_emision (ciudad, fecha_pronostico, publicado_por, contenido, huella, capturado)
+                                  VALUES ('Ciudad Test', %s, 'AnaP', '{}', %s, %s) RETURNING id""",
+                               (fecha, f"red-{fecha}", fecha + " 08:00Z")).fetchone()["id"]
+            for k in (0, 1):
+                conn.execute("""INSERT INTO pronostico_dia (emision_id, fecha, plazo_dias, temp_min, temp_max, periodos)
+                                VALUES (%s, %s::date + %s, %s, %s, 20, '[]')""", (eid, fecha, k, k, tmin + k))
+            conn.execute("""INSERT INTO verif_observado (ciudad, fecha, elemento, valor, categoria, estacion_id, detalle)
+                            VALUES ('Ciudad Test', %s, 'tmin_urbana', %s, 'madrugada', 'omm_87593', '{}') ON CONFLICT DO NOTHING""", (fecha, obs))
+        conn.commit()
+    try:
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "ana@gmail.com")
+        nota = cliente.post("/api/yo/notas", json={"texto": "se viene frío", "compartida": True}, headers=X).json()["id"]
+        d = cliente.get("/api/yo/muro?hasta=2026-10-11&dias=2").json()
+        pron = [i for i in d["items"] if i["tipo"] == "pronostico" and i["ciudad"] == "Ciudad Test"]
+        assert [(p["fecha_emision"], p["usuario"]["nombre"]) for p in pron] == [("2026-10-11", "Ana"), ("2026-10-10", "Ana")]
+        assert pron[1]["dias"][0]["tmin"]["pron"] == 10 and pron[1]["dias"][0]["tmin"]["obs"] == 9
+        assert pron[0]["dias"][1]["tmin"]["obs"] is None                      # el día 2 todavía sin observar
+        hoy = cliente.get("/api/yo/muro").json()
+        assert [i["nota"]["id"] for i in hoy["items"] if i["tipo"] == "nota"] == [nota]
+        # Reacciones (interruptor) y comentario en un pronóstico, de otro usuario.
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "beto@gmail.com")
+        obj = pron[0]["objeto"]
+        assert cliente.post("/api/yo/reacciones", json={"objeto": obj, "tipo": "aplauso"}, headers=X).json()["conteo"] == {"aplauso": 1}
+        assert cliente.post("/api/yo/reacciones", json={"objeto": f"nota:{nota}", "tipo": "util"}, headers=X).json()["mias"] == ["util"]
+        assert cliente.post("/api/yo/reacciones", json={"objeto": f"nota:{nota}", "tipo": "util"}, headers=X).json()["conteo"] == {}
+        assert cliente.post("/api/yo/reacciones", json={"objeto": "pron|X|2026-01-01|Nadie", "tipo": "util"}, headers=X).status_code == 404
+        assert cliente.post("/api/yo/reacciones", json={"objeto": obj, "tipo": "odio"}, headers=X).status_code == 400
+        assert cliente.post("/api/yo/pronostico/comentarios", json={"objeto": obj, "texto": "¡buena!"}, headers=X).status_code == 200
+        p0 = [i for i in cliente.get("/api/yo/muro?hasta=2026-10-11&dias=2").json()["items"] if i.get("objeto") == obj][0]
+        assert p0["reacciones"]["quienes"]["aplauso"] == ["Beto"] and p0["comentarios"][0]["texto"] == "¡buena!"
+        # Métricas de Ana: privadas hasta que ella elige mostrarlas.
+        ana = m._leer("SELECT id FROM usuario WHERE email = 'ana@gmail.com'")[0]["id"]
+        assert cliente.get(f"/api/yo/pronosticos?usuario_id={ana}").status_code == 403
+        assert cliente.get(f"/api/yo/muro?autor_id={ana}&hasta=2026-10-11&dias=2").status_code == 200   # lo publicado sí se ve
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "ana@gmail.com")
+        assert cliente.put("/api/yo/perfil", json={"bio": "Me gustan los frentes", "metricas_publicas": True}, headers=X).status_code == 200
+        assert cliente.get("/api/yo").json()["usuario"]["bio"] == "Me gustan los frentes"
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "beto@gmail.com")
+        assert cliente.get(f"/api/yo/pronosticos?usuario_id={ana}&desde=2026-10-01&hasta=2026-10-31").status_code == 200
+        gente = {p["nombre"]: p for p in cliente.get("/api/yo/personas").json()["personas"] if p["id"]}
+        assert gente["Ana"]["metricas_visibles"] and gente["Ana"]["bio"] == "Me gustan los frentes"
+        assert not gente["Beto"]["metricas_visibles"] or gente["Beto"]["yo"]
+    finally:
+        with m._pools["e"].connection() as conn:
+            conn.execute("DELETE FROM pronostico_emision WHERE ciudad = 'Ciudad Test'")
+            conn.execute("DELETE FROM verif_observado WHERE ciudad = 'Ciudad Test'")
+            conn.execute("DELETE FROM reaccion WHERE objeto LIKE 'pron|Ciudad Test|%'")
+            conn.execute("DELETE FROM comentario_pronostico WHERE objeto LIKE 'pron|Ciudad Test|%'")
+            conn.commit()
