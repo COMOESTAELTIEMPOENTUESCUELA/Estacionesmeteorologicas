@@ -201,6 +201,10 @@ td.nw { white-space: nowrap; }
 .pron-tabla th small { display: block; font-weight: 400; color: var(--tenue); }
 .pron-tabla td:first-child, .pron-tabla th:first-child { text-align: left; color: var(--tinta-2); }
 .pron-tabla .pend { color: var(--tenue); }
+.pron-modelo { border: 1px solid var(--borde); border-radius: 8px; padding: 6px 8px; background: var(--plano); }
+.pron-modelo svg { width: 100%; height: auto; display: block; }
+.pron-modelo svg text { font: 11px system-ui, sans-serif; fill: var(--tinta-2); }
+.pron-modelo .ley { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--tinta-2); margin-top: 4px; }
 .pron-res { font-size: 12.5px; color: var(--tinta-2); display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .insignia { border-radius: 99px; padding: 1px 9px; font-size: 12px; font-weight: 600; background: color-mix(in srgb, var(--ok) 15%, transparent); color: var(--tinta); }
 /* Perfil */
@@ -4887,7 +4891,7 @@ const red = {
   vista: "inicio", filtro: "", buscar: "",
   inicio: { items: [], siguiente: null, hasta: null },          // el feed de Inicio
   perfil: { quien: null, items: [], siguiente: null },          // el perfil abierto
-  personas: null, reunion: [],
+  personas: null, reunion: [], modelos: {},
 };
 const TIPO_CORTO = { vi: "Lo que vi", llamo_atencion: "Me llamó la atención", duda: "Duda", pregunta: "Pregunta" };
 const COLORES_AVATAR = ["--s1", "--s2", "--s3", "--s4", "--s5", "--s6", "--s7", "--s8"];
@@ -4981,7 +4985,10 @@ function tarjetaPron(it) {
     <div class="pron-res">${r.ver ? `Verificados ${r.ver} de ${it.dias.length} días` : "Todavía sin observaciones"}
       ${r.mae !== null ? `· error medio de temperatura ${maeColor(r.mae)} °C` : ""}${r.lluviaN ? ` · lluvia ${r.lluviaOk}/${r.lluviaN}` : ""}
       ${insignias.map((x) => `<span class="insignia">${esc(x)}</span>`).join("")}</div>
-    <div class="acc"><button class="boton" data-cartas="${esc(it.fecha_emision)}" title="Las cartas del día en que se hizo el pronóstico: la situación que tenía a la vista">🗺️ Cartas del día</button></div>
+    <div class="acc"><button class="boton" data-cartas="${esc(it.fecha_emision)}" title="Las cartas de diagnóstico del día en que se hizo el pronóstico: la situación que tenía a la vista">🗺️ Cartas del día</button>
+      <button class="boton" data-modelo title="El GFS de la corrida que había cuando se publicó, contra lo pronosticado y lo observado">📈 ${red.modelos[it.objeto]?.abierto ? "Ocultar el modelo" : "Ver el modelo"}</button>
+      <button class="boton" data-cartas-modelo title="Las cartas y el meteograma del GFS de esa corrida (se guardan 8 días)">🌐 Cartas del GFS</button></div>
+    <div class="pron-modelo" ${red.modelos[it.objeto]?.abierto ? "" : "hidden"}>${red.modelos[it.objeto]?.html || ""}</div>
     ${barraReacciones(it.objeto, it.reacciones, ["aplauso", "duda"])}
     ${comentariosHTML(it.comentarios || [], `<form data-coment-pron="${esc(it.objeto)}"><input name="t" maxlength="2000" placeholder="Comentar el pronóstico…" autocomplete="off"><button class="boton chico">↵</button></form>`, "data-borrar-cp")}
   </article>`;
@@ -5341,6 +5348,97 @@ async function enviarComentario(e) {
   } catch (err) { alert(`No se pudo comentar: ${err.message}`); return; }
   redibujar();
 }
+// ----- El modelo (GFS) que había cuando se publicó un pronóstico -----
+// La corrida "disponible" a la hora de publicar: el GFS sale ~5 h después de
+// su hora de inicio (00, 06, 12, 18 UTC). Si esa no está guardada (se guardan
+// 8 días), se prueban las anteriores.
+function corridasCandidatas(it) {
+  const t = Date.parse(it.ts) - 5 * HORA;
+  const c0 = Math.floor(t / (6 * HORA)) * 6 * HORA;
+  return [0, 1, 2, 3].map((k) => claveCorrida(new Date(c0 - k * 6 * HORA)));
+}
+async function corridaDelPronostico(it) {
+  for (const c of corridasCandidatas(it)) {
+    try {
+      const d = await api(`/api/cartas/pronostico/punto?ciudad=${encodeURIComponent(it.ciudad)}&corrida=${c}`);
+      if (d.inicio && d.plazos.length > 2) return { corrida: c, datos: d };
+    } catch (_) { return null; }       // ciudad sin punto del GFS
+  }
+  return null;
+}
+// El gráfico: la temperatura a 2 m del GFS (línea), la mínima y máxima que
+// puso quien pronosticó (rombos) y las observadas (círculos), y la lluvia del
+// modelo cada 6 h (barras), para los días del pronóstico.
+function graficoModelo(it, d) {
+  const dias = it.dias.map((x) => x.fecha);
+  const t0 = Date.parse(dias[0] + "T03:00:00Z"), t1 = Date.parse(dias[dias.length - 1] + "T03:00:00Z") + 24 * HORA;   // días argentinos
+  const mod = d.plazos.map((p) => [Date.parse(p.valida), p.sup?.t, p.pp6]).filter(([t, v]) => t >= t0 - 6 * HORA && t <= t1 + 6 * HORA && v !== undefined && v !== null);
+  const marcas = [];
+  for (const x of it.dias) {
+    const base = Date.parse(x.fecha + "T03:00:00Z");
+    for (const [k, h] of [["tmin", 6], ["tmax", 15]]) {
+      const v = x[k] || {};
+      if (v.pron !== null && v.pron !== undefined) marcas.push({ t: base + h * HORA, v: v.pron, tipo: "pron", k });
+      if (v.obs !== null && v.obs !== undefined) marcas.push({ t: base + h * HORA, v: v.obs, tipo: "obs", k });
+    }
+  }
+  const vals = [...mod.map((m) => m[1]), ...marcas.map((m) => m.v)];
+  if (!vals.length) return '<p class="tenue">Sin datos del modelo para esos días.</p>';
+  const W = 640, H = 190, iz = 34, de = 8, ar = 10, ab = 34;
+  const y0 = Math.floor(Math.min(...vals) - 2), y1 = Math.ceil(Math.max(...vals) + 2);
+  const X = (t) => iz + (t - t0) / (t1 - t0) * (W - iz - de), Y = (v) => ar + (H - ar - ab) * (1 - (v - y0) / (y1 - y0));
+  const linea = mod.map(([t, v], i) => `${i ? "L" : "M"}${X(t).toFixed(1)},${Y(v).toFixed(1)}`).join("");
+  const ppMax = Math.max(5, ...mod.map((m) => m[2] || 0));
+  const barras = mod.filter((m) => m[2] > 0.1).map(([t, , pp]) => { const h = pp / ppMax * 26;
+    return `<rect x="${(X(t) - 6).toFixed(1)}" y="${(H - ab - h).toFixed(1)}" width="6" height="${h.toFixed(1)}" fill="var(--s1)" opacity=".55"><title>${num(pp, 1)} mm en 6 h (modelo)</title></rect>`; }).join("");
+  const paso = (y1 - y0) > 16 ? 5 : 2, ys = [];
+  for (let v = Math.ceil(y0 / paso) * paso; v <= y1; v += paso) ys.push(v);
+  const col = (m) => (m.k === "tmin" ? "#2563eb" : "#dc2626");
+  const simbolo = (m) => m.tipo === "pron"
+    ? `<path d="M${X(m.t)},${Y(m.v) - 6}l6,6l-6,6l-6,-6z" fill="var(--superficie)" stroke="${col(m)}" stroke-width="2"><title>${m.k === "tmin" ? "Mínima" : "Máxima"} pronosticada: ${num(m.v, 0)} °C</title></path>`
+    : `<circle cx="${X(m.t)}" cy="${Y(m.v)}" r="4.5" fill="${col(m)}"><title>${m.k === "tmin" ? "Mínima" : "Máxima"} observada: ${num(m.v, 1)} °C</title></circle>`;
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Modelo, pronóstico y observado">
+    ${ys.map((v) => `<line x1="${iz}" x2="${W - de}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--grilla)"/><text x="${iz - 4}" y="${Y(v) + 4}" text-anchor="end">${v}°</text>`).join("")}
+    ${dias.map((f, i) => { const x = X(Date.parse(f + "T03:00:00Z"));
+      return `<line x1="${x}" x2="${x}" y1="${ar}" y2="${H - ab}" stroke="var(--eje)"/><text x="${x + (W - iz - de) / dias.length / 2}" y="${H - 18}" text-anchor="middle">Día ${i + 1} · ${esc(diaCorto(f))}</text>`; }).join("")}
+    ${barras}
+    <path d="${linea}" fill="none" stroke="var(--tinta-2)" stroke-width="1.8"/>
+    ${marcas.filter((m) => m.tipo === "pron").map(simbolo).join("")}${marcas.filter((m) => m.tipo === "obs").map(simbolo).join("")}
+  </svg>
+  <div class="ley"><span>━ Temperatura a 2 m del GFS (corrida del ${esc(fmtCorrida(new Date(d.inicio)))})</span>
+    <span>◇ pronosticado</span><span>● observado</span><span style="color:#2563eb">azul: mínima</span><span style="color:#dc2626">rojo: máxima</span>
+    <span>▮ lluvia del modelo cada 6 h</span></div>`;
+}
+async function alternarModelo(tarjeta) {
+  const obj = tarjeta.dataset.obj, it = buscarObjeto(obj)[0];
+  if (!it) return;
+  const m = red.modelos[obj] || (red.modelos[obj] = {});
+  m.abierto = !m.abierto;
+  const caja = tarjeta.querySelector(".pron-modelo"), boton = tarjeta.querySelector("[data-modelo]");
+  caja.hidden = !m.abierto;
+  boton.textContent = m.abierto ? "📈 Ocultar el modelo" : "📈 Ver el modelo";
+  if (!m.abierto || m.html) return;
+  caja.innerHTML = '<span class="tenue">Buscando la corrida del GFS de ese momento…</span>';
+  const r = await corridaDelPronostico(it);
+  m.corrida = r?.corrida;
+  m.html = r ? graficoModelo(it, r.datos)
+    : '<p class="tenue">La corrida del GFS de ese momento ya no está guardada: el servidor guarda las de los últimos 8 días (o esta ciudad no tiene punto del modelo).</p>';
+  caja.innerHTML = m.html;
+}
+async function irAlModelo(tarjeta) {
+  const it = buscarObjeto(tarjeta.dataset.obj)[0];
+  if (!it) return;
+  const m = red.modelos[it.objeto] || {};
+  const corrida = m.corrida || (await corridaDelPronostico(it))?.corrida;
+  if (!corrida) { alert("La corrida del GFS de ese momento ya no está guardada (se guardan las de los últimos 8 días)."); return; }
+  const inicio = Date.UTC(+corrida.slice(0, 4), +corrida.slice(4, 6) - 1, +corrida.slice(6, 8), +corrida.slice(8, 10));
+  const plazo = Math.max(0, Math.round((Date.parse(it.dias[0].fecha + "T18:00:00Z") - inicio) / (6 * HORA)) * 6);   // la tarde del día 1
+  const quien = tarjeta.querySelector(".quien b")?.textContent.trim();
+  volverRed = { obj: it.objeto, vista: red.vista, scroll: window.scrollY };
+  $("#red-volver").textContent = `← Volver${quien ? ` al pronóstico de ${quien === "Vos" ? "vos" : quien}` : ""}`;
+  abrirContexto({ seccion: "gfs", corrida, plazo, ciudad: it.ciudad });
+}
+
 // Ir a las cartas de un día desde una tarjeta, y poder volver a esa tarjeta.
 function irACartasDesdeRed(fecha, tarjeta) {
   const obj = tarjeta?.dataset.obj || (tarjeta?.dataset.id ? `nota:${tarjeta.dataset.id}` : null);
@@ -5367,6 +5465,10 @@ function volverALaRed() {
   ir();
 }
 async function accionRed(e) {
+  const bm = e.target.closest("[data-modelo]");
+  if (bm) { alternarModelo(bm.closest(".postit")); return; }
+  const bcm = e.target.closest("[data-cartas-modelo]");
+  if (bcm) { irAlModelo(bcm.closest(".postit")); return; }
   const vc = e.target.closest("[data-cartas]");
   if (vc) { e.preventDefault(); irACartasDesdeRed(vc.dataset.cartas, vc.closest(".postit")); return; }
   const ir = e.target.closest("[data-ir-rv]");

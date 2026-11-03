@@ -20,6 +20,12 @@ La página de Cartas (también la copia pública) sigue igual para todos. Quien
     Tocando un día del pronóstico (🗺️) o "Cartas del día" se abren las cartas
     de diagnóstico de esa fecha, para ver la situación; el botón flotante
     "← Volver al pronóstico" deja de nuevo en esa tarjeta, listo para comentar.
+    **📈 Ver el modelo** abre en la tarjeta un gráfico con la temperatura a 2 m
+    del GFS de la corrida que había cuando se publicó (la de ~5 h antes), la
+    mínima y la máxima pronosticadas (◇) y las observadas (●), y la lluvia del
+    modelo. **🌐 Cartas del GFS** abre las cartas y el meteograma de esa
+    corrida para esa ciudad. Las corridas se guardan 8 días: para pronósticos
+    más viejos lo avisa.
   - **Perfil** de cada persona (tocando su nombre o avatar): presentación,
     sus números (si se pueden ver), sus publicaciones y la pestaña
     **Pronósticos y errores** (la tabla por plazo y las placas día por día).
