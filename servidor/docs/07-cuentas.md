@@ -17,6 +17,9 @@ La página de Cartas (también la copia pública) sigue igual para todos. Quien
     reacciona (👍 útil, 🤝 de acuerdo, 🤔 dudas; 👏 en los pronósticos) y se
     comenta. Arriba se escribe (privada con 🔒); filtros por tipo y buscador
     (texto, persona, #etiqueta, ciudad); "Ver días anteriores" va hacia atrás.
+    Tocando un día del pronóstico (🗺️) o "Cartas del día" se abren las cartas
+    de diagnóstico de esa fecha, para ver la situación; el botón flotante
+    "← Volver al pronóstico" deja de nuevo en esa tarjeta, listo para comentar.
   - **Perfil** de cada persona (tocando su nombre o avatar): presentación,
     sus números (si se pueden ver), sus publicaciones y la pestaña
     **Pronósticos y errores** (la tabla por plazo y las placas día por día).

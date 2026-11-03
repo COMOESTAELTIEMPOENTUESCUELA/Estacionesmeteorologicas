@@ -162,6 +162,11 @@ td.nw { white-space: nowrap; }
 /* ---- Red del grupo (Mi perfil) ---- */
 .red { display: grid; grid-template-columns: 210px minmax(0, 1fr) 270px; gap: 16px; align-items: start; }
 .red > * { min-width: 0; }
+.red-volver { position: fixed; left: 16px; bottom: 16px; z-index: 900; border: 0; border-radius: 99px; padding: 11px 18px; font: inherit; font-weight: 650;
+  background: var(--acento); color: #fff; box-shadow: 0 4px 16px rgba(0,0,0,.25); cursor: pointer; }
+.postit.resaltada { outline: 3px solid var(--acento); outline-offset: 2px; transition: outline-color 1.5s; }
+.pron-tabla th button { border: 0; background: none; font: inherit; color: inherit; cursor: pointer; padding: 2px 4px; border-radius: 6px; }
+.pron-tabla th button:hover { background: var(--plano); color: var(--acento); }
 .red-izq, .red-der { position: sticky; top: 8px; display: flex; flex-direction: column; gap: 10px; }
 .red-yo { display: flex; gap: 10px; align-items: center; border: 1px solid var(--borde); border-radius: 12px; background: var(--superficie);
   padding: 10px; cursor: pointer; text-align: left; font: inherit; color: var(--tinta); }
@@ -1375,6 +1380,8 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
   </section>
 </main>
 
+<button id="red-volver" class="red-volver" hidden title="Volver a donde estabas en Mi perfil">← Volver al pronóstico</button>
+
 <dialog id="d-ci">
   <div style="display:flex;gap:10px;align-items:center"><h2 id="gci-tit"></h2><button class="boton" id="gci-cerrar">Cerrar</button></div>
   <div class="gci-barra">
@@ -1535,7 +1542,11 @@ new MutationObserver(() => document.querySelectorAll('input[type="date"]:not([da
 // Pestañas
 // ======================================================================
 const cargadas = {};
+// Volver a la red después de ir a ver las cartas de un pronóstico (ver irACartasDesdeRed).
+let volverRed = null;
 function abrir(tab) {
+  const v = document.getElementById("red-volver");
+  if (v) v.hidden = !(tab === "cartas" && volverRed);
   document.querySelectorAll("nav button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
   document.querySelectorAll("main > section").forEach((s) => (s.hidden = s.id !== `tab-${tab}`));
   if (tab === "mapa" && mapa) setTimeout(() => mapa.invalidateSize(), 50);
@@ -4962,7 +4973,7 @@ function tarjetaPron(it) {
         <span title="${esc(fmtEscrita.format(new Date(it.ts)))}">${esc(hace(it.ts))}${it.anticipado ? " · la noche anterior" : ""}${it.correccion ? " · corrección" : ""}</span></span>
       <span class="der"><span class="lb-tipo" style="background:var(--s3)">Pronóstico</span></span></div>
     <div class="tabla-scroll" style="max-height:none"><table class="pron-tabla">
-      <tr><th></th>${it.dias.map((d) => `<th>Día ${d.plazo + 1}<small>${esc(diaCorto(d.fecha))}</small></th>`).join("")}</tr>
+      <tr><th></th>${it.dias.map((d) => `<th><button data-cartas="${esc(d.fecha)}" title="Ver las cartas de ese día (lo que pasó)">Día ${d.plazo + 1}<small>${esc(diaCorto(d.fecha))} 🗺️</small></button></th>`).join("")}</tr>
       <tr><td>Mín</td>${it.dias.map((d) => celda(d.tmin)).join("")}</tr>
       <tr><td>Máx</td>${it.dias.map((d) => celda(d.tmax)).join("")}</tr>
       <tr><td>Lluvia</td>${it.dias.map((d) => `<td>${d.pp && d.pp.pron !== null && d.pp.pron !== undefined ? celdaPP(d.pp) : "–"}</td>`).join("")}</tr>
@@ -4970,6 +4981,7 @@ function tarjetaPron(it) {
     <div class="pron-res">${r.ver ? `Verificados ${r.ver} de ${it.dias.length} días` : "Todavía sin observaciones"}
       ${r.mae !== null ? `· error medio de temperatura ${maeColor(r.mae)} °C` : ""}${r.lluviaN ? ` · lluvia ${r.lluviaOk}/${r.lluviaN}` : ""}
       ${insignias.map((x) => `<span class="insignia">${esc(x)}</span>`).join("")}</div>
+    <div class="acc"><button class="boton" data-cartas="${esc(it.fecha_emision)}" title="Las cartas del día en que se hizo el pronóstico: la situación que tenía a la vista">🗺️ Cartas del día</button></div>
     ${barraReacciones(it.objeto, it.reacciones, ["aplauso", "duda"])}
     ${comentariosHTML(it.comentarios || [], `<form data-coment-pron="${esc(it.objeto)}"><input name="t" maxlength="2000" placeholder="Comentar el pronóstico…" autocomplete="off"><button class="boton chico">↵</button></form>`, "data-borrar-cp")}
   </article>`;
@@ -5304,6 +5316,7 @@ async function iniciarPerfil() {
     finally { $("#mc-publicar").disabled = false; }
   });
   $("#mc-mas").addEventListener("click", () => abrirNota(datosComposer()));
+  $("#red-volver").addEventListener("click", volverALaRed);
   $("#rs-nueva").addEventListener("click", () => abrirNota({ tipo: "pregunta", compartida: true, fecha_evento: diaArg(Date.now()), contexto: {} }));
   // Todo lo que se toca dentro de la red (feeds, reunión, columnas, el grupo).
   $("#tab-perfil").addEventListener("click", accionRed);
@@ -5328,7 +5341,34 @@ async function enviarComentario(e) {
   } catch (err) { alert(`No se pudo comentar: ${err.message}`); return; }
   redibujar();
 }
+// Ir a las cartas de un día desde una tarjeta, y poder volver a esa tarjeta.
+function irACartasDesdeRed(fecha, tarjeta) {
+  const obj = tarjeta?.dataset.obj || (tarjeta?.dataset.id ? `nota:${tarjeta.dataset.id}` : null);
+  const quien = tarjeta?.querySelector(".quien b")?.textContent.trim();
+  volverRed = { obj, vista: red.vista, scroll: window.scrollY };
+  $("#red-volver").textContent = `← Volver${quien ? ` al pronóstico de ${quien === "Vos" ? "vos" : quien}` : ""}`;
+  irACartas(fecha + "T12:00:00Z");
+}
+function volverALaRed() {
+  const v = volverRed;
+  volverRed = null;
+  abrir("perfil");
+  if (!v) return;
+  const buscar = () => document.querySelector(`#tab-perfil .rv:not([hidden]) .postit[data-obj="${CSS.escape(v.obj || "")}"]`);
+  const ir = (intentos = 0) => {
+    const t = v.obj && buscar();
+    if (!t) { if (intentos < 10) return setTimeout(() => ir(intentos + 1), 200); window.scrollTo(0, v.scroll); return; }
+    t.scrollIntoView({ behavior: "smooth", block: "center" });
+    t.classList.add("resaltada");
+    setTimeout(() => t.classList.remove("resaltada"), 2500);
+    const campo = t.querySelector("form input[name=t]");
+    if (campo) setTimeout(() => campo.focus({ preventScroll: true }), 500);
+  };
+  ir();
+}
 async function accionRed(e) {
+  const vc = e.target.closest("[data-cartas]");
+  if (vc) { e.preventDefault(); irACartasDesdeRed(vc.dataset.cartas, vc.closest(".postit")); return; }
   const ir = e.target.closest("[data-ir-rv]");
   if (ir) { verRed(ir.dataset.irRv); return; }
   const per = e.target.closest("[data-perfil]");
