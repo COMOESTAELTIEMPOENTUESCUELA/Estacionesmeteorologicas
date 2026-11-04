@@ -99,3 +99,7 @@ CREATE TABLE IF NOT EXISTS comentario_pronostico (
     texto      text NOT NULL CHECK (length(texto) BETWEEN 1 AND 2000)
 );
 CREATE INDEX IF NOT EXISTS comentario_pronostico_objeto ON comentario_pronostico (objeto, creada);
+
+-- Hilos: un comentario puede responder a otro (del mismo hilo).
+ALTER TABLE nota_comentario ADD COLUMN IF NOT EXISTS responde_a int REFERENCES nota_comentario(id) ON DELETE CASCADE;
+ALTER TABLE comentario_pronostico ADD COLUMN IF NOT EXISTS responde_a int REFERENCES comentario_pronostico(id) ON DELETE CASCADE;

@@ -319,3 +319,50 @@ def test_red_muro_reacciones_y_metricas(cliente, cuentas, monkeypatch):
             conn.execute("DELETE FROM reaccion WHERE objeto LIKE 'pron|Ciudad Test|%'")
             conn.execute("DELETE FROM comentario_pronostico WHERE objeto LIKE 'pron|Ciudad Test|%'")
             conn.commit()
+
+
+def test_hilos_e_insignias(cliente, cuentas, monkeypatch):
+    m = cuentas
+    with m._pools["e"].connection() as conn:
+        eid = conn.execute("""INSERT INTO pronostico_emision (ciudad, fecha_pronostico, publicado_por, contenido, huella, capturado)
+                              VALUES ('Ciudad Test', '2026-10-10', 'AnaP', '{}', 'ins-1', '2026-10-10 11:00Z') RETURNING id""").fetchone()["id"]
+        for k, (tmin, tmax, omin, omax) in enumerate(((10, 20, 10.5, 19.4), (12, 25, 12.8, 25.0))):
+            conn.execute("""INSERT INTO pronostico_dia (emision_id, fecha, plazo_dias, temp_min, temp_max, periodos)
+                            VALUES (%s, %s::date + %s, %s, %s, %s, '[]')""", (eid, "2026-10-10", k, k, tmin, tmax))
+            for el, v in (("tmin_urbana", omin), ("tmax_urbana", omax)):
+                conn.execute("""INSERT INTO verif_observado (ciudad, fecha, elemento, valor, categoria, estacion_id, detalle)
+                                VALUES ('Ciudad Test', %s::date + %s, %s, %s, NULL, 'omm_87593', '{}') ON CONFLICT DO NOTHING""", ("2026-10-10", k, el, v))
+        conn.commit()
+    try:
+        # El GFS decía 5 °C menos de máxima el día 2: Ana se apartó y acertó.
+        monkeypatch.setattr(m, "_gfs_diario", lambda ciudad, cap: ({date(2026, 10, 11): {"tmin": 12, "tmax": 20}}, "2026101006"))
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "ana@gmail.com")
+        p = [i for i in cliente.get("/api/yo/muro?hasta=2026-10-10&dias=1").json()["items"] if i.get("ciudad") == "Ciudad Test"][0]
+        assert set(p["insignias"]) == {"clavadas", "kamikaze"} and p["dias"][1]["gfs"]["tmax"] == 20
+        nota = cliente.post("/api/yo/notas", json={"texto": "se ve la vaguada", "tipo": "vi", "compartida": True}, headers=X).json()["id"]
+        otra = cliente.post("/api/yo/notas", json={"texto": "otra", "compartida": True}, headers=X).json()["id"]
+        c1 = cliente.post(f"/api/yo/notas/{nota}/comentarios", json={"texto": "¿dónde?"}, headers=X).json()["id"]
+        # Hilo: responder a un comentario; no se puede colgar de otra nota.
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "beto@gmail.com")
+        assert cliente.post(f"/api/yo/notas/{nota}/comentarios", json={"texto": "al oeste", "responde_a": c1}, headers=X).status_code == 200
+        assert cliente.post(f"/api/yo/notas/{otra}/comentarios", json={"texto": "x", "responde_a": c1}, headers=X).status_code == 400
+        cp = cliente.post("/api/yo/pronostico/comentarios", json={"objeto": p["objeto"], "texto": "¡bien!"}, headers=X).json()["id"]
+        assert cliente.post("/api/yo/pronostico/comentarios", json={"objeto": p["objeto"], "texto": "sí", "responde_a": cp}, headers=X).status_code == 200
+        cs = [n for n in cliente.get("/api/yo/notas").json() if n["id"] == nota][0]["comentarios"]
+        assert [(c["texto"], c["responde_a"]) for c in cs] == [("¿dónde?", None), ("al oeste", c1)]
+        # Ojo de halcón: la nota con "útil" de otros (2 en la prueba).
+        monkeypatch.setattr(m, "MIN_UTIL_HALCON", 2)
+        cliente.post("/api/yo/reacciones", json={"objeto": f"nota:{nota}", "tipo": "util"}, headers=X)
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "coord@gmail.com")
+        cliente.post("/api/yo/reacciones", json={"objeto": f"nota:{nota}", "tipo": "util"}, headers=X)
+        assert [n for n in cliente.get("/api/yo/notas").json() if n["id"] == nota][0]["insignias"] == ["halcon"]
+    finally:
+        with m._pools["e"].connection() as conn:
+            conn.execute("DELETE FROM pronostico_emision WHERE ciudad = 'Ciudad Test'")
+            conn.execute("DELETE FROM verif_observado WHERE ciudad = 'Ciudad Test'")
+            conn.execute("DELETE FROM reaccion WHERE objeto LIKE 'pron|Ciudad Test|%'")
+            conn.execute("DELETE FROM comentario_pronostico WHERE objeto LIKE 'pron|Ciudad Test|%'")
+            conn.commit()

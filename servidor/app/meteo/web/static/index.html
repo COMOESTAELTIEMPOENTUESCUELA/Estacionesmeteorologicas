@@ -325,6 +325,11 @@ td.nw { white-space: nowrap; }
 .postit .coment { border-top: 1px dashed var(--borde); padding-top: 6px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
 .postit .coment .c { overflow-wrap: anywhere; }
 .postit .coment .c span { white-space: pre-wrap; }
+.c-hilo.resp { margin-left: calc(min(var(--n), 4) * 0px + 14px); padding-left: 10px; border-left: 2px solid var(--borde); margin-top: 3px; }
+.c-resp { border: 0; background: none; color: var(--tenue); cursor: pointer; font-size: 11.5px; padding: 0 4px; }
+.c-resp:hover { color: var(--acento); }
+.f-resp { margin: 4px 0 4px 14px; }
+.insignias-n { display: inline-flex; gap: 8px; font-size: 13px; }
 .postit .coment .c small { color: var(--tenue); }
 .postit .coment .c button { border: 0; background: none; color: var(--tenue); cursor: pointer; font-size: 11px; }
 .postit .coment form { display: flex; gap: 4px; }
@@ -5463,10 +5468,36 @@ function barraReacciones(objeto, r, tipos) {
     return `<button data-reac="${t}" class="${r.mias.includes(t) ? "mia" : ""}" title="${esc(REAC[t][1] + (quienes.length ? ": " + quienes.join(", ") : ""))}">${REAC[t][0]} ${esc(REAC[t][1])}${n ? ` · ${n}` : ""}</button>`;
   }).join("")}</div>`;
 }
-function comentariosHTML(lista, form, borrarAttr) {
-  return `<div class="coment">
-    ${lista.map((c) => `<div class="c"><b>${esc(c.autor)}</b> <span>${textoConEnlaces(c.texto)}</span> <small>${esc(hace(c.creada))}</small>${c.mio || YO.rol === "admin" ? `<button ${borrarAttr}="${c.id}" title="Borrar el comentario">✕</button>` : ""}</div>`).join("")}
-    ${form}</div>`;
+// ----- Comentarios en hilos -----
+// Cada comentario puede tener respuestas (y las respuestas, respuestas):
+// se muestran debajo, con sangría. "form" es el atributo que identifica el
+// hilo (data-coment="12" o data-coment-pron="pron|..."); se usa también para
+// el cuadrito de cada respuesta.
+const INSIGNIA_TXT = {
+  clavadas: ["🎯", "Temperaturas clavadas", "Todas las temperaturas verificadas a ±1 °C o menos"],
+  lluvia: ["☔", "Acertó la lluvia", "Acertó si llovía o no en todos los días verificados"],
+  kamikaze: ["🔮", "Kamikaze", "Se apartó 3 °C o más del GFS... y acertó donde el modelo falló"],
+  halcon: ["🦅", "Ojo de halcón", "Lo que vio le sirvió al grupo: 3 o más 👍 Útil"],
+};
+const chipInsignia = (k) => INSIGNIA_TXT[k] ? `<span class="insignia" title="${esc(INSIGNIA_TXT[k][2])}">${INSIGNIA_TXT[k][0]} ${esc(INSIGNIA_TXT[k][1])}</span>` : "";
+function contarInsignias(ins) {
+  const k = Object.keys(INSIGNIA_TXT).filter((x) => ins && ins[x]);
+  return k.length ? `<span class="insignias-n">${k.map((x) => `<span title="${esc(INSIGNIA_TXT[x][1] + ": " + INSIGNIA_TXT[x][2])}">${INSIGNIA_TXT[x][0]} ${ins[x]}</span>`).join("")}</span>` : "";
+}
+function comentariosHTML(lista, formAttr, placeholder, borrarAttr) {
+  const hijos = new Map();
+  for (const c of lista) {
+    const padre = lista.some((x) => x.id === c.responde_a) ? c.responde_a : null;
+    if (!hijos.has(padre)) hijos.set(padre, []);
+    hijos.get(padre).push(c);
+  }
+  const rama = (padre, nivel) => (hijos.get(padre) || []).map((c) => `<div class="c-hilo${nivel ? " resp" : ""}" style="--n:${Math.min(nivel, 4)}">
+      <div class="c"><b>${esc(c.autor)}</b> <span>${textoConEnlaces(c.texto)}</span> <small>${esc(hace(c.creada))}</small>
+        <button class="c-resp" data-responder="${c.id}" title="Responder a este comentario">↩ Responder</button>${c.mio || YO.rol === "admin" ? `<button ${borrarAttr}="${c.id}" title="Borrar el comentario">✕</button>` : ""}</div>
+      ${rama(c.id, nivel + 1)}</div>`).join("");
+  return `<div class="coment" data-hilo='${formAttr}'>
+    ${rama(null, 0)}
+    <form ${formAttr}><input name="t" maxlength="2000" placeholder="${esc(placeholder)}" autocomplete="off"><button class="boton chico">↵</button></form></div>`;
 }
 
 // ----- Links en las notas: clickeables, y videos de otros sitios -----
@@ -5546,14 +5577,14 @@ function tarjetaNota(nt, reunion = false) {
   const conCtx = Object.keys(nt.contexto || {}).length;
   const img = nt.captura ? `<a class="img" href="${esc(nt.captura)}" target="_blank" rel="noopener" title="Ver la imagen grande"><img src="${esc(nt.captura)}" loading="lazy" alt="Imagen de la nota"><span>✏️ pizarra</span></a>`
     : nt.imagen ? `<a class="img" href="#" data-acc="abrir" title="Abrir la carta donde se escribió"><img src="${esc(nt.imagen)}" loading="lazy" alt="Carta"><span>carta</span></a>` : "";
-  const coment = nt.compartida ? comentariosHTML(nt.comentarios || [],
-    `<form data-coment="${nt.id}"><input name="t" maxlength="2000" placeholder="Comentar…" autocomplete="off"><button class="boton chico">↵</button></form>`, "data-borrar-c") : "";
+  const coment = nt.compartida ? comentariosHTML(nt.comentarios || [], `data-coment="${nt.id}"`, "Comentar…", "data-borrar-c") : "";
   return `<article class="postit ${esc(nt.tipo)}" data-id="${nt.id}">
     <div class="cab"><span data-perfil="${nt.autor_id}">${avatar(nt.autor)}</span>
       <span class="quien"><b data-perfil="${nt.autor_id}">${nt.mia ? "Vos" : esc(nt.autor)}</b><span title="${esc(fmtEscrita.format(new Date(nt.creada)))}">${esc(hace(nt.creada))}</span></span>
       <span class="der"><span class="lb-tipo ${esc(nt.tipo)}" title="${esc(NOMBRE_TIPO[nt.tipo] || "")}">${esc(TIPO_CORTO[nt.tipo] || nt.tipo)}</span>${nt.compartida ? "" : '<span title="Privada: la ven el autor y los administradores">🔒</span>'}</span></div>
     ${img}
     <div class="texto">${textoConEnlaces(nt.texto)}</div>
+    ${(nt.insignias || []).length ? `<div>${nt.insignias.map(chipInsignia).join("")}</div>` : ""}
     ${bloqueVideos(nt.texto)}
     ${conCtx ? `<button class="ctx" data-acc="abrir" title="Ir a donde se escribió">📍 ${esc(describirContexto(nt.contexto))}</button>` : ""}
     ${nt.etiquetas.length ? `<div class="etqs">${nt.etiquetas.map((e) => `<button data-etq="${esc(e)}" title="Buscar esta etiqueta">#${esc(e)}</button>`).join("")}</div>` : ""}
@@ -5612,9 +5643,6 @@ function tarjetaPron(it) {
   const perfil = it.usuario ? it.usuario.id : `f:${it.firma}`;
   const r = resumenPron(it);
   const celda = (t) => !t || t.pron === null || t.pron === undefined ? '<td class="pend">–</td>' : `<td>${celdaTemp(t)}</td>`;
-  const insignias = [];
-  if (r.errs.length >= 2 && r.errs.every((e) => e <= 1)) insignias.push("🎯 Temperaturas clavadas (±1 °C)");
-  if (r.lluviaN >= 2 && r.lluviaOk === r.lluviaN) insignias.push("☔ Acertó la lluvia");
   return `<article class="postit pron" data-obj="${esc(it.objeto)}">
     <div class="cab"><span data-perfil="${esc(perfil)}">${avatar(quien)}</span>
       <span class="quien"><span><b data-perfil="${esc(perfil)}">${yo ? "Vos" : esc(quien)}</b> publicó el pronóstico para <b>${esc(it.ciudad)}</b></span>
@@ -5629,13 +5657,13 @@ function tarjetaPron(it) {
     ${sparkPron(it)}
     <div class="pron-res">${r.ver ? `Verificados ${r.ver} de ${it.dias.length} días` : "Todavía sin observaciones"}
       ${r.mae !== null ? `· error medio de temperatura ${maeColor(r.mae)} °C` : ""}${r.lluviaN ? ` · lluvia ${r.lluviaOk}/${r.lluviaN}` : ""}
-      ${insignias.map((x) => `<span class="insignia">${esc(x)}</span>`).join("")}</div>
+      ${(it.insignias || []).map(chipInsignia).join("")}</div>
     <div class="acc"><button class="boton" data-cartas="${esc(it.fecha_emision)}" title="Las cartas de diagnóstico del día en que se hizo el pronóstico: la situación que tenía a la vista">🗺️ Cartas del día</button>
       <button class="boton" data-modelo title="El GFS de la corrida que había cuando se publicó, contra lo pronosticado y lo observado">📈 ${red.modelos[it.objeto]?.abierto ? "Ocultar el modelo" : "Ver el modelo"}</button>
       <button class="boton" data-cartas-modelo title="Las cartas y el meteograma del GFS de esa corrida (se guardan 8 días)">🌐 Cartas del GFS</button></div>
     <div class="pron-modelo" ${red.modelos[it.objeto]?.abierto ? "" : "hidden"}>${red.modelos[it.objeto]?.html || ""}</div>
     ${barraReacciones(it.objeto, it.reacciones, ["aplauso", "duda"])}
-    ${comentariosHTML(it.comentarios || [], `<form data-coment-pron="${esc(it.objeto)}"><input name="t" maxlength="2000" placeholder="Comentar el pronóstico…" autocomplete="off"><button class="boton chico">↵</button></form>`, "data-borrar-cp")}
+    ${comentariosHTML(it.comentarios || [], `data-coment-pron="${esc(it.objeto)}"`, "Comentar el pronóstico…", "data-borrar-cp")}
   </article>`;
 }
 
@@ -5731,6 +5759,7 @@ async function dibujarPersonas() {
         <small>${p.sin_cuenta ? "firma sin cuenta" : esc({ admin: "administrador", coordinador: "coordinador", pronosticador: "pronosticador" }[p.rol] || "")}${p.firmas.length && !p.sin_cuenta ? ` · firma ${esc(p.firmas.join(", "))}` : ""}</small></div></div>
       ${p.bio ? `<div class="bio">${esc(p.bio.slice(0, 140))}${p.bio.length > 140 ? "…" : ""}</div>` : ""}
       <small>${p.emisiones} pronósticos en 90 días · ${p.notas} notas</small>
+      ${contarInsignias(p.insignias)}
       ${numerosPersona(p)}
     </button>`).join("") || '<p class="tenue">No se pudo cargar el grupo.</p>';
 }
@@ -5764,6 +5793,7 @@ function dibujarCabecera(p) {
       <div class="sub">${p.sin_cuenta ? "Firma de los pronósticos (sin cuenta en la página)" : esc({ admin: "Administrador", coordinador: "Coordinador", pronosticador: "Pronosticador" }[p.rol] || "")}
         ${p.firmas && p.firmas.length && !p.sin_cuenta ? ` · firma "${esc(p.firmas.join('", "'))}"` : ""}${yo ? (YO.metricas_publicas ? " · 🔓 números visibles para el grupo" : " · 🔒 números privados") : ""}</div>
       ${p.bio ? `<div class="bio">${esc(p.bio)}</div>` : yo ? '<div class="bio tenue">Contale al grupo quién sos (Editar perfil).</div>' : ""}
+      ${contarInsignias(p.insignias) ? `<div class="sub" style="margin-top:6px">Insignias de los últimos 90 días: ${contarInsignias(p.insignias)}</div>` : ""}
       ${numeros}
       ${yo ? `<div style="margin-top:10px"><button class="boton" id="pf-editar">✏️ Editar perfil</button></div>
         <form id="pf-form" hidden style="margin-top:10px;display:flex;flex-direction:column;gap:8px;max-width:520px">
@@ -5991,13 +6021,14 @@ async function enviarComentario(e) {
   if (!f) return;
   e.preventDefault();
   const texto = f.t.value.trim(); if (!texto) return;
-  const nuevo = { autor: YO.nombre, creada: new Date().toISOString(), texto, mio: true };
+  const responde_a = f.dataset.responde ? Number(f.dataset.responde) : null;
+  const nuevo = { autor: YO.nombre, creada: new Date().toISOString(), texto, mio: true, responde_a };
   try {
     if (f.dataset.coment) {
-      nuevo.id = (await apiEnviar(`/api/yo/notas/${f.dataset.coment}/comentarios`, "POST", { texto })).id;
+      nuevo.id = (await apiEnviar(`/api/yo/notas/${f.dataset.coment}/comentarios`, "POST", { texto, responde_a })).id;
       buscarObjeto(`nota:${f.dataset.coment}`).forEach((it) => (it.nota.comentarios = [...(it.nota.comentarios || []), nuevo]));
     } else {
-      nuevo.id = (await apiEnviar("/api/yo/pronostico/comentarios", "POST", { objeto: f.dataset.comentPron, texto })).id;
+      nuevo.id = (await apiEnviar("/api/yo/pronostico/comentarios", "POST", { objeto: f.dataset.comentPron, texto, responde_a })).id;
       buscarObjeto(f.dataset.comentPron).forEach((it) => (it.comentarios = [...(it.comentarios || []), nuevo]));
     }
   } catch (err) { alert(`No se pudo comentar: ${err.message}`); return; }
@@ -6120,6 +6151,16 @@ function volverALaRed() {
   ir();
 }
 async function accionRed(e) {
+  const rr = e.target.closest("[data-responder]");
+  if (rr) {
+    const c = rr.closest(".c-hilo"), hilo = rr.closest(".coment").dataset.hilo;
+    c.querySelector(":scope > form")?.remove();
+    const quien = c.querySelector(".c b")?.textContent || "";
+    c.querySelector(":scope > .c").insertAdjacentHTML("afterend",
+      `<form ${hilo} data-responde="${rr.dataset.responder}" class="f-resp"><input name="t" maxlength="2000" placeholder="Responder a ${esc(quien)}…" autocomplete="off"><button class="boton chico">↵</button></form>`);
+    c.querySelector(":scope > form input").focus();
+    return;
+  }
   const ve = e.target.closest("[data-embed]");
   if (ve) { abrirEmbed(ve); return; }
   const bm = e.target.closest("[data-modelo]");

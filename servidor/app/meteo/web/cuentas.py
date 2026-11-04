@@ -440,7 +440,7 @@ def _notas_con_extras(u, cond, params, limite=500):
     comentarios = {}
     if ids:
         for c in _leer("""
-            SELECT c.id, c.nota_id, c.usuario_id, us.nombre AS autor, c.creada, c.texto
+            SELECT c.id, c.nota_id, c.usuario_id, us.nombre AS autor, c.creada, c.texto, c.responde_a
             FROM nota_comentario c JOIN usuario us ON us.id = c.usuario_id
             WHERE c.nota_id = ANY(%s) ORDER BY c.creada""", (ids,)):
             c["mio"] = c.pop("usuario_id") == u["id"]
@@ -448,7 +448,8 @@ def _notas_con_extras(u, cond, params, limite=500):
     reac = _reacciones(u, [f"nota:{f['id']}" for f in filas])
     for f in filas:
         f["comentarios"] = comentarios.get(f["id"], [])
-        f["reacciones"] = reac.get(f"nota:{f['id']}", {"conteo": {}, "mias": []})
+        f["reacciones"] = reac.get(f"nota:{f['id']}", {"conteo": {}, "mias": [], "quienes": {}})
+        f["insignias"] = _insignia_nota(f)
     return filas
 
 
@@ -517,8 +518,9 @@ async def comentar_pronostico(request: Request):
         raise HTTPException(400, "El comentario tiene que tener entre 1 y 2.000 caracteres")
     if not objeto.startswith("pron|") or not _existe_objeto(u, objeto):
         raise HTTPException(404, "Ese pronóstico no existe")
-    return _escribir("INSERT INTO comentario_pronostico (objeto, usuario_id, texto) VALUES (%s, %s, %s) RETURNING id",
-                     (objeto, u["id"], texto))[0]
+    responde = _responde_a(datos, "SELECT 1 FROM comentario_pronostico WHERE id = %s AND objeto = %s", objeto)
+    return _escribir("INSERT INTO comentario_pronostico (objeto, usuario_id, texto, responde_a) VALUES (%s, %s, %s, %s) RETURNING id",
+                     (objeto, u["id"], texto, responde))[0]
 
 
 @router.delete("/api/yo/pronostico/comentarios/{comentario_id}")
@@ -542,6 +544,41 @@ async def editar_perfil(request: Request):
 
 
 HOY_ARG = lambda: datetime.now(timezone(timedelta(hours=-3))).date()
+
+# Insignias (solo cosas buenas: para incentivar, no para exponer a nadie).
+INSIGNIAS = {
+    "clavadas": ("🎯", "Temperaturas clavadas", "todas las temperaturas verificadas del pronóstico a ±1 °C o menos (al menos 2)"),
+    "lluvia": ("☔", "Acertó la lluvia", "acertó si llovía o no en todos los días verificados (al menos 2)"),
+    "kamikaze": ("🔮", "Kamikaze", "se apartó 3 °C o más del GFS y acertó (±1 °C) donde el modelo erró por 2,5 °C o más"),
+    "halcon": ("🦅", "Ojo de halcón", "una nota de lo que vio con 3 o más 👍 Útil de otros"),
+}
+MIN_UTIL_HALCON = 3
+
+
+def _insignias_pron(dias):
+    """dias: [{"tmin": {"pron", "obs"}, "tmax": ..., "pp": {"pron", "obs"}, "gfs": {"tmin", "tmax"} | None}]"""
+    ok = lambda v: v is not None
+    errs = [abs(d[k]["obs"] - d[k]["pron"]) for d in dias for k in ("tmin", "tmax")
+            if d.get(k) and ok(d[k].get("pron")) and ok(d[k].get("obs"))]
+    pp = [d["pp"] for d in dias if d.get("pp") and ok(d["pp"].get("pron")) and ok(d["pp"].get("obs"))]
+    salida = []
+    if len(errs) >= 2 and all(e <= 1 for e in errs):
+        salida.append("clavadas")
+    if len(pp) >= 2 and all(x["pron"] == x["obs"] for x in pp):
+        salida.append("lluvia")
+    for d in dias:
+        g = d.get("gfs") or {}
+        if any(d.get(k) and ok(d[k].get("pron")) and ok(d[k].get("obs")) and ok(g.get(k))
+               and abs(d[k]["pron"] - g[k]) >= 3 and abs(d[k]["obs"] - d[k]["pron"]) <= 1 and abs(d[k]["obs"] - g[k]) >= 2.5
+               for k in ("tmin", "tmax")):
+            salida.append("kamikaze")
+            break
+    return salida
+
+
+def _insignia_nota(n):
+    util_de_otros = [x for x in (n.get("reacciones") or {}).get("quienes", {}).get("util", []) if x != n.get("autor")]
+    return ["halcon"] if n["tipo"] in ("vi", "llamo_atencion") and len(util_de_otros) >= MIN_UTIL_HALCON else []
 _MODELO_CACHE = {}
 
 
@@ -584,6 +621,26 @@ def personas(request: Request):
     hasta = HOY_ARG() - timedelta(days=1)
     desde = hasta - timedelta(days=90)
     pares = _pares(_vigentes(desde, hasta), desde, hasta)
+    # Insignias de los 90 días, por firma (con el GFS que había al publicar cada uno).
+    capturas = {(e["ciudad"], e["fecha_pronostico"], e["publicado_por"]): e["capturado"] for e in _leer("""
+        SELECT ciudad, fecha_pronostico, publicado_por, max(capturado) AS capturado FROM pronostico_emision
+        WHERE fecha_pronostico BETWEEN %s AND %s GROUP BY 1, 2, 3""", (desde - timedelta(days=4), hasta))}
+    por_emision = {}
+    for f in pares:
+        por_emision.setdefault((f["ciudad"], f["fecha_emision"], f["pronosticador"]), []).append(f)
+    ins_firma = {}
+    for clave, filas in por_emision.items():
+        cap = capturas.get(clave)
+        modelo = _gfs_diario(clave[0], cap)[0] if cap else {}
+        dias = [{"tmin": f["tmin_urbana"], "tmax": f["tmax_urbana"], "pp": f["pp"], "gfs": modelo.get(f["fecha"])} for f in filas]
+        for i in _insignias_pron(dias):
+            c = ins_firma.setdefault(clave[2], {})
+            c[i] = c.get(i, 0) + 1
+    halcon = {r["usuario_id"]: r["n"] for r in _leer(f"""
+        SELECT n.usuario_id, count(*) AS n FROM nota n
+        WHERE n.tipo IN ('vi', 'llamo_atencion') AND n.compartida AND n.creada::date >= %s
+          AND (SELECT count(*) FROM reaccion r WHERE r.objeto = 'nota:' || n.id AND r.tipo = 'util' AND r.usuario_id <> n.usuario_id) >= {MIN_UTIL_HALCON}
+        GROUP BY 1""", (desde,))}
     notas_n = {r["usuario_id"]: r["n"] for r in _leer(
         "SELECT usuario_id, count(*) AS n FROM nota WHERE compartida OR usuario_id = %s GROUP BY usuario_id", (u["id"],))}
     salida, con_usuario = [], set()
@@ -591,7 +648,13 @@ def personas(request: Request):
         mias = [f for f in pares if f["pronosticador"] in p["firmas"]]
         con_usuario.update(p["firmas"])
         ver = puede_ver_metricas(u, p)
-        salida.append({**p, "notas": notas_n.get(p["id"], 0), "dias_pronosticados": len(mias),
+        ins = {}
+        for f in p["firmas"]:
+            for k, n in ins_firma.get(f, {}).items():
+                ins[k] = ins.get(k, 0) + n
+        if halcon.get(p["id"]):
+            ins["halcon"] = halcon[p["id"]]
+        salida.append({**p, "insignias": ins, "notas": notas_n.get(p["id"], 0), "dias_pronosticados": len(mias),
                        "emisiones": len({(f["ciudad"], f["fecha_emision"]) for f in mias}),
                        "metricas_visibles": ver, "resumen": puntajes.resumen(mias) if ver and mias else None,
                        "yo": p["id"] == u["id"]})
@@ -599,9 +662,11 @@ def personas(request: Request):
         mias = [f for f in pares if f["pronosticador"] == firma]
         ver = es_coordinador(u)
         salida.append({"id": None, "nombre": firma, "rol": None, "firmas": [firma], "bio": None, "sin_cuenta": True,
+                       "insignias": ins_firma.get(firma, {}),
                        "notas": 0, "dias_pronosticados": len(mias), "emisiones": len({(f["ciudad"], f["fecha_emision"]) for f in mias}),
                        "metricas_visibles": ver, "resumen": puntajes.resumen(mias) if ver else None, "yo": False})
-    return {"desde": desde, "hasta": hasta, "personas": salida}
+    return {"desde": desde, "hasta": hasta, "personas": salida,
+            "insignias": {k: {"emoji": e, "nombre": n, "que": q} for k, (e, n, q) in INSIGNIAS.items()}}
 
 
 @router.get("/api/yo/muro")
@@ -648,7 +713,7 @@ def muro(request: Request, hasta: date | None = None, dias: int = 7, autor_id: i
         objetos = [objeto_pronostico(e["ciudad"], e["fecha_pronostico"], e["publicado_por"]) for e in emisiones]
         reac = _reacciones(u, objetos)
         coment = {}
-        for c in _leer("""SELECT c.id, c.objeto, c.usuario_id, us.nombre AS autor, c.creada, c.texto
+        for c in _leer("""SELECT c.id, c.objeto, c.usuario_id, us.nombre AS autor, c.creada, c.texto, c.responde_a
                           FROM comentario_pronostico c JOIN usuario us ON us.id = c.usuario_id
                           WHERE c.objeto = ANY(%s) ORDER BY c.creada""", (objetos,)):
             c["mio"] = c.pop("usuario_id") == u["id"]
@@ -668,6 +733,7 @@ def muro(request: Request, hasta: date | None = None, dias: int = 7, autor_id: i
                                     "gfs": modelo.get(f["fecha"])} for f in filas],
                           "reacciones": reac.get(obj, {"conteo": {}, "mias": [], "quienes": {}}),
                           "comentarios": coment.get(obj, [])})
+            items[-1]["insignias"] = _insignias_pron(items[-1]["dias"])
     items.sort(key=lambda x: x["ts"], reverse=True)
     # ¿Hay algo más viejo? (para el botón "Ver más")
     mas_viejo = _leer("""SELECT least((SELECT min(fecha_pronostico) FROM pronostico_emision),
@@ -771,14 +837,26 @@ async def tratar_en_reunion(nota_id: int, request: Request):
 async def comentar(nota_id: int, request: Request):
     """Comentar una nota compartida (o una propia)."""
     u = requiere_usuario(request)
-    texto = str((await request.json()).get("texto") or "").strip()
+    datos = await request.json()
+    texto = str(datos.get("texto") or "").strip()
     if not 1 <= len(texto) <= 2000:
         raise HTTPException(400, "El comentario tiene que tener entre 1 y 2.000 caracteres")
     if not _leer("SELECT 1 FROM nota WHERE id = %s AND (compartida OR usuario_id = %s OR %s)",
                  (nota_id, u["id"], u["rol"] == "admin")):
         raise HTTPException(404, "No existe o no la podés ver")
-    return _escribir("INSERT INTO nota_comentario (nota_id, usuario_id, texto) VALUES (%s, %s, %s) RETURNING id",
-                     (nota_id, u["id"], texto))[0]
+    responde = _responde_a(datos, "SELECT 1 FROM nota_comentario WHERE id = %s AND nota_id = %s", nota_id)
+    return _escribir("INSERT INTO nota_comentario (nota_id, usuario_id, texto, responde_a) VALUES (%s, %s, %s, %s) RETURNING id",
+                     (nota_id, u["id"], texto, responde))[0]
+
+
+def _responde_a(datos, sql, dueño):
+    """El comentario al que responde (tiene que ser del mismo hilo) o None."""
+    r = datos.get("responde_a")
+    if r in (None, ""):
+        return None
+    if not isinstance(r, int) or not _leer(sql, (r, dueño)):
+        raise HTTPException(400, "responde_a: ese comentario no es de este hilo")
+    return r
 
 
 @router.delete("/api/yo/comentarios/{comentario_id}")
