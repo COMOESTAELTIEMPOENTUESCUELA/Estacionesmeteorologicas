@@ -540,3 +540,37 @@ Ojo con las fechas: los mensuales y el ONI salen con demora (el dato de un
 mes se publica a principios del siguiente), así que para "hoy" se muestra el
 último publicado; si es demasiado viejo para la fecha elegida, aparece
 punteado y dice "viejo para esta fecha". Código: `app/meteo/indices.py`.
+
+## Medir sobre las cartas (distancia, área, radio)
+
+En el visor grande de una carta, la barra **Medir**:
+
+- **📏 Distancia**: tocar puntos (varios tramos); doble clic, Enter o
+  "✓ Terminar" para cerrar. Mide sobre la Tierra (círculo máximo), no en
+  píxeles. Muestra el rumbo, la escala de Orlanski y:
+  - como **longitud de onda** (de vaguada a vaguada): el número de onda
+    zonal a esa latitud (2π·R·cos φ / λ);
+  - como **desplazamiento** de un sistema entre dos horas (medido con la
+    carta de una hora y la de otra: las medidas se conservan al cambiar de
+    hora si la carta tiene las mismas coordenadas): la velocidad en km/h y
+    m/s según las horas puestas en "en … h".
+- **⬠ Área**: contorno alrededor de un sistema → área (km²), eje mayor y
+  menor, excentricidad y los criterios de tamaño de un **complejo
+  convectivo de mesoescala** (Maddox 1980): escudo ≤ −32 °C ≥ 100.000 km²,
+  parte ≤ −52 °C ≥ 50.000 km², excentricidad ≥ 0,7 (los alargados, 0,2–0,7,
+  son los PECS de Anderson y Arritt 1998), y que dure ≥ 6 h (con ▶ Animar).
+- **◎ Radio**: círculo de un radio dado alrededor de un punto.
+- Arriba a la derecha, la **latitud y longitud** bajo el cursor.
+
+Las medidas salen en el "⬇ PNG" y en la imagen que se pega en las notas
+(pizarra), pero no se guardan con el dibujo.
+
+**Coordenadas de cada carta** (`/api/cartas/georef`): las cartas estilo
+Bentley (las propias del GFS y las de su página) usan el marco Mercator
+exacto de `estilo_bentley.marco()`; los mapas propios de rayos, la caja del
+mapa de `satelite/render.marco()`. Las imágenes de otros (satélite de NOAA
+STAR, Ogimet) no traen su proyección: se **calibran** con **📍 Calibrar**,
+tocando 3 lugares conocidos y lejos entre sí (mejor puntos de la costa). La
+página ajusta latitud-longitud o Mercator (la que mejor dé) y muestra el
+error. La calibración queda en ese navegador; para dejarla para todos, se
+copia la línea `georef: {...}` que muestra a esa carta en `config/cartas.yaml`.

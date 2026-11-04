@@ -122,3 +122,22 @@ def dibujar(rec, ruta_png, region, paleta, titulo_region="", puntos=(), dpi=110,
         extra(fig, ax)
     fig.savefig(ruta_png, dpi=dpi, format="png")
     plt.close(fig)
+
+
+def marco(region):
+    """Dónde queda el mapa dentro de la imagen que arma dibujar() para esa
+    región (lon mín, lon máx, lat mín, lat máx), para poder medir sobre ella:
+    {"caja": [izq, arriba, der, abajo] en fracción de la imagen,
+     "region": la región que de verdad muestra el mapa}. Se arma la MISMA
+    figura (sin datos) y se pregunta dónde quedó el mapa: cartopy achica la
+    caja para que los grados tengan el mismo tamaño en x y en y."""
+    alto_ancho = (region[3] - region[2]) / (region[1] - region[0])
+    fig = plt.figure(figsize=(8, 8 * alto_ancho + 1.0))
+    ax = fig.add_axes([0.07, 0.1, 0.91, 0.84], projection=ccrs.PlateCarree())
+    ax.set_extent(region, crs=ccrs.PlateCarree())
+    fig.canvas.draw()
+    b = ax.get_position()
+    x0, x1, y0, y1 = ax.get_extent(crs=ccrs.PlateCarree())
+    plt.close(fig)
+    return {"caja": [round(b.x0, 6), round(1 - b.y1, 6), round(b.x1, 6), round(1 - b.y0, 6)],
+            "region": [round(x0, 4), round(x1, 4), round(y0, 4), round(y1, 4)]}

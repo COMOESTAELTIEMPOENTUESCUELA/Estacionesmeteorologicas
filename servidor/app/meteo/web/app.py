@@ -709,6 +709,80 @@ def _cartas_productos(con_pronosticos=False):
             if p.get("activo", True) and (con_pronosticos or p.get("fuente") != "gfs_pronostico")]
 
 
+# ---------------------------------------------------------------------------
+# Coordenadas de cada carta (para medir distancias y áreas en el visor)
+# ---------------------------------------------------------------------------
+# Dos formas, que la página sabe usar:
+#   {"tipo": "mercator", "marco": ...}  las cartas estilo Bentley (las propias
+#        del GFS y las de su página: mismo marco, ver estilo_bentley.marco)
+#   {"tipo": "lineal", "ax", "bx", "ay", "by", "y": "lat" | "merc"}
+#        fracción x de la imagen = ax·lon + bx; fracción y = ay·Y + by, con
+#        Y = latitud (mapas latitud-longitud) o la y de Mercator (en radianes).
+# Una carta puede traer la suya en config/cartas.yaml (clave `georef`), por
+# ejemplo la que se arma calibrando en el visor (lugares conocidos).
+_GEOREF_CACHE = {}
+
+
+def _georef_mercator():
+    if "mercator" not in _GEOREF_CACHE:
+        try:
+            from ..cartas import estilo_bentley
+            _GEOREF_CACHE["mercator"] = estilo_bentley.marco()
+        except Exception:                         # sin cartopy: el marco guardado con alguna corrida
+            from ..cartas import pronostico
+            marco = None
+            for p in _cartas_productos(con_pronosticos=True):
+                if p["fuente"] == "gfs_pronostico":
+                    marco = next((c.get("marco") for c in pronostico.corridas(ARCHIVO_DIR, p["id"]) if c.get("marco")), None)
+                    if marco:
+                        break
+            if not marco:
+                return None
+            _GEOREF_CACHE["mercator"] = marco
+    return {"tipo": "mercator", "marco": _GEOREF_CACHE["mercator"]}
+
+
+def _georef_region(region):
+    """Mapas propios latitud-longitud (rayos del GLM): la caja exacta del mapa."""
+    clave = ("region", tuple(region))
+    if clave not in _GEOREF_CACHE:
+        from ..satelite import render
+        m = render.marco(region)
+        (c0, c1, c2, c3), (lon0, lon1, lat0, lat1) = m["caja"], m["region"]
+        ax = (c2 - c0) / (lon1 - lon0)
+        ay = (c3 - c1) / (lat0 - lat1)
+        _GEOREF_CACHE[clave] = {"tipo": "lineal", "ax": ax, "bx": c0 - ax * lon0, "ay": ay, "by": c1 - ay * lat1, "y": "lat"}
+    return _GEOREF_CACHE[clave]
+
+
+@app.get("/api/cartas/georef")
+def cartas_georef():
+    """Para cada carta, cómo pasar de un punto de la imagen a latitud y
+    longitud (o null si no se sabe: el visor ofrece calibrarla)."""
+    import yaml
+    try:
+        with open(CARTAS_CONFIG, encoding="utf-8") as f:
+            cfg = {p["id"]: p for p in (yaml.safe_load(f) or {}).get("productos", [])}
+    except FileNotFoundError:
+        cfg = {}
+    salida = {}
+    for p in _cartas_productos(con_pronosticos=True):
+        c = cfg.get(p["id"], {})
+        try:
+            if c.get("georef"):
+                salida[p["id"]] = c["georef"]
+            elif p["fuente"] in ("gfs_pronostico", "gfs_analisis", "bentley"):
+                salida[p["id"]] = _georef_mercator()
+            elif p["fuente"] == "glm" and c.get("region"):
+                salida[p["id"]] = _georef_region(c["region"])
+            else:
+                salida[p["id"]] = None
+        except Exception as ex:                  # una carta sin coordenadas no rompe las demás
+            logging.getLogger(__name__).warning("georef %s: %s", p["id"], ex)
+            salida[p["id"]] = None
+    return salida
+
+
 @app.get("/api/cartas/disponibles")
 def cartas_disponibles(mes: str | None = None):
     """Horas (UTC) con cartas archivadas: {ts: [productos]}. mes=AAAA-MM para uno solo."""

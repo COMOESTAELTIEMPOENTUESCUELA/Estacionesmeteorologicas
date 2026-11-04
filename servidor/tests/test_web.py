@@ -472,3 +472,33 @@ def test_api_meteograma_del_pronostico(cliente, tmp_path, monkeypatch):
     assert d["plazos"][1] == {"plazo": 6, "valida": "2026-11-01T06:00:00Z", "pnm": 1012, "pp6": 3.5}
     assert cliente.get("/api/cartas/pronostico/punto?ciudad=La Plata&corrida=2026110100").json()["plazos"][0]["pnm"] == 1015
     assert cliente.get("/api/cartas/pronostico/punto?ciudad=Narnia").status_code == 404
+
+
+def test_georef_de_las_cartas(cliente, tmp_path, monkeypatch):
+    """Coordenadas para medir en el visor: Mercator (estilo Bentley), lineal
+    calculada para los mapas propios (rayos) y la que viene en la config."""
+    from meteo.cartas import estilo_bentley
+    from meteo.satelite import render
+    from meteo.web import app as web
+    cfg = tmp_path / "cartas.yaml"
+    cfg.write_text("""productos:
+  - {id: gfs_ana_mslp_jet, fuente: gfs_analisis, carta: mslp_jet, nombre: x}
+  - {id: rayos, fuente: glm, nombre: r, region: [-64.0, -53.0, -41.3, -30.0]}
+  - {id: sat, fuente: star, nombre: s, sector: ssa, banda: "13"}
+  - {id: sat2, fuente: star, nombre: s2, georef: {tipo: lineal, ax: 0.02, bx: 2.0, ay: -0.02, by: -0.1, y: lat}}
+""", encoding="utf-8")
+    monkeypatch.setattr(web, "CARTAS_CONFIG", str(cfg))
+    web._GEOREF_CACHE.clear()
+    g = cliente.get("/api/cartas/georef").json()
+    assert g["gfs_ana_mslp_jet"]["tipo"] == "mercator" and g["gfs_ana_mslp_jet"]["marco"]["caja"]
+    assert g["sat"] is None and g["sat2"]["ax"] == 0.02
+    # La Plata en el mapa de rayos: la cuenta lineal tiene que dar lo mismo que matplotlib.
+    r = g["rayos"]
+    fx, fy = r["ax"] * -57.95 + r["bx"], r["ay"] * -34.92 + r["by"]
+    m = render.marco([-64.0, -53.0, -41.3, -30.0])
+    (c0, c1, c2, c3), (lo0, lo1, la0, la1) = m["caja"], m["region"]
+    assert abs(fx - (c0 + (-57.95 - lo0) / (lo1 - lo0) * (c2 - c0))) < 1e-6
+    assert abs(fy - (c1 + (la1 - -34.92) / (la1 - la0) * (c3 - c1))) < 1e-6
+    # Y el Mercator coincide con a_imagen (la misma cuenta que usa la página).
+    fxm, fym = estilo_bentley.a_imagen(g["gfs_ana_mslp_jet"]["marco"], -57.95, -34.92)
+    assert 0 < fxm < 1 and 0 < fym < 1

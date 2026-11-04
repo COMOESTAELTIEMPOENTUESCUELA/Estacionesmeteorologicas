@@ -359,6 +359,11 @@ img.con-fondo { background-color: #fff !important; background-size: 100% 100%; b
   touch-action: none; cursor: grab; border-radius: 6px; background: var(--plano); }
 #c-vista.arrastrando { cursor: grabbing; }
 #c-vista.dibujando { cursor: crosshair; }
+.c-m-res { flex-direction: column; align-items: stretch !important; gap: 4px; max-height: 150px; overflow: auto; font-size: 13px; }
+.c-m-item { line-height: 1.4; }
+.c-m-item .tenue { font-size: 12.5px; }
+.c-m-item code { font-size: 11.5px; background: rgba(127,127,127,.2); color: inherit; padding: 0 4px; border-radius: 4px; overflow-wrap: anywhere; }
+#c-m-pos { font-variant-numeric: tabular-nums; margin-left: auto; }
 #c-svg { position: absolute; left: 0; top: 0; transform-origin: 0 0; pointer-events: none; overflow: visible; }
 #c-herr .boton { padding: 3px 8px; }
 #c-anim-barra .boton { padding: 3px 10px; }
@@ -1211,6 +1216,18 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
         <button class="boton" id="c-exportar" title="Descargar la carta con el dibujo, como imagen">⬇ PNG</button>
         <span class="tenue" id="c-dib-estado"></span>
       </div>
+      <div class="barra" id="c-medir-barra">
+        <span class="tenue">Medir:</span>
+        <button class="boton herr" data-herr="m_dist" title="Distancia sobre la Tierra (varios tramos): longitud de onda, desplazamiento de un sistema">📏 Distancia</button>
+        <button class="boton herr" data-herr="m_area" title="Área y ejes de un contorno: tamaño de un sistema convectivo (criterios de CCM)">⬠ Área</button>
+        <button class="boton herr" data-herr="m_radio" title="Círculo de un radio dado (apretar en el centro y arrastrar)">◎ Radio</button>
+        <button class="boton herr" data-herr="m_cal" title="Para cartas sin coordenadas (satélite, Ogimet): tocar lugares conocidos">📍 Calibrar</button>
+        <button class="boton primario" id="c-m-terminar" hidden title="Terminar la línea o el contorno (o doble clic, o Enter)">✓ Terminar</button>
+        <label class="en-linea" title="Para calcular la velocidad de un desplazamiento medido">en <input type="number" id="c-m-horas" value="6" min="1" max="240" step="1" style="width:56px"> h</label>
+        <button class="boton" id="c-m-borrar" title="Borrar todas las medidas">Borrar medidas</button>
+        <span class="tenue" id="c-m-pos"></span>
+      </div>
+      <div class="barra c-m-res" id="c-m-res" hidden></div>
       <div class="barra" id="c-anim-barra">
         <button class="boton" id="c-anim" title="Animar esta carta hacia atrás en el tiempo (barra espaciadora)">▶ Animar</button>
         <label class="en-linea">los
@@ -4071,7 +4088,9 @@ function otraCarta(paso) {
 function iniciarVisor() {
   const vista = $("#c-vista");
   vista.addEventListener("wheel", (e) => { e.preventDefault(); zoomEn(e.deltaY < 0 ? 1.2 : 1 / 1.2, e.clientX, e.clientY); }, { passive: false });
+  vista.addEventListener("pointermove", moverCursorMedida);
   vista.addEventListener("dblclick", (e) => {
+    if (med.actual) { terminarMedida(); return; }
     if (dib.herr !== "mover") return;
     if (zoom.s > 1) { zoom.s = 1; aplicarZoom(); } else zoomEn(3, e.clientX, e.clientY);
   });
@@ -4098,6 +4117,8 @@ function iniciarVisor() {
       pellizco = d;
     } else if (dib.actual) {
       seguirDibujo(e);
+    } else if (med.arrastre) {
+      seguirMedida(e);
     } else if (dib.herr === "mover" && zoom.s > 1) {
       zoom.x += e.clientX - antes.x; zoom.y += e.clientY - antes.y;
       aplicarZoom();
@@ -4110,7 +4131,7 @@ function iniciarVisor() {
     inicioToque = null;
     punteros.delete(e.pointerId);
     if (punteros.size < 2) pellizco = null;
-    if (!punteros.size) { vista.classList.remove("arrastrando"); if (dib.actual) terminarDibujo(); }
+    if (!punteros.size) { vista.classList.remove("arrastrando"); if (dib.actual) terminarDibujo(); if (med.arrastre) soltarMedida(); }
   };
   vista.addEventListener("pointerup", soltar);
   vista.addEventListener("pointercancel", soltar);
@@ -4265,6 +4286,303 @@ function dibujosDe(p, ts) {
 // Para la placa: el dibujo encima de la miniatura.
 const svgDibujo = (d) => `<svg viewBox="0 0 ${d.ancho} ${d.alto}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">${contenidoDibujo(d)}</svg>`;
 
+// ---------- Medir sobre las cartas: distancia, área, radio ----------
+// Cada carta trae (del servidor, /api/cartas/georef) cómo pasar de un punto
+// de la imagen a latitud y longitud. Con eso se mide sobre la Tierra de
+// verdad (círculo máximo), no en píxeles: en una Mercator, 100 px cerca del
+// polo son muchos menos km que en el ecuador. Las cartas sin coordenadas
+// (el satélite de NOAA, Ogimet) se calibran tocando lugares conocidos.
+const R_TIERRA = 6371.0;
+const RAD = Math.PI / 180;
+const GEO = { todos: null, producto: null, proy: null, clave: null };
+const med = { lista: [], actual: null, cursor: null, arrastre: null, cal: [] };
+const COLOR_MED = "#db2777";
+const nKm = (v) => Math.round(v).toLocaleString("es-AR");
+// Lugares conocidos para calibrar (mejor puntos de la costa: se ven en el satélite).
+const LUGARES = {
+  "la plata": [-57.95, -34.92], "buenos aires": [-58.38, -34.60], "montevideo": [-56.16, -34.90], "punta del este": [-54.95, -34.96],
+  "cabo san antonio": [-56.77, -36.32], "mar del plata": [-57.55, -38.00], "bahia blanca": [-62.27, -38.72], "peninsula valdes": [-63.63, -42.77],
+  "comodoro rivadavia": [-67.48, -45.86], "rio gallegos": [-69.22, -51.62], "ushuaia": [-68.30, -54.80], "cabo de hornos": [-67.27, -55.98],
+  "cordoba": [-64.18, -31.42], "rosario": [-60.65, -32.95], "mendoza": [-68.84, -32.89], "santiago": [-70.67, -33.45],
+  "puerto montt": [-72.94, -41.47], "asuncion": [-57.63, -25.28], "porto alegre": [-51.23, -30.03], "salta": [-65.41, -24.79],
+  "sao paulo": [-46.63, -23.55], "rio de janeiro": [-43.17, -22.91], "chiloe (castro)": [-73.76, -42.48], "malvinas (puerto argentino)": [-57.86, -51.69],
+};
+const sinTilde = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+
+// ----- De la imagen a latitud/longitud, y al revés -----
+function proyector(g) {
+  if (!g) return null;
+  if (g.tipo === "mercator" && g.marco) {
+    const m = g.marco, c = m.caja;
+    return {
+      aLL(fx, fy) {
+        const x = m.x[0] + (fx - c[0]) / (c[2] - c[0]) * (m.x[1] - m.x[0]);
+        const y = m.y[0] + (c[3] - fy) / (c[3] - c[1]) * (m.y[1] - m.y[0]);
+        return [x / m.mx, interp(y, m.my, m.lat)];
+      },
+      aImg(lon, lat) {
+        const x = lon * m.mx, y = interp(lat, m.lat, m.my);
+        return [c[0] + (x - m.x[0]) / (m.x[1] - m.x[0]) * (c[2] - c[0]), c[3] - (y - m.y[0]) / (m.y[1] - m.y[0]) * (c[3] - c[1])];
+      },
+    };
+  }
+  if (g.tipo === "lineal") {
+    const merc = g.y === "merc";
+    const Y = (lat) => (merc ? Math.log(Math.tan(Math.PI / 4 + lat * RAD / 2)) : lat);
+    const deY = (y) => (merc ? (2 * Math.atan(Math.exp(y)) - Math.PI / 2) / RAD : y);
+    return { aLL: (fx, fy) => [(fx - g.bx) / g.ax, deY((fy - g.by) / g.ay)], aImg: (lon, lat) => [g.ax * lon + g.bx, g.ay * Y(lat) + g.by] };
+  }
+  return null;
+}
+const lienzoALL = (p) => GEO.proy.aLL(p[0] / DIB_ANCHO, p[1] / dib.alto);
+const llALienzo = (ll) => { const [fx, fy] = GEO.proy.aImg(ll[0], ll[1]); return [fx * DIB_ANCHO, fy * dib.alto]; };
+
+// ----- Geodesia (esfera de 6371 km) -----
+function distKm(a, b) {
+  const f1 = a[1] * RAD, f2 = b[1] * RAD, df = f2 - f1, dl = (b[0] - a[0]) * RAD;
+  const h = Math.sin(df / 2) ** 2 + Math.cos(f1) * Math.cos(f2) * Math.sin(dl / 2) ** 2;
+  return 2 * R_TIERRA * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+function rumbo(a, b) {
+  const f1 = a[1] * RAD, f2 = b[1] * RAD, dl = (b[0] - a[0]) * RAD;
+  return (Math.atan2(Math.sin(dl) * Math.cos(f2), Math.cos(f1) * Math.sin(f2) - Math.sin(f1) * Math.cos(f2) * Math.cos(dl)) / RAD + 360) % 360;
+}
+function destino(a, brg, km) {
+  const d = km / R_TIERRA, t = brg * RAD, f1 = a[1] * RAD, l1 = a[0] * RAD;
+  const f2 = Math.asin(Math.sin(f1) * Math.cos(d) + Math.cos(f1) * Math.sin(d) * Math.cos(t));
+  const l2 = l1 + Math.atan2(Math.sin(t) * Math.sin(d) * Math.cos(f1), Math.cos(d) - Math.sin(f1) * Math.sin(f2));
+  return [l2 / RAD, f2 / RAD];
+}
+// Área de un polígono sobre la esfera (la misma fórmula que usan los SIG).
+function areaKm2(ll) {
+  let s = 0;
+  for (let i = 0; i < ll.length; i++) {
+    const [l1, f1] = ll[i], [l2, f2] = ll[(i + 1) % ll.length];
+    s += (l2 - l1) * RAD * (2 + Math.sin(f1 * RAD) + Math.sin(f2 * RAD));
+  }
+  return Math.abs(s * R_TIERRA * R_TIERRA / 2);
+}
+// Eje mayor (la mayor distancia entre dos vértices) y eje menor (el ancho
+// perpendicular a él), en un plano local alrededor del centro.
+function ejes(ll) {
+  const lat0 = ll.reduce((a, p) => a + p[1], 0) / ll.length, lon0 = ll.reduce((a, p) => a + p[0], 0) / ll.length;
+  const xy = ll.map(([lo, la]) => [(lo - lon0) * 111.32 * Math.cos(lat0 * RAD), (la - lat0) * 110.57]);
+  let mayor = 0, dir = [1, 0];
+  for (let i = 0; i < ll.length; i++) for (let j = i + 1; j < ll.length; j++) {
+    const d = distKm(ll[i], ll[j]);
+    if (d > mayor) { mayor = d; const dx = xy[j][0] - xy[i][0], dy = xy[j][1] - xy[i][1], n = Math.hypot(dx, dy) || 1; dir = [dx / n, dy / n]; }
+  }
+  const proy = xy.map(([x, y]) => -x * dir[1] + y * dir[0]);
+  return { mayor, menor: Math.max(...proy) - Math.min(...proy), lat0 };
+}
+// Escalas de Orlanski (1975), por la dimensión horizontal.
+function escala(km) {
+  return km >= 10000 ? "macroescala α (planetaria)" : km >= 2000 ? "macroescala β (sinóptica)" : km >= 200 ? "mesoescala α"
+    : km >= 20 ? "mesoescala β" : km >= 2 ? "mesoescala γ" : "microescala";
+}
+
+// ----- Lo que se dibuja -----
+function svgMedida(m, vivo = false) {
+  if (!GEO.proy) return "";
+  const est = `stroke="${COLOR_MED}" stroke-width="3" stroke-dasharray="${vivo ? "6 5" : "10 6"}" stroke-linecap="round" fill="none"`;
+  const puntos = (pts) => pts.map((p) => `<circle cx="${r1(p[0])}" cy="${r1(p[1])}" r="5" fill="${COLOR_MED}" stroke="#fff" stroke-width="1.5"/>`).join("");
+  if (m.tipo === "dist") {
+    const pts = vivo && med.cursor ? [...m.pts, med.cursor] : m.pts;
+    if (pts.length < 2) return puntos(pts);
+    const ll = pts.map(lienzoALL);
+    let total = 0, etiquetas = "";
+    for (let i = 1; i < pts.length; i++) {
+      const d = distKm(ll[i - 1], ll[i]); total += d;
+      if (pts.length > 2) etiquetas += textoSVG((pts[i - 1][0] + pts[i][0]) / 2, (pts[i - 1][1] + pts[i][1]) / 2 - 12, `${nKm(d)} km`, COLOR_MED, 15, 600, "middle");
+    }
+    const u = pts[pts.length - 1];
+    return `<path d="${caminoDe(pts)}" ${est}/>${puntos(pts)}${etiquetas}${textoSVG(u[0] + 10, u[1] - 14, `${nKm(total)} km`, COLOR_MED, 20)}`;
+  }
+  if (m.tipo === "area") {
+    const pts = vivo && med.cursor ? [...m.pts, med.cursor] : m.pts;
+    if (pts.length < 3) return `<path d="${caminoDe(pts)}" ${est}/>${puntos(pts)}`;
+    const a = areaKm2(pts.map(lienzoALL));
+    const cx = pts.reduce((s, p) => s + p[0], 0) / pts.length, cy = pts.reduce((s, p) => s + p[1], 0) / pts.length;
+    return `<path d="${caminoDe(pts)} Z" ${est} fill="${COLOR_MED}" fill-opacity="0.12"/>${puntos(pts)}${textoSVG(cx, cy, `${nKm(a)} km²`, COLOR_MED, 20, 700, "middle")}`;
+  }
+  if (m.tipo === "radio") {
+    const c = lienzoALL(m.c), r = distKm(c, lienzoALL(m.r));
+    if (r < 1) return "";
+    const anillo = Array.from({ length: 73 }, (_, k) => llALienzo(destino(c, k * 5, r)));
+    return `<path d="${caminoDe(anillo)}" ${est}/><path d="${caminoDe([m.c, m.r])}" stroke="${COLOR_MED}" stroke-width="2"/>${puntos([m.c])}
+      ${textoSVG((m.c[0] + m.r[0]) / 2, (m.c[1] + m.r[1]) / 2 - 14, `r = ${nKm(r)} km`, COLOR_MED, 18, 700, "middle")}`;
+  }
+  return "";
+}
+function contenidoMedidas() {
+  const cal = med.cal.map((c) => `<circle cx="${r1(c.p[0])}" cy="${r1(c.p[1])}" r="6" fill="#16a34a" stroke="#fff" stroke-width="2"/>` +
+    textoSVG(c.p[0] + 9, c.p[1] - 10, c.nombre, "#15803d", 15, 600)).join("");
+  if (!GEO.proy) return cal;
+  return med.lista.map((m) => svgMedida(m)).join("") + (med.actual ? svgMedida(med.actual, true) : "")
+    + (med.arrastre ? svgMedida(med.arrastre, true) : "") + cal;
+}
+
+// ----- Resultados (lo que se aprende de cada medida) -----
+const nDec = (v, d = 1) => Number(v).toLocaleString("es-AR", { minimumFractionDigits: d, maximumFractionDigits: d });
+function describirMedida(m, i) {
+  const borrar = `<button class="boton chico" data-m-borrar="${i}" title="Borrar esta medida">✕</button>`;
+  if (m.tipo === "dist") {
+    const ll = m.pts.map(lienzoALL);
+    let total = 0;
+    for (let k = 1; k < ll.length; k++) total += distKm(ll[k - 1], ll[k]);
+    const latm = ll.reduce((a, p) => a + p[1], 0) / ll.length;
+    const n = 2 * Math.PI * R_TIERRA * Math.cos(latm * RAD) / total;
+    const horas = Number($("#c-m-horas").value) || 0;
+    const vel = horas ? total / horas : null;
+    const rb = ll.length === 2 ? rumbo(ll[0], ll[1]) : null;
+    return `<div class="c-m-item"><b>📏 ${nKm(total)} km</b>${ll.length > 2 ? ` (${ll.length - 1} tramos)` : ""}${rb !== null ? ` · rumbo ${Math.round(rb)}°` : ""} · ${escala(total)} ${borrar}
+      <div class="tenue">Si es una <b>longitud de onda</b> (de vaguada a vaguada, o de cresta a cresta) a ${nDec(Math.abs(latm), 0)}°S:
+        número de onda zonal ≈ <b>${nDec(n, 1)}</b> (cuántas ondas así entran en el círculo de latitud;
+        ${n < 4 ? "onda larga / planetaria" : n < 8 ? "onda larga a sinóptica" : "onda corta"}).
+        Si es el <b>desplazamiento</b> de un sistema en ${horas} h: ${vel ? `<b>${nKm(vel)} km/h</b> = ${nDec(vel / 3.6, 1)} m/s` : "–"}.</div></div>`;
+  }
+  if (m.tipo === "area") {
+    const ll = m.pts.map(lienzoALL);
+    const a = areaKm2(ll), e = ejes(ll), exc = e.menor / e.mayor;
+    const ok = (c) => (c ? "✅" : "❌");
+    return `<div class="c-m-item"><b>⬠ ${nKm(a)} km²</b> · eje mayor ${nKm(e.mayor)} km, menor ${nKm(e.menor)} km · excentricidad ${nDec(exc, 2)} · ${escala(e.mayor)} ${borrar}
+      <div class="tenue">Si el contorno marca el <b>escudo nuboso ≤ −32 °C</b> (infrarrojo): ${ok(a >= 100000)} ≥ 100.000 km² (umbral del CCM).
+        Si marca la parte <b>≤ −52 °C</b>: ${ok(a >= 50000)} ≥ 50.000 km².
+        Forma: ${exc >= 0.7 ? "✅ casi circular (≥ 0,7): CCM" : exc >= 0.2 ? "alargada (0,2–0,7): sistema elongado persistente (PECS)" : "muy alargada (< 0,2): línea"}.
+        Un CCM además tiene que <b>durar ≥ 6 h</b> cumpliendo esto (usá ▶ Animar). Criterios de Maddox (1980) y de Anderson y Arritt (1998) para los elongados.</div></div>`;
+  }
+  if (m.tipo === "radio") {
+    const r = distKm(lienzoALL(m.c), lienzoALL(m.r));
+    return `<div class="c-m-item"><b>◎ radio ${nKm(r)} km</b> · diámetro ${nKm(2 * r)} km · área ${nKm(Math.PI * r * r)} km² · ${escala(2 * r)} ${borrar}</div>`;
+  }
+  return "";
+}
+function dibujarResultados() {
+  const caja = $("#c-m-res");
+  const esMedir = dib.herr.startsWith("m_");
+  let html = "";
+  if (!GEO.proy && (esMedir || med.cal.length)) {
+    html = `<div class="c-m-item">⚠️ Esta carta no tiene coordenadas conocidas (la proyección de la imagen). Para medir, calibrala con <b>📍 Calibrar</b>:
+      tocá 3 lugares que reconozcas, lejos entre sí (mejor puntos de la costa, que se ven en el satélite), y decí cuál es cada uno.
+      ${med.cal.length ? `Marcados: ${med.cal.map((c) => esc(c.nombre)).join(", ")}${med.cal.length < 2 ? " (falta al menos uno más)" : ""}.` : ""}</div>`;
+  } else {
+    html = med.lista.map(describirMedida).join("");
+    const g = GEO.todos?.[GEO.producto];
+    if (!g && GEO.proy && GEO.cal) {
+      html += `<div class="c-m-item tenue">📍 Calibrada en este navegador con ${GEO.cal.puntos.length} lugares (${GEO.cal.y === "merc" ? "Mercator" : "latitud-longitud"},
+        error ≈ ${nKm(GEO.cal.error_km)} km). Para dejarla fija para todos, agregá en <code>config/cartas.yaml</code>, en esta carta:
+        <code>georef: {tipo: lineal, ax: ${GEO.cal.ax.toPrecision(7)}, bx: ${GEO.cal.bx.toPrecision(7)}, ay: ${GEO.cal.ay.toPrecision(7)}, by: ${GEO.cal.by.toPrecision(7)}, y: ${GEO.cal.y}}</code>
+        <button class="boton chico" id="c-m-descal">Borrar calibración</button></div>`;
+    }
+    if (!html && esMedir) html = `<div class="c-m-item tenue">${{ m_dist: "📏 Tocá puntos sobre la carta; doble clic (o ✓ Terminar, o Enter) para cerrar la línea. Sirve para longitudes de onda, distancias y desplazamientos.",
+      m_area: "⬠ Tocá alrededor del sistema (por ejemplo el borde del escudo nuboso frío); doble clic (o ✓ Terminar) para cerrarlo.",
+      m_radio: "◎ Apretá en el centro y arrastrá hasta el borde.", m_cal: "📍 Tocá un lugar que reconozcas y escribí cuál es." }[dib.herr] || ""}</div>`;
+  }
+  caja.innerHTML = html;
+  caja.hidden = !html;
+  $("#c-m-terminar").hidden = !med.actual;
+  caja.querySelectorAll("[data-m-borrar]").forEach((b) => b.addEventListener("click", () => { med.lista.splice(+b.dataset.mBorrar, 1); pintarDibujoVisor(); dibujarResultados(); }));
+  $("#c-m-descal")?.addEventListener("click", () => {
+    try { localStorage.removeItem("georef:" + GEO.producto); } catch (_) {}
+    med.cal = []; med.lista = []; prepararMedidas(GEO.producto, true); pintarDibujoVisor();
+  });
+}
+
+// ----- Calibrar una carta sin coordenadas (lugares conocidos) -----
+// x = ax·lon + bx; y = ay·Y + by, por cuadrados mínimos. Con 3 o más
+// lugares se prueba Y = latitud y Y = Mercator y se queda con la que mejor ajusta.
+function ajustarRecta(xs, ys) {
+  const n = xs.length, mx = xs.reduce((a, b) => a + b) / n, my = ys.reduce((a, b) => a + b) / n;
+  let sxy = 0, sxx = 0;
+  for (let i = 0; i < n; i++) { sxy += (xs[i] - mx) * (ys[i] - my); sxx += (xs[i] - mx) ** 2; }
+  const a = sxx ? sxy / sxx : 0;
+  return [a, my - a * mx];
+}
+function calibrar() {
+  const pts = med.cal;
+  if (pts.length < 2) return null;
+  const fx = pts.map((c) => c.p[0] / DIB_ANCHO), fy = pts.map((c) => c.p[1] / dib.alto);
+  const [ax, bx] = ajustarRecta(pts.map((c) => c.ll[0]), fx);
+  let mejor = null;
+  for (const y of pts.length >= 3 ? ["lat", "merc"] : ["lat"]) {
+    const Y = pts.map((c) => (y === "merc" ? Math.log(Math.tan(Math.PI / 4 + c.ll[1] * RAD / 2)) : c.ll[1]));
+    const [ay, by] = ajustarRecta(Y, fy);
+    if (!ax || !ay) continue;
+    const g = { tipo: "lineal", ax, bx, ay, by, y };
+    const pr = proyector(g);
+    const error = pts.reduce((s, c) => s + distKm(pr.aLL(c.p[0] / DIB_ANCHO, c.p[1] / dib.alto), c.ll), 0) / pts.length;
+    if (!mejor || error < mejor.error_km) mejor = { ...g, error_km: error };
+  }
+  return mejor;
+}
+function tocarCalibracion(p) {
+  const r = prompt("¿Qué lugar es? Escribí el nombre (por ej. Punta del Este, Cabo San Antonio, Mar del Plata, Península Valdés, Montevideo, Bahía Blanca, " +
+    "Córdoba, Santiago, Asunción, Porto Alegre, Ushuaia…) o latitud,longitud (ej. -34.92,-57.95):");
+  if (!r) return;
+  let ll = null, nombre = r.trim();
+  const m = r.match(/^\s*(-?\d+(?:[.,]\d+)?)\s*[;,\s]\s*(-?\d+(?:[.,]\d+)?)\s*$/);
+  if (m) ll = [parseFloat(m[2].replace(",", ".")), parseFloat(m[1].replace(",", "."))];
+  else {
+    const k = Object.keys(LUGARES).find((x) => x === sinTilde(r) || x.startsWith(sinTilde(r)));
+    if (k) ll = LUGARES[k];
+  }
+  if (!ll || Math.abs(ll[1]) > 90 || Math.abs(ll[0]) > 180) { alert("No reconocí ese lugar. Probá con latitud,longitud (ej. -34.92,-57.95)."); return; }
+  med.cal.push({ p, ll, nombre });
+  const g = calibrar();
+  if (g) {
+    g.puntos = med.cal.map((c) => ({ p: c.p, ll: c.ll, nombre: c.nombre, alto: dib.alto }));
+    try { localStorage.setItem("georef:" + GEO.producto, JSON.stringify(g)); } catch (_) {}
+    GEO.cal = g; GEO.proy = proyector(g);
+  }
+}
+
+// ----- Interacción (la llaman los manejadores del visor) -----
+function medirToque(e) {
+  const p = aLienzo(e), h = dib.herr;
+  if (h === "m_cal") { tocarCalibracion(p); }
+  else if (!GEO.proy) { /* sin coordenadas: el panel explica cómo calibrar */ }
+  else if (h === "m_radio") med.arrastre = { tipo: "radio", c: p, r: p };
+  else if (!med.actual) med.actual = { tipo: h === "m_dist" ? "dist" : "area", pts: [p] };
+  else med.actual.pts.push(p);
+  pintarDibujoVisor(); dibujarResultados();
+}
+function seguirMedida(e) { med.arrastre.r = aLienzo(e); pintarDibujoVisor(); }
+function soltarMedida() {
+  const a = med.arrastre; med.arrastre = null;
+  if (a && Math.hypot(a.r[0] - a.c[0], a.r[1] - a.c[1]) > 3) med.lista.push(a);
+  pintarDibujoVisor(); dibujarResultados();
+}
+function terminarMedida() {
+  const a = med.actual; med.actual = null; med.cursor = null;
+  if (a) {
+    // El doble clic suma dos toques en el mismo lugar: se sacan los repetidos.
+    a.pts = a.pts.filter((p, i) => !i || Math.hypot(p[0] - a.pts[i - 1][0], p[1] - a.pts[i - 1][1]) > 3);
+    if (a.pts.length >= (a.tipo === "area" ? 3 : 2)) med.lista.push(a);
+  }
+  pintarDibujoVisor(); dibujarResultados();
+}
+function moverCursorMedida(e) {
+  if (!$("#c-dialogo").open) return;
+  const p = aLienzo(e);
+  if (med.actual) { med.cursor = p; pintarDibujoVisor(); }
+  if (GEO.proy) {
+    const [lon, lat] = lienzoALL(p);
+    $("#c-m-pos").textContent = Math.abs(lat) <= 90 && Math.abs(lon) <= 360 ? `📍 ${fmtGrado(lat, "N", "S")}  ${fmtGrado(lon, "E", "O")}` : "";
+  } else $("#c-m-pos").textContent = "";
+}
+// Al abrir una carta: sus coordenadas. Las medidas se conservan si la carta
+// nueva tiene las MISMAS coordenadas (otra hora u otra carta del mismo marco:
+// así se mide cuánto se movió un sistema entre dos horas).
+async function prepararMedidas(producto, forzar = false) {
+  if (!GEO.todos) { try { GEO.todos = await api("/api/cartas/georef"); } catch (_) { GEO.todos = {}; } }
+  let g = GEO.todos[producto] || null, cal = null;
+  if (!g) { try { cal = JSON.parse(localStorage.getItem("georef:" + producto) || "null"); } catch (_) {} g = cal; }
+  const clave = g ? JSON.stringify({ ...g, puntos: undefined }) : `sin:${producto}`;
+  if (forzar || clave !== GEO.clave) { med.lista = []; med.actual = null; med.cal = (cal?.puntos || []).map((c) => ({ ...c, p: [c.p[0], c.p[1] * dib.alto / (c.alto || dib.alto)] })); }
+  GEO.producto = producto; GEO.clave = clave; GEO.cal = cal; GEO.proy = proyector(g);
+  dibujarResultados();
+}
+
 // ----- en el visor grande -----
 function ubicarSVG() {
   // El dibujo y la carta superpuesta ocupan exactamente el lugar de la imagen
@@ -4306,7 +4624,7 @@ function aplicarSuperposicion() {
 function pintarDibujoVisor() {
   const svg = $("#c-svg");
   svg.setAttribute("viewBox", `0 0 ${DIB_ANCHO} ${dib.alto}`);
-  svg.innerHTML = contenidoDibujo(dib.base) + contenidoDibujo(dib.dibujo) + (dib.actual ? svgElemento(dib.actual) : "");
+  svg.innerHTML = contenidoDibujo(dib.base) + contenidoDibujo(dib.dibujo) + (dib.actual ? svgElemento(dib.actual) : "") + contenidoMedidas();
 }
 function cargarDibujoVisor(p) {
   guardarDibujoYa();        // lo pendiente de la carta/hora anterior, antes de cambiar
@@ -4323,9 +4641,10 @@ function cargarDibujoVisor(p) {
   dib.actual = null;
   $("#c-dib-estado").textContent = dibujoPropioLocal() ? "tus dibujos se guardan solo en este navegador" : "";
   const img = $("#c-vista img");
-  const listo = () => {
+  const listo = async () => {
     dib.alto = dib.dibujo?.alto || dib.base?.alto || Math.round(DIB_ANCHO * img.naturalHeight / img.naturalWidth) || 750;
     ubicarSVG();
+    await prepararMedidas(p.id);
     pintarDibujoVisor();
   };
   if (img.complete && img.naturalWidth) listo(); else img.addEventListener("load", listo, { once: true });
@@ -4357,6 +4676,7 @@ function elementoEn(punto, filtro = () => true) {
   return mejor;
 }
 function empezarDibujo(e) {
+  if (dib.herr.startsWith("m_")) { medirToque(e); return; }
   const p = aLienzo(e), h = dib.herr;
   if (h === "trazo") dib.actual = { tipo: "trazo", color: $("#c-color").value, ancho: +$("#c-grosor").value, puntos: [p] };
   else if (["frio", "calido", "ocluido", "estacionario"].includes(h)) dib.actual = { tipo: "frente", clase: h, lado: 1, puntos: [p] };
@@ -4438,8 +4758,8 @@ async function componerCarta() {
   g.fillStyle = "#fff"; g.fillRect(0, 0, w, h + 34);
   if (p.fondo) g.drawImage(await cargarImagen(p.fondo), 0, 0, w, h);
   g.drawImage(img, 0, 0, w, h);
-  if (dib.dibujo?.elementos.length || dib.base?.elementos.length) {
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${DIB_ANCHO} ${dib.alto}" preserveAspectRatio="none">${contenidoDibujo(dib.base) + contenidoDibujo(dib.dibujo)}</svg>`;
+  if (dib.dibujo?.elementos.length || dib.base?.elementos.length || med.lista.length) {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${DIB_ANCHO} ${dib.alto}" preserveAspectRatio="none">${contenidoDibujo(dib.base) + contenidoDibujo(dib.dibujo) + med.lista.map((m) => svgMedida(m)).join("")}</svg>`;
     g.drawImage(await cargarImagen("data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg)), 0, 0, w, h);
   }
   // Abajo, qué carta es y de qué hora (para la placa o una presentación).
@@ -4460,14 +4780,19 @@ async function exportarPNG() {
 }
 
 function elegirHerramienta(h) {
+  if (med.actual) terminarMedida();
   dib.herr = h;
-  document.querySelectorAll("#c-herr .herr").forEach((b) => b.classList.toggle("activa", b.dataset.herr === h));
+  if (typeof dibujarResultados === "function") dibujarResultados();
+  document.querySelectorAll("#c-dialogo .herr").forEach((b) => b.classList.toggle("activa", b.dataset.herr === h));
   $("#c-vista").classList.toggle("dibujando", h !== "mover");
 }
 function iniciarHerramientas() {
   // En la copia pública cada uno dibuja lo suyo (se guarda en su navegador).
   if (dibujoPropioLocal()) $("#c-limpiar").title = "Borrar todo TU dibujo de esta carta (el del grupo no se toca)";
-  document.querySelectorAll("#c-herr .herr").forEach((b) => b.addEventListener("click", () => elegirHerramienta(b.dataset.herr)));
+  document.querySelectorAll("#c-dialogo .herr").forEach((b) => b.addEventListener("click", () => elegirHerramienta(b.dataset.herr)));
+  $("#c-m-terminar").addEventListener("click", terminarMedida);
+  $("#c-m-borrar").addEventListener("click", () => { med.lista = []; med.actual = null; pintarDibujoVisor(); dibujarResultados(); });
+  $("#c-m-horas").addEventListener("input", dibujarResultados);
   $("#c-deshacer").addEventListener("click", deshacerDibujo);
   $("#c-limpiar").addEventListener("click", () => {
     if (dib.dibujo?.elementos.length && confirm("¿Borrar todo el dibujo de esta carta?")) cambiarDibujo((el) => el.splice(0));
@@ -4476,6 +4801,8 @@ function iniciarHerramientas() {
   window.addEventListener("resize", () => { if ($("#c-dialogo").open) ubicarSVG(); });
   document.addEventListener("keydown", (e) => {
     if ($("#c-dialogo").open && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); deshacerDibujo(); }
+    if ($("#c-dialogo").open && med.actual && e.key === "Enter") { e.preventDefault(); terminarMedida(); }
+    if ($("#c-dialogo").open && med.actual && e.key === "Escape") { e.preventDefault(); med.actual = null; pintarDibujoVisor(); dibujarResultados(); }
   });
   $("#c-dialogo").addEventListener("close", () => { guardarDibujoYa(); elegirHerramienta("mover"); cargarCartas(); });
 }
