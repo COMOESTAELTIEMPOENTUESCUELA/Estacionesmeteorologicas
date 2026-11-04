@@ -558,10 +558,12 @@ En el visor grande de una carta, la barra **Medir**:
   píxeles. Muestra el rumbo, la escala de Orlanski y:
   - como **longitud de onda** (de vaguada a vaguada): el número de onda
     zonal a esa latitud (2π·R·cos φ / λ);
-  - como **desplazamiento** de un sistema entre dos horas (medido con la
-    carta de una hora y la de otra: las medidas se conservan al cambiar de
-    hora si la carta tiene las mismas coordenadas): la velocidad en km/h y
-    m/s según las horas puestas en "en … h".
+- **🧭 Desplazamiento**: tocar dónde estaba un sistema y, en la carta de
+  otra hora (+6 h, etc.: las medidas se conservan al cambiar de hora), dónde
+  está ahora. Da cuánto se movió, hacia dónde y la velocidad (km/h y m/s).
+  Las horas salen solas si las dos posiciones se marcaron en cartas de horas
+  distintas; si no, se usan las del casillero. Avisa si da una velocidad
+  irreal (más de 150 km/h).
 - **⬠ Área**: contorno alrededor de un sistema → área (km²), eje mayor y
   menor, excentricidad y los criterios de tamaño de un **complejo
   convectivo de mesoescala** (Maddox 1980): escudo ≤ −32 °C ≥ 100.000 km²,

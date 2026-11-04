@@ -1221,11 +1221,12 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
       <div class="barra" id="c-medir-barra">
         <span class="tenue">Medir:</span>
         <button class="boton herr" data-herr="m_dist" title="Distancia sobre la Tierra (varios tramos): longitud de onda, desplazamiento de un sistema">📏 Distancia</button>
+        <button class="boton herr" data-herr="m_desp" title="Cuánto se movió un sistema entre dos horas: dónde estaba y dónde está. Da la velocidad y hacia dónde va">🧭 Desplazamiento</button>
         <button class="boton herr" data-herr="m_area" title="Área y ejes de un contorno: tamaño de un sistema convectivo (criterios de CCM)">⬠ Área</button>
         <button class="boton herr" data-herr="m_radio" title="Círculo de un radio dado (apretar en el centro y arrastrar)">◎ Radio</button>
         <button class="boton herr" data-herr="m_cal" title="Para cartas sin coordenadas (satélite, Ogimet): tocar lugares conocidos">📍 Calibrar</button>
         <button class="boton primario" id="c-m-terminar" hidden title="Terminar la línea o el contorno (o doble clic, o Enter)">✓ Terminar</button>
-        <label class="en-linea" title="Para calcular la velocidad de un desplazamiento medido">en <input type="number" id="c-m-horas" value="6" min="1" max="240" step="1" style="width:56px"> h</label>
+        <label class="en-linea" id="c-m-l-horas" hidden title="Las horas que pasaron entre las dos posiciones del sistema">tiempo entre las dos posiciones: <input type="number" id="c-m-horas" value="6" min="1" max="240" step="1" style="width:56px"> h</label>
         <button class="boton" id="c-m-borrar" title="Borrar todas las medidas">Borrar medidas</button>
         <span class="tenue" id="c-m-pos"></span>
       </div>
@@ -4400,6 +4401,15 @@ function svgMedida(m, vivo = false) {
     const u = pts[pts.length - 1];
     return `<path d="${caminoDe(pts)}" ${est}/>${puntos(pts)}${etiquetas}${textoSVG(u[0] + 10, u[1] - 14, `${nKm(total)} km`, COLOR_MED, 20)}`;
   }
+  if (m.tipo === "desp") {
+    const pts = vivo && med.cursor ? [...m.pts, med.cursor] : m.pts;
+    if (pts.length < 2) return puntos(pts) + textoSVG(pts[0][0] + 10, pts[0][1] - 14, "antes", COLOR_MED, 15, 600);
+    const [p0, p1] = pts, l = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]) || 1, tx = (p1[0] - p0[0]) / l, ty = (p1[1] - p0[1]) / l;
+    const punta = [[p1[0], p1[1]], [p1[0] - tx * 18 - ty * 9, p1[1] - ty * 18 + tx * 9], [p1[0] - tx * 18 + ty * 9, p1[1] - ty * 18 - tx * 9]];
+    const d = distKm(lienzoALL(p0), lienzoALL(p1));
+    return `<path d="${caminoDe([p0, p1])}" ${est}/><polygon points="${punta.map((q) => q.map(r1).join(",")).join(" ")}" fill="${COLOR_MED}"/>${puntos([p0])}
+      ${textoSVG(p0[0] + 10, p0[1] - 14, "antes", COLOR_MED, 15, 600)}${textoSVG(p1[0] + 10, p1[1] - 14, `${nKm(d)} km`, COLOR_MED, 18)}`;
+  }
   if (m.tipo === "area") {
     const pts = vivo && med.cursor ? [...m.pts, med.cursor] : m.pts;
     if (pts.length < 3) return `<path d="${caminoDe(pts)}" ${est}/>${puntos(pts)}`;
@@ -4434,14 +4444,23 @@ function describirMedida(m, i) {
     for (let k = 1; k < ll.length; k++) total += distKm(ll[k - 1], ll[k]);
     const latm = ll.reduce((a, p) => a + p[1], 0) / ll.length;
     const n = 2 * Math.PI * R_TIERRA * Math.cos(latm * RAD) / total;
-    const horas = Number($("#c-m-horas").value) || 0;
-    const vel = horas ? total / horas : null;
     const rb = ll.length === 2 ? rumbo(ll[0], ll[1]) : null;
     return `<div class="c-m-item"><b>📏 ${nKm(total)} km</b>${ll.length > 2 ? ` (${ll.length - 1} tramos)` : ""}${rb !== null ? ` · rumbo ${Math.round(rb)}°` : ""} · ${escala(total)} ${borrar}
       <div class="tenue">Si es una <b>longitud de onda</b> (de vaguada a vaguada, o de cresta a cresta) a ${nDec(Math.abs(latm), 0)}°S:
         número de onda zonal ≈ <b>${nDec(n, 1)}</b> (cuántas ondas así entran en el círculo de latitud;
         ${n < 4 ? "onda larga / planetaria" : n < 8 ? "onda larga a sinóptica" : "onda corta"}).
-        Si es el <b>desplazamiento</b> de un sistema en ${horas} h: ${vel ? `<b>${nKm(vel)} km/h</b> = ${nDec(vel / 3.6, 1)} m/s` : "–"}.</div></div>`;
+        Para la velocidad de un sistema, usá 🧭 Desplazamiento.</div></div>`;
+  }
+  if (m.tipo === "desp") {
+    const [a, b] = m.pts.map(lienzoALL), d = distKm(a, b), horas = m.horas || Number($("#c-m-horas").value) || 0;
+    const vel = horas ? d / horas : null, rb = rumbo(a, b);
+    const hacia = ["el norte", "el noreste", "el este", "el sureste", "el sur", "el suroeste", "el oeste", "el noroeste"][Math.round(rb / 45) % 8];
+    const aviso = !vel ? "" : vel > 150 ? " ⚠️ Es demasiado rápido para un sistema del tiempo: revisá las horas o que hayas marcado el mismo sistema en las dos cartas."
+      : vel < 2 ? " (prácticamente quieto)" : "";
+    return `<div class="c-m-item"><b>🧭 se movió ${nKm(d)} km hacia ${hacia}</b> (rumbo ${Math.round(rb)}°) en ${horas} h:
+      <b>${vel ? `${nKm(vel)} km/h = ${nDec(vel / 3.6, 1)} m/s` : "–"}</b>${aviso}
+      ${m.horas ? '<span class="tenue">(las horas salen de las dos cartas)</span>' : '<span class="tenue">(horas del casillero de arriba)</span>'} ${borrar}
+      <div class="tenue">Como referencia: los frentes y ciclones de latitudes medias suelen moverse a unos 20–80 km/h; los sistemas convectivos, 30–60 km/h.</div></div>`;
   }
   if (m.tipo === "area") {
     const ll = m.pts.map(lienzoALL);
@@ -4477,11 +4496,13 @@ function dibujarResultados() {
         <button class="boton chico" id="c-m-descal">Borrar calibración</button></div>`;
     }
     if (!html && esMedir) html = `<div class="c-m-item tenue">${{ m_dist: "📏 Tocá puntos sobre la carta; doble clic (o ✓ Terminar, o Enter) para cerrar la línea. Sirve para longitudes de onda, distancias y desplazamientos.",
+      m_desp: "🧭 Tocá dónde estaba el sistema (por ejemplo el centro de la baja) en esta carta; pasá a la otra hora (+6 h, o la que sea) y tocá dónde está ahora. Poné arriba cuántas horas pasaron.",
       m_area: "⬠ Tocá alrededor del sistema (por ejemplo el borde del escudo nuboso frío); doble clic (o ✓ Terminar) para cerrarlo.",
       m_radio: "◎ Apretá en el centro y arrastrá hasta el borde.", m_cal: "📍 Tocá un lugar que reconozcas y escribí cuál es." }[dib.herr] || ""}</div>`;
   }
   caja.innerHTML = html;
   caja.hidden = !html;
+  $("#c-m-l-horas").hidden = !(dib.herr === "m_desp" || med.lista.some((m) => m.tipo === "desp"));
   $("#c-m-terminar").hidden = !med.actual;
   caja.querySelectorAll("[data-m-borrar]").forEach((b) => b.addEventListener("click", () => { med.lista.splice(+b.dataset.mBorrar, 1); pintarDibujoVisor(); dibujarResultados(); }));
   $("#c-m-descal")?.addEventListener("click", () => {
@@ -4544,8 +4565,16 @@ function medirToque(e) {
   if (h === "m_cal") { tocarCalibracion(p); }
   else if (!GEO.proy) { /* sin coordenadas: el panel explica cómo calibrar */ }
   else if (h === "m_radio") med.arrastre = { tipo: "radio", c: p, r: p };
-  else if (!med.actual) med.actual = { tipo: h === "m_dist" ? "dist" : "area", pts: [p] };
-  else med.actual.pts.push(p);
+  else if (!med.actual) med.actual = { tipo: h === "m_dist" ? "dist" : h === "m_desp" ? "desp" : "area", pts: [p], ts0: +tsCarta() };
+  else {
+    med.actual.pts.push(p);
+    if (med.actual.tipo === "desp") {             // con dos posiciones alcanza
+      // Si la segunda se marcó en otra hora, las horas salen solas.
+      const dh = Math.round((+tsCarta() - med.actual.ts0) / HORA);
+      if (dh > 0) { med.actual.horas = dh; $("#c-m-horas").value = dh; }
+      terminarMedida(); return;
+    }
+  }
   pintarDibujoVisor(); dibujarResultados();
 }
 function seguirMedida(e) { med.arrastre.r = aLienzo(e); pintarDibujoVisor(); }
@@ -4559,6 +4588,7 @@ function terminarMedida() {
   if (a) {
     // El doble clic suma dos toques en el mismo lugar: se sacan los repetidos.
     a.pts = a.pts.filter((p, i) => !i || Math.hypot(p[0] - a.pts[i - 1][0], p[1] - a.pts[i - 1][1]) > 3);
+    if (a.tipo === "desp") a.pts = a.pts.slice(0, 2);
     if (a.pts.length >= (a.tipo === "area" ? 3 : 2)) med.lista.push(a);
   }
   pintarDibujoVisor(); dibujarResultados();
