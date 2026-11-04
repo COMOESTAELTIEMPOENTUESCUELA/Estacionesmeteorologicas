@@ -361,6 +361,13 @@ img.con-fondo { background-color: #fff !important; background-size: 100% 100%; b
 #c-vista.dibujando { cursor: crosshair; }
 .c-m-res { flex-direction: column; align-items: stretch !important; gap: 4px; max-height: 150px; overflow: auto; font-size: 13px; }
 .c-m-item { line-height: 1.4; }
+.c-m-desp { display: flex; gap: 12px; align-items: center; padding: 6px 10px; border-radius: 10px;
+  background: color-mix(in srgb, #db2777 14%, transparent); border-left: 4px solid #db2777; }
+.c-m-desp .flecha { font-size: 30px; line-height: 1; color: #db2777; font-weight: 800; display: inline-block; }
+.c-m-desp .vel { font-size: 24px; font-weight: 800; line-height: 1.15; }
+.c-m-desp .vel small { font-size: 14px; font-weight: 600; opacity: .85; }
+.c-m-desp > div { flex: 1; }
+.c-m-aviso { color: #f59e0b; font-weight: 600; font-size: 12.5px; }
 .c-m-item .tenue { font-size: 12.5px; }
 .c-m-item code { font-size: 11.5px; background: rgba(127,127,127,.2); color: inherit; padding: 0 4px; border-radius: 4px; overflow-wrap: anywhere; }
 #c-m-pos { font-variant-numeric: tabular-nums; margin-left: auto; }
@@ -4384,6 +4391,22 @@ function escala(km) {
     : km >= 20 ? "mesoescala β" : km >= 2 ? "mesoescala γ" : "microescala";
 }
 
+// ----- Desplazamiento: cuánto, hacia dónde y a qué velocidad -----
+const RUMBOS_8 = [["N", "↑", "el norte"], ["NE", "↗", "el noreste"], ["E", "→", "el este"], ["SE", "↘", "el sureste"],
+                  ["S", "↓", "el sur"], ["SO", "↙", "el suroeste"], ["O", "←", "el oeste"], ["NO", "↖", "el noroeste"]];
+function datosDesp(m) {
+  const [a, b] = m.pts.map(lienzoALL), d = distKm(a, b), horas = m.horas || Number($("#c-m-horas").value) || 0;
+  const rb = rumbo(a, b), [corto, flecha, largo] = RUMBOS_8[Math.round(rb / 45) % 8];
+  return { d, horas, rb, corto, flecha, largo, vel: horas ? d / horas : null };
+}
+// Etiqueta con fondo (para que se lea sobre cualquier carta sin taparla toda).
+function etiquetaSVG(x, y, grande, chico) {
+  const ancho = Math.max(grande.length * 15.5, chico.length * 8.2) + 22, alto = chico ? 58 : 38;
+  return `<g><rect x="${r1(x)}" y="${r1(y - alto / 2)}" width="${r1(ancho)}" height="${alto}" rx="10" fill="#fff" fill-opacity="0.82" stroke="${COLOR_MED}" stroke-width="2"/>
+    <text x="${r1(x + 11)}" y="${r1(y - alto / 2 + 25)}" font-size="26" font-weight="800" font-family="system-ui, sans-serif" fill="${COLOR_MED}">${esc(grande)}</text>
+    ${chico ? `<text x="${r1(x + 11)}" y="${r1(y - alto / 2 + 47)}" font-size="14" font-weight="600" font-family="system-ui, sans-serif" fill="#4b5563">${esc(chico)}</text>` : ""}</g>`;
+}
+
 // ----- Lo que se dibuja -----
 function svgMedida(m, vivo = false) {
   if (!GEO.proy) return "";
@@ -4406,9 +4429,15 @@ function svgMedida(m, vivo = false) {
     if (pts.length < 2) return puntos(pts) + textoSVG(pts[0][0] + 10, pts[0][1] - 14, "antes", COLOR_MED, 15, 600);
     const [p0, p1] = pts, l = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]) || 1, tx = (p1[0] - p0[0]) / l, ty = (p1[1] - p0[1]) / l;
     const punta = [[p1[0], p1[1]], [p1[0] - tx * 18 - ty * 9, p1[1] - ty * 18 + tx * 9], [p1[0] - tx * 18 + ty * 9, p1[1] - ty * 18 - tx * 9]];
-    const d = distKm(lienzoALL(p0), lienzoALL(p1));
+    const x = datosDesp({ ...m, pts }), grande = x.vel ? `${nKm(x.vel)} km/h ${x.flecha} ${x.corto}` : `${nKm(x.d)} km ${x.flecha} ${x.corto}`;
+    // La etiqueta va del lado de afuera de la flecha (que no tape el recorrido) y adentro de la carta.
+    let ex = p1[0] + (tx >= 0 ? 16 : -16), ey = p1[1] + (ty >= 0 ? 34 : -34);
+    const ancho = Math.max(grande.length * 15.5, 140) + 22;
+    if (tx < 0) ex -= ancho;
+    ex = Math.min(Math.max(ex, 4), DIB_ANCHO - ancho - 4); ey = Math.min(Math.max(ey, 34), dib.alto - 34);
     return `<path d="${caminoDe([p0, p1])}" ${est}/><polygon points="${punta.map((q) => q.map(r1).join(",")).join(" ")}" fill="${COLOR_MED}"/>${puntos([p0])}
-      ${textoSVG(p0[0] + 10, p0[1] - 14, "antes", COLOR_MED, 15, 600)}${textoSVG(p1[0] + 10, p1[1] - 14, `${nKm(d)} km`, COLOR_MED, 18)}`;
+      ${textoSVG(p0[0] + 10, p0[1] - 14, "antes", COLOR_MED, 15, 600)}
+      ${vivo ? "" : etiquetaSVG(ex, ey, grande, x.vel ? `${nKm(x.d)} km en ${x.horas} h · ${nDec(x.vel / 3.6, 1)} m/s` : "")}`;
   }
   if (m.tipo === "area") {
     const pts = vivo && med.cursor ? [...m.pts, med.cursor] : m.pts;
@@ -4452,15 +4481,14 @@ function describirMedida(m, i) {
         Para la velocidad de un sistema, usá 🧭 Desplazamiento.</div></div>`;
   }
   if (m.tipo === "desp") {
-    const [a, b] = m.pts.map(lienzoALL), d = distKm(a, b), horas = m.horas || Number($("#c-m-horas").value) || 0;
-    const vel = horas ? d / horas : null, rb = rumbo(a, b);
-    const hacia = ["el norte", "el noreste", "el este", "el sureste", "el sur", "el suroeste", "el oeste", "el noroeste"][Math.round(rb / 45) % 8];
-    const aviso = !vel ? "" : vel > 150 ? " ⚠️ Es demasiado rápido para un sistema del tiempo: revisá las horas o que hayas marcado el mismo sistema en las dos cartas."
-      : vel < 2 ? " (prácticamente quieto)" : "";
-    return `<div class="c-m-item"><b>🧭 se movió ${nKm(d)} km hacia ${hacia}</b> (rumbo ${Math.round(rb)}°) en ${horas} h:
-      <b>${vel ? `${nKm(vel)} km/h = ${nDec(vel / 3.6, 1)} m/s` : "–"}</b>${aviso}
-      ${m.horas ? '<span class="tenue">(las horas salen de las dos cartas)</span>' : '<span class="tenue">(horas del casillero de arriba)</span>'} ${borrar}
-      <div class="tenue">Como referencia: los frentes y ciclones de latitudes medias suelen moverse a unos 20–80 km/h; los sistemas convectivos, 30–60 km/h.</div></div>`;
+    const x = datosDesp(m);
+    const aviso = !x.vel ? "" : x.vel > 150 ? `<div class="c-m-aviso">⚠️ Demasiado rápido para un sistema del tiempo: revisá las horas o que hayas marcado el mismo sistema en las dos cartas.</div>`
+      : x.vel < 2 ? '<div class="tenue">Prácticamente quieto.</div>' : "";
+    return `<div class="c-m-item c-m-desp"><span class="flecha" style="transform:rotate(${Math.round(x.rb)}deg)">↑</span>
+      <div><div class="vel">${x.vel ? `${nKm(x.vel)} km/h` : "–"} <small>hacia ${x.largo}</small></div>
+        <div class="tenue">${nKm(x.d)} km en ${x.horas} h${m.horas ? " (horas de las dos cartas)" : ""} · ${x.vel ? `${nDec(x.vel / 3.6, 1)} m/s · ` : ""}rumbo ${Math.round(x.rb)}°
+          <span title="Como referencia: los frentes y ciclones de latitudes medias suelen moverse a unos 20–80 km/h; los sistemas convectivos, 30–60 km/h." style="cursor:help">ⓘ</span></div>
+        ${aviso}</div>${borrar}</div>`;
   }
   if (m.tipo === "area") {
     const ll = m.pts.map(lienzoALL);
