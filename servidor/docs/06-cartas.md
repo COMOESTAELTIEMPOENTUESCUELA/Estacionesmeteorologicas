@@ -541,6 +541,14 @@ mes se publica a principios del siguiente), así que para "hoy" se muestra el
 último publicado; si es demasiado viejo para la fecha elegida, aparece
 punteado y dice "viejo para esta fecha". Código: `app/meteo/indices.py`.
 
+## Tamaño de los centros A y B
+
+Al elegir **A** o **B** en "Dibujar" aparece **Tamaño**: las letras nuevas
+salen de ese tamaño (se recuerda en el navegador). Moverlo cambia, en vivo,
+la última letra puesta; para cambiar una que ya está, tocarla con la A o la
+B elegida y mover el control. Sirve para marcar el sistema principal más
+grande que los secundarios.
+
 ## Medir sobre las cartas (distancia, área, radio)
 
 En el visor grande de una carta, la barra **Medir**:
