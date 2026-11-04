@@ -502,3 +502,16 @@ def test_georef_de_las_cartas(cliente, tmp_path, monkeypatch):
     # Y el Mercator coincide con a_imagen (la misma cuenta que usa la página).
     fxm, fym = estilo_bentley.a_imagen(g["gfs_ana_mslp_jet"]["marco"], -57.95, -34.92)
     assert 0 < fxm < 1 and 0 < fym < 1
+
+
+def test_app_instalable_y_compartir(cliente, monkeypatch):
+    """El manifest (con share_target para el menú Compartir del celular), el
+    service worker y los íconos se sirven también en la copia pública."""
+    from meteo.web import app as web
+    monkeypatch.setattr(web, "WEB_MODO", "cartas")
+    r = cliente.get("/manifest.webmanifest")
+    assert r.status_code == 200 and r.headers["content-type"].startswith("application/manifest+json")
+    m = r.json()
+    assert m["share_target"]["params"]["url"] == "compartir_url" and m["share_target"]["action"] == "/"
+    assert cliente.get("/sw.js").status_code == 200
+    assert cliente.get("/iconos/icono-192.png").headers["content-type"] == "image/png"

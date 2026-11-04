@@ -7,6 +7,9 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%232a78d6'/%3E%3Cpath d='M9 19a5 5 0 0 1 5-5 6 6 0 0 1 11 2 3.5 3.5 0 0 1-1 6.9H11a3 3 0 0 1-2-3.9z' fill='white'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#2a78d6">
+<link rel="apple-touch-icon" href="/iconos/apple-touch-icon.png">
 <style>
 /* ---- Colores por ROL (no por valor): claro y oscuro se cambian acá ---- */
 :root {
@@ -201,6 +204,17 @@ td.nw { white-space: nowrap; }
 .pron-tabla th small { display: block; font-weight: 400; color: var(--tenue); }
 .pron-tabla td:first-child, .pron-tabla th:first-child { text-align: left; color: var(--tinta-2); }
 .pron-tabla .pend { color: var(--tenue); }
+/* Videos de otros sitios dentro de una nota */
+.embed { display: flex; flex-direction: column; gap: 4px; }
+.embed iframe { width: 100%; border: 0; border-radius: 10px; background: #000; }
+.embed.vertical iframe { max-width: 420px; }
+.embed-ver { display: flex; gap: 12px; align-items: center; width: 100%; text-align: left; font: inherit; color: var(--tinta); cursor: pointer;
+  border: 1px solid var(--borde); border-left: 4px solid var(--c); border-radius: 10px; background: var(--plano); padding: 10px 12px; }
+.embed-ver:hover { border-color: var(--c); }
+.embed-ver .play { width: 38px; height: 38px; border-radius: 50%; background: var(--c); color: #fff; display: grid; place-items: center; font-size: 15px; flex: none; }
+.embed-ver small { display: block; color: var(--tenue); font-size: 12px; overflow-wrap: anywhere; }
+.embed-ir { font-size: 12px; color: var(--tenue); align-self: flex-start; }
+.postit .texto a, .coment a { color: var(--acento); overflow-wrap: anywhere; }
 .pron-modelo { border: 1px solid var(--borde); border-radius: 8px; padding: 6px 8px; background: var(--plano); }
 .pron-modelo svg { width: 100%; height: auto; display: block; }
 .pron-modelo svg text { font: 11px system-ui, sans-serif; fill: var(--tinta-2); }
@@ -1326,12 +1340,13 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
         <div class="rv" id="rv-inicio">
           <div class="muro-comp" id="muro-comp">
             <div class="comp-fila"><span class="avatar grande" id="mc-avatar"></span>
-              <textarea id="mc-texto" rows="2" maxlength="10000" placeholder="¿Qué viste hoy? Ej.: la vaguada en 500 está más al oeste que ayer…"></textarea></div>
+              <textarea id="mc-texto" rows="2" maxlength="10000" placeholder="¿Qué viste hoy? Ej.: la vaguada en 500 está más al oeste que ayer… (podés pegar un link de Instagram, YouTube, TikTok o X: el video se ve acá)"></textarea></div>
             <div class="fila">
               <select id="mc-tipo" title="Tipo de nota"><option value="vi">👀 Lo que vi</option><option value="llamo_atencion">⚡ Me llamó la atención</option>
                 <option value="duda">🤔 Duda</option><option value="pregunta">❓ Pregunta para la reunión</option></select>
               <input type="text" id="mc-etiquetas" list="lb-sugeridas" placeholder="#etiquetas, separadas por coma" class="crece" style="min-width:140px">
               <label class="en-linea" title="La ven solo vos y los administradores"><input type="checkbox" id="mc-priv"> 🔒 Privada</label>
+              <button class="boton" id="mc-pegar" title="Pegar el link que copiaste (por ejemplo de Instagram: Compartir → Copiar enlace)">📋 Pegar link</button>
               <button class="boton" id="mc-mas" title="Con fecha, imagen para marcar encima…">🖼️</button>
               <button class="boton primario" id="mc-publicar">Publicar</button>
             </div>
@@ -5276,6 +5291,41 @@ async function apiEnviar(url, metodo, datos) {
 }
 const diaArg = (t) => new Date(+t - 3 * HORA).toISOString().slice(0, 10);     // fecha argentina de un instante
 
+// ----- Lo que llega desde el menú "Compartir" del celular (manifest: share_target) -----
+// Instagram, YouTube, etc. mandan el link (a veces dentro del texto, a veces
+// aparte). Se guarda hasta que haya sesión y se pone en el cuadro de escribir.
+function agregarAlComposer(t) {
+  const caja = $("#mc-texto");
+  caja.value = (caja.value.trim() ? caja.value.trim() + "\n" : "") + t;
+  caja.rows = 4;
+  caja.focus();
+  caja.setSelectionRange(0, 0);
+}
+function tomarCompartido() {
+  const q = new URLSearchParams(location.search);
+  const partes = [q.get("compartir_titulo"), q.get("compartir_texto"), q.get("compartir_url")].map((x) => (x || "").trim()).filter(Boolean);
+  if (partes.length) {
+    // Sin repetir el link si ya vino adentro del texto.
+    const texto = partes.filter((x, i) => !partes.some((y, j) => j !== i && y.length > x.length && y.includes(x))).join("\n");
+    try { sessionStorage.setItem("compartido", texto); } catch (_) {}
+    history.replaceState(null, "", "/#perfil");
+  }
+  try { return sessionStorage.getItem("compartido"); } catch (_) { return null; }
+}
+function usarCompartido() {
+  const t = tomarCompartido();
+  if (!t) return;
+  if (!YO) {
+    $("#cuenta").insertAdjacentHTML("afterbegin", '<span class="tenue" style="margin-right:6px">Ingresá para publicar lo que compartiste →</span>');
+    return;
+  }
+  try { sessionStorage.removeItem("compartido"); } catch (_) {}
+  abrir("perfil");
+  const poner = () => { verRed("inicio", false); agregarAlComposer("\n\n" + t); $("#mc-texto").setSelectionRange(0, 0); $("#mc-texto").scrollIntoView({ block: "center" }); };
+  setTimeout(poner, 400);
+}
+if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("/sw.js").catch(() => {});
+
 async function cargarCuenta() {
   try { CUENTA = await api("/api/yo"); } catch (_) { return; }
   YO = CUENTA.usuario;
@@ -5291,6 +5341,7 @@ async function cargarCuenta() {
   $('nav button[data-tab="perfil"]').hidden = !YO;
   document.querySelectorAll(".anotar").forEach((b) => (b.hidden = !YO));
   if (YO && location.hash === "#perfil") abrir("perfil");
+  usarCompartido();
 }
 
 // ======================================================================
@@ -5331,8 +5382,79 @@ function barraReacciones(objeto, r, tipos) {
 }
 function comentariosHTML(lista, form, borrarAttr) {
   return `<div class="coment">
-    ${lista.map((c) => `<div class="c"><b>${esc(c.autor)}</b> <span>${esc(c.texto)}</span> <small>${esc(hace(c.creada))}</small>${c.mio || YO.rol === "admin" ? `<button ${borrarAttr}="${c.id}" title="Borrar el comentario">✕</button>` : ""}</div>`).join("")}
+    ${lista.map((c) => `<div class="c"><b>${esc(c.autor)}</b> <span>${textoConEnlaces(c.texto)}</span> <small>${esc(hace(c.creada))}</small>${c.mio || YO.rol === "admin" ? `<button ${borrarAttr}="${c.id}" title="Borrar el comentario">✕</button>` : ""}</div>`).join("")}
     ${form}</div>`;
+}
+
+// ----- Links en las notas: clickeables, y videos de otros sitios -----
+// Un link de Instagram, YouTube, TikTok, X, Facebook o Vimeo se puede ver
+// adentro de la nota. El reproductor se carga recién al tocar "▶ Ver" (no
+// antes): la página no se pone lenta y esos sitios no se enteran de quién
+// mira el muro hasta que alguien lo abre. La dirección del reproductor se
+// arma solo con el código del video (nunca con lo que se pegó tal cual).
+const EMBEDS = [
+  { nombre: "Instagram", color: "#d6249f", re: /https?:\/\/(?:www\.)?instagram\.com\/(?:[\w.]+\/)?(?:p|reels?|tv)\/([\w-]{5,40})/,
+    src: (m) => `https://www.instagram.com/p/${m[1]}/embed`, alto: 640, vertical: true },
+  { nombre: "YouTube", color: "#ff0000", re: /https?:\/\/(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?(?:\S*?&)?v=|shorts\/|live\/|embed\/)|youtu\.be\/)([\w-]{11})/,
+    src: (m) => `https://www.youtube-nocookie.com/embed/${m[1]}`, alto: 360, vertical: (m) => /shorts\//.test(m[0]) },
+  { nombre: "TikTok", color: "#111111", re: /https?:\/\/(?:www\.)?tiktok\.com\/@[\w.-]+\/video\/(\d{5,25})/,
+    src: (m) => `https://www.tiktok.com/embed/v2/${m[1]}`, alto: 740, vertical: true },
+  { nombre: "X (Twitter)", color: "#111111", re: /https?:\/\/(?:www\.|mobile\.)?(?:twitter|x)\.com\/\w{1,30}\/status\/(\d{5,25})/,
+    src: (m) => `https://platform.twitter.com/embed/Tweet.html?id=${m[1]}`, alto: 560 },
+  { nombre: "Facebook", color: "#1877f2", re: /https?:\/\/(?:www\.|m\.)?facebook\.com\/(?:[\w.]+\/videos\/(?:[\w.-]+\/)?\d+|watch\/?\?v=\d+|reel\/\d+)[^\s<>"']*/,
+    src: (m) => `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(m[0])}&show_text=false`, alto: 420 },
+  { nombre: "Vimeo", color: "#1ab7ea", re: /https?:\/\/(?:www\.)?vimeo\.com\/(\d{4,15})/,
+    src: (m) => `https://player.vimeo.com/video/${m[1]}`, alto: 360 },
+];
+const RE_URL = /https?:\/\/[^\s<>"']+/g;
+// Texto -> HTML con los links clickeables (todo lo demás, escapado).
+function textoConEnlaces(t) {
+  let html = "", desde = 0;
+  for (const m of String(t || "").matchAll(RE_URL)) {
+    let url = m[0];
+    const sobra = url.match(/[.,;:!?)\]]+$/);                // la puntuación de la frase no es parte del link
+    if (sobra) url = url.slice(0, -sobra[0].length);
+    html += esc(t.slice(desde, m.index));
+    const corto = url.replace(/^https?:\/\/(www\.)?/, "");
+    html += `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(corto.length > 60 ? corto.slice(0, 57) + "…" : corto)}</a>`;
+    desde = m.index + url.length;
+  }
+  return html + esc(String(t || "").slice(desde));
+}
+function videosDe(t) {
+  const salida = [], vistos = new Set();
+  for (const m of String(t || "").matchAll(RE_URL)) {
+    for (const e of EMBEDS) {
+      const x = m[0].match(e.re);
+      if (!x) continue;
+      const src = e.src(x);
+      if (!vistos.has(src)) { vistos.add(src); salida.push({ nombre: e.nombre, color: e.color, src, url: x[0], alto: e.alto,
+        vertical: typeof e.vertical === "function" ? e.vertical(x) : !!e.vertical }); }
+      break;
+    }
+  }
+  return salida.slice(0, 3);
+}
+const embedsAbiertos = new Set();
+function iframeVideo(v) {
+  return `<iframe src="${esc(v.src)}" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"
+    sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-presentation"
+    allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen
+    style="height:${v.alto}px" title="${esc(v.nombre)}"></iframe>`;
+}
+function bloqueVideos(t) {
+  return videosDe(t).map((v) => `<div class="embed${v.vertical ? " vertical" : ""}" style="--c:${v.color}">
+    ${embedsAbiertos.has(v.src) ? iframeVideo(v)
+      : `<button class="embed-ver" data-embed="${esc(v.src)}" data-alto="${v.alto}" data-nombre="${esc(v.nombre)}" title="Cargar el reproductor de ${esc(v.nombre)} acá"><span class="play">▶</span>
+          <span><b>Ver ${v.nombre === "X (Twitter)" ? "la publicación" : "el video"} de ${esc(v.nombre)}</b><small>${esc(v.url.replace(/^https?:\/\/(www\.)?/, "").slice(0, 60))}</small></span></button>`}
+    <a class="embed-ir" href="${esc(v.url)}" target="_blank" rel="noopener noreferrer">Abrir en ${esc(v.nombre)} ↗</a></div>`).join("");
+}
+function abrirEmbed(boton) {
+  const v = { src: boton.dataset.embed, alto: +boton.dataset.alto || 400, nombre: boton.dataset.nombre || "video" };
+  // Solo direcciones de los reproductores conocidos (por si alguien tocara el HTML).
+  if (!EMBEDS.some((e) => v.src.startsWith(e.src({ 0: "", 1: "" }).split(/[?]|\/embed|\/p\//)[0]))) return;
+  embedsAbiertos.add(v.src);
+  boton.outerHTML = iframeVideo(v);
 }
 
 // ----- La tarjeta de una nota -----
@@ -5348,7 +5470,8 @@ function tarjetaNota(nt, reunion = false) {
       <span class="quien"><b data-perfil="${nt.autor_id}">${nt.mia ? "Vos" : esc(nt.autor)}</b><span title="${esc(fmtEscrita.format(new Date(nt.creada)))}">${esc(hace(nt.creada))}</span></span>
       <span class="der"><span class="lb-tipo ${esc(nt.tipo)}" title="${esc(NOMBRE_TIPO[nt.tipo] || "")}">${esc(TIPO_CORTO[nt.tipo] || nt.tipo)}</span>${nt.compartida ? "" : '<span title="Privada: la ven el autor y los administradores">🔒</span>'}</span></div>
     ${img}
-    <div class="texto">${esc(nt.texto)}</div>
+    <div class="texto">${textoConEnlaces(nt.texto)}</div>
+    ${bloqueVideos(nt.texto)}
     ${conCtx ? `<button class="ctx" data-acc="abrir" title="Ir a donde se escribió">📍 ${esc(describirContexto(nt.contexto))}</button>` : ""}
     ${nt.etiquetas.length ? `<div class="etqs">${nt.etiquetas.map((e) => `<button data-etq="${esc(e)}" title="Buscar esta etiqueta">#${esc(e)}</button>`).join("")}</div>` : ""}
     ${nt.tratada ? `<div class="lb-resp"><b>Tratada en la reunión${nt.tratada_por ? ` (${esc(nt.tratada_por)})` : ""}.</b>${nt.respuesta ? "\n" + esc(nt.respuesta) : ""}</div>` : ""}
@@ -5733,6 +5856,12 @@ async function iniciarPerfil() {
     finally { $("#mc-publicar").disabled = false; }
   });
   $("#mc-mas").addEventListener("click", () => abrirNota(datosComposer()));
+  $("#mc-pegar").addEventListener("click", async () => {
+    let t = "";
+    try { t = await navigator.clipboard.readText(); } catch (_) {}
+    if (!t) { $("#mc-texto").focus(); alert("No pude leer lo copiado (el navegador no dio permiso). Mantené apretado el cuadro de texto y elegí Pegar."); return; }
+    agregarAlComposer(t.trim());
+  });
   $("#red-volver").addEventListener("click", volverALaRed);
   $("#rs-nueva").addEventListener("click", () => abrirNota({ tipo: "pregunta", compartida: true, fecha_evento: diaArg(Date.now()), contexto: {} }));
   // Todo lo que se toca dentro de la red (feeds, reunión, columnas, el grupo).
@@ -5875,6 +6004,8 @@ function volverALaRed() {
   ir();
 }
 async function accionRed(e) {
+  const ve = e.target.closest("[data-embed]");
+  if (ve) { abrirEmbed(ve); return; }
   const bm = e.target.closest("[data-modelo]");
   if (bm) { alternarModelo(bm.closest(".postit")); return; }
   const bcm = e.target.closest("[data-cartas-modelo]");

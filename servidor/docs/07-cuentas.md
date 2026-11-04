@@ -26,6 +26,18 @@ La página de Cartas (también la copia pública) sigue igual para todos. Quien
     modelo. **🌐 Cartas del GFS** abre las cartas y el meteograma de esa
     corrida para esa ciudad. Las corridas se guardan 8 días: para pronósticos
     más viejos lo avisa.
+  - **Videos y links**: los links que se pegan en una nota o un comentario
+    se pueden tocar. Los de **Instagram, YouTube, TikTok, X, Facebook y
+    Vimeo** muestran una tarjeta "▶ Ver el video": el reproductor de ese
+    sitio se carga recién al tocarla (la página no se pone lenta y esos
+    sitios no reciben nada de quien solo mira el muro). Solo se ven las
+    publicaciones públicas.
+  - **Compartir desde el celular**: la página se puede instalar como app
+    (Chrome en Android: menú ⋮ → "Instalar app" o "Agregar a la pantalla de
+    inicio", desde la dirección https). Instalada, aparece en el menú
+    **Compartir** de Instagram, YouTube, etc. ("Meteo UNLP"): el link llega
+    solo al cuadro de escribir del Inicio. Sin instalarla (o en iPhone, que
+    no lo permite): "Copiar enlace" en la app y **📋 Pegar link** en la página.
   - **Perfil** de cada persona (tocando su nombre o avatar): presentación,
     sus números (si se pueden ver), sus publicaciones y la pestaña
     **Pronósticos y errores** (la tabla por plazo y las placas día por día).

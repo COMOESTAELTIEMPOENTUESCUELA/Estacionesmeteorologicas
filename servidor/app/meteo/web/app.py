@@ -26,6 +26,7 @@ import base64
 import csv
 import io
 import logging
+import mimetypes
 import math
 import os
 import secrets
@@ -45,6 +46,7 @@ from ..verificacion.etiquetas import ETIQUETAS, UMBRALES
 
 DSN = os.environ.get("DATABASE_URL", "postgresql://meteo:meteo@db:5432/meteo")
 ESTATICOS = Path(__file__).parent / "static"
+mimetypes.add_type("application/manifest+json", ".webmanifest")     # el manifest de la app instalable
 
 # Un "pool" mantiene unas pocas conexiones abiertas y las reutiliza: abrir una
 # conexión nueva por cada pedido sería lento.
@@ -135,7 +137,9 @@ def credenciales_validas(cabecera):
 # resto. El límite lo pone el SERVIDOR (lista de lo permitido), no la
 # página: aunque alguien escriba a mano otra dirección, no la obtiene.
 WEB_MODO = os.environ.get("WEB_MODO", "completo")
-PERMITIDO_EN_CARTAS = ("/api/modo", "/api/cartas", "/api/verificacion/dia", "/cartas-img/", "/vendor/")
+PERMITIDO_EN_CARTAS = ("/api/modo", "/api/cartas", "/api/verificacion/dia", "/cartas-img/", "/vendor/",
+                       # para instalarla en el celular y compartirle links (menú Compartir)
+                       "/manifest.webmanifest", "/sw.js", "/iconos/")
 # Lo único que se puede MODIFICAR en la copia pública: el ingreso y lo
 # personal de cada pronosticador (con sesión; ver cuentas.py).
 CUENTAS = ("/auth/", "/api/yo")
