@@ -103,3 +103,8 @@ CREATE INDEX IF NOT EXISTS comentario_pronostico_objeto ON comentario_pronostico
 -- Hilos: un comentario puede responder a otro (del mismo hilo).
 ALTER TABLE nota_comentario ADD COLUMN IF NOT EXISTS responde_a int REFERENCES nota_comentario(id) ON DELETE CASCADE;
 ALTER TABLE comentario_pronostico ADD COLUMN IF NOT EXISTS responde_a int REFERENCES comentario_pronostico(id) ON DELETE CASCADE;
+
+-- Capas no destructivas: el dibujo de la pizarra (trazos, A/B, símbolos,
+-- medidas) como lista de elementos, aparte de la imagen de base. Así se
+-- puede prender y apagar el dibujo para ver la carta original debajo.
+ALTER TABLE nota_imagen ADD COLUMN IF NOT EXISTS capa jsonb;

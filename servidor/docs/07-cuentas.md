@@ -54,6 +54,15 @@ La página de Cartas (también la copia pública) sigue igual para todos. Quien
   (errores medios, aciertos) los ven ella, los coordinadores y, si ella lo
   elige en su perfil (🔓), todo el grupo. Las notas privadas, su autor y los
   administradores.
+- **Capas no destructivas**: la pizarra guarda la imagen de base (la
+  carta, el meteograma) y, aparte, el dibujo como lista de elementos (lápiz,
+  A/B, símbolos de tiempo presente, y lo dibujado y medido en el visor). En
+  el muro, **👁 Ocultar/Mostrar dibujo** deja ver la carta original; al
+  editar la nota, el dibujo sigue siendo editable.
+- **Etiquetas por zona**: al anotar desde el visor de una carta con
+  coordenadas, la nota propone etiquetas según dónde cayó lo que se dibujó
+  o midió (región pampeana, litoral, costa atlántica, río de la plata,
+  patagonia, sur de brasil, atlántico sur…). Se pueden cambiar.
 - **La pizarra**: al anotar desde el visor de una carta, el pronóstico GFS o
   un meteograma, la nota **pega la imagen** de lo que se estaba mirando (la
   carta con lo que se dibujó encima, el meteograma completo) y se puede

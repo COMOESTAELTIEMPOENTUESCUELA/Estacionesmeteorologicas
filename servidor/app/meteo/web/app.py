@@ -1005,7 +1005,7 @@ def observaciones_de_la_hora(ts: datetime):
 # Un dibujo es {"ancho", "alto", "elementos": [...]}: coordenadas en un
 # lienzo de `ancho` x `alto` (el de la imagen, escalado a 1000 de ancho), así
 # se dibuja igual en la placa chica que en el visor grande.
-TIPOS_DIBUJO = {"trazo", "frente", "centro", "texto", "flecha"}
+TIPOS_DIBUJO = {"trazo", "frente", "centro", "texto", "flecha", "simbolo"}
 MAX_ELEMENTOS = 2000
 
 

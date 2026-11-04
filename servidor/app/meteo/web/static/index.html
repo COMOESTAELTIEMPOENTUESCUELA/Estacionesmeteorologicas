@@ -342,7 +342,17 @@ td.nw { white-space: nowrap; }
 .pizarra .barra .lapiz { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--superficie); outline: 1px solid var(--borde); cursor: pointer; padding: 0; }
 .pizarra .barra .lapiz.activa { outline: 2px solid var(--tinta); }
 .pizarra .lienzo-p { max-height: 52vh; overflow: auto; background: #fff; border-radius: 6px; }
-.pizarra canvas { display: block; width: 100%; height: auto; touch-action: none; cursor: crosshair; }
+.pizarra canvas { display: block; width: 100%; height: auto; }
+.piz-marco { position: relative; }
+#piz-svg { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+.pizarra .barra .boton.activa { outline: 2px solid var(--acento); }
+/* Imagen de la nota con su capa de dibujo (se prende y apaga) */
+.img.con-capa { position: relative; display: block; }
+.img.con-capa img { max-height: none !important; }
+.img.con-capa svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.img.con-capa.sin-capa svg { visibility: hidden; }
+.capa-ver { position: absolute; right: 6px; top: 6px; border: 0; border-radius: 99px; padding: 3px 10px; font: inherit; font-size: 12px;
+  background: rgba(0,0,0,.65); color: #fff; cursor: pointer; }
 .lb-resp { margin-top: 6px; padding: 6px 10px; border-left: 3px solid var(--s3); background: color-mix(in srgb, var(--s3) 8%, transparent); white-space: pre-wrap; }
 #d-inc { width: min(520px, 94vw); border: 1px solid var(--borde); border-radius: 12px; background: var(--superficie); color: var(--tinta); padding: 18px; }
 #d-inc::backdrop { background: rgba(0,0,0,.45); }
@@ -1271,6 +1281,9 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
         <button class="boton herr solo-dibujo" data-herr="estacionario" title="Frente estacionario"><span style="color:#1d4ed8">▲</span><span style="color:#dc2626">◗</span> Estac.</button>
         <button class="boton herr solo-dibujo" data-herr="A" title="Centro de alta presión" style="color:#1d4ed8;font-weight:800">A</button>
         <button class="boton herr solo-dibujo" data-herr="B" title="Centro de baja presión" style="color:#dc2626;font-weight:800">B</button>
+        <button class="boton herr solo-dibujo" data-herr="simbolo" title="Sello de tiempo presente: elegí cuál y tocá dónde va">☁ Símbolo</button>
+        <select id="c-simbolo" class="solo-dibujo" hidden title="Qué símbolo poner"></select>
+        <button class="boton herr solo-dibujo" data-herr="mover_el" title="Mover: arrastrá una A, B, símbolo, texto, frente o trazo a otro lugar">✥</button>
         <label class="en-linea solo-dibujo" id="c-l-tam" hidden title="Tamaño de la A y la B. Para cambiar una que ya está, tocala con la A o la B elegida.">Tamaño
           <input type="range" id="c-tam" min="16" max="140" step="2" value="46" style="width:100px"></label>
         <button class="boton herr solo-dibujo" data-herr="texto" title="Texto: tocá dónde va">T</button>
@@ -1522,9 +1535,15 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
         <button type="button" class="lapiz" data-color="#1d4ed8" style="background:#1d4ed8" title="Lápiz azul"></button>
         <button type="button" class="lapiz" data-color="#16a34a" style="background:#16a34a" title="Lápiz verde"></button>
         <button type="button" class="lapiz" data-color="#111827" style="background:#111827" title="Lápiz negro"></button>
-        <button type="button" class="boton chico" id="piz-deshacer" title="Deshacer el último trazo">↶</button>
+        <button type="button" class="boton chico" data-pherr="A" style="color:#1d4ed8;font-weight:800" title="Centro de alta">A</button>
+        <button type="button" class="boton chico" data-pherr="B" style="color:#dc2626;font-weight:800" title="Centro de baja">B</button>
+        <button type="button" class="boton chico" data-pherr="simbolo" title="Sello de tiempo presente">☁</button>
+        <select id="piz-simbolo" hidden title="Qué símbolo"></select>
+        <input type="range" id="piz-tam" min="16" max="140" step="2" value="46" style="width:70px" title="Tamaño de la A, la B y los símbolos">
+        <button type="button" class="boton chico" id="piz-deshacer" title="Deshacer lo último">↶</button>
+        <label class="en-linea" title="Prender y apagar el dibujo (la carta queda igual debajo)" style="flex-direction:row"><input type="checkbox" id="piz-capa" checked> Dibujo</label>
         <button type="button" class="boton chico" id="piz-quitar" title="No pegar ninguna imagen en esta nota" style="margin-left:auto">✕ Quitar imagen</button></div>
-      <div class="lienzo-p"><canvas id="piz-canvas"></canvas></div>
+      <div class="lienzo-p"><div class="piz-marco"><canvas id="piz-canvas"></canvas><svg id="piz-svg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none"></svg></div></div>
     </div>
     <div class="barra-img" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:13px">
       <button type="button" class="boton chico" id="d-nota-pegar" hidden>🖼️ Pegar la imagen de donde estabas</button>
@@ -4174,6 +4193,7 @@ function iniciarVisor() {
   let pellizco = null;
   let inicioToque = null;
   vista.addEventListener("pointerdown", (e) => {
+    try { med.ultimoClic = aLienzo(e); } catch (_) {}       // para las etiquetas por zona de la nota
     vista.setPointerCapture(e.pointerId);
     punteros.set(e.pointerId, { x: e.clientX, y: e.clientY });
     inicioToque = punteros.size === 1 ? { x: e.clientX, y: e.clientY } : null;
@@ -4194,6 +4214,11 @@ function iniciarVisor() {
       seguirDibujo(e);
     } else if (med.arrastre) {
       seguirMedida(e);
+    } else if (dib.arrastreEl) {
+      const a = dib.arrastreEl, p = aLienzo(e), dx = p[0] - a.p0[0], dy = p[1] - a.p0[1], el = dib.dibujo.elementos[a.i];
+      if (a.orig.puntos) el.puntos = a.orig.puntos.map(([x, y]) => [r1(x + dx), r1(y + dy)]);
+      else { el.x = r1(a.orig.x + dx); el.y = r1(a.orig.y + dy); }
+      pintarDibujoVisor();
     } else if (dib.herr === "mover" && zoom.s > 1) {
       zoom.x += e.clientX - antes.x; zoom.y += e.clientY - antes.y;
       aplicarZoom();
@@ -4206,7 +4231,8 @@ function iniciarVisor() {
     inicioToque = null;
     punteros.delete(e.pointerId);
     if (punteros.size < 2) pellizco = null;
-    if (!punteros.size) { vista.classList.remove("arrastrando"); if (dib.actual) terminarDibujo(); if (med.arrastre) soltarMedida(); }
+    if (!punteros.size) { vista.classList.remove("arrastrando"); if (dib.actual) terminarDibujo(); if (med.arrastre) soltarMedida();
+      if (dib.arrastreEl) { dib.arrastreEl = null; programarGuardado(); } }
   };
   vista.addEventListener("pointerup", soltar);
   vista.addEventListener("pointercancel", soltar);
@@ -4310,7 +4336,34 @@ const textoSVG = (x, y, texto, color, tam, peso = 700, ancla = "start") =>
   `<text x="${r1(x)}" y="${r1(y)}" font-size="${tam}" font-weight="${peso}" font-family="system-ui, sans-serif" text-anchor="${ancla}"
      dominant-baseline="central" fill="${color}" stroke="#fff" stroke-width="${tam / 7}" paint-order="stroke">${esc(texto)}</text>`;
 
+// Sellos de tiempo presente (como en las cartas sinópticas): cada uno es un
+// dibujo vectorial chico, centrado en (x, y), de "tam" de alto.
+const SIMBOLOS = {
+  niebla: ["Niebla", "#ca8a04"], neblina: ["Neblina", "#ca8a04"], llovizna: ["Llovizna", "#16a34a"], lluvia: ["Lluvia", "#16a34a"],
+  chaparron: ["Chaparrón", "#16a34a"], tormenta: ["Tormenta", "#dc2626"], nieve: ["Nieve", "#0284c7"], granizo: ["Granizo", "#7c3aed"],
+};
+function glifoSimbolo(cod, x, y, tam) {
+  const s = Math.min(160, Math.max(12, +tam || 40)), c = (SIMBOLOS[cod] || ["", "#111827"])[1], w = s * 0.09;
+  const L = (x1, y1, x2, y2) => `M${r1(x + x1 * s)},${r1(y + y1 * s)} L${r1(x + x2 * s)},${r1(y + y2 * s)}`;
+  const punto = (cx, cy, r = 0.1) => `<circle cx="${r1(x + cx * s)}" cy="${r1(y + cy * s)}" r="${r1(r * s)}" fill="${c}"/>`;
+  const trazo = (d, ancho = w) => `<path d="${d}" fill="none" stroke="#fff" stroke-width="${r1(ancho + s * 0.08)}" stroke-linecap="round" stroke-linejoin="round"/>` +
+    `<path d="${d}" fill="none" stroke="${c}" stroke-width="${r1(ancho)}" stroke-linecap="round" stroke-linejoin="round"/>`;
+  const coma = (cx, cy) => punto(cx, cy, 0.1) + trazo(`M${r1(x + (cx + 0.09) * s)},${r1(y + cy * s)} Q${r1(x + (cx + 0.1) * s)},${r1(y + (cy + 0.22) * s)} ${r1(x + (cx - 0.08) * s)},${r1(y + (cy + 0.3) * s)}`, w * 0.8);
+  switch (cod) {
+    case "niebla": return trazo([L(-0.45, -0.25, 0.45, -0.25), L(-0.45, 0, 0.45, 0), L(-0.45, 0.25, 0.45, 0.25)].join(" "));
+    case "neblina": return trazo([L(-0.45, -0.13, 0.45, -0.13), L(-0.45, 0.13, 0.45, 0.13)].join(" "));
+    case "llovizna": return coma(-0.22, -0.1) + coma(0.22, -0.1);
+    case "lluvia": return punto(-0.22, 0, 0.13) + punto(0.22, 0, 0.13);
+    case "chaparron": return punto(0, -0.32, 0.12) + trazo(`M${r1(x - 0.32 * s)},${r1(y - 0.12 * s)} L${r1(x + 0.32 * s)},${r1(y - 0.12 * s)} L${r1(x)},${r1(y + 0.42 * s)} Z`);
+    case "tormenta": return trazo(`M${r1(x - 0.35 * s)},${r1(y + 0.45 * s)} L${r1(x - 0.35 * s)},${r1(y - 0.4 * s)} L${r1(x + 0.15 * s)},${r1(y - 0.4 * s)} L${r1(x - 0.05 * s)},${r1(y - 0.02 * s)} L${r1(x + 0.3 * s)},${r1(y - 0.02 * s)} L${r1(x + 0.05 * s)},${r1(y + 0.42 * s)}`)
+      + `<path d="M${r1(x + 0.05 * s)},${r1(y + 0.48 * s)} l${r1(-0.14 * s)},${r1(-0.16 * s)} l${r1(0.2 * s)},${r1(-0.02 * s)} z" fill="${c}"/>`;
+    case "nieve": return trazo([L(-0.38, 0, 0.38, 0), L(-0.19, -0.33, 0.19, 0.33), L(-0.19, 0.33, 0.19, -0.33)].join(" "));
+    case "granizo": return trazo(`M${r1(x)},${r1(y - 0.38 * s)} L${r1(x + 0.38 * s)},${r1(y + 0.3 * s)} L${r1(x - 0.38 * s)},${r1(y + 0.3 * s)} Z`);
+  }
+  return "";
+}
 function svgElemento(e) {
+  if (e.tipo === "simbolo") return glifoSimbolo(e.simbolo, +e.x, +e.y, e.tam);
   if (e.tipo === "trazo" && e.puntos?.length > 1)
     return `<path d="${caminoDe(e.puntos)}" fill="none" stroke="${esc(e.color || "#111827")}" stroke-width="${+e.ancho || 4}" stroke-linecap="round" stroke-linejoin="round"/>`;
   if (e.tipo === "flecha" && e.puntos?.length === 2) {
@@ -4808,6 +4861,23 @@ function empezarDibujo(e) {
   if (h === "trazo") dib.actual = { tipo: "trazo", color: $("#c-color").value, ancho: +$("#c-grosor").value, puntos: [p] };
   else if (["frio", "calido", "ocluido", "estacionario"].includes(h)) dib.actual = { tipo: "frente", clase: h, lado: 1, puntos: [p] };
   else if (h === "flecha") dib.actual = { tipo: "flecha", color: $("#c-color").value, ancho: +$("#c-grosor").value, puntos: [p, p] };
+  else if (h === "simbolo") cambiarDibujo((el) => el.push({ tipo: "simbolo", simbolo: $("#c-simbolo").value, x: p[0], y: p[1], tam: Math.round(+$("#c-tam").value * 0.8) }));
+  else if (h === "mover_el") {
+    // El elemento más cercano (las letras y símbolos grandes, en cualquier parte).
+    const r = $("#c-vista img").getBoundingClientRect(), tol = 22 * DIB_ANCHO / r.width;
+    let mejor = -1, dmin = Infinity;
+    (dib.dibujo?.elementos || []).forEach((x, i) => {
+      const radio = ["centro", "simbolo"].includes(x.tipo) ? Math.max(tol, (+x.tam || 40) * 0.6) : tol;
+      for (const [px, py] of x.puntos || [[x.x, x.y]]) {
+        const d = Math.hypot(px - p[0], py - p[1]);
+        if (d <= radio && d < dmin) { dmin = d; mejor = i; }
+      }
+    });
+    if (mejor >= 0) {
+      dib.historia.push(JSON.stringify(dib.dibujo.elementos));
+      dib.arrastreEl = { i: mejor, p0: p, orig: JSON.parse(JSON.stringify(dib.dibujo.elementos[mejor])) };
+    }
+  }
   else if (h === "A" || h === "B") {
     // Tocar una A o B que ya está la elige (para cambiarle el tamaño); si no, se pone una nueva.
     // (una letra grande se puede tocar en cualquier parte, no solo en el centro)
@@ -4883,7 +4953,7 @@ async function guardarDibujoYa() {
 
 // ----- descargar la carta con el dibujo -----
 const cargarImagen = (src) => new Promise((ok, mal) => { const i = new Image(); i.onload = () => ok(i); i.onerror = mal; i.src = src; });
-async function componerCarta() {
+async function componerCarta(conDibujo = true) {
   const p = cartasHora.find((c) => c.id === cartaVisor), img = $("#c-vista img");
   if (!p || !img.naturalWidth) return null;
   const w = img.naturalWidth, h = img.naturalHeight, lienzo = document.createElement("canvas");
@@ -4892,7 +4962,7 @@ async function componerCarta() {
   g.fillStyle = "#fff"; g.fillRect(0, 0, w, h + 34);
   if (p.fondo) g.drawImage(await cargarImagen(p.fondo), 0, 0, w, h);
   g.drawImage(img, 0, 0, w, h);
-  if (dib.dibujo?.elementos.length || dib.base?.elementos.length || med.lista.length) {
+  if (conDibujo && (dib.dibujo?.elementos.length || dib.base?.elementos.length || med.lista.length)) {
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${DIB_ANCHO} ${dib.alto}" preserveAspectRatio="none">${contenidoDibujo(dib.base) + contenidoDibujo(dib.dibujo) + med.lista.map((m) => svgMedida(m)).join("")}</svg>`;
     g.drawImage(await cargarImagen("data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg)), 0, 0, w, h);
   }
@@ -4916,7 +4986,8 @@ async function exportarPNG() {
 function elegirHerramienta(h) {
   if (med.actual) terminarMedida();
   dib.herr = h;
-  $("#c-l-tam").hidden = h !== "A" && h !== "B";
+  $("#c-l-tam").hidden = !["A", "B", "simbolo"].includes(h);
+  $("#c-simbolo").hidden = h !== "simbolo";
   if (typeof dibujarResultados === "function") dibujarResultados();
   document.querySelectorAll("#c-dialogo .herr").forEach((b) => b.classList.toggle("activa", b.dataset.herr === h));
   $("#c-vista").classList.toggle("dibujando", h !== "mover");
@@ -4926,6 +4997,7 @@ function iniciarHerramientas() {
   if (dibujoPropioLocal()) $("#c-limpiar").title = "Borrar todo TU dibujo de esta carta (el del grupo no se toca)";
   document.querySelectorAll("#c-dialogo .herr").forEach((b) => b.addEventListener("click", () => elegirHerramienta(b.dataset.herr)));
   $("#c-m-terminar").addEventListener("click", terminarMedida);
+  $("#c-simbolo").innerHTML = Object.entries(SIMBOLOS).map(([k, [n]]) => `<option value="${k}">${n}</option>`).join("");
   // Tamaño de la A y la B: el de las nuevas y, en vivo, el de la última puesta o la elegida.
   try { const t = localStorage.getItem("tam-centro"); if (t) $("#c-tam").value = t; } catch (_) {}
   const centroElegido = () => { const e = dib.dibujo?.elementos[dib.centroElegido]; return e && e.tipo === "centro" ? e : null; };
@@ -5575,7 +5647,10 @@ function abrirEmbed(boton) {
 function tarjetaNota(nt, reunion = false) {
   const puede = nt.mia || esCoord();
   const conCtx = Object.keys(nt.contexto || {}).length;
-  const img = nt.captura ? `<a class="img" href="${esc(nt.captura)}" target="_blank" rel="noopener" title="Ver la imagen grande"><img src="${esc(nt.captura)}" loading="lazy" alt="Imagen de la nota"><span>✏️ pizarra</span></a>`
+  const capa = nt.capa?.elementos?.length ? `<svg viewBox="0 0 ${+nt.capa.ancho || DIB_ANCHO} ${+nt.capa.alto || 750}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">${nt.capa.elementos.map(svgElemento).join("")}</svg>` : "";
+  const img = nt.captura && capa ? `<div class="img con-capa${capasApagadas.has(nt.id) ? " sin-capa" : ""}"><a href="${esc(nt.captura)}" target="_blank" rel="noopener" title="Ver la imagen grande (sin el dibujo)"><img src="${esc(nt.captura)}" loading="lazy" alt="Imagen de la nota"></a>${capa}
+      <button class="capa-ver" data-capa="${nt.id}" title="Prender o apagar el dibujo para ver la carta original">👁 ${capasApagadas.has(nt.id) ? "Mostrar dibujo" : "Ocultar dibujo"}</button><span>✏️ pizarra</span></div>`
+    : nt.captura ? `<a class="img" href="${esc(nt.captura)}" target="_blank" rel="noopener" title="Ver la imagen grande"><img src="${esc(nt.captura)}" loading="lazy" alt="Imagen de la nota"><span>✏️ pizarra</span></a>`
     : nt.imagen ? `<a class="img" href="#" data-acc="abrir" title="Abrir la carta donde se escribió"><img src="${esc(nt.imagen)}" loading="lazy" alt="Carta"><span>carta</span></a>` : "";
   const coment = nt.compartida ? comentariosHTML(nt.comentarios || [], `data-coment="${nt.id}"`, "Comentar…", "data-borrar-c") : "";
   return `<article class="postit ${esc(nt.tipo)}" data-id="${nt.id}">
@@ -6150,7 +6225,16 @@ function volverALaRed() {
   };
   ir();
 }
+const capasApagadas = new Set();
 async function accionRed(e) {
+  const cv = e.target.closest("[data-capa]");
+  if (cv) {
+    const id = Number(cv.dataset.capa), caja = cv.closest(".con-capa");
+    capasApagadas.has(id) ? capasApagadas.delete(id) : capasApagadas.add(id);
+    caja.classList.toggle("sin-capa", capasApagadas.has(id));
+    cv.textContent = `👁 ${capasApagadas.has(id) ? "Mostrar dibujo" : "Ocultar dibujo"}`;
+    return;
+  }
   const rr = e.target.closest("[data-responder]");
   if (rr) {
     const c = rr.closest(".c-hilo"), hilo = rr.closest(".coment").dataset.hilo;
@@ -6215,12 +6299,15 @@ async function accionRed(e) {
   }
 }
 
-// ----- La pizarra: la imagen pegada a la nota, para marcar encima -----
-// Se arma una imagen (la carta con el dibujo, el meteograma, una imagen
-// subida) en un lienzo; los trazos se pintan arriba y al guardar se manda
-// todo junto como una sola imagen (el servidor la guarda en WebP).
-const piz = { base: null, trazos: [], actual: null, color: "#dc2626", cambio: false, quitar: false, fuente: null };
-function pizarraCon(img, original = false) {
+// ----- La pizarra: la imagen pegada a la nota, con un dibujo encima en CAPA -----
+// La imagen de base (la carta, el meteograma, una imagen subida) va en un
+// lienzo; encima, un SVG con elementos (trazos del lápiz, A/B, símbolos, y lo
+// que se dibujó o midió en el visor de la carta). Se guardan por separado:
+// la imagen y la lista de elementos (no se "aplasta" el dibujo sobre la carta),
+// así en el muro se puede prender y apagar el dibujo para ver la carta debajo.
+const piz = { base: null, elementos: [], historia: [], actual: null, herr: "lapiz", color: "#dc2626", alto: 750,
+              cambio: false, quitar: false, fuente: null };
+function pizarraCon(img, original = false, elementos = []) {
   let w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
   if (!w || !h) return;
   const k = Math.min(1, 1600 / w); w = Math.round(w * k); h = Math.round(h * k);
@@ -6228,45 +6315,70 @@ function pizarraCon(img, original = false) {
   base.width = w; base.height = h;
   const g = base.getContext("2d");
   g.fillStyle = "#fff"; g.fillRect(0, 0, w, h); g.drawImage(img, 0, 0, w, h);
-  Object.assign(piz, { base, trazos: [], actual: null, cambio: !original, quitar: false });
+  Object.assign(piz, { base, elementos: JSON.parse(JSON.stringify(elementos || [])), historia: [], actual: null,
+                       alto: Math.round(DIB_ANCHO * h / w), cambio: !original, quitar: false });
   const c = $("#piz-canvas"); c.width = w; c.height = h;
+  c.getContext("2d").drawImage(base, 0, 0);
+  $("#piz-svg").setAttribute("viewBox", `0 0 ${DIB_ANCHO} ${piz.alto}`);
   pintarPizarra();
   $("#d-nota-piz").hidden = false; $("#d-nota-pegar").hidden = true;
 }
 function pintarPizarra() {
-  const c = $("#piz-canvas"), g = c.getContext("2d");
-  if (!piz.base) return;
-  g.drawImage(piz.base, 0, 0);
-  g.lineWidth = Math.max(2.5, c.width / 280); g.lineCap = g.lineJoin = "round";
-  for (const t of [...piz.trazos, piz.actual].filter(Boolean)) {
-    g.strokeStyle = t.color; g.beginPath();
-    t.p.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y)));
-    if (t.p.length === 1) g.lineTo(t.p[0][0] + 0.5, t.p[0][1]);
-    g.stroke();
-  }
+  $("#piz-svg").innerHTML = piz.elementos.map(svgElemento).join("") + (piz.actual ? svgElemento(piz.actual) : "");
+}
+function cambiarPizarra(cambio) {
+  piz.historia.push(JSON.stringify(piz.elementos));
+  cambio(piz.elementos);
+  piz.cambio = true;
+  pintarPizarra();
 }
 function quitarPizarra() {
-  Object.assign(piz, { base: null, trazos: [], actual: null, cambio: false, quitar: true });
+  Object.assign(piz, { base: null, elementos: [], actual: null, cambio: false, quitar: true });
   $("#d-nota-piz").hidden = true; $("#d-nota-pegar").hidden = !piz.fuente;
 }
 async function pegarFuente() {
   if (!piz.fuente) return;
   $("#d-nota-pegar").disabled = true;
-  try { const i = await piz.fuente(); if (i) pizarraCon(i); } catch (_) {}
+  try {
+    const r = await piz.fuente();          // una imagen, o {img, elementos} (la carta y su dibujo aparte)
+    if (r && r.img) pizarraCon(r.img, false, r.elementos); else if (r) pizarraCon(r);
+  } catch (_) {}
   $("#d-nota-pegar").disabled = false;
 }
 (function iniciarPizarra() {
-  const c = $("#piz-canvas");
-  const punto = (e) => { const r = c.getBoundingClientRect(); return [(e.clientX - r.left) * c.width / r.width, (e.clientY - r.top) * c.height / r.height]; };
-  c.addEventListener("pointerdown", (e) => { c.setPointerCapture(e.pointerId); piz.actual = { color: piz.color, p: [punto(e)] }; pintarPizarra(); });
-  c.addEventListener("pointermove", (e) => { if (piz.actual) { piz.actual.p.push(punto(e)); pintarPizarra(); } });
-  const fin = () => { if (piz.actual) { piz.trazos.push(piz.actual); piz.actual = null; piz.cambio = true; pintarPizarra(); } };
-  c.addEventListener("pointerup", fin); c.addEventListener("pointercancel", fin);
+  const svg = $("#piz-svg");
+  const punto = (e) => { const r = svg.getBoundingClientRect(); return [r1((e.clientX - r.left) / r.width * DIB_ANCHO), r1((e.clientY - r.top) / r.height * piz.alto)]; };
+  svg.addEventListener("pointerdown", (e) => {
+    const p = punto(e), h = piz.herr;
+    if (h === "lapiz") { svg.setPointerCapture(e.pointerId); piz.actual = { tipo: "trazo", color: piz.color, ancho: 5, puntos: [p] }; pintarPizarra(); }
+    else if (h === "A" || h === "B") cambiarPizarra((el) => el.push({ tipo: "centro", letra: h, x: p[0], y: p[1], tam: +$("#piz-tam").value }));
+    else if (h === "simbolo") cambiarPizarra((el) => el.push({ tipo: "simbolo", simbolo: $("#piz-simbolo").value, x: p[0], y: p[1], tam: Math.round(+$("#piz-tam").value * 0.8) }));
+  });
+  svg.addEventListener("pointermove", (e) => {
+    if (!piz.actual) return;
+    const p = punto(e), u = piz.actual.puntos[piz.actual.puntos.length - 1];
+    if (Math.hypot(p[0] - u[0], p[1] - u[1]) > 2) { piz.actual.puntos.push(p); pintarPizarra(); }
+  });
+  const fin = () => {
+    const a = piz.actual; piz.actual = null;
+    if (a) cambiarPizarra((el) => el.push(a.puntos.length > 1 ? a : { ...a, puntos: [a.puntos[0], [a.puntos[0][0] + 0.5, a.puntos[0][1]]] }));
+  };
+  svg.addEventListener("pointerup", fin); svg.addEventListener("pointercancel", fin);
   document.querySelectorAll("#d-nota-piz .lapiz").forEach((b) => b.addEventListener("click", () => {
-    piz.color = b.dataset.color;
-    document.querySelectorAll("#d-nota-piz .lapiz").forEach((x) => x.classList.toggle("activa", x === b));
+    piz.color = b.dataset.color; piz.herr = "lapiz";
+    document.querySelectorAll("#d-nota-piz .lapiz, #d-nota-piz [data-pherr]").forEach((x) => x.classList.toggle("activa", x === b));
   }));
-  $("#piz-deshacer").addEventListener("click", () => { piz.trazos.pop(); pintarPizarra(); });
+  document.querySelectorAll("#d-nota-piz [data-pherr]").forEach((b) => b.addEventListener("click", () => {
+    piz.herr = b.dataset.pherr;
+    document.querySelectorAll("#d-nota-piz .lapiz, #d-nota-piz [data-pherr]").forEach((x) => x.classList.toggle("activa", x === b));
+    $("#piz-simbolo").hidden = piz.herr !== "simbolo";
+  }));
+  $("#piz-simbolo").innerHTML = Object.entries(SIMBOLOS).map(([k, [n]]) => `<option value="${k}">${n}</option>`).join("");
+  $("#piz-deshacer").addEventListener("click", () => {
+    if (!piz.historia.length) return;
+    piz.elementos = JSON.parse(piz.historia.pop()); piz.cambio = true; pintarPizarra();
+  });
+  $("#piz-capa").addEventListener("change", () => { $("#piz-svg").style.visibility = $("#piz-capa").checked ? "visible" : "hidden"; });
   $("#piz-quitar").addEventListener("click", quitarPizarra);
   $("#d-nota-pegar").addEventListener("click", pegarFuente);
   $("#d-nota-archivo").addEventListener("change", async (e) => {
@@ -6277,6 +6389,61 @@ async function pegarFuente() {
     URL.revokeObjectURL(url);
   });
 })();
+// Lo que se dibujó y midió en el visor de la carta, como elementos de la capa
+// (las medidas se pasan a líneas y textos, con los números ya calculados).
+function capaDelVisor() {
+  const el = [...(dib.base?.elementos || []), ...(dib.dibujo?.elementos || [])].map((x) => JSON.parse(JSON.stringify(x)));
+  if (!GEO.proy) return el;
+  const rosa = "#db2777";
+  for (const m of med.lista) {
+    if (m.tipo === "dist") {
+      const ll = m.pts.map(lienzoALL); let d = 0;
+      for (let k = 1; k < ll.length; k++) d += distKm(ll[k - 1], ll[k]);
+      const u = m.pts[m.pts.length - 1];
+      el.push({ tipo: "trazo", color: rosa, ancho: 3, puntos: m.pts }, { tipo: "texto", color: rosa, texto: `${nKm(d)} km`, x: u[0] + 10, y: u[1] - 14 });
+    } else if (m.tipo === "area") {
+      const a = areaKm2(m.pts.map(lienzoALL));
+      const cx = m.pts.reduce((s, p) => s + p[0], 0) / m.pts.length, cy = m.pts.reduce((s, p) => s + p[1], 0) / m.pts.length;
+      el.push({ tipo: "trazo", color: rosa, ancho: 3, puntos: [...m.pts, m.pts[0]] }, { tipo: "texto", color: rosa, texto: `${nKm(a)} km²`, x: cx, y: cy });
+    } else if (m.tipo === "radio") {
+      const c = lienzoALL(m.c), r = distKm(c, lienzoALL(m.r));
+      el.push({ tipo: "trazo", color: rosa, ancho: 3, puntos: Array.from({ length: 73 }, (_, k) => llALienzo(destino(c, k * 5, r)).map(r1)) },
+              { tipo: "texto", color: rosa, texto: `r = ${nKm(r)} km`, x: m.c[0], y: m.c[1] - 14 });
+    } else if (m.tipo === "desp") {
+      const x = datosDesp(m);
+      el.push({ tipo: "flecha", color: rosa, ancho: 4, puntos: m.pts },
+              { tipo: "texto", color: rosa, texto: x.vel ? `${nKm(x.vel)} km/h ${x.corto}` : `${nKm(x.d)} km`, x: m.pts[1][0] + 12, y: m.pts[1][1] - 16 });
+    }
+  }
+  return el;
+}
+// Etiquetas por zona: dónde cayó lo que se marcó en la carta (aproximado, por recuadros).
+const ZONAS = [
+  ["pasaje de drake", -80, -50, -64, -56], ["pacífico", -100, -76, -60, 0], ["chile", -76, -70, -56, -17.5],
+  ["patagonia", -74, -62, -55.5, -39], ["cuyo", -70.5, -65, -37.5, -28], ["noa", -68.5, -62.5, -28, -21.8],
+  ["nea", -62.5, -53.5, -28.5, -22], ["litoral", -61.5, -57.5, -32.8, -28], ["región pampeana", -65, -57.5, -39, -32.8],
+  ["costa atlántica", -62.5, -56.5, -41.5, -36], ["río de la plata", -59, -54.5, -36, -34], ["uruguay", -58.5, -53, -34.8, -30],
+  ["sur de brasil", -57.5, -47, -34, -22], ["paraguay", -62.7, -54.2, -27.6, -19.3], ["bolivia", -69.6, -57.5, -22.9, -9.7],
+  ["atlántico sur", -56.5, -20, -60, -34],
+];
+function etiquetasPorZona(puntosLienzo) {
+  if (!GEO.proy || !puntosLienzo.length) return [];
+  const cuenta = new Map();
+  for (const p of puntosLienzo) {
+    const [lon, lat] = lienzoALL(p);
+    for (const [nombre, lo0, lo1, la0, la1] of ZONAS) if (lon >= lo0 && lon <= lo1 && lat >= la0 && lat <= la1) cuenta.set(nombre, (cuenta.get(nombre) || 0) + 1);
+  }
+  return [...cuenta].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([n]) => n);
+}
+function puntosMarcados() {
+  const pts = [];
+  for (const x of dib.dibujo?.elementos || []) {
+    if (x.puntos?.length) pts.push(x.puntos[Math.floor(x.puntos.length / 2)]); else if (x.x !== undefined) pts.push([x.x, x.y]);
+  }
+  for (const m of med.lista) pts.push(...(m.pts || [m.c]));
+  if (!pts.length && med.ultimoClic) pts.push(med.ultimoClic);
+  return pts;
+}
 // El meteograma (sus paneles) en una sola imagen, con el título.
 function componerMeteograma(sel, titulo) {
   const cvs = [...document.querySelectorAll(`${sel} canvas`)].filter((c) => c.clientWidth);
@@ -6325,9 +6492,9 @@ function describirContexto(c) {
 }
 function abrirNota(nt, fuente = null) {
   notaEditando = nt.id ? nt : null;
-  Object.assign(piz, { base: null, trazos: [], actual: null, cambio: false, quitar: false, fuente });
-  $("#d-nota-piz").hidden = true; $("#d-nota-pegar").hidden = !fuente;
-  if (nt.captura) cargarImagen(nt.captura).then((i) => pizarraCon(i, true)).catch(() => {});
+  Object.assign(piz, { base: null, elementos: [], historia: [], actual: null, cambio: false, quitar: false, fuente });
+  $("#d-nota-piz").hidden = true; $("#d-nota-pegar").hidden = !fuente; $("#piz-capa").checked = true; $("#piz-svg").style.visibility = "visible";
+  if (nt.captura) cargarImagen(nt.captura).then((i) => pizarraCon(i, true, nt.capa?.elementos || [])).catch(() => {});
   else if (fuente) pegarFuente();
   const f = $("#f-nota");
   f.reset();
@@ -6350,9 +6517,9 @@ $("#f-nota").addEventListener("submit", async (e) => {
     etiquetas: f.etiquetas.value.split(",").map((x) => x.trim()).filter(Boolean),
     compartida: f.compartida.checked || f.tipo.value === "pregunta", contexto: JSON.parse(f.dataset.contexto || "{}") };
   if (piz.base && piz.cambio) {
-    const c = $("#piz-canvas");
-    datos.imagen = c.toDataURL("image/webp", 0.85);
-    if (!datos.imagen.startsWith("data:image/webp")) datos.imagen = c.toDataURL("image/jpeg", 0.88);   // navegadores sin WebP
+    datos.imagen = piz.base.toDataURL("image/webp", 0.85);       // la imagen SIN el dibujo
+    if (!datos.imagen.startsWith("data:image/webp")) datos.imagen = piz.base.toDataURL("image/jpeg", 0.88);   // navegadores sin WebP
+    if (piz.elementos.length) datos.capa = { ancho: DIB_ANCHO, alto: piz.alto, elementos: piz.elementos };
   } else if (!piz.base && piz.quitar && notaEditando?.captura) datos.imagen = null;
   const boton = f.querySelector('button[type="submit"]');
   boton.disabled = true;
@@ -6373,7 +6540,9 @@ $("#c-anotar").addEventListener("click", () => {
 });
 $("#c-anotar-visor").addEventListener("click", () => {
   const t = tsCarta();
-  abrirNota({ fecha_evento: diaArg(t), contexto: { seccion: "analisis", ts: t.toISOString(), producto: cartaVisor } }, componerCarta);
+  const zonas = etiquetasPorZona(puntosMarcados());
+  abrirNota({ fecha_evento: diaArg(t), etiquetas: zonas, contexto: { seccion: "analisis", ts: t.toISOString(), producto: cartaVisor } },
+            async () => ({ img: await componerCarta(false), elementos: capaDelVisor() }));
 });
 $("#cpr-anotar").addEventListener("click", () => {
   const plazo = cpr.plazos[cpr.i], v = validaGFS(plazo);

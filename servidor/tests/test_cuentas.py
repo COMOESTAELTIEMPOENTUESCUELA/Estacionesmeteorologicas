@@ -366,3 +366,23 @@ def test_hilos_e_insignias(cliente, cuentas, monkeypatch):
             conn.execute("DELETE FROM reaccion WHERE objeto LIKE 'pron|Ciudad Test|%'")
             conn.execute("DELETE FROM comentario_pronostico WHERE objeto LIKE 'pron|Ciudad Test|%'")
             conn.commit()
+
+
+def test_capa_no_destructiva(cliente, cuentas, monkeypatch):
+    """La pizarra guarda la imagen de base y el dibujo aparte (elementos)."""
+    import base64
+    import io
+
+    from PIL import Image
+    buf = io.BytesIO()
+    Image.new("RGB", (200, 150), (255, 255, 255)).save(buf, "PNG")
+    dato = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+    capa = {"ancho": 1000, "alto": 750, "elementos": [{"tipo": "simbolo", "simbolo": "tormenta", "x": 500, "y": 300, "tam": 40},
+                                                       {"tipo": "trazo", "color": "#dc2626", "ancho": 5, "puntos": [[1, 2], [30, 40]]}]}
+    cliente.cookies.clear()
+    ingresar(cliente, cuentas, monkeypatch, "ana@gmail.com")
+    nid = cliente.post("/api/yo/notas", json={"texto": "con capa", "imagen": dato, "capa": capa}, headers=X).json()["id"]
+    n = [x for x in cliente.get("/api/yo/notas").json() if x["id"] == nid][0]
+    assert n["capa"]["elementos"][0]["simbolo"] == "tormenta" and n["captura"]
+    malo = {**capa, "elementos": [{"tipo": "script", "x": 1}]}
+    assert cliente.post("/api/yo/notas", json={"texto": "x", "imagen": dato, "capa": malo}, headers=X).status_code == 400

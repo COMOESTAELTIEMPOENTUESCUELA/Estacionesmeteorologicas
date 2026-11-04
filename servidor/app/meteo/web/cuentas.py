@@ -373,10 +373,20 @@ def _limpiar_imagen(dato):
 
 def _preparar_imagen(datos):
     """Con "imagen" en el pedido: una data URL la reemplaza, null la saca.
-    Sin esa clave, la imagen queda como estaba (devuelve None)."""
+    Sin esa clave, la imagen queda como estaba (devuelve None). Con "capa",
+    el dibujo encima (elementos, como los dibujos de las cartas)."""
     if "imagen" not in datos:
         return None
-    return "sacar" if datos["imagen"] is None else _limpiar_imagen(datos["imagen"])
+    if datos["imagen"] is None:
+        return "sacar"
+    capa = None
+    if datos.get("capa"):
+        import json
+        from .app import _validar_dibujo
+        if len(json.dumps(datos["capa"])) > 400_000:
+            raise HTTPException(400, "capa: el dibujo es demasiado grande")
+        capa = _validar_dibujo(datos["capa"])
+    return (*_limpiar_imagen(datos["imagen"]), capa)
 
 
 def _guardar_imagen(nota_id, imagen):
@@ -385,10 +395,11 @@ def _guardar_imagen(nota_id, imagen):
     if imagen == "sacar":
         _escribir("DELETE FROM nota_imagen WHERE nota_id = %s", (nota_id,))
         return
-    webp, ancho, alto = imagen
-    _escribir("""INSERT INTO nota_imagen (nota_id, datos, ancho, alto) VALUES (%s, %s, %s, %s)
+    webp, ancho, alto, capa = imagen
+    _escribir("""INSERT INTO nota_imagen (nota_id, datos, ancho, alto, capa) VALUES (%s, %s, %s, %s, %s)
                  ON CONFLICT (nota_id) DO UPDATE SET datos = EXCLUDED.datos, ancho = EXCLUDED.ancho,
-                 alto = EXCLUDED.alto, creada = now()""", (nota_id, webp, ancho, alto))
+                 alto = EXCLUDED.alto, capa = EXCLUDED.capa, creada = now()""",
+              (nota_id, webp, ancho, alto, Jsonb(capa) if capa else None))
 
 
 @router.get("/api/yo/notas")
@@ -424,7 +435,7 @@ def _notas_con_extras(u, cond, params, limite=500):
     filas = _leer(f"""
         SELECT n.id, n.usuario_id, us.nombre AS autor, n.creada, n.actualizada, n.tipo, n.texto, n.etiquetas,
                n.compartida, n.fecha_evento, n.contexto, n.tratada, n.respuesta, tr.nombre AS tratada_por,
-               ni.creada AS captura_el
+               ni.creada AS captura_el, ni.capa
         FROM nota n JOIN usuario us ON us.id = n.usuario_id LEFT JOIN usuario tr ON tr.id = n.tratada_por
         LEFT JOIN nota_imagen ni ON ni.nota_id = n.id
         WHERE {' AND '.join(cond)} ORDER BY COALESCE(n.fecha_evento, n.creada::date) DESC, n.creada DESC LIMIT {int(limite)}""",

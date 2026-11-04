@@ -549,6 +549,13 @@ la última letra puesta; para cambiar una que ya está, tocarla con la A o la
 B elegida y mover el control. Sirve para marcar el sistema principal más
 grande que los secundarios.
 
+## Sellos de tiempo presente y mover elementos
+
+En "Dibujar": **☁ Símbolo** pone un sello de tiempo presente (niebla,
+neblina, llovizna, lluvia, chaparrón, tormenta, nieve, granizo), del tamaño
+del control **Tamaño**. **✥** mueve cualquier elemento del dibujo (A, B,
+símbolo, texto, frente, trazo) arrastrándolo.
+
 ## Medir sobre las cartas (distancia, área, radio)
 
 En el visor grande de una carta, la barra **Medir**:
