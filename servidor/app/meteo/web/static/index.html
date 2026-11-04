@@ -180,6 +180,29 @@ td.nw { white-space: nowrap; }
   body.con-barra-abajo .red-izq { display: none; }
   body.con-barra-abajo .red-volver { bottom: 78px; }
 }
+/* Tablero de la reunión */
+.kanban { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: start; }
+.kanban .col { background: color-mix(in srgb, var(--tinta) 4%, var(--superficie)); border: 1px solid var(--borde); border-radius: 12px; padding: 8px;
+  display: flex; flex-direction: column; gap: 8px; min-height: 160px; }
+.kanban .col.sobre { outline: 2px dashed var(--acento); }
+.kanban .col h4 { margin: 2px 4px; font-size: 13.5px; display: flex; gap: 6px; align-items: center; }
+.kanban .col h4 .cuenta-n { background: var(--tenue); color: #fff; border-radius: 99px; padding: 0 8px; font-size: 12px; }
+.kanban .col.discusion { border-top: 4px solid var(--s4); } .kanban .col.propuesta { border-top: 4px solid var(--s7); } .kanban .col.tratada { border-top: 4px solid var(--ok); }
+.kanban .postit { margin: 0; font-size: 13.5px; }
+.kanban .postit[draggable="true"] { cursor: grab; }
+@media (max-width: 900px) { .kanban { grid-template-columns: 1fr; } }
+/* Modo presentación */
+.zen { position: fixed; inset: 0; z-index: 1500; background: var(--plano); overflow: auto; padding: 14px 4vw 30px; }
+.zen-barra { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; }
+.zen-barra b { flex: 1; font-size: 15px; }
+.zen-cont [data-acc="presentar"] { display: none; }
+.zen-cont .postit .boton, .zen-cont .reac button, .zen-cont .coment input { font-size: 15px; padding: 5px 12px; }
+.zen-cont .postit .cab { font-size: 15px; }
+.zen-cont .postit { font-size: 1.45em; max-width: 1100px; margin: 0 auto; border-top-width: 6px; }
+.zen-cont .postit .texto { font-size: 1.35em; line-height: 1.4; }
+.zen-cont .postit .img img { max-height: 72vh !important; }
+.zen-cont .postit .img.con-capa img { max-height: none !important; }
+.zen-cont .postit .img.con-capa { max-width: min(100%, calc(72vh * 1.4)); margin: 0 auto; }
 .grupo-accesos { display: none; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
 @media (max-width: 760px) { .grupo-accesos { display: flex; } }
 .boton.tema { padding: 4px 9px; }
@@ -1459,9 +1482,20 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
 
         <!-- Reunión sinóptica -->
         <div class="rv" id="rv-reunion" hidden>
-          <div class="filtros"><p class="ayuda" style="flex:1;margin:0">Las preguntas compartidas para la reunión: pendientes arriba; las tratadas, con la conclusión.
-            Las marca quien la escribió o un coordinador.</p><button class="boton primario" id="rs-nueva">❓ Nueva pregunta</button></div>
-          <div id="rs-lista" class="red-feed"></div>
+          <div class="filtros"><p class="ayuda" style="flex:1;margin:0">El tablero de la reunión: cualquiera propone; en la reunión se pasa a
+            <b>En discusión</b> lo que se está mirando y, al terminar, a <b>Conclusión</b> con el consenso (queda en el historial). Las mueve quien la
+            escribió o un coordinador (botones, o arrastrando en la compu).</p>
+            <button class="boton" id="rs-presentar" hidden title="Pantalla completa con lo que está en discusión (← → para pasar)">🖥️ Presentar</button>
+            <button class="boton primario" id="rs-nueva">❓ Nueva pregunta</button></div>
+          <div id="rs-lista" class="kanban"></div>
+        </div>
+
+        <!-- Modo presentación (coordinadores): una nota a pantalla completa -->
+        <div class="zen" id="zen" hidden>
+          <div class="zen-barra"><b id="zen-tit">Presentación</b><span class="tenue" id="zen-n"></span>
+            <button class="boton" id="zen-ant" title="Anterior (←)">←</button><button class="boton" id="zen-sig" title="Siguiente (→)">→</button>
+            <button class="boton" id="zen-salir" title="Salir (Esc)">✕ Salir</button></div>
+          <div id="zen-cont" class="zen-cont"></div>
         </div>
 
         <!-- Métricas de todo el grupo (coordinadores) -->
@@ -5653,7 +5687,7 @@ function tarjetaNota(nt, reunion = false) {
     : nt.captura ? `<a class="img" href="${esc(nt.captura)}" target="_blank" rel="noopener" title="Ver la imagen grande"><img src="${esc(nt.captura)}" loading="lazy" alt="Imagen de la nota"><span>✏️ pizarra</span></a>`
     : nt.imagen ? `<a class="img" href="#" data-acc="abrir" title="Abrir la carta donde se escribió"><img src="${esc(nt.imagen)}" loading="lazy" alt="Carta"><span>carta</span></a>` : "";
   const coment = nt.compartida ? comentariosHTML(nt.comentarios || [], `data-coment="${nt.id}"`, "Comentar…", "data-borrar-c") : "";
-  return `<article class="postit ${esc(nt.tipo)}" data-id="${nt.id}">
+  return `<article class="postit ${esc(nt.tipo)}" data-id="${nt.id}"${reunion && puede ? ' draggable="true"' : ""}>
     <div class="cab"><span data-perfil="${nt.autor_id}">${avatar(nt.autor)}</span>
       <span class="quien"><b data-perfil="${nt.autor_id}">${nt.mia ? "Vos" : esc(nt.autor)}</b><span title="${esc(fmtEscrita.format(new Date(nt.creada)))}">${esc(hace(nt.creada))}</span></span>
       <span class="der"><span class="lb-tipo ${esc(nt.tipo)}" title="${esc(NOMBRE_TIPO[nt.tipo] || "")}">${esc(TIPO_CORTO[nt.tipo] || nt.tipo)}</span>${nt.compartida ? "" : '<span title="Privada: la ven el autor y los administradores">🔒</span>'}</span></div>
@@ -5665,9 +5699,14 @@ function tarjetaNota(nt, reunion = false) {
     ${nt.etiquetas.length ? `<div class="etqs">${nt.etiquetas.map((e) => `<button data-etq="${esc(e)}" title="Buscar esta etiqueta">#${esc(e)}</button>`).join("")}</div>` : ""}
     ${nt.tratada ? `<div class="lb-resp"><b>Tratada en la reunión${nt.tratada_por ? ` (${esc(nt.tratada_por)})` : ""}.</b>${nt.respuesta ? "\n" + esc(nt.respuesta) : ""}</div>` : ""}
     ${nt.compartida ? barraReacciones(`nota:${nt.id}`, nt.reacciones, ["util", "acuerdo", "duda"]) : ""}
-    ${nt.mia || (reunion && nt.compartida && puede) ? `<div class="acc">
-      ${nt.mia ? `<button class="boton" data-acc="editar">Editar</button><button class="boton" data-acc="borrar">Borrar</button>` : ""}
-      ${reunion && nt.compartida && puede ? `<button class="boton" data-acc="tratar">${nt.tratada ? "Editar conclusión" : "Marcar tratada"}</button>` : ""}</div>` : ""}
+    ${nt.mia || (reunion && nt.compartida && puede) || esCoord() ? `<div class="acc">
+      ${reunion && nt.compartida && puede ? ({
+        propuesta: `<button class="boton" data-acc="estado" data-estado="discusion">▶ A discusión</button>`,
+        discusion: `<button class="boton primario" data-acc="concluir">✓ Concluir</button><button class="boton" data-acc="estado" data-estado="propuesta">↩ A propuestas</button>`,
+        tratada: `<button class="boton" data-acc="concluir">Editar conclusión</button><button class="boton" data-acc="estado" data-estado="discusion">↩ Reabrir</button>`,
+      }[nt.estado || (nt.tratada ? "tratada" : "propuesta")]) : ""}
+      ${esCoord() && nt.compartida ? `<button class="boton" data-acc="presentar" title="Mostrarla a pantalla completa en la reunión">🖥️</button>` : ""}
+      ${nt.mia ? `<button class="boton" data-acc="editar">Editar</button><button class="boton" data-acc="borrar">Borrar</button>` : ""}</div>` : ""}
     ${coment}
   </article>`;
 }
@@ -5805,15 +5844,78 @@ async function cargarReunion() {
   let ns;
   try { ns = await api("/api/yo/notas?tipo=pregunta"); } catch (_) { return; }
   red.reunion = ns.filter((n) => n.compartida);
-  const pend = red.reunion.filter((n) => !n.tratada), hechas = red.reunion.filter((n) => n.tratada).slice(0, 30);
+  const est = (n) => n.estado || (n.tratada ? "tratada" : "propuesta");
+  const pend = red.reunion.filter((n) => est(n) !== "tratada");
   $("#rs-n").hidden = $("#rs-n2").hidden = !pend.length; $("#rs-n").textContent = $("#rs-n2").textContent = pend.length;
   $("#red-preg").innerHTML = pend.length ? pend.slice(0, 4).map((n) => `<div class="linea"><span>${esc(n.texto.slice(0, 110))}${n.texto.length > 110 ? "…" : ""}</span>
       <span class="tenue">— ${esc(n.autor)}</span></div>`).join("") + `<button class="boton chico" data-ir-rv="reunion" style="margin-top:6px">Ver las ${pend.length}</button>`
     : '<span class="tenue">No hay preguntas pendientes.</span>';
-  $("#rs-lista").innerHTML = (pend.length ? `<h4 class="muro-dia">Pendientes (${pend.length})</h4>${pend.map((n) => tarjetaNota(n, true)).join("")}`
-    : '<p class="tenue">No hay preguntas pendientes.</p>') +
-    (hechas.length ? `<h4 class="muro-dia">Tratadas</h4>${hechas.map((n) => tarjetaNota(n, true)).join("")}` : "");
+  const cols = [["propuesta", "📝 Propuestas"], ["discusion", "💬 En discusión"], ["tratada", "✅ Conclusión"]];
+  $("#rs-lista").innerHTML = cols.map(([k, t]) => {
+    const ns = red.reunion.filter((n) => est(n) === k).slice(0, k === "tratada" ? 40 : 200);
+    return `<div class="col ${k}" data-col="${k}"><h4>${t} <b class="cuenta-n">${ns.length}</b></h4>
+      ${ns.map((n) => tarjetaNota(n, true)).join("") || '<p class="tenue" style="margin:4px">—</p>'}</div>`;
+  }).join("");
+  $("#rs-presentar").hidden = !esCoord() || !red.reunion.some((n) => est(n) === "discusion");
 }
+
+async function moverPregunta(nt, estado) {
+  let respuesta = null;
+  if (estado === "tratada") {
+    respuesta = prompt("Conclusión de la reunión (el consenso; queda en el historial):", nt.respuesta || "");
+    if (respuesta === null) return;
+  }
+  try { await apiEnviar(`/api/yo/notas/${nt.id}/reunion`, "PUT", { estado, respuesta }); }
+  catch (err) { alert(err.message); return; }
+  await cargarReunion();
+  if (!$("#zen").hidden) mostrarZen();
+}
+// Arrastrar tarjetas entre columnas (en la compu).
+(function iniciarTablero() {
+  const t = $("#rs-lista");
+  t.addEventListener("dragstart", (e) => { const c = e.target.closest(".postit"); if (c) e.dataTransfer.setData("text/plain", c.dataset.id); });
+  t.addEventListener("dragover", (e) => { const c = e.target.closest(".col"); if (c) { e.preventDefault(); t.querySelectorAll(".col").forEach((x) => x.classList.toggle("sobre", x === c)); } });
+  t.addEventListener("dragleave", (e) => { if (!t.contains(e.relatedTarget)) t.querySelectorAll(".col").forEach((x) => x.classList.remove("sobre")); });
+  t.addEventListener("drop", (e) => {
+    e.preventDefault();
+    t.querySelectorAll(".col").forEach((x) => x.classList.remove("sobre"));
+    const col = e.target.closest(".col"), nt = red.reunion.find((n) => n.id === Number(e.dataTransfer.getData("text/plain")));
+    if (col && nt && col.dataset.col !== (nt.estado || "propuesta")) moverPregunta(nt, col.dataset.col);
+  });
+})();
+// ----- Modo presentación (coordinadores): una nota a pantalla completa -----
+const zen = { lista: [], i: 0 };
+function presentar(lista, i) {
+  zen.lista = lista; zen.i = i;
+  $("#zen").hidden = false;
+  try { $("#zen").requestFullscreen?.().catch(() => {}); } catch (_) {}
+  mostrarZen();
+}
+function mostrarZen() {
+  const ids = zen.lista.map((n) => n.id);
+  zen.lista = ids.map((id) => buscarNota(id) || zen.lista.find((n) => n.id === id)).filter(Boolean);   // con lo último (comentarios, estado)
+  const nt = zen.lista[zen.i];
+  if (!nt) { salirZen(); return; }
+  $("#zen-tit").textContent = nt.tipo === "pregunta" ? "Reunión sinóptica" : "Presentación";
+  $("#zen-n").textContent = zen.lista.length > 1 ? `${zen.i + 1} de ${zen.lista.length}` : "";
+  $("#zen-ant").disabled = zen.i === 0; $("#zen-sig").disabled = zen.i >= zen.lista.length - 1;
+  $("#zen-cont").innerHTML = tarjetaNota(nt, nt.tipo === "pregunta");
+}
+function salirZen() {
+  $("#zen").hidden = true;
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+}
+$("#zen-ant").addEventListener("click", () => { if (zen.i > 0) { zen.i--; mostrarZen(); } });
+$("#zen-sig").addEventListener("click", () => { if (zen.i < zen.lista.length - 1) { zen.i++; mostrarZen(); } });
+$("#zen-salir").addEventListener("click", salirZen);
+// (Si el navegador sale de pantalla completa, por ejemplo al escribir la conclusión, la presentación sigue: se cierra con ✕ o Esc.)
+document.addEventListener("keydown", (e) => {
+  if ($("#zen").hidden || e.target.closest("input, textarea")) return;
+  if (e.key === "ArrowRight") $("#zen-sig").click();
+  if (e.key === "ArrowLeft") $("#zen-ant").click();
+  if (e.key === "Escape") salirZen();
+});
+$("#rs-presentar").addEventListener("click", () => presentar(red.reunion.filter((n) => n.estado === "discusion"), 0));
 
 // ----- El grupo -----
 async function cargarPersonas(forzar = false) {
@@ -6025,8 +6127,10 @@ function cargarLibreta() {
   cargarReunion();
 }
 function buscarNota(id) {
+  const r = red.reunion.find((n) => n.id === id);          // la del tablero es la más fresca (estado)
+  if (r) return r;
   for (const it of [...red.inicio.items, ...red.perfil.items]) if (it.tipo === "nota" && it.nota.id === id) return it.nota;
-  return red.reunion.find((n) => n.id === id);
+  return null;
 }
 function buscarObjeto(obj) {
   return [...red.inicio.items, ...red.perfil.items].filter((it) => (it.tipo === "nota" ? `nota:${it.nota.id}` : it.objeto) === obj)
@@ -6291,12 +6395,9 @@ async function accionRed(e) {
   if (b.dataset.acc === "abrir") abrirContexto(nt.contexto);
   if (b.dataset.acc === "editar") abrirNota(nt);
   if (b.dataset.acc === "borrar" && confirm("¿Borrar esta nota?")) { await apiEnviar(`/api/yo/notas/${id}`, "DELETE"); cargarLibreta(); }
-  if (b.dataset.acc === "tratar") {
-    const resp = prompt("Conclusión de la reunión (opcional):", nt.respuesta || "");
-    if (resp === null) return;
-    await apiEnviar(`/api/yo/notas/${id}/reunion`, "PUT", { tratada: true, respuesta: resp });
-    cargarReunion();
-  }
+  if (b.dataset.acc === "estado") await moverPregunta(nt, b.dataset.estado);
+  if (b.dataset.acc === "concluir") await moverPregunta(nt, "tratada");
+  if (b.dataset.acc === "presentar") presentar([nt], 0);
 }
 
 // ----- La pizarra: la imagen pegada a la nota, con un dibujo encima en CAPA -----

@@ -343,7 +343,8 @@ def _limpiar_nota(datos):
         fecha = date.fromisoformat(fecha) if fecha else None
     except (TypeError, ValueError):
         raise HTTPException(400, "fecha_evento: AAAA-MM-DD")
-    return tipo, texto, etiquetas, bool(datos.get("compartida")), contexto, fecha
+    # Las preguntas para la reunión son siempre del grupo.
+    return tipo, texto, etiquetas, bool(datos.get("compartida")) or tipo == "pregunta", contexto, fecha
 
 
 def _limpiar_imagen(dato):
@@ -434,7 +435,7 @@ def _notas_con_extras(u, cond, params, limite=500):
     """Las notas que cumplen `cond`, con su autor, imagen, comentarios y reacciones."""
     filas = _leer(f"""
         SELECT n.id, n.usuario_id, us.nombre AS autor, n.creada, n.actualizada, n.tipo, n.texto, n.etiquetas,
-               n.compartida, n.fecha_evento, n.contexto, n.tratada, n.respuesta, tr.nombre AS tratada_por,
+               n.compartida, n.fecha_evento, n.contexto, n.tratada, n.estado, n.respuesta, tr.nombre AS tratada_por,
                ni.creada AS captura_el, ni.capa
         FROM nota n JOIN usuario us ON us.id = n.usuario_id LEFT JOIN usuario tr ON tr.id = n.tratada_por
         LEFT JOIN nota_imagen ni ON ni.nota_id = n.id
@@ -830,15 +831,22 @@ def imagen_nota(nota_id: int, request: Request):
 
 @router.put("/api/yo/notas/{nota_id}/reunion")
 async def tratar_en_reunion(nota_id: int, request: Request):
-    """Marcar una pregunta como tratada en la reunión y anotar la conclusión:
-    quien la escribió o un coordinador."""
+    """Mover una pregunta en el tablero de la reunión: estado "propuesta",
+    "discusion" (la que se está tratando) o "tratada" (con la conclusión).
+    Lo puede hacer quien la escribió o un coordinador. (Compatible con el
+    formato viejo: {"tratada": true}.)"""
     u = requiere_usuario(request)
     datos = await request.json()
+    estado = datos.get("estado") or ("tratada" if datos.get("tratada") else "propuesta")
+    if estado not in ("propuesta", "discusion", "tratada"):
+        raise HTTPException(400, "estado: propuesta, discusion o tratada")
     respuesta = str(datos.get("respuesta") or "").strip()[:5000] or None
+    tratada = estado == "tratada"
     filas = _escribir("""
-        UPDATE nota SET tratada = %s, respuesta = %s, tratada_por = %s
+        UPDATE nota SET estado = %s, tratada = %s, respuesta = CASE WHEN %s THEN %s ELSE respuesta END,
+                        tratada_por = CASE WHEN %s THEN %s ELSE tratada_por END
         WHERE id = %s AND compartida AND (usuario_id = %s OR %s) RETURNING id""",
-                      (bool(datos.get("tratada")), respuesta, u["id"], nota_id, u["id"], es_coordinador(u)))
+                      (estado, tratada, tratada, respuesta, tratada, u["id"], nota_id, u["id"], es_coordinador(u)))
     if not filas:
         raise HTTPException(404, "No existe, no es compartida o no la podés modificar")
     return filas[0]

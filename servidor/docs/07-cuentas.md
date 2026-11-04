@@ -44,7 +44,14 @@ La página de Cartas (también la copia pública) sigue igual para todos. Quien
     En el propio, "Editar perfil": la presentación y si se muestran los
     números al grupo.
   - **El grupo**: todos, incluidas las firmas sin cuenta.
-  - **Reunión sinóptica**: las preguntas, pendientes arriba.
+  - **Reunión sinóptica**: un tablero de tres columnas. **Propuestas**
+    (cualquiera agrega), **En discusión** (lo que se está mirando en la
+    reunión) y **Conclusión** (el consenso, que queda en el historial). Se
+    mueven con botones o arrastrando (en la compu); las mueve quien la
+    escribió o un coordinador.
+  - **🖥️ Presentar** (coordinadores): lo que está en discusión (o cualquier
+    nota, con 🖥️) a pantalla completa, sin menús, con ← → para pasar y los
+    botones para concluir ahí mismo.
   - **Métricas del grupo** (coordinadores): la tabla de todas las firmas.
   - A la derecha: lo de **ayer, pronosticado contra observado**, y las
     preguntas pendientes.

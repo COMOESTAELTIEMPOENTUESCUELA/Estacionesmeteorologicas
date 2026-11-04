@@ -108,3 +108,7 @@ ALTER TABLE comentario_pronostico ADD COLUMN IF NOT EXISTS responde_a int REFERE
 -- medidas) como lista de elementos, aparte de la imagen de base. Así se
 -- puede prender y apagar el dibujo para ver la carta original debajo.
 ALTER TABLE nota_imagen ADD COLUMN IF NOT EXISTS capa jsonb;
+
+-- Reunión sinóptica como tablero: propuesta -> en discusión -> tratada (con conclusión).
+ALTER TABLE nota ADD COLUMN IF NOT EXISTS estado text NOT NULL DEFAULT 'propuesta';
+UPDATE nota SET estado = 'tratada' WHERE tratada AND estado = 'propuesta';

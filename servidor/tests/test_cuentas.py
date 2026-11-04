@@ -386,3 +386,22 @@ def test_capa_no_destructiva(cliente, cuentas, monkeypatch):
     assert n["capa"]["elementos"][0]["simbolo"] == "tormenta" and n["captura"]
     malo = {**capa, "elementos": [{"tipo": "script", "x": 1}]}
     assert cliente.post("/api/yo/notas", json={"texto": "x", "imagen": dato, "capa": malo}, headers=X).status_code == 400
+
+
+def test_tablero_de_la_reunion(cliente, cuentas, monkeypatch):
+    cliente.cookies.clear()
+    ingresar(cliente, cuentas, monkeypatch, "ana@gmail.com")
+    q = cliente.post("/api/yo/notas", json={"texto": "¿por qué falló la mínima?", "tipo": "pregunta"}, headers=X).json()["id"]
+    estado = lambda: [n for n in cliente.get("/api/yo/notas?tipo=pregunta").json() if n["id"] == q][0]
+    assert estado()["estado"] == "propuesta"
+    cliente.cookies.clear()
+    ingresar(cliente, cuentas, monkeypatch, "beto@gmail.com")              # ni autor ni coordinador
+    assert cliente.put(f"/api/yo/notas/{q}/reunion", json={"estado": "discusion"}, headers=X).status_code == 404
+    cliente.cookies.clear()
+    ingresar(cliente, cuentas, monkeypatch, "coord@gmail.com")
+    assert cliente.put(f"/api/yo/notas/{q}/reunion", json={"estado": "discusion"}, headers=X).status_code == 200
+    assert (estado()["estado"], estado()["tratada"]) == ("discusion", False)
+    cliente.put(f"/api/yo/notas/{q}/reunion", json={"estado": "tratada", "respuesta": "nubes altas, no bajas"}, headers=X)
+    e = estado()
+    assert (e["estado"], e["tratada"], e["respuesta"], e["tratada_por"]) == ("tratada", True, "nubes altas, no bajas", "Coord")
+    assert cliente.put(f"/api/yo/notas/{q}/reunion", json={"estado": "x"}, headers=X).status_code == 400
