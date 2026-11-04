@@ -7,6 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%232a78d6'/%3E%3Cpath d='M9 19a5 5 0 0 1 5-5 6 6 0 0 1 11 2 3.5 3.5 0 0 1-1 6.9H11a3 3 0 0 1-2-3.9z' fill='white'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap">
+<script>try { const t = localStorage.getItem("tema"); if (t === "dark" || t === "light") document.documentElement.dataset.theme = t; } catch (_) {}</script>
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#2a78d6">
 <link rel="apple-touch-icon" href="/iconos/apple-touch-icon.png">
@@ -165,6 +166,37 @@ td.nw { white-space: nowrap; }
 /* ---- Red del grupo (Mi perfil) ---- */
 .red { display: grid; grid-template-columns: 210px minmax(0, 1fr) 270px; gap: 16px; align-items: start; }
 .red > * { min-width: 0; }
+/* Barra de abajo (celular) */
+.barra-abajo { display: none; }
+@media (max-width: 760px) {
+  .barra-abajo:not([hidden]) { display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 800;
+    background: var(--superficie); border-top: 1px solid var(--borde); padding: 4px 4px calc(4px + env(safe-area-inset-bottom)); }
+  .barra-abajo button { border: 0; background: none; color: var(--tinta-2); font: inherit; font-size: 11px; display: flex; flex-direction: column;
+    align-items: center; gap: 1px; padding: 4px 0; cursor: pointer; border-radius: 10px; }
+  .barra-abajo button span { font-size: 21px; line-height: 1.1; }
+  .barra-abajo button.activa { color: var(--acento); font-weight: 700; }
+  .barra-abajo button.publicar span { background: var(--acento); color: #fff; border-radius: 12px; width: 44px; display: grid; place-items: center; }
+  body.con-barra-abajo { padding-bottom: 70px; }
+  body.con-barra-abajo .red-izq { display: none; }
+  body.con-barra-abajo .red-volver { bottom: 78px; }
+}
+.grupo-accesos { display: none; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+@media (max-width: 760px) { .grupo-accesos { display: flex; } }
+.boton.tema { padding: 4px 9px; }
+/* Tarjetas del feed: la nota, limpia (tipo tweet); el pronóstico, más densa y estructurada */
+.red-feed .postit:not(.pron) { border-top: 1px solid var(--borde); box-shadow: none; }
+.red-feed .postit:not(.pron) .lb-tipo { background: none !important; color: var(--c); padding: 0; font-size: 12px; }
+.red-feed .postit.pron { background: color-mix(in srgb, var(--tinta) 4%, var(--superficie)); border-top: 1px solid var(--borde);
+  border-left: 4px solid var(--s3); border-radius: 6px 10px 10px 6px; }
+.red-feed .postit.pron .pron-tabla td, .red-feed .postit.pron .pron-tabla th { padding: 3px 5px; font-size: 12.5px; }
+/* Mini-gráfico del pronóstico */
+.spark-pron { display: block; width: 100%; height: auto; max-height: 120px; }
+.spark-pron text { font: 10px system-ui, sans-serif; fill: var(--tenue); }
+.spark-ley { display: flex; gap: 10px; flex-wrap: wrap; font-size: 11.5px; color: var(--tenue); }
+/* Etiquetas de tipo en modo oscuro: tonos suaves que no encandilan */
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .lb-tipo { background: color-mix(in srgb, var(--c, var(--s1)) 28%, transparent) !important; color: color-mix(in srgb, var(--c, var(--s1)) 45%, #fff); } }
+:root[data-theme="dark"] .lb-tipo { background: color-mix(in srgb, var(--c, var(--s1)) 28%, transparent) !important; color: color-mix(in srgb, var(--c, var(--s1)) 45%, #fff); }
+.lb-tipo.vi { --c: var(--s1); } .lb-tipo.llamo_atencion { --c: var(--s4); } .lb-tipo.duda { --c: var(--s5); } .lb-tipo.pregunta { --c: var(--s7); }
 .red-volver { position: fixed; left: 16px; bottom: 16px; z-index: 900; border: 0; border-radius: 99px; padding: 11px 18px; font: inherit; font-weight: 650;
   background: var(--acento); color: #fff; box-shadow: 0 4px 16px rgba(0,0,0,.25); cursor: pointer; }
 .postit.resaltada { outline: 3px solid var(--acento); outline-offset: 2px; transition: outline-color 1.5s; }
@@ -643,8 +675,18 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
     <button role="tab" data-tab="perfil" aria-selected="false" hidden>Mi perfil</button>
   </nav>
   <span class="tenue" id="actualizado"></span>
+  <button class="boton tema" id="tema" title="Tema: automático (el del sistema)">🌓</button>
   <div class="cuenta" id="cuenta"></div>
 </header>
+
+<!-- Barra de abajo en el celular (con sesión): lo más usado a mano con el pulgar -->
+<div class="barra-abajo" id="barra-abajo" role="navigation" aria-label="Navegación rápida" hidden>
+  <button data-ir="inicio"><span>🏠</span>Inicio</button>
+  <button data-ir="cartas"><span>🗺️</span>Cartas</button>
+  <button data-ir="publicar" class="publicar"><span>➕</span>Publicar</button>
+  <button data-ir="personas"><span>👥</span>Grupo</button>
+  <button data-ir="perfil"><span>👤</span>Perfil</button>
+</div>
 
 <main>
   <!-- ============================ MAPA ============================ -->
@@ -1390,6 +1432,8 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
 
         <!-- El grupo: quiénes están -->
         <div class="rv" id="rv-personas" hidden>
+          <div class="grupo-accesos"><button class="boton" data-ir-rv="reunion">❓ Reunión sinóptica <b class="cuenta-n" id="rs-n2" hidden></b></button>
+            <button class="boton" data-ir-rv="metricas" id="rv-b-metricas2" hidden>📊 Métricas del grupo</button></div>
           <p class="ayuda">Todos los del grupo y las firmas que aparecen en los pronósticos (aunque no tengan cuenta). Los números (errores medios, aciertos)
             los ve cada uno de sí mismo y los coordinadores; el resto, solo si esa persona eligió mostrarlos (🔓 en su perfil).</p>
           <div class="red-personas" id="red-personas"></div>
@@ -1596,6 +1640,7 @@ function abrir(tab) {
   document.querySelectorAll("nav button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
   document.querySelectorAll("main > section").forEach((s) => (s.hidden = s.id !== `tab-${tab}`));
   if (tab === "mapa" && mapa) setTimeout(() => mapa.invalidateSize(), 50);
+  setTimeout(() => { if (typeof marcarBarraAbajo === "function") marcarBarraAbajo(); }, 0);
   if (!cargadas[tab]) { cargadas[tab] = true; ({ emas: iniciarEmas, smn: iniciarSmn, series: iniciarSeries, lluvia: cargarLluvia, verif: iniciarVerif, cartas: iniciarCartas, perfil: iniciarPerfil, estado: () => { cargarEstado(); iniciarBitacora().catch((e) => { $("#tabla-disp").innerHTML = `<tr><td>Error: ${esc(e.message)}</td></tr>`; }); } }[tab] || (() => {}))(); }
 }
 document.querySelectorAll("nav button").forEach((b) => b.addEventListener("click", () => abrir(b.dataset.tab)));
@@ -5324,6 +5369,42 @@ function usarCompartido() {
   const poner = () => { verRed("inicio", false); agregarAlComposer("\n\n" + t); $("#mc-texto").setSelectionRange(0, 0); $("#mc-texto").scrollIntoView({ block: "center" }); };
   setTimeout(poner, 400);
 }
+// ----- Tema: automático (el del sistema) → oscuro → claro -----
+(function iniciarTema() {
+  const NOMBRES = { "": "automático (el del sistema)", dark: "oscuro", light: "claro" };
+  const ICONO = { "": "🌓", dark: "🌙", light: "☀️" };
+  const poner = (t) => {
+    if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
+    $("#tema").textContent = ICONO[t]; $("#tema").title = `Tema: ${NOMBRES[t]} (tocá para cambiar)`;
+    try { t ? localStorage.setItem("tema", t) : localStorage.removeItem("tema"); } catch (_) {}
+    if (typeof dibujarGraficos === "function") try { dibujarGraficos(); } catch (_) {}
+  };
+  poner(document.documentElement.dataset.theme || "");
+  $("#tema").addEventListener("click", () => {
+    const t = document.documentElement.dataset.theme || "";
+    poner({ "": "dark", dark: "light", light: "" }[t]);
+  });
+})();
+// ----- Barra de abajo (celular) -----
+function irRed(v) {
+  abrir("perfil");
+  if (red.listo) verRed(v); else red.pendiente = v;      // la primera vez, cuando termine de armarse
+}
+function marcarBarraAbajo() {
+  const tab = document.querySelector('main > section:not([hidden])')?.id;
+  const actual = tab === "tab-cartas" ? "cartas" : tab === "tab-perfil" ? (red.vista === "personas" ? "personas" : red.vista === "perfil" ? "perfil" : "inicio") : "";
+  document.querySelectorAll("#barra-abajo button").forEach((b) => b.classList.toggle("activa", b.dataset.ir === actual));
+}
+$("#barra-abajo").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-ir]"); if (!b) return;
+  const v = b.dataset.ir;
+  if (v === "cartas") abrir("cartas");
+  else if (v === "publicar") {
+    irRed("inicio");
+    setTimeout(() => { $("#mc-texto").scrollIntoView({ block: "center" }); $("#mc-texto").focus(); }, red.listo ? 50 : 900);
+  } else irRed(v);
+  setTimeout(marcarBarraAbajo, 60);
+});
 if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("/sw.js").catch(() => {});
 
 async function cargarCuenta() {
@@ -5339,6 +5420,8 @@ async function cargarCuenta() {
     c.innerHTML = `<a class="boton" href="${esc(base)}/auth/google" title="Para pronosticadores del grupo: perfil, métricas y libreta">Ingresar con Google</a>`;
   } else c.innerHTML = "";
   $('nav button[data-tab="perfil"]').hidden = !YO;
+  $("#barra-abajo").hidden = !YO;
+  document.body.classList.toggle("con-barra-abajo", !!YO);
   document.querySelectorAll(".anotar").forEach((b) => (b.hidden = !YO));
   if (YO && location.hash === "#perfil") abrir("perfil");
   usarCompartido();
@@ -5495,6 +5578,34 @@ function resumenPron(it) {
   return { errs, ver, mae: errs.length ? errs.reduce((a, b) => a + b, 0) / errs.length : null,
            lluviaOk: lluvia.filter((d) => d.pp.obs === d.pp.pron).length, lluviaN: lluvia.length };
 }
+// Mini-gráfico: máxima (rojo) y mínima (azul) de los días del pronóstico:
+// pronosticado (línea punteada), observado (línea llena con puntos) y el GFS
+// de la corrida que había al publicar (gris).
+function sparkPron(it) {
+  const dias = it.dias;
+  if (dias.length < 2) return "";
+  const W = 320, H = 92, iz = 26, de = 8, ar = 8, ab = 16;
+  const vals = dias.flatMap((d) => [d.tmin?.pron, d.tmin?.obs, d.tmax?.pron, d.tmax?.obs, d.gfs?.tmin, d.gfs?.tmax]).filter((v) => v !== null && v !== undefined);
+  if (vals.length < 3) return "";
+  const y0 = Math.floor(Math.min(...vals) - 1), y1 = Math.ceil(Math.max(...vals) + 1);
+  const X = (i) => iz + (i + 0.5) * (W - iz - de) / dias.length, Y = (v) => ar + (H - ar - ab) * (1 - (v - y0) / (y1 - y0));
+  const linea = (f, color, estilo) => {
+    const pts = dias.map((d, i) => [i, f(d)]).filter(([, v]) => v !== null && v !== undefined);
+    if (!pts.length) return "";
+    const d = pts.map(([i, v], k) => `${k ? "L" : "M"}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join("");
+    return `<path d="${d}" fill="none" stroke="${color}" ${estilo}/>` + (estilo.includes("dash") || estilo.includes("gris") ? ""
+      : pts.map(([i, v]) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="3" fill="${color}"/>`).join(""));
+  };
+  const hayGfs = dias.some((d) => d.gfs);
+  return `<svg class="spark-pron" viewBox="0 0 ${W} ${H}" role="img" aria-label="Pronosticado, observado y GFS">
+    <text x="2" y="${Y(y1) + 8}">${y1}°</text><text x="2" y="${Y(y0)}">${y0}°</text>
+    ${dias.map((d, i) => `<text x="${X(i)}" y="${H - 3}" text-anchor="middle">D${d.plazo + 1}</text>`).join("")}
+    ${hayGfs ? linea((d) => d.gfs?.tmax, "#9ca3af", 'stroke-width="1.5" data-gris="1"') + linea((d) => d.gfs?.tmin, "#9ca3af", 'stroke-width="1.5" data-gris="1"') : ""}
+    ${linea((d) => d.tmax?.pron, "#dc2626", 'stroke-width="2" stroke-dasharray="5 4"')}${linea((d) => d.tmin?.pron, "#2563eb", 'stroke-width="2" stroke-dasharray="5 4"')}
+    ${linea((d) => d.tmax?.obs, "#dc2626", 'stroke-width="2.2"')}${linea((d) => d.tmin?.obs, "#2563eb", 'stroke-width="2.2"')}
+  </svg><div class="spark-ley"><span>┄ pronosticado</span><span>━● observado</span>${hayGfs ? '<span style="color:#9ca3af">━ GFS</span>' : ""}
+    <span style="color:#dc2626">máx</span><span style="color:#2563eb">mín</span></div>`;
+}
 function tarjetaPron(it) {
   const quien = it.usuario ? it.usuario.nombre : it.firma;
   const yo = it.usuario && it.usuario.id === YO.id;
@@ -5515,6 +5626,7 @@ function tarjetaPron(it) {
       <tr><td>Máx</td>${it.dias.map((d) => celda(d.tmax)).join("")}</tr>
       <tr><td>Lluvia</td>${it.dias.map((d) => `<td>${d.pp && d.pp.pron !== null && d.pp.pron !== undefined ? celdaPP(d.pp) : "–"}</td>`).join("")}</tr>
     </table></div>
+    ${sparkPron(it)}
     <div class="pron-res">${r.ver ? `Verificados ${r.ver} de ${it.dias.length} días` : "Todavía sin observaciones"}
       ${r.mae !== null ? `· error medio de temperatura ${maeColor(r.mae)} °C` : ""}${r.lluviaN ? ` · lluvia ${r.lluviaOk}/${r.lluviaN}` : ""}
       ${insignias.map((x) => `<span class="insignia">${esc(x)}</span>`).join("")}</div>
@@ -5591,7 +5703,7 @@ async function cargarReunion() {
   try { ns = await api("/api/yo/notas?tipo=pregunta"); } catch (_) { return; }
   red.reunion = ns.filter((n) => n.compartida);
   const pend = red.reunion.filter((n) => !n.tratada), hechas = red.reunion.filter((n) => n.tratada).slice(0, 30);
-  $("#rs-n").hidden = !pend.length; $("#rs-n").textContent = pend.length;
+  $("#rs-n").hidden = $("#rs-n2").hidden = !pend.length; $("#rs-n").textContent = $("#rs-n2").textContent = pend.length;
   $("#red-preg").innerHTML = pend.length ? pend.slice(0, 4).map((n) => `<div class="linea"><span>${esc(n.texto.slice(0, 110))}${n.texto.length > 110 ? "…" : ""}</span>
       <span class="tenue">— ${esc(n.autor)}</span></div>`).join("") + `<button class="boton chico" data-ir-rv="reunion" style="margin-top:6px">Ver las ${pend.length}</button>`
     : '<span class="tenue">No hay preguntas pendientes.</span>';
@@ -5790,6 +5902,7 @@ function dibujarGrupo() {
 // ----- Navegación entre secciones -----
 function verRed(v, cargar = true) {
   red.vista = v;
+  setTimeout(marcarBarraAbajo, 0);
   document.querySelectorAll("#red-nav button").forEach((b) => b.classList.toggle("activa", b.dataset.rv === v));
   document.querySelectorAll("#tab-perfil .rv").forEach((x) => (x.hidden = x.id !== `rv-${v}`));
   if (!cargar) return;
@@ -5867,7 +5980,10 @@ async function iniciarPerfil() {
   // Todo lo que se toca dentro de la red (feeds, reunión, columnas, el grupo).
   $("#tab-perfil").addEventListener("click", accionRed);
   $("#tab-perfil").addEventListener("submit", enviarComentario);
-  verRed("inicio");
+  $("#rv-b-metricas2").hidden = !esCoord();
+  red.listo = true;
+  verRed(red.pendiente || "inicio");
+  red.pendiente = null;
   cargarReunion();
 }
 async function enviarComentario(e) {

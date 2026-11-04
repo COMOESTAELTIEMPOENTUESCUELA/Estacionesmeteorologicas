@@ -542,6 +542,37 @@ async def editar_perfil(request: Request):
 
 
 HOY_ARG = lambda: datetime.now(timezone(timedelta(hours=-3))).date()
+_MODELO_CACHE = {}
+
+
+def _gfs_diario(ciudad, capturado):
+    """La mínima y la máxima del GFS para cada día (argentino) en la ciudad,
+    según la corrida que estaba disponible al publicar (el GFS sale ~5 h
+    después de su hora de inicio; si no está guardada, las anteriores).
+    Con los valores cada 6 h (03, 09, 15 y 21 UTC): da una idea del modelo,
+    no sus extremos exactos. -> ({fecha: {"tmin", "tmax"}}, "AAAAMMDDHH") o ({}, None)"""
+    from ..cartas import puntos
+    t = capturado.astimezone(timezone.utc) - timedelta(hours=5)
+    inicio = t.replace(hour=t.hour - t.hour % 6, minute=0, second=0, microsecond=0)
+    for _ in range(4):
+        clave = inicio.strftime("%Y%m%d%H")
+        if clave not in _MODELO_CACHE:
+            if len(_MODELO_CACHE) > 400:
+                _MODELO_CACHE.clear()
+            _MODELO_CACHE[clave] = puntos.leer_pronostico(ARCHIVO_DIR, inicio)
+        d = _MODELO_CACHE[clave]
+        if d and d.get("plazos"):
+            dias = {}
+            for plazo, ciudades in d["plazos"].items():
+                t2 = (ciudades.get(ciudad) or {}).get("sup", {}).get("t")
+                if t2 is None:
+                    continue
+                dia = (inicio + timedelta(hours=int(plazo)) - timedelta(hours=3)).date()     # día argentino
+                x = dias.setdefault(dia, {"tmin": t2, "tmax": t2})
+                x["tmin"], x["tmax"] = min(x["tmin"], t2), max(x["tmax"], t2)
+            return dias, clave
+        inicio -= timedelta(hours=6)
+    return {}, None
 
 
 @router.get("/api/yo/personas")
@@ -627,12 +658,14 @@ def muro(request: Request, hasta: date | None = None, dias: int = 7, autor_id: i
             if not filas:
                 continue        # todos sus días los corrigió otro: aparece la corrección
             us = usuarios.get(e["publicado_por"])
-            items.append({"tipo": "pronostico", "ts": e["capturado"], "objeto": obj, "ciudad": e["ciudad"],
+            modelo, corrida = _gfs_diario(e["ciudad"], e["capturado"])
+            items.append({"tipo": "pronostico", "corrida_gfs": corrida, "ts": e["capturado"], "objeto": obj, "ciudad": e["ciudad"],
                           "fecha_emision": e["fecha_pronostico"], "firma": e["publicado_por"], "correccion": e["correccion"],
                           "usuario": {"id": us["id"], "nombre": us["nombre"]} if us else None,
                           "anticipado": any(f["anticipado"] for f in filas),
                           "dias": [{"fecha": f["fecha"], "plazo": f["plazo"], "tmin": f["tmin_urbana"], "tmax": f["tmax_urbana"],
-                                    "pp": {"pron": f["pp"]["pron"], "obs": f["pp"]["obs"], "tipo": f["pp"]["tipo"]}} for f in filas],
+                                    "pp": {"pron": f["pp"]["pron"], "obs": f["pp"]["obs"], "tipo": f["pp"]["tipo"]},
+                                    "gfs": modelo.get(f["fecha"])} for f in filas],
                           "reacciones": reac.get(obj, {"conteo": {}, "mias": [], "quienes": {}}),
                           "comentarios": coment.get(obj, [])})
     items.sort(key=lambda x: x["ts"], reverse=True)

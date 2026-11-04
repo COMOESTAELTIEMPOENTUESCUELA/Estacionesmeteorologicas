@@ -377,6 +377,10 @@ def _ultima_corrida_gfs(sesion, plazo_final, ahora=None):
 
 
 GFS_PRONO_CONSERVAR = timedelta(days=8, hours=6)   # el +192 h de la corrida más vieja ya pasó: se puede comparar con lo que pasó
+# Los valores del GFS en cada ciudad (un JSON chico por corrida, ~50 kB) se
+# guardan más: con ellos la red del grupo compara cada pronóstico publicado
+# con lo que decía el modelo en ese momento (gráfico e insignia "kamikaze").
+GFS_PUNTOS_CONSERVAR = timedelta(days=400)
 
 
 def _correr_pronostico_gfs(productos, raiz, sesion, ahora=None, analisis=()):
@@ -422,7 +426,7 @@ def _correr_pronostico_gfs(productos, raiz, sesion, ahora=None, analisis=()):
     for p in productos:
         pronostico.publicar(raiz, p["id"], tmps[p["id"]], inicio, cuadros[p["id"]],
                             conservar=GFS_PRONO_CONSERVAR, ahora=ahora, extra=extra)
-    puntos.guardar_pronostico(raiz, inicio, valores, conservar=GFS_PRONO_CONSERVAR, ahora=ahora)
+    puntos.guardar_pronostico(raiz, inicio, valores, conservar=GFS_PUNTOS_CONSERVAR, ahora=ahora)
     log.info("cartas: pronóstico GFS de la corrida %s listo (%d plazos)", inicio, len(eb.PLAZOS))
     return len(eb.PLAZOS) * len(productos)
 
