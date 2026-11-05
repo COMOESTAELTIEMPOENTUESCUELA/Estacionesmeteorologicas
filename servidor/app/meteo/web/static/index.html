@@ -419,6 +419,7 @@ td.nw { white-space: nowrap; }
 .simbolo { display: inline-block; width: 11px; height: 11px; background: var(--tinta-2); margin-right: 4px; vertical-align: -1px; }
 .simbolo.ema { border-radius: 50%; } .simbolo.smn { border-radius: 1px; }
 .filtro-red { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
+#lista .tirador { display: none; }
 #lista h3 { font-size: 13px; margin: 8px 0 2px; color: var(--tinta-2); text-transform: uppercase; letter-spacing: .04em; }
 
 /* Meteograma: paneles apilados que comparten el eje de tiempo */
@@ -712,9 +713,63 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
 
 @media (max-width: 860px) {
   .grilla-2 { grid-template-columns: 1fr; }
-  #vista-mapa { grid-template-columns: 1fr; }
-  #mapa { height: 50vh; }
-  #lista { max-height: none; }
+
+  /* 1. El mapa ocupa toda la pantalla disponible. --arriba (lo que hay arriba del
+     mapa: encabezado y filtros) y --abajo (la barra de abajo, si hay sesión) los
+     mide el JavaScript: en el celular el encabezado ocupa varias filas. */
+  #vista-mapa {
+    display: block;
+    position: relative;
+    height: calc(100dvh - var(--arriba, 120px) - var(--abajo, 0px) - 8px);
+    min-height: 360px;
+    overflow: hidden;
+  }
+  #mapa { height: 100%; min-height: 0; border-radius: 12px; }
+
+  /* 2. La lista, un panel flotante apoyado abajo (Bottom Sheet, como Google Maps) */
+  #lista {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    background: var(--superficie);
+    max-height: 50%;                 /* ocupa hasta la mitad del mapa */
+    overflow-y: auto;                /* con lista larga, se scrollea adentro del panel */
+    overscroll-behavior: contain;    /* sin arrastrar la página ni el mapa de fondo */
+    border-radius: 20px 20px 0 0;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+    padding: 0 16px 16px;            /* arriba no: ahí va la barrita */
+    border: 1px solid var(--borde);
+    border-bottom: none;
+    transition: max-height 0.3s ease-out, transform 0.3s ease-out;
+  }
+  /* Abierto (arrastrado hacia arriba): casi todo el mapa. Plegado: solo la barrita y el título. */
+  #lista.abierta { max-height: 88%; }
+  #lista.plegada { max-height: 50px; overflow: hidden; }
+
+  /* 3. El "tirador": la barrita gris de arriba (tocala o arrastrala). Es un
+     elemento de verdad (no un ::before) para poder agarrarlo con el dedo. */
+  #lista .tirador {
+    display: block;
+    position: sticky; top: 0;              /* queda arriba aunque se scrollee la lista */
+    margin: 0 -16px 4px; height: 24px;
+    background: var(--superficie);
+    touch-action: none;                    /* arrastrar acá mueve el panel, no la página */
+    cursor: grab; z-index: 1;
+  }
+  #lista .tirador::before {
+    content: "";
+    position: absolute;
+    top: 9px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 40px;
+    height: 5px;
+    background: var(--eje);
+    border-radius: 10px;
+  }
+  #lista h3 { margin-top: 0; text-align: center; }
 }
 
 /* ===== Glassmorfismo: elementos flotantes translúcidos ===== */
@@ -1875,7 +1930,7 @@ function abrir(tab) {
   if (v) v.hidden = !(tab === "cartas" && volverRed);
   document.querySelectorAll("nav button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
   document.querySelectorAll("main > section").forEach((s) => (s.hidden = s.id !== `tab-${tab}`));
-  if (tab === "mapa" && mapa) setTimeout(() => mapa.invalidateSize(), 50);
+  if (tab === "mapa") setTimeout(medirMapa, 30);
   setTimeout(() => { if (typeof marcarBarraAbajo === "function") marcarBarraAbajo(); }, 0);
   if (!cargadas[tab]) { cargadas[tab] = true; ({ emas: iniciarEmas, smn: iniciarSmn, series: iniciarSeries, lluvia: cargarLluvia, verif: iniciarVerif, cartas: iniciarCartas, perfil: iniciarPerfil, estado: () => { cargarEstado(); iniciarBitacora().catch((e) => { $("#tabla-disp").innerHTML = `<tr><td>Error: ${esc(e.message)}</td></tr>`; }); } }[tab] || (() => {}))(); }
 }
@@ -1904,7 +1959,7 @@ async function cargarMapa() {
   }
 
   const lista = $("#lista");
-  lista.innerHTML = "";
+  lista.innerHTML = '<div class="tirador" title="Tocá o arrastrá para subir o bajar la lista" aria-label="Subir o bajar la lista"></div>';
   const secciones = {
     ema: Object.assign(document.createElement("div"), { innerHTML: '<h3><span class="simbolo ema"></span>EMAs · estaciones automáticas</h3>' }),
     smn: Object.assign(document.createElement("div"), { innerHTML: '<h3><span class="simbolo smn"></span>Estaciones de superficie · SMN</h3>' }),
@@ -1948,7 +2003,46 @@ async function cargarMapa() {
     }
   }
   aplicarFiltrosRed();
+  medirMapa();
 }
+
+// ----- Celular: el mapa a pantalla completa y la lista como panel deslizable -----
+function medirMapa() {
+  const v = $("#vista-mapa");
+  if (!v || !v.offsetParent) return;
+  const arriba = v.getBoundingClientRect().top + window.scrollY;
+  const abajo = $("#barra-abajo") && !$("#barra-abajo").hidden && getComputedStyle($("#barra-abajo")).display !== "none" ? $("#barra-abajo").offsetHeight : 0;
+  v.style.setProperty("--arriba", `${Math.round(arriba)}px`);
+  v.style.setProperty("--abajo", `${abajo}px`);
+  if (mapa) setTimeout(() => mapa.invalidateSize(), 60);       // Leaflet tiene que enterarse del tamaño nuevo
+}
+window.addEventListener("resize", medirMapa);
+new ResizeObserver(medirMapa).observe(document.querySelector("header"));
+(function iniciarPanelLista() {
+  const lista = $("#lista");
+  let inicio = null;
+  // Solo la barrita de arriba mueve el panel: lo demás es scroll de la lista.
+  lista.addEventListener("pointerdown", (e) => {
+    const t = e.target.closest(".tirador");
+    if (!t || !matchMedia("(max-width: 860px)").matches) return;
+    t.setPointerCapture(e.pointerId);                            // sigue "agarrado" aunque el dedo salga del panel
+    inicio = { y: e.clientY, t: Date.now() };
+  });
+  lista.addEventListener("pointerup", (e) => {
+    if (!inicio) return;
+    const dy = e.clientY - inicio.y;
+    inicio = null;
+    if (Math.abs(dy) < 10) {                                     // un toque: plegar o desplegar
+      if (lista.classList.contains("plegada")) lista.classList.remove("plegada");
+      else { lista.classList.remove("abierta"); lista.classList.add("plegada"); }
+    } else if (dy < 0) {                                         // hacia arriba: un paso más abierto
+      if (lista.classList.contains("plegada")) lista.classList.remove("plegada"); else lista.classList.add("abierta");
+    } else {                                                     // hacia abajo: un paso más cerrado
+      if (lista.classList.contains("abierta")) lista.classList.remove("abierta"); else lista.classList.add("plegada");
+    }
+  });
+  lista.addEventListener("pointercancel", () => { inicio = null; });
+})();
 
 function aplicarFiltrosRed() {
   const ver = { ema: $("#ver-emas").checked, smn: $("#ver-smn").checked };
