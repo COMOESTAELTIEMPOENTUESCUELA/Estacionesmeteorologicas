@@ -42,6 +42,17 @@
   --r1:#256abf; --r2:#3987e5; --r3:#6da7ec; --r4:#b7d3f6;
 }
 * { box-sizing: border-box; }
+
+/* Transiciones suaves para botones, inputs y tarjetas */
+button, .boton, a, input, select, textarea, .tarjeta, .postit, .persona {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Efecto de elevación al pasar el mouse por tarjetas y personas */
+.persona:hover, .postit.resaltada:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px var(--borde);
+}
 body { margin: 0; background: var(--plano); color: var(--tinta);
        font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
 header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px;
@@ -704,6 +715,59 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
   #vista-mapa { grid-template-columns: 1fr; }
   #mapa { height: 50vh; }
   #lista { max-height: none; }
+}
+
+/* ===== Glassmorfismo: elementos flotantes translúcidos ===== */
+/* Barra de celular translúcida */
+@media (max-width: 760px) {
+  .barra-abajo:not([hidden]) {
+    background: color-mix(in srgb, var(--superficie) 85%, transparent);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+}
+/* Modales y fondo oscuro translúcido */
+#d-nota::backdrop, #d-inc::backdrop, #d-ci::backdrop {
+  background: rgba(0,0,0, 0.3);
+  backdrop-filter: blur(4px);
+}
+/* Botón volver flotante */
+.red-volver {
+  background: color-mix(in srgb, var(--acento) 90%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+/* ===== Scrollbars minimalistas ===== */
+/* Chrome, Edge y Safari */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--grilla); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: var(--tenue); }
+/* Firefox (no entiende lo de arriba: tiene sus propias dos propiedades) */
+* { scrollbar-width: thin; scrollbar-color: var(--grilla) transparent; }
+
+/* ===== Accesibilidad: foco visible con el teclado ===== */
+/* Aro de foco elegante solo cuando se navega con teclado (no con mouse) */
+:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+/* Evitar el outline por defecto de Chrome si no es focus-visible */
+:focus:not(:focus-visible) { outline: none; }
+
+/* ===== Modo instrumento: brillo tipo display digital ===== */
+/* Brillo para los números en la tabla de observaciones */
+#co td.num, #cp td {
+  font-family: var(--ins-mono);
+  font-size: 13px;
+  text-shadow: 0 0 8px color-mix(in srgb, var(--ins-tinta) 30%, transparent);
+}
+/* Título de la hora UTC más brillante */
+#c-titulo .hora-utc {
+  text-shadow: 0 0 6px color-mix(in srgb, var(--ins-amarillo) 40%, transparent);
+}
+
+/* ===== Para quien pide "reducir movimiento" en su sistema (accesibilidad) ===== */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+  .persona:hover, .postit.resaltada:hover { transform: none; }
 }
 </style>
 </head>
