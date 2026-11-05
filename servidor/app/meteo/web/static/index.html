@@ -764,6 +764,53 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
   text-shadow: 0 0 6px color-mix(in srgb, var(--ins-amarillo) 40%, transparent);
 }
 
+
+/* ===== Tarjeta de pronóstico: tabla en un desplegable ===== */
+.pron-detalles summary { cursor: pointer; font-size: 12.5px; color: var(--tinta-2); padding: 2px 0; }
+.pron-detalles summary:hover { color: var(--acento); }
+
+@media (max-width: 760px) {
+  /* Filtros del feed deslizables */
+  .muro-filtros {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 8px; /* Espacio para que no se corte la sombra/borde */
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none; /* sin barra visible: queda más limpio */
+  }
+  .muro-filtros::-webkit-scrollbar { display: none; }
+  .muro-filtros > * {
+    flex-shrink: 0; /* Evita que el buscador o los botones se aplasten */
+    scroll-snap-align: start;
+  }
+  #rf-tipos { display: flex; gap: 6px; }
+
+  /* Botones de acción de las tarjetas deslizables */
+  .postit .acc { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .postit .acc::-webkit-scrollbar { display: none; }
+  .postit .acc .boton { flex-shrink: 0; white-space: nowrap; }
+
+  /* El <details> de la tabla, con forma de botón */
+  .pron-detalles summary {
+    display: block;
+    text-align: center;
+    background: var(--plano);
+    border: 1px solid var(--borde);
+    border-radius: 8px;
+    padding: 6px;
+    margin: 8px 0;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  /* Caja de publicar: los botones en una fila que se desliza */
+  .muro-comp .fila { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .muro-comp .fila::-webkit-scrollbar { display: none; }
+  .muro-comp .fila > * { flex-shrink: 0; }
+  /* Achicar el campo de etiquetas para que entre el botón Publicar */
+  #mc-etiquetas { width: 120px; min-width: 100px !important; }
+}
+
 /* ===== Para quien pide "reducir movimiento" en su sistema (accesibilidad) ===== */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
@@ -5858,26 +5905,44 @@ function tarjetaPron(it) {
   const celda = (t) => !t || t.pron === null || t.pron === undefined ? '<td class="pend">–</td>' : `<td>${celdaTemp(t)}</td>`;
   return `<article class="postit pron" data-obj="${esc(it.objeto)}">
     <div class="cab"><span data-perfil="${esc(perfil)}">${avatar(quien)}</span>
-      <span class="quien"><span><b data-perfil="${esc(perfil)}">${yo ? "Vos" : esc(quien)}</b> publicó el pronóstico para <b>${esc(it.ciudad)}</b></span>
+      <span class="quien"><span><b data-perfil="${esc(perfil)}">${yo ? "Vos" : esc(quien)}</b> pronosticó <b>${esc(it.ciudad)}</b></span>
         <span title="${esc(fmtEscrita.format(new Date(it.ts)))}">${esc(hace(it.ts))}${it.anticipado ? " · la noche anterior" : ""}${it.correccion ? " · corrección" : ""}</span></span>
       <span class="der"><span class="lb-tipo" style="background:var(--s3)">Pronóstico</span></span></div>
-    <div class="tabla-scroll" style="max-height:none"><table class="pron-tabla">
-      <tr><th></th>${it.dias.map((d) => `<th><button data-cartas="${esc(d.fecha)}" title="Ver las cartas de ese día (lo que pasó)">Día ${d.plazo + 1}<small>${esc(diaCorto(d.fecha))} 🗺️</small></button></th>`).join("")}</tr>
-      ${filasDobleFilo(it, celda)}
-      <tr><td>Lluvia</td>${it.dias.map((d) => `<td>${d.pp && d.pp.pron !== null && d.pp.pron !== undefined ? celdaPP(d.pp) : "–"}</td>`).join("")}</tr>
-    </table></div>
+
+    <!-- 1. El gráfico y el resumen quedan siempre a la vista -->
     ${sparkPron(it)}
     <div class="pron-res">${r.ver ? `Verificados ${r.ver} de ${it.dias.length} días` : "Todavía sin observaciones"}
-      ${r.mae !== null ? `· error medio de temperatura ${maeColor(r.mae)} °C` : ""} ${contraGFS(it) ? "· " + contraGFS(it) : ""}${r.lluviaN ? ` · lluvia ${r.lluviaOk}/${r.lluviaN}` : ""}
+      ${r.mae !== null ? `· error medio ${maeColor(r.mae)} °C` : ""} ${contraGFS(it) ? "· " + contraGFS(it) : ""}
       ${(it.insignias || []).map(chipInsignia).join("")}</div>
-    <div class="acc"><button class="boton" data-cartas="${esc(it.fecha_emision)}" title="Las cartas de diagnóstico del día en que se hizo el pronóstico: la situación que tenía a la vista">🗺️ Cartas del día</button>
-      <button class="boton" data-modelo title="El GFS de la corrida que había cuando se publicó, contra lo pronosticado y lo observado">📈 ${red.modelos[it.objeto]?.abierto ? "Ocultar el modelo" : "Ver el modelo"}</button>
-      <button class="boton" data-cartas-modelo title="Las cartas y el meteograma del GFS de esa corrida (se guardan 8 días)">🌐 Cartas del GFS</button></div>
+
+    <!-- 2. La tabla densa, en un desplegable (se abre si interesa) -->
+    <details class="pron-detalles"${tablasAbiertas.has(it.objeto) ? " open" : ""}>
+      <summary>Ver tabla de los 4 días y lluvia</summary>
+      <div class="tabla-scroll" style="max-height:none"><table class="pron-tabla">
+        <tr><th></th>${it.dias.map((d) => `<th><button data-cartas="${esc(d.fecha)}" title="Cartas de este día (lo que pasó)">Día ${d.plazo + 1}<small>${esc(diaCorto(d.fecha))}</small></button></th>`).join("")}</tr>
+        ${filasDobleFilo(it, celda)}
+        <tr><td>Lluvia</td>${it.dias.map((d) => `<td>${d.pp && ok(d.pp.pron) ? celdaPP(d.pp) : "–"}</td>`).join("")}</tr>
+      </table></div>
+    </details>
+
+    <div class="acc">
+      <button class="boton" data-cartas="${esc(it.fecha_emision)}" title="Las cartas de diagnóstico del día en que se hizo el pronóstico">🗺️ Cartas</button>
+      <button class="boton" data-modelo title="El GFS de ese momento contra lo pronosticado y lo medido, en vivo">📈 ${red.modelos[it.objeto]?.abierto ? "Ocultar modelo" : "Modelo"}</button>
+      <button class="boton" data-cartas-modelo title="Las cartas y el meteograma del GFS de esa corrida (se guardan 8 días)">🌐 GFS</button>
+    </div>
     <div class="pron-modelo" ${red.modelos[it.objeto]?.abierto ? "" : "hidden"}>${red.modelos[it.objeto]?.html || ""}</div>
     ${barraReacciones(it.objeto, it.reacciones, ["aplauso", "duda"])}
-    ${comentariosHTML(it.comentarios || [], `data-coment-pron="${esc(it.objeto)}"`, "Comentar el pronóstico…", "data-borrar-cp")}
+    ${comentariosHTML(it.comentarios || [], `data-coment-pron="${esc(it.objeto)}"`, "Comentar…", "data-borrar-cp")}
   </article>`;
 }
+// Las tablas que alguien abrió quedan abiertas aunque la tarjeta se vuelva a dibujar (al comentar, reaccionar…).
+const tablasAbiertas = new Set();
+document.addEventListener("toggle", (e) => {
+  const d = e.target;
+  if (!d.classList?.contains("pron-detalles")) return;
+  const obj = d.closest(".postit")?.dataset.obj;
+  if (obj) d.open ? tablasAbiertas.add(obj) : tablasAbiertas.delete(obj);
+}, true);
 
 // ----- Dibujar un feed (agrupado por día) -----
 function pasaFiltro(it) {
@@ -6490,7 +6555,7 @@ async function alternarModelo(tarjeta) {
   m.abierto = !m.abierto;
   const caja = tarjeta.querySelector(".pron-modelo"), boton = tarjeta.querySelector("[data-modelo]");
   caja.hidden = !m.abierto;
-  boton.textContent = m.abierto ? "📈 Ocultar el modelo" : "📈 Ver el modelo";
+  boton.textContent = m.abierto ? "📈 Ocultar modelo" : "📈 Modelo";
   if (!m.abierto) { clearInterval(m.reloj); return; }
   if (m.html) { m.html && traerObservado(it, m, caja, false); return; }
   caja.innerHTML = '<span class="tenue">Buscando la corrida del GFS de ese momento…</span>';
