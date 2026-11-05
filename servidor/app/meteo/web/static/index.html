@@ -811,6 +811,62 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
   #mc-etiquetas { width: 120px; min-width: 100px !important; }
 }
 
+
+/* ===== Visor de cartas en el celular: como una app (Maps, galería de fotos) ===== */
+@media (max-width: 760px) {
+  /* 1. Visor a pantalla completa absoluta */
+  #c-dialogo {
+    width: 100vw;
+    height: 100dvh;          /* dvh: descuenta la barra de direcciones del navegador */
+    max-width: 100vw;
+    max-height: 100dvh;
+    border-radius: 0;
+    border: none;
+    padding: 6px 4px;
+  }
+  /* 2. Botón Cerrar flotante (estilo app nativa) */
+  #c-cerrar {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    z-index: 100;
+    background: rgba(0, 0, 0, 0.65);
+    color: white;
+    border: none;
+    border-radius: 99px;
+    padding: 6px 14px;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+  /* 3. Barras de herramientas que se deslizan hacia los costados */
+  #c-dialogo .barra {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none; /* Firefox */
+  }
+  #c-dialogo .barra::-webkit-scrollbar { display: none; /* Chrome/Safari */ }
+  #c-dialogo .barra > * {
+    flex-shrink: 0; /* Evita que los botones se aplasten */
+    scroll-snap-align: start;
+  }
+  /* Espacio a la derecha de la primera barra para que no la pise el Cerrar flotante */
+  #c-dialogo .barra:first-child { padding-right: 80px; }
+  /* 4. Título compacto que no rompa la línea */
+  #c-dialogo-titulo {
+    font-size: 13.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 55vw;
+  }
+  /* 5. Herramientas grandes para el dedo ("dedos gordos") */
+  #c-herr .boton.herr, #c-medir-barra .boton.herr { padding: 6px 12px; font-size: 15px; }
+  /* El selector de color, más cómodo */
+  #c-herr input[type="color"] { width: 40px; height: 32px; }
+}
+
 /* ===== Para quien pide "reducir movimiento" en su sistema (accesibilidad) ===== */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
@@ -4352,7 +4408,7 @@ function iniciarVisor() {
     try { med.ultimoClic = aLienzo(e); } catch (_) {}       // para las etiquetas por zona de la nota
     vista.setPointerCapture(e.pointerId);
     punteros.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    inicioToque = punteros.size === 1 ? { x: e.clientX, y: e.clientY } : null;
+    inicioToque = punteros.size === 1 ? { x: e.clientX, y: e.clientY, t: Date.now() } : null;
     if (punteros.size === 2) { dib.actual = null; pintarDibujoVisor(); }   // dos dedos: zoom, no dibujo
     else if (dib.herr !== "mover" && punteros.size === 1) { empezarDibujo(e); return; }
     vista.classList.add("arrastrando");
@@ -4384,6 +4440,12 @@ function iniciarVisor() {
     // Un toque sin arrastrar, con la manito: ¿qué estación hay ahí? (mapas de Ogimet)
     if (e.type === "pointerup" && inicioToque && dib.herr === "mover" && punteros.size === 1
         && Math.hypot(e.clientX - inicioToque.x, e.clientY - inicioToque.y) < 5) mostrarEstacion(e);
+    // Deslizar rápido de costado (con la manito y la carta sin zoom), como las
+    // historias de Instagram: a la izquierda, 6 h después; a la derecha, 6 h antes.
+    if (e.type === "pointerup" && inicioToque && dib.herr === "mover" && punteros.size === 1 && zoom.s <= 1.01) {
+      const dx = e.clientX - inicioToque.x, dy = e.clientY - inicioToque.y;
+      if (Date.now() - inicioToque.t < 600 && Math.abs(dx) > 60 && Math.abs(dx) > 2 * Math.abs(dy)) $(dx < 0 ? "#c-d-mas" : "#c-d-menos").click();
+    }
     inicioToque = null;
     punteros.delete(e.pointerId);
     if (punteros.size < 2) pellizco = null;
