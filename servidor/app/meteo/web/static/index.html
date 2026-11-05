@@ -203,6 +203,15 @@ td.nw { white-space: nowrap; }
 .zen-cont .postit .img img { max-height: 72vh !important; }
 .zen-cont .postit .img.con-capa img { max-height: none !important; }
 .zen-cont .postit .img.con-capa { max-width: min(100%, calc(72vh * 1.4)); margin: 0 auto; }
+/* Isla de calor urbana */
+.icu .delta { font-size: 34px; font-weight: 800; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.icu .delta.calor { color: #dc2626; } .icu .delta.tibio { color: #ea580c; } .icu .delta.neutro { color: var(--tinta-2); } .icu .delta.inversa { color: #2563eb; }
+.icu .sub { font-size: 12.5px; color: var(--tinta-2); }
+.icu .pistas { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0; }
+.icu .pistas span { font-size: 11.5px; border: 1px solid var(--borde); border-radius: 99px; padding: 0 7px; }
+.icu .grafico { height: 170px; margin-top: 6px; }
+.icu-arriba { display: none; margin-bottom: 10px; }
+@media (max-width: 1150px) { .icu-arriba { display: block; } .icu-arriba .cuerpo { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; } }
 .grupo-accesos { display: none; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
 @media (max-width: 760px) { .grupo-accesos { display: flex; } }
 .boton.tema { padding: 4px 9px; }
@@ -1421,6 +1430,7 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
       <div class="red-centro">
         <!-- Inicio: lo que publicó el grupo (notas y pronósticos con lo observado) -->
         <div class="rv" id="rv-inicio">
+          <div class="tarjeta red-mini icu icu-arriba" data-icu></div>
           <div class="muro-comp" id="muro-comp">
             <div class="comp-fila"><span class="avatar grande" id="mc-avatar"></span>
               <textarea id="mc-texto" rows="2" maxlength="10000" placeholder="¿Qué viste hoy? Ej.: la vaguada en 500 está más al oeste que ayer… (podés pegar un link de Instagram, YouTube, TikTok o X: el video se ve acá)"></textarea></div>
@@ -1514,6 +1524,7 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
       </div>
 
       <aside class="red-der">
+        <div class="tarjeta red-mini icu" data-icu></div>
         <div class="tarjeta red-mini"><h4>Ayer, pronosticado contra observado</h4><div id="red-ayer"><span class="tenue">Cargando…</span></div></div>
         <div class="tarjeta red-mini"><h4>Para la reunión</h4><div id="red-preg"></div></div>
         <p class="ayuda">Las notas privadas (🔒) las ven su autor y los administradores del grupo; lo demás, todos los que ingresaron.</p>
@@ -5551,7 +5562,8 @@ const red = {
 const TIPO_CORTO = { vi: "Lo que vi", llamo_atencion: "Me llamó la atención", duda: "Duda", pregunta: "Pregunta" };
 const COLORES_AVATAR = ["--s1", "--s2", "--s3", "--s4", "--s5", "--s6", "--s7", "--s8"];
 const colorAvatar = (nombre) => css(COLORES_AVATAR[[...String(nombre)].reduce((a, c) => a + c.charCodeAt(0), 0) % 8]);
-const avatar = (nombre, clase = "") => `<span class="avatar ${clase}" style="background:${colorAvatar(nombre)}">${esc(String(nombre || "?").slice(0, 1).toUpperCase())}</span>`;
+// (con Array.from: la primera letra entera aunque sea un emoji, como la del 🤖 bot)
+const avatar = (nombre, clase = "") => `<span class="avatar ${clase}" style="background:${colorAvatar(nombre)}">${esc((Array.from(String(nombre || "?"))[0] || "?").toUpperCase())}</span>`;
 const fmtEscrita = new Intl.DateTimeFormat("es-AR", { timeZone: "America/Argentina/Buenos_Aires", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 const fmtDiaMuro = new Intl.DateTimeFormat("es-AR", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long" });
 function nombreDiaMuro(iso) {
@@ -5723,6 +5735,29 @@ function resumenPron(it) {
   return { errs, ver, mae: errs.length ? errs.reduce((a, b) => a + b, 0) / errs.length : null,
            lluviaOk: lluvia.filter((d) => d.pp.obs === d.pp.pron).length, lluviaN: lluvia.length };
 }
+// Verificación "de doble filo": la mínima y la máxima en la ciudad (urbana:
+// el Observatorio en La Plata) y en las afueras (suburbana: el aeropuerto).
+// El GFS no distingue asfalto de campo (su punto es de ~50 km): en cada
+// temperatura se marca 🏆 si quien pronosticó estuvo más cerca que el modelo.
+const ok = (v) => v !== null && v !== undefined;
+function gano(t, g) { return t && ok(t.pron) && ok(t.obs) && ok(g) ? Math.abs(t.obs - t.pron) < Math.abs(t.obs - g) : null; }
+function filasDobleFilo(it, celda) {
+  const haySub = it.dias.some((d) => [d.tmin_sub, d.tmax_sub].some((t) => t && (ok(t.pron) || ok(t.obs))));
+  const celdaG = (t, g) => { const r = gano(t, g); return r === null ? celda(t) : celda(t).replace("</td>", `${r ? ' <span title="Más cerca que el GFS">🏆</span>' : ""}</td>`); };
+  const fila = (nombre, k, kg) => `<tr><td>${nombre}</td>${it.dias.map((d) => celdaG(d[k], d.gfs?.[kg])).join("")}</tr>`;
+  return haySub
+    ? fila("Mín <small>urbana</small>", "tmin", "tmin") + fila("Mín <small>suburbana</small>", "tmin_sub", "tmin")
+      + fila("Máx <small>urbana</small>", "tmax", "tmax") + fila("Máx <small>suburbana</small>", "tmax_sub", "tmax")
+    : fila("Mín", "tmin", "tmin") + fila("Máx", "tmax", "tmax");
+}
+function contraGFS(it) {
+  let g = 0, n = 0;
+  for (const d of it.dias) for (const [k, kg] of [["tmin", "tmin"], ["tmax", "tmax"], ["tmin_sub", "tmin"], ["tmax_sub", "tmax"]]) {
+    const r = gano(d[k], d.gfs?.[kg]);
+    if (r !== null) { n++; if (r) g++; }
+  }
+  return n ? `<span title="Temperaturas (urbana y suburbana) en las que quien pronosticó estuvo más cerca que el GFS de ese momento">${g > n / 2 ? "🏆 " : ""}le ganó al GFS en ${g} de ${n}</span>` : "";
+}
 // Mini-gráfico: máxima (rojo) y mínima (azul) de los días del pronóstico:
 // pronosticado (línea punteada), observado (línea llena con puntos) y el GFS
 // de la corrida que había al publicar (gris).
@@ -5764,13 +5799,12 @@ function tarjetaPron(it) {
       <span class="der"><span class="lb-tipo" style="background:var(--s3)">Pronóstico</span></span></div>
     <div class="tabla-scroll" style="max-height:none"><table class="pron-tabla">
       <tr><th></th>${it.dias.map((d) => `<th><button data-cartas="${esc(d.fecha)}" title="Ver las cartas de ese día (lo que pasó)">Día ${d.plazo + 1}<small>${esc(diaCorto(d.fecha))} 🗺️</small></button></th>`).join("")}</tr>
-      <tr><td>Mín</td>${it.dias.map((d) => celda(d.tmin)).join("")}</tr>
-      <tr><td>Máx</td>${it.dias.map((d) => celda(d.tmax)).join("")}</tr>
+      ${filasDobleFilo(it, celda)}
       <tr><td>Lluvia</td>${it.dias.map((d) => `<td>${d.pp && d.pp.pron !== null && d.pp.pron !== undefined ? celdaPP(d.pp) : "–"}</td>`).join("")}</tr>
     </table></div>
     ${sparkPron(it)}
     <div class="pron-res">${r.ver ? `Verificados ${r.ver} de ${it.dias.length} días` : "Todavía sin observaciones"}
-      ${r.mae !== null ? `· error medio de temperatura ${maeColor(r.mae)} °C` : ""}${r.lluviaN ? ` · lluvia ${r.lluviaOk}/${r.lluviaN}` : ""}
+      ${r.mae !== null ? `· error medio de temperatura ${maeColor(r.mae)} °C` : ""} ${contraGFS(it) ? "· " + contraGFS(it) : ""}${r.lluviaN ? ` · lluvia ${r.lluviaOk}/${r.lluviaN}` : ""}
       ${(it.insignias || []).map(chipInsignia).join("")}</div>
     <div class="acc"><button class="boton" data-cartas="${esc(it.fecha_emision)}" title="Las cartas de diagnóstico del día en que se hizo el pronóstico: la situación que tenía a la vista">🗺️ Cartas del día</button>
       <button class="boton" data-modelo title="El GFS de la corrida que había cuando se publicó, contra lo pronosticado y lo observado">📈 ${red.modelos[it.objeto]?.abierto ? "Ocultar el modelo" : "Ver el modelo"}</button>
@@ -5826,6 +5860,63 @@ async function cargarInicio(mas = false) {
     "Todavía no hay nada. Escribí arriba lo que viste, o usá los botones 📝 Anotar de Cartas", mas);
   dibujarAyer();
 }
+
+// ----- Isla de calor urbana (ΔT = Observatorio − La Plata Aero), en vivo -----
+// En noches despejadas y calmas el campo se enfría más rápido que la ciudad
+// (el asfalto y los edificios guardan calor): el ΔT crece. Con viento o
+// nublado, se achica. La brisa del río (viento del E-SE) también lo cambia.
+const icu = { datos: null, grafico: null, abierto: false, reloj: null };
+const RUMBO8 = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"];
+async function cargarIcu() {
+  try { icu.datos = await api("/api/yo/icu?horas=36"); } catch (_) { return; }
+  dibujarIcu();
+}
+function dibujarIcu() {
+  const d = icu.datos, u = d?.ultimo;
+  const html = !u ? '<h4>🌆 Isla de calor · La Plata</h4><span class="tenue">Sin datos simultáneos del Observatorio y del aeropuerto en las últimas horas.</span>' : (() => {
+    const clase = u.delta >= 2 ? "calor" : u.delta >= 0.8 ? "tibio" : u.delta > -0.8 ? "neutro" : "inversa";
+    const hora = new Date(u.ts).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+    const hLocal = (new Date(u.ts).getUTCHours() + 21) % 24, noche = hLocal >= 20 || hLocal <= 7;
+    const pistas = [];
+    if (u.nubosidad !== null && u.nubosidad !== undefined) pistas.push(u.nubosidad <= 2 ? `☀️ cielo despejado (${u.nubosidad}/8)` : u.nubosidad >= 6 ? `☁️ nublado (${u.nubosidad}/8)` : `⛅ ${u.nubosidad}/8`);
+    if (u.viento_kmh !== null && u.viento_kmh !== undefined) pistas.push(u.viento_kmh <= 5 ? "🍃 calma" : `💨 ${RUMBO8[Math.round((u.viento_dir || 0) / 45) % 8]} ${u.viento_kmh} km/h${u.viento_dir >= 45 && u.viento_dir <= 170 ? " (brisa del río)" : ""}`);
+    if (noche && u.nubosidad !== null && u.nubosidad <= 2 && (u.viento_kmh ?? 99) <= 10) pistas.push("🌙 noche de enfriamiento radiativo");
+    return `<h4>🌆 Isla de calor · La Plata</h4><div class="cuerpo"><div class="delta ${clase}">${u.delta > 0 ? "+" : ""}${nDec(u.delta, 1)} °C</div>
+      <div><div class="sub">Observatorio ${nDec(u.urbana, 1)} °C · Aero ${nDec(u.suburbana, 1)} °C · ${hora} hs</div>
+      <div class="pistas">${pistas.map((x) => `<span>${esc(x)}</span>`).join("")}</div></div></div>
+      <button class="boton chico" data-icu-ver>${icu.abierto ? "Ocultar la curva" : "Ver las últimas 36 h ▾"}</button>
+      <div class="grafico" ${icu.abierto ? "" : "hidden"}><canvas></canvas></div>`;
+  })();
+  document.querySelectorAll("[data-icu]").forEach((c) => { c.innerHTML = html; });
+  if (icu.abierto) graficarIcu();
+}
+function graficarIcu() {
+  const f = icu.datos?.filas || [];
+  document.querySelectorAll("[data-icu]").forEach((caja) => {
+    const cv = caja.querySelector("canvas");
+    if (!cv || !caja.offsetParent) return;           // solo el que se ve (barra lateral o arriba)
+    const g = graficosIcu.get(caja); if (g) g.destroy();
+    const etq = f.map((x) => new Date(x.ts).toLocaleTimeString("es-AR", { hour: "2-digit", hourCycle: "h23" }) + "h");
+    graficosIcu.set(caja, new Chart(cv, {
+      data: { labels: etq, datasets: [
+        { type: "line", label: "Observatorio (urbana)", data: f.map((x) => x.urbana), borderColor: "#dc2626", backgroundColor: "#dc2626", pointRadius: 0, borderWidth: 2, yAxisID: "t", spanGaps: true },
+        { type: "line", label: "La Plata Aero (suburbana)", data: f.map((x) => x.suburbana), borderColor: "#2563eb", backgroundColor: "#2563eb", pointRadius: 0, borderWidth: 2, yAxisID: "t", spanGaps: true },
+        { type: "bar", label: "ΔT", data: f.map((x) => x.delta), backgroundColor: f.map((x) => (x.delta ?? 0) >= 0 ? "rgba(234,88,12,.45)" : "rgba(37,99,235,.35)"), yAxisID: "d" },
+      ] },
+      options: { responsive: true, maintainAspectRatio: false, animation: false, interaction: { mode: "index", intersect: false },
+        plugins: { legend: { labels: { boxWidth: 10, font: { size: 10 }, color: css("--tinta-2") } } },
+        scales: { x: { ticks: { maxTicksLimit: 8, font: { size: 9 }, color: css("--tenue") }, grid: { display: false } },
+                  t: { position: "left", ticks: { font: { size: 9 }, color: css("--tenue") }, grid: { color: css("--grilla") } },
+                  d: { position: "right", ticks: { font: { size: 9 }, color: "#ea580c" }, grid: { display: false } } } },
+    }));
+  });
+}
+const graficosIcu = new Map();
+document.addEventListener("click", (e) => {
+  if (!e.target.closest("[data-icu-ver]")) return;
+  icu.abierto = !icu.abierto;
+  dibujarIcu();
+});
 
 // ----- Columna derecha: ayer pronosticado contra observado, y la reunión -----
 function dibujarAyer() {
@@ -6191,6 +6282,8 @@ async function iniciarPerfil() {
   $("#tab-perfil").addEventListener("submit", enviarComentario);
   $("#rv-b-metricas2").hidden = !esCoord();
   red.listo = true;
+  cargarIcu();
+  icu.reloj = setInterval(() => { if (!$("#tab-perfil").hidden) cargarIcu(); }, 5 * 60e3);     // en vivo
   verRed(red.pendiente || "inicio");
   red.pendiente = null;
   cargarReunion();
@@ -6234,7 +6327,13 @@ async function corridaDelPronostico(it) {
 // El gráfico: la temperatura a 2 m del GFS (línea), la mínima y máxima que
 // puso quien pronosticó (rombos) y las observadas (círculos), y la lluvia del
 // modelo cada 6 h (barras), para los días del pronóstico.
-function graficoModelo(it, d) {
+// El modelo contra lo que pasa: la temperatura a 2 m del GFS de la corrida
+// que había al publicar (línea gris), lo que puso quien pronosticó (◇), las
+// extremas observadas (●) y, encima, la temperatura MEDIDA hora por hora (SMN
+// y Observatorio) que se va dibujando paso a paso y se completa sola mientras
+// llegan los datos. Los colores van escritos (no variables de CSS) para poder
+// pasar el gráfico a una imagen y llevarlo a la pizarra.
+function graficoModelo(it, d, m) {
   const dias = it.dias.map((x) => x.fecha);
   const t0 = Date.parse(dias[0] + "T03:00:00Z"), t1 = Date.parse(dias[dias.length - 1] + "T03:00:00Z") + 24 * HORA;   // días argentinos
   const mod = d.plazos.map((p) => [Date.parse(p.valida), p.sup?.t, p.pp6]).filter(([t, v]) => t >= t0 - 6 * HORA && t <= t1 + 6 * HORA && v !== undefined && v !== null);
@@ -6247,32 +6346,78 @@ function graficoModelo(it, d) {
       if (v.obs !== null && v.obs !== undefined) marcas.push({ t: base + h * HORA, v: v.obs, tipo: "obs", k });
     }
   }
-  const vals = [...mod.map((m) => m[1]), ...marcas.map((m) => m.v)];
+  const vals = [...mod.map((x) => x[1]), ...marcas.map((x) => x.v)];
   if (!vals.length) return '<p class="tenue">Sin datos del modelo para esos días.</p>';
-  const W = 640, H = 190, iz = 34, de = 8, ar = 10, ab = 34;
-  const y0 = Math.floor(Math.min(...vals) - 2), y1 = Math.ceil(Math.max(...vals) + 2);
+  const C = { grilla: css("--grilla") || "#e1e0d9", eje: css("--eje") || "#c3c2b7", texto: css("--tinta-2") || "#52514e", fondo: css("--superficie") || "#fff",
+              lluvia: css("--s1") || "#2a78d6", gfs: "#9ca3af", smn: css("--tinta") || "#111", ema: "#ea580c" };
+  const W = 640, H = 200, iz = 34, de = 8, ar = 10, ab = 34;
+  const y0 = Math.floor(Math.min(...vals) - 4), y1 = Math.ceil(Math.max(...vals) + 4);
   const X = (t) => iz + (t - t0) / (t1 - t0) * (W - iz - de), Y = (v) => ar + (H - ar - ab) * (1 - (v - y0) / (y1 - y0));
+  m.geo = { X, Y, t0, t1, y0, y1 };
+  const txt = (x, y, t, ancla = "start") => `<text x="${x}" y="${y}" text-anchor="${ancla}" fill="${C.texto}" font-size="11" font-family="system-ui, sans-serif">${t}</text>`;
   const linea = mod.map(([t, v], i) => `${i ? "L" : "M"}${X(t).toFixed(1)},${Y(v).toFixed(1)}`).join("");
-  const ppMax = Math.max(5, ...mod.map((m) => m[2] || 0));
-  const barras = mod.filter((m) => m[2] > 0.1).map(([t, , pp]) => { const h = pp / ppMax * 26;
-    return `<rect x="${(X(t) - 6).toFixed(1)}" y="${(H - ab - h).toFixed(1)}" width="6" height="${h.toFixed(1)}" fill="var(--s1)" opacity=".55"><title>${num(pp, 1)} mm en 6 h (modelo)</title></rect>`; }).join("");
+  const ppMax = Math.max(5, ...mod.map((x) => x[2] || 0));
+  const barras = mod.filter((x) => x[2] > 0.1).map(([t, , pp]) => { const h = pp / ppMax * 26;
+    return `<rect x="${(X(t) - 6).toFixed(1)}" y="${(H - ab - h).toFixed(1)}" width="6" height="${h.toFixed(1)}" fill="${C.lluvia}" opacity=".55"><title>${num(pp, 1)} mm en 6 h (modelo)</title></rect>`; }).join("");
   const paso = (y1 - y0) > 16 ? 5 : 2, ys = [];
   for (let v = Math.ceil(y0 / paso) * paso; v <= y1; v += paso) ys.push(v);
-  const col = (m) => (m.k === "tmin" ? "#2563eb" : "#dc2626");
-  const simbolo = (m) => m.tipo === "pron"
-    ? `<path d="M${X(m.t)},${Y(m.v) - 6}l6,6l-6,6l-6,-6z" fill="var(--superficie)" stroke="${col(m)}" stroke-width="2"><title>${m.k === "tmin" ? "Mínima" : "Máxima"} pronosticada: ${num(m.v, 0)} °C</title></path>`
-    : `<circle cx="${X(m.t)}" cy="${Y(m.v)}" r="4.5" fill="${col(m)}"><title>${m.k === "tmin" ? "Mínima" : "Máxima"} observada: ${num(m.v, 1)} °C</title></circle>`;
-  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Modelo, pronóstico y observado">
-    ${ys.map((v) => `<line x1="${iz}" x2="${W - de}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--grilla)"/><text x="${iz - 4}" y="${Y(v) + 4}" text-anchor="end">${v}°</text>`).join("")}
+  const col = (x) => (x.k === "tmin" ? "#2563eb" : "#dc2626");
+  const simbolo = (x) => x.tipo === "pron"
+    ? `<path d="M${X(x.t)},${Y(x.v) - 6}l6,6l-6,6l-6,-6z" fill="${C.fondo}" stroke="${col(x)}" stroke-width="2"><title>${x.k === "tmin" ? "Mínima" : "Máxima"} pronosticada: ${num(x.v, 0)} °C</title></path>`
+    : `<circle cx="${X(x.t)}" cy="${Y(x.v)}" r="4.5" fill="${col(x)}"><title>${x.k === "tmin" ? "Mínima" : "Máxima"} observada: ${num(x.v, 1)} °C</title></circle>`;
+  const ahora = Date.now();
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Modelo, pronóstico y observado" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="0" width="${W}" height="${H}" fill="${C.fondo}"/>
+    ${ys.map((v) => `<line x1="${iz}" x2="${W - de}" y1="${Y(v)}" y2="${Y(v)}" stroke="${C.grilla}"/>${txt(iz - 4, Y(v) + 4, v + "°", "end")}`).join("")}
     ${dias.map((f, i) => { const x = X(Date.parse(f + "T03:00:00Z"));
-      return `<line x1="${x}" x2="${x}" y1="${ar}" y2="${H - ab}" stroke="var(--eje)"/><text x="${x + (W - iz - de) / dias.length / 2}" y="${H - 18}" text-anchor="middle">Día ${i + 1} · ${esc(diaCorto(f))}</text>`; }).join("")}
+      return `<line x1="${x}" x2="${x}" y1="${ar}" y2="${H - ab}" stroke="${C.eje}"/>${txt(x + (W - iz - de) / dias.length / 2, H - 18, `Día ${i + 1} · ${esc(diaCorto(f))}`, "middle")}`; }).join("")}
+    ${ahora > t0 && ahora < t1 ? `<line x1="${X(ahora)}" x2="${X(ahora)}" y1="${ar}" y2="${H - ab}" stroke="${C.ema}" stroke-dasharray="3 3"/>${txt(X(ahora) + 3, ar + 10, "ahora")}` : ""}
     ${barras}
-    <path d="${linea}" fill="none" stroke="var(--tinta-2)" stroke-width="1.8"/>
-    ${marcas.filter((m) => m.tipo === "pron").map(simbolo).join("")}${marcas.filter((m) => m.tipo === "obs").map(simbolo).join("")}
+    <path d="${linea}" fill="none" stroke="${C.gfs}" stroke-width="2.2"/>
+    <path class="obs-smn" d="__SMN__" fill="none" stroke="${C.smn}" stroke-width="1.6"/>
+    <path class="obs-ema" d="__EMA__" fill="none" stroke="${C.ema}" stroke-width="1.6"/>
+    ${marcas.filter((x) => x.tipo === "pron").map(simbolo).join("")}${marcas.filter((x) => x.tipo === "obs").map(simbolo).join("")}
   </svg>
-  <div class="ley"><span>━ Temperatura a 2 m del GFS (corrida del ${esc(fmtCorrida(new Date(d.inicio)))})</span>
-    <span>◇ pronosticado</span><span>● observado</span><span style="color:#2563eb">azul: mínima</span><span style="color:#dc2626">rojo: máxima</span>
-    <span>▮ lluvia del modelo cada 6 h</span></div>`;
+  <div class="ley"><span style="color:${C.gfs}">━ GFS (corrida del ${esc(fmtCorrida(new Date(d.inicio)))})</span>
+    <span>━ medida en el SMN (${esc(it.ciudad)}), hora a hora</span>${it.ciudad === "La Plata" ? `<span style="color:${C.ema}">━ Observatorio (EMA)</span>` : ""}
+    <span>◇ pronosticado</span><span>● extremas observadas</span><span style="color:#2563eb">azul: mín.</span><span style="color:#dc2626">rojo: máx.</span>
+    <span>▮ lluvia del GFS</span><span class="tenue obs-estado"></span></div>
+  <div class="acc" style="margin-top:4px"><button class="boton" data-modelo-duda title="Llevar este gráfico a la pizarra y anotarlo como duda para la reunión">📝 Anotar como duda (a la pizarra)</button></div>`;
+}
+// Las curvas medidas: se piden al servidor y se dibujan hora por hora.
+async function traerObservado(it, m, caja, animar) {
+  const g = m.geo;
+  if (!g) return;
+  const hasta = Math.min(Date.now(), g.t1);
+  if (hasta <= g.t0) return;
+  let o;
+  try { o = await api(`/api/yo/observado?ciudad=${encodeURIComponent(it.ciudad)}&desde=${new Date(g.t0).toISOString()}&hasta=${new Date(hasta).toISOString()}`); }
+  catch (_) { return; }
+  const camino = (serie) => serie.filter(([, v]) => v !== null).map(([t, v], i) => `${i ? "L" : "M"}${g.X(Date.parse(t)).toFixed(1)},${g.Y(v).toFixed(1)}`);
+  const pasos = { smn: camino(o.smn), ema: camino(o.ema) };
+  m.obsD = { smn: pasos.smn.join(""), ema: pasos.ema.join("") };
+  m.html = m.base.replace("__SMN__", m.obsD.smn).replace("__EMA__", m.obsD.ema);
+  const estado = caja.querySelector(".obs-estado");
+  if (estado) estado.textContent = o.smn.length ? `· medido hasta las ${new Date(Date.parse(o.smn[o.smn.length - 1][0])).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hourCycle: "h23" })}${Date.now() < g.t1 ? " (se actualiza solo)" : ""}` : "· todavía sin datos medidos";
+  const paths = { smn: caja.querySelector(".obs-smn"), ema: caja.querySelector(".obs-ema") };
+  if (!animar) { for (const k of ["smn", "ema"]) paths[k]?.setAttribute("d", m.obsD[k]); return; }
+  // Paso a paso: una hora cada 35 ms.
+  const n = Math.max(pasos.smn.length, pasos.ema.length);
+  for (let i = 1; i <= n; i++) {
+    for (const k of ["smn", "ema"]) paths[k]?.setAttribute("d", pasos[k].slice(0, i).join(""));
+    await new Promise((r) => setTimeout(r, 35));
+  }
+}
+// El gráfico como imagen (para la pizarra de una nota).
+async function imagenDeModelo(caja) {
+  const svg = caja.querySelector("svg");
+  if (!svg) return null;
+  const xml = new XMLSerializer().serializeToString(svg);
+  const img = await cargarImagen("data:image/svg+xml;charset=utf-8," + encodeURIComponent(xml));
+  const c = document.createElement("canvas");
+  c.width = 1280; c.height = Math.round(1280 * svg.viewBox.baseVal.height / svg.viewBox.baseVal.width);
+  c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+  return c;
 }
 async function alternarModelo(tarjeta) {
   const obj = tarjeta.dataset.obj, it = buscarObjeto(obj)[0];
@@ -6282,13 +6427,24 @@ async function alternarModelo(tarjeta) {
   const caja = tarjeta.querySelector(".pron-modelo"), boton = tarjeta.querySelector("[data-modelo]");
   caja.hidden = !m.abierto;
   boton.textContent = m.abierto ? "📈 Ocultar el modelo" : "📈 Ver el modelo";
-  if (!m.abierto || m.html) return;
+  if (!m.abierto) { clearInterval(m.reloj); return; }
+  if (m.html) { m.html && traerObservado(it, m, caja, false); return; }
   caja.innerHTML = '<span class="tenue">Buscando la corrida del GFS de ese momento…</span>';
   const r = await corridaDelPronostico(it);
   m.corrida = r?.corrida;
-  m.html = r ? graficoModelo(it, r.datos)
-    : '<p class="tenue">La corrida del GFS de ese momento ya no está guardada: el servidor guarda las de los últimos 8 días (o esta ciudad no tiene punto del modelo).</p>';
+  m.base = r ? graficoModelo(it, r.datos, m)
+    : '<p class="tenue">La corrida del GFS de ese momento ya no está guardada (o esta ciudad no tiene punto del modelo).</p>';
+  m.html = m.base.replace("__SMN__", "").replace("__EMA__", "");
   caja.innerHTML = m.html;
+  if (!r) return;
+  await traerObservado(it, m, caja, true);
+  // Mientras siga abierto y no haya terminado el período, se completa solo cada 5 min.
+  clearInterval(m.reloj);
+  m.reloj = setInterval(() => {
+    const vivo = document.querySelector(`.postit[data-obj="${CSS.escape(obj)}"] .pron-modelo`);
+    if (!m.abierto || !vivo || Date.now() > m.geo.t1 + 3 * HORA) { clearInterval(m.reloj); return; }
+    traerObservado(it, m, vivo, false);
+  }, 5 * 60e3);
 }
 async function irAlModelo(tarjeta) {
   const it = buscarObjeto(tarjeta.dataset.obj)[0];
@@ -6351,6 +6507,15 @@ async function accionRed(e) {
   }
   const ve = e.target.closest("[data-embed]");
   if (ve) { abrirEmbed(ve); return; }
+  const bd = e.target.closest("[data-modelo-duda]");
+  if (bd) {
+    const t = bd.closest(".postit"), it = buscarObjeto(t.dataset.obj)[0], caja = t.querySelector(".pron-modelo");
+    abrirNota({ tipo: "duda", fecha_evento: it.fecha_emision, etiquetas: ["modelo vs real"], compartida: true,
+                texto: `Pronóstico de ${it.usuario ? it.usuario.nombre : it.firma} para ${it.ciudad} (${it.fecha_emision}): `,
+                contexto: { seccion: "gfs", corrida: red.modelos[it.objeto]?.corrida || "", plazo: 0, ciudad: it.ciudad, ts: new Date(Date.parse(it.dias[0].fecha + "T18:00:00Z")).toISOString() } },
+              async () => imagenDeModelo(caja));
+    return;
+  }
   const bm = e.target.closest("[data-modelo]");
   if (bm) { alternarModelo(bm.closest(".postit")); return; }
   const bcm = e.target.closest("[data-cartas-modelo]");

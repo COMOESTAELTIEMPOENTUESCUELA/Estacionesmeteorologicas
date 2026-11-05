@@ -120,6 +120,12 @@ class Ingesta:
             reg["filas"] = sum(1 for s in r.values() if not s.startswith("FALLÓ"))
             log.info("indices: %s", "; ".join(f"{k}: {s}" for k, s in r.items()))
 
+    def correr_bot(self):
+        """El bot observador: si algo cambió de golpe, avisa en la red del grupo."""
+        from . import bot
+        with db.registrar_tarea(self.conn, "bot") as reg:
+            reg["filas"] = 1 if bot.correr(self.conn) else 0
+
     def correr_cartas(self, desde=None, hasta=None):
         """Sin fechas: la vuelta normal. Con fechas: rellenar ese período (satélite y Ogimet)."""
         from ..cartas import descarga
@@ -172,6 +178,8 @@ class Ingesta:
             return self.correr_cartas(desde, hasta if desde else None)
         if tarea == "indices":
             return self.correr_indices()
+        if tarea == "bot":
+            return self.correr_bot()
         if tarea == "verificacion":
             # Sin --desde/--hasta (servicio, "una"): los últimos días.
             return self.correr_verificacion(desde if desde else None, hasta if desde else None)

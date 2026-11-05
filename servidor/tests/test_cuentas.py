@@ -405,3 +405,34 @@ def test_tablero_de_la_reunion(cliente, cuentas, monkeypatch):
     e = estado()
     assert (e["estado"], e["tratada"], e["respuesta"], e["tratada_por"]) == ("tratada", True, "nubes altas, no bajas", "Coord")
     assert cliente.put(f"/api/yo/notas/{q}/reunion", json={"estado": "x"}, headers=X).status_code == 400
+
+
+def test_isla_de_calor_y_observado(cliente, cuentas, monkeypatch):
+    m = cuentas
+    ahora = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
+    datos = [("observatorio_campbell", -2, 0, 22.0), ("observatorio_campbell", -2, 5, 22.4), ("observatorio_davis", -2, 55, 21.8),
+             ("omm_87593", -2, 0, 19.0), ("omm_87593", -1, 0, 18.0), ("observatorio_davis", -1, 2, 21.0), ("omm_87593", -2, 0, None)]
+    with m._pools["e"].connection() as conn:
+        for e in ("observatorio_campbell", "observatorio_davis", "omm_87593"):
+            conn.execute("INSERT INTO estacion (id, nombre, tipo, fuente) VALUES (%s, %s, 'ema', 'manual') ON CONFLICT (id) DO NOTHING", (e, e))
+        conn.execute("DELETE FROM observacion WHERE estacion_id IN ('observatorio_campbell', 'observatorio_davis', 'omm_87593') AND ts > now() - interval '5 hours'")
+        for e, hh, mm, v in datos:
+            if v is not None:
+                conn.execute("INSERT INTO observacion (ts, estacion_id, variable, valor) VALUES (%s, %s, 'temp', %s) ON CONFLICT DO NOTHING",
+                             (ahora + timedelta(hours=hh, minutes=mm) - (timedelta(hours=1) if mm >= 45 else timedelta()), e, v))
+        conn.commit()
+    try:
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "ana@gmail.com")
+        d = cliente.get("/api/yo/icu?horas=6").json()
+        f = {x["ts"][:13]: x for x in d["filas"]}
+        h2 = (ahora - timedelta(hours=2)).isoformat()[:13]
+        # Hora -2: Campbell 22,2 (promedio de 22,0 y 22,4) y Davis 21,8 (a las :55 de la hora anterior) -> 22,0; Aero 19 -> ΔT +3
+        assert f[h2]["urbana"] == 22.0 and f[h2]["suburbana"] == 19.0 and f[h2]["delta"] == 3.0
+        assert d["ultimo"]["delta"] == 3.0                  # la hora -1: urbana 21,0 y Aero 18,0
+        o = cliente.get(f"/api/yo/observado?ciudad=La Plata&desde={(ahora - timedelta(hours=5)).isoformat().replace('+00:00', 'Z')}&hasta={ahora.isoformat().replace('+00:00', 'Z')}").json()
+        assert len(o["smn"]) == 2 and len(o["ema"]) == 2
+    finally:
+        with m._pools["e"].connection() as conn:
+            conn.execute("DELETE FROM observacion WHERE estacion_id IN ('observatorio_campbell', 'observatorio_davis', 'omm_87593') AND ts > now() - interval '5 hours'")
+            conn.commit()

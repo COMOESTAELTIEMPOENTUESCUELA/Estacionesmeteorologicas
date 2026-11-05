@@ -53,6 +53,26 @@ La página de Cartas (también la copia pública) sigue igual para todos. Quien
     nota, con 🖥️) a pantalla completa, sin menús, con ← → para pasar y los
     botones para concluir ahí mismo.
   - **Métricas del grupo** (coordinadores): la tabla de todas las firmas.
+  - **🌆 Isla de calor (La Plata)**: el ΔT = temperatura del Observatorio
+    (Campbell y Davis) − La Plata Aero, hora por hora, con pistas (cielo
+    despejado, calma, brisa del río, noche de enfriamiento radiativo) y la
+    curva de las últimas 36 h (Chart.js). Se actualiza sola cada 5 minutos.
+    En la columna derecha (en pantallas chicas, arriba del Inicio).
+  - **Verificación de doble filo**: los pronósticos muestran mínima y máxima
+    **urbana** y **suburbana**, con 🏆 donde quien pronosticó estuvo más
+    cerca que el GFS de ese momento (el modelo no distingue la ciudad del
+    campo), y "le ganó al GFS en X de Y".
+  - **📈 Ver el modelo en vivo**: además del GFS, lo pronosticado y las
+    extremas, la temperatura **medida hora por hora** (SMN y, en La Plata, el
+    Observatorio) se dibuja paso a paso y se completa sola mientras llegan
+    los datos. **📝 Anotar como duda** lleva el gráfico a la pizarra.
+  - **🤖 Bot observador** (`ingesta/bot.py`, cada 15 min): si la presión baja
+    3 hPa o más en 3 h, la temperatura baja 4 °C o más en 1 h (sinópticas
+    del SMN y el Observatorio), hay una ráfaga de 60 km/h o más o el SYNOP
+    informa tormenta, publica una nota ⚡ con #alertanowcasting para que el
+    grupo comente. Una sola nota por vuelta y como mucho una alerta por
+    estación cada 3 h. El bot no puede ingresar a la página ni aparece en
+    "El grupo".
   - A la derecha: lo de **ayer, pronosticado contra observado**, y las
     preguntas pendientes.
 

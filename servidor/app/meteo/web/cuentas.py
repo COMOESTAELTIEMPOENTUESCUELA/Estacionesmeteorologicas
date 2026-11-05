@@ -656,7 +656,7 @@ def personas(request: Request):
     notas_n = {r["usuario_id"]: r["n"] for r in _leer(
         "SELECT usuario_id, count(*) AS n FROM nota WHERE compartida OR usuario_id = %s GROUP BY usuario_id", (u["id"],))}
     salida, con_usuario = [], set()
-    for p in _leer("SELECT id, nombre, rol, firmas, bio, metricas_publicas, ultimo_ingreso FROM usuario WHERE activo ORDER BY nombre"):
+    for p in _leer("SELECT id, nombre, rol, firmas, bio, metricas_publicas, ultimo_ingreso FROM usuario WHERE activo AND email NOT LIKE '%%@local' ORDER BY nombre"):
         mias = [f for f in pares if f["pronosticador"] in p["firmas"]]
         con_usuario.update(p["firmas"])
         ver = puede_ver_metricas(u, p)
@@ -679,6 +679,61 @@ def personas(request: Request):
                        "metricas_visibles": ver, "resumen": puntajes.resumen(mias) if ver else None, "yo": False})
     return {"desde": desde, "hasta": hasta, "personas": salida,
             "insignias": {k: {"emoji": e, "nombre": n, "que": q} for k, (e, n, q) in INSIGNIAS.items()}}
+
+
+# ---------------------------------------------------------------------------
+# Observaciones por hora: isla de calor y meteograma "en vivo"
+# ---------------------------------------------------------------------------
+ICU_URBANAS = ("observatorio_campbell", "observatorio_davis")      # el Observatorio, en el casco urbano
+ICU_SUBURBANA = "omm_87593"                                        # La Plata Aero
+
+
+def _horarias(estaciones, desde, hasta, variable="temp"):
+    """{hora (UTC): valor}: el promedio de cada estación entre :45 y :15 de
+    cada hora (las EMAs miden cada 5 min; el SYNOP, en punto) y después el
+    promedio entre las estaciones que tengan dato."""
+    por_hora = {}
+    for r in _leer("""
+        SELECT estacion_id, date_trunc('hour', ts + interval '15 minutes') AS h, avg(valor) AS v FROM observacion
+        WHERE variable = %s AND estacion_id = ANY(%s) AND ts BETWEEN %s AND %s
+          AND (extract(minute FROM ts) >= 45 OR extract(minute FROM ts) <= 15)
+        GROUP BY 1, 2""", (variable, list(estaciones), desde, hasta)):
+        por_hora.setdefault(r["h"], []).append(r["v"])
+    return {h: round(sum(v) / len(v), 2) for h, v in sorted(por_hora.items())}
+
+
+@router.get("/api/yo/icu")
+def isla_de_calor(request: Request, horas: int = 36):
+    """Isla de calor urbana de La Plata: ΔT = T urbana (Observatorio: Campbell y
+    Davis) − T suburbana (La Plata Aero), hora por hora, con el viento y la
+    nubosidad del aeropuerto (la brisa del río y el cielo despejado mandan)."""
+    requiere_usuario(request)
+    hasta = datetime.now(timezone.utc)
+    desde = hasta - timedelta(hours=max(6, min(horas, 24 * 7)))
+    urb, sub = _horarias(ICU_URBANAS, desde, hasta), _horarias([ICU_SUBURBANA], desde, hasta)
+    dirv, velv, nub = (_horarias([ICU_SUBURBANA], desde, hasta, v) for v in ("viento_dir", "viento_vel", "nubosidad"))
+    horas_ = sorted(set(urb) | set(sub))
+    filas = [{"ts": h.isoformat(), "urbana": urb.get(h), "suburbana": sub.get(h),
+              "delta": round(urb[h] - sub[h], 1) if h in urb and h in sub else None,
+              "viento_dir": dirv.get(h), "viento_kmh": round(velv[h] * 3.6) if h in velv else None, "nubosidad": nub.get(h)} for h in horas_]
+    ultimo = next((f for f in reversed(filas) if f["delta"] is not None), None)
+    return {"urbanas": ICU_URBANAS, "suburbana": ICU_SUBURBANA, "filas": filas, "ultimo": ultimo}
+
+
+@router.get("/api/yo/observado")
+def observado_horario(request: Request, ciudad: str, desde: datetime, hasta: datetime):
+    """La temperatura medida hora por hora en una ciudad: la del SMN (su
+    aeropuerto) y, en La Plata, la del Observatorio (EMA). Para dibujarla
+    encima del GFS a medida que llega."""
+    from ..ciudades import CIUDADES_SYNOP
+    requiere_usuario(request)
+    if ciudad not in CIUDADES_SYNOP:
+        raise HTTPException(404, "ciudad desconocida")
+    if hasta - desde > timedelta(days=12):
+        raise HTTPException(400, "hasta 12 días")
+    smn = _horarias([CIUDADES_SYNOP[ciudad]], desde, hasta)
+    ema = _horarias(ICU_URBANAS, desde, hasta) if ciudad == "La Plata" else {}
+    return {"ciudad": ciudad, "smn": [[h.isoformat(), v] for h, v in smn.items()], "ema": [[h.isoformat(), v] for h, v in ema.items()]}
 
 
 @router.get("/api/yo/muro")
@@ -741,6 +796,7 @@ def muro(request: Request, hasta: date | None = None, dias: int = 7, autor_id: i
                           "usuario": {"id": us["id"], "nombre": us["nombre"]} if us else None,
                           "anticipado": any(f["anticipado"] for f in filas),
                           "dias": [{"fecha": f["fecha"], "plazo": f["plazo"], "tmin": f["tmin_urbana"], "tmax": f["tmax_urbana"],
+                                    "tmin_sub": f["tmin_suburbana"], "tmax_sub": f["tmax_suburbana"],
                                     "pp": {"pron": f["pp"]["pron"], "obs": f["pp"]["obs"], "tipo": f["pp"]["tipo"]},
                                     "gfs": modelo.get(f["fecha"])} for f in filas],
                           "reacciones": reac.get(obj, {"conteo": {}, "mias": [], "quienes": {}}),

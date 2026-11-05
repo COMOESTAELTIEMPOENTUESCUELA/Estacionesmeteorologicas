@@ -25,6 +25,7 @@ frecuencias_min:
   verificacion: 180
   cartas: 60
   indices: 720        # índices climáticos (ENSO, SAM, MJO...): cambian despacio
+  bot: 15             # bot observador: avisa en la red si algo cambió de golpe
 
 estaciones:
 
