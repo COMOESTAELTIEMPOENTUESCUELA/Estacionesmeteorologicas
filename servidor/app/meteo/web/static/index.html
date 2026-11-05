@@ -922,6 +922,55 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
   #c-herr input[type="color"] { width: 40px; height: 32px; }
 }
 
+/* ===== Estilo Instagram para el feed de Inicio =====
+   La tarjeta sin relleno: la imagen va de borde a borde y cada parte
+   (cabecera, barra, texto, comentarios) pone su propio margen interno. */
+.red-feed .postit:not(.pron) { padding: 0; border: 1px solid var(--borde); border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.05); gap: 0; overflow: hidden; }
+.red-feed .postit:not(.pron) .cab { padding: 12px 14px; }
+.postit .cab .lugar { font-size: 11.5px; color: var(--tinta-2); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.postit .cab .lugar:hover { text-decoration: underline; }
+.postit .texto .autor-ig { display: none; }
+.postit .barra-ig { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.red-feed .postit:not(.pron) .img { border-radius: 0; border-left: none; border-right: none; margin: 0; display: block; }
+/* Fotos: llenan el ancho (se recortan un poco si son muy altas). Cartas con
+   dibujo: nunca se recortan, si no el dibujo quedaría corrido. */
+.red-feed .postit:not(.pron) .img:not(.con-capa) img { max-height: 550px; }
+.red-feed .postit:not(.pron) > .videos, .red-feed .postit:not(.pron) > .insig, .red-feed .postit:not(.pron) > .lb-resp { margin: 8px 14px 0; }
+.red-feed .postit:not(.pron) .barra-ig { padding: 8px 14px 4px; }
+.red-feed .postit:not(.pron) .reac { gap: 12px; }
+.red-feed .postit:not(.pron) .reac button { border: none; background: transparent; font-size: 14px; padding: 4px 6px; }
+.red-feed .postit:not(.pron) .barra-ig .acc .boton { border: none; background: transparent; font-size: 15px; padding: 2px 6px; }
+.red-feed .postit:not(.pron) .texto { padding: 4px 14px 6px; font-size: 14px; }
+.red-feed .postit:not(.pron) .texto .autor-ig { display: inline; color: var(--tinta); margin-right: 6px; cursor: pointer; }
+.red-feed .postit:not(.pron) .etqs { padding: 0 14px 6px; }
+.red-feed .postit:not(.pron) .coment { border-top: none; padding: 4px 14px 14px; margin: 0; }
+@media (max-width: 760px) {
+  .red-feed .postit:not(.pron) { border-radius: 0; border-left: none; border-right: none; margin-left: -16px; margin-right: -16px; }
+  .red-feed .postit:not(.pron) .barra-ig { flex-wrap: nowrap; }
+  .red-feed .postit:not(.pron) .reac { gap: 2px; flex-wrap: nowrap; }
+  .red-feed .postit:not(.pron) .reac button { padding: 4px 3px; font-size: 13px; }
+}
+
+/* ===== Interruptor "Modo Análisis" =====
+   Por defecto la página está en modo simple (tipo feed): se esconden las
+   cosas densas. Al prender el interruptor, el <body> recibe la clase
+   "modo-pro" y estas reglas dejan de aplicar (por el :not), así cada cosa
+   vuelve a su display natural (tabla, flex, bloque…) sin tener que decirlo.
+   Para sumar algo "solo para analistas": agregarle la clase .solo-pro. */
+body:not(.modo-pro) .pron-detalles,
+body:not(.modo-pro) .pron-modelo,
+body:not(.modo-pro) .cpr-teclas,
+body:not(.modo-pro) .ayuda:not([id]),
+body:not(.modo-pro) .botonera-avanzada,
+body:not(.modo-pro) .solo-pro,
+body:not(.modo-pro) .acc .boton[data-modelo] { display: none !important; }
+body:not(.modo-pro) .postit { font-size: 13.5px; }
+.switch-modo { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; user-select: none;
+  padding: 3px 10px; border: 1px solid var(--borde); border-radius: 99px; }
+.switch-modo input { margin: 0; accent-color: var(--acento); }
+body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); }
+@media (max-width: 760px) { .switch-modo span { font-size: 12px; } }
+
 /* ===== Para quien pide "reducir movimiento" en su sistema (accesibilidad) ===== */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
@@ -930,6 +979,8 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
 </style>
 </head>
 <body>
+<!-- Antes de dibujar nada: ¿había dejado prendido el Modo Análisis? (evita un parpadeo) -->
+<script>try { if (localStorage.getItem("modo-pro") === "activo") document.body.classList.add("modo-pro"); } catch (_) {}</script>
 <header>
   <h1>Red Meteorológica · servidor</h1>
   <nav role="tablist">
@@ -944,6 +995,9 @@ td.num, th.num { font-variant-numeric: tabular-nums; }
     <button role="tab" data-tab="perfil" aria-selected="false" hidden>Mi perfil</button>
   </nav>
   <span class="tenue" id="actualizado"></span>
+  <label class="switch-modo" title="Mostrar las herramientas de análisis completo: tablas, modelo, ayudas y atajos">
+    <input type="checkbox" id="toggle-modo"> <span>Modo Análisis 🤓</span>
+  </label>
   <button class="boton tema" id="tema" title="Tema: automático (el del sistema)">🌓</button>
   <div class="cuenta" id="cuenta"></div>
 </header>
@@ -5774,6 +5828,15 @@ function usarCompartido() {
     poner({ "": "dark", dark: "light", light: "" }[t]);
   });
 })();
+// ----- Interruptor Modo Análisis: la clase "modo-pro" en el <body>, recordada en localStorage -----
+(function iniciarModo() {
+  const caja = $("#toggle-modo");
+  caja.checked = document.body.classList.contains("modo-pro");
+  caja.addEventListener("change", () => {
+    document.body.classList.toggle("modo-pro", caja.checked);
+    try { localStorage.setItem("modo-pro", caja.checked ? "activo" : "apagado"); } catch (_) {}
+  });
+})();
 // ----- Barra de abajo (celular) -----
 function irRed(v) {
   abrir("perfil");
@@ -5958,34 +6021,39 @@ function abrirEmbed(boton) {
 
 // ----- La tarjeta de una nota -----
 function tarjetaNota(nt, reunion = false) {
+  // Estilo "Instagram": cabecera (avatar, nombre, dónde), la imagen de borde a
+  // borde, la barra de reacciones y acciones, y abajo el texto con el nombre en negrita.
   const puede = nt.mia || esCoord();
   const conCtx = Object.keys(nt.contexto || {}).length;
   const capa = nt.capa?.elementos?.length ? `<svg viewBox="0 0 ${+nt.capa.ancho || DIB_ANCHO} ${+nt.capa.alto || 750}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">${nt.capa.elementos.map(svgElemento).join("")}</svg>` : "";
   const img = nt.captura && capa ? `<div class="img con-capa${capasApagadas.has(nt.id) ? " sin-capa" : ""}"><a href="${esc(nt.captura)}" target="_blank" rel="noopener" title="Ver la imagen grande (sin el dibujo)"><img src="${esc(nt.captura)}" loading="lazy" alt="Imagen de la nota"></a>${capa}
       <button class="capa-ver" data-capa="${nt.id}" title="Prender o apagar el dibujo para ver la carta original">👁 ${capasApagadas.has(nt.id) ? "Mostrar dibujo" : "Ocultar dibujo"}</button><span>✏️ pizarra</span></div>`
-    : nt.captura ? `<a class="img" href="${esc(nt.captura)}" target="_blank" rel="noopener" title="Ver la imagen grande"><img src="${esc(nt.captura)}" loading="lazy" alt="Imagen de la nota"><span>✏️ pizarra</span></a>`
+    : nt.captura ? `<a class="img" href="${esc(nt.captura)}" target="_blank" rel="noopener" title="Ver la imagen grande"><img src="${esc(nt.captura)}" loading="lazy" alt="Imagen de la nota"></a>`
     : nt.imagen ? `<a class="img" href="#" data-acc="abrir" title="Abrir la carta donde se escribió"><img src="${esc(nt.imagen)}" loading="lazy" alt="Carta"><span>carta</span></a>` : "";
-  const coment = nt.compartida ? comentariosHTML(nt.comentarios || [], `data-coment="${nt.id}"`, "Comentar…", "data-borrar-c") : "";
+  const coment = nt.compartida ? comentariosHTML(nt.comentarios || [], `data-coment="${nt.id}"`, "Agregá un comentario…", "data-borrar-c") : "";
+  const estado = nt.estado || (nt.tratada ? "tratada" : "propuesta");
+  const accReunion = reunion && nt.compartida && puede ? {
+    propuesta: `<button class="boton" data-acc="estado" data-estado="discusion">▶ A discusión</button>`,
+    discusion: `<button class="boton primario" data-acc="concluir">✓ Concluir</button><button class="boton" data-acc="estado" data-estado="propuesta" title="Volver a propuestas">↩</button>`,
+    tratada: `<button class="boton" data-acc="concluir">Editar conclusión</button><button class="boton" data-acc="estado" data-estado="discusion" title="Reabrir">↩</button>`,
+  }[estado] : "";
+  const acciones = accReunion
+    + (esCoord() && nt.compartida ? `<button class="boton" data-acc="presentar" title="Mostrarla a pantalla completa en la reunión">🖥️</button>` : "")
+    + (nt.mia ? `<button class="boton" data-acc="editar" title="Editar">✏️</button><button class="boton" data-acc="borrar" title="Borrar">🗑️</button>` : "");
   return `<article class="postit ${esc(nt.tipo)}" data-id="${nt.id}"${reunion && puede ? ' draggable="true"' : ""}>
     <div class="cab"><span data-perfil="${nt.autor_id}">${avatar(nt.autor)}</span>
-      <span class="quien"><b data-perfil="${nt.autor_id}">${nt.mia ? "Vos" : esc(nt.autor)}</b><span title="${esc(fmtEscrita.format(new Date(nt.creada)))}">${esc(hace(nt.creada))}</span></span>
-      <span class="der"><span class="lb-tipo ${esc(nt.tipo)}" title="${esc(NOMBRE_TIPO[nt.tipo] || "")}">${esc(TIPO_CORTO[nt.tipo] || nt.tipo)}</span>${nt.compartida ? "" : '<span title="Privada: la ven el autor y los administradores">🔒</span>'}</span></div>
+      <span class="quien"><b data-perfil="${nt.autor_id}">${nt.mia ? "Vos" : esc(nt.autor)}</b>
+        ${conCtx ? `<span class="lugar" data-acc="abrir" title="Ir a donde se escribió">📍 ${esc(describirContexto(nt.contexto))}</span>` : ""}</span>
+      <span class="der"><span class="hora" title="${esc(fmtEscrita.format(new Date(nt.creada)))}">${esc(hace(nt.creada))}</span>
+        <span class="lb-tipo ${esc(nt.tipo)}" title="${esc(NOMBRE_TIPO[nt.tipo] || "")}">${esc(TIPO_CORTO[nt.tipo] || nt.tipo)}</span>${nt.compartida ? "" : '<span title="Privada: la ven el autor y los administradores">🔒</span>'}</span></div>
     ${img}
-    <div class="texto">${textoConEnlaces(nt.texto)}</div>
-    ${(nt.insignias || []).length ? `<div>${nt.insignias.map(chipInsignia).join("")}</div>` : ""}
     ${bloqueVideos(nt.texto)}
-    ${conCtx ? `<button class="ctx" data-acc="abrir" title="Ir a donde se escribió">📍 ${esc(describirContexto(nt.contexto))}</button>` : ""}
+    ${nt.compartida || acciones ? `<div class="barra-ig">${nt.compartida ? barraReacciones(`nota:${nt.id}`, nt.reacciones, ["util", "acuerdo", "duda"]) : "<span></span>"}
+      ${acciones ? `<div class="acc">${acciones}</div>` : ""}</div>` : ""}
+    <div class="texto"><b class="autor-ig" data-perfil="${nt.autor_id}">${nt.mia ? "Vos" : esc(nt.autor)}</b>${textoConEnlaces(nt.texto)}</div>
+    ${(nt.insignias || []).length ? `<div class="insig">${nt.insignias.map(chipInsignia).join("")}</div>` : ""}
     ${nt.etiquetas.length ? `<div class="etqs">${nt.etiquetas.map((e) => `<button data-etq="${esc(e)}" title="Buscar esta etiqueta">#${esc(e)}</button>`).join("")}</div>` : ""}
     ${nt.tratada ? `<div class="lb-resp"><b>Tratada en la reunión${nt.tratada_por ? ` (${esc(nt.tratada_por)})` : ""}.</b>${nt.respuesta ? "\n" + esc(nt.respuesta) : ""}</div>` : ""}
-    ${nt.compartida ? barraReacciones(`nota:${nt.id}`, nt.reacciones, ["util", "acuerdo", "duda"]) : ""}
-    ${nt.mia || (reunion && nt.compartida && puede) || esCoord() ? `<div class="acc">
-      ${reunion && nt.compartida && puede ? ({
-        propuesta: `<button class="boton" data-acc="estado" data-estado="discusion">▶ A discusión</button>`,
-        discusion: `<button class="boton primario" data-acc="concluir">✓ Concluir</button><button class="boton" data-acc="estado" data-estado="propuesta">↩ A propuestas</button>`,
-        tratada: `<button class="boton" data-acc="concluir">Editar conclusión</button><button class="boton" data-acc="estado" data-estado="discusion">↩ Reabrir</button>`,
-      }[nt.estado || (nt.tratada ? "tratada" : "propuesta")]) : ""}
-      ${esCoord() && nt.compartida ? `<button class="boton" data-acc="presentar" title="Mostrarla a pantalla completa en la reunión">🖥️</button>` : ""}
-      ${nt.mia ? `<button class="boton" data-acc="editar">Editar</button><button class="boton" data-acc="borrar">Borrar</button>` : ""}</div>` : ""}
     ${coment}
   </article>`;
 }
