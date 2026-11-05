@@ -967,7 +967,17 @@ body:not(.modo-pro) .acc .boton[data-modelo] { display: none !important; }
 body:not(.modo-pro) .postit { font-size: 13.5px; }
 .switch-modo { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; user-select: none;
   padding: 3px 10px; border: 1px solid var(--borde); border-radius: 99px; }
-.switch-modo input { margin: 0; accent-color: var(--acento); }
+/* Interruptor tipo celular: el checkbox sigue siendo un checkbox de verdad
+   (se puede usar con el teclado y lo leen los lectores de pantalla), solo le
+   sacamos el dibujo nativo (appearance: none) y le dibujamos encima:
+   el propio input es la "pista" y su ::before es la bolita que se desliza. */
+.switch-modo input { appearance: none; -webkit-appearance: none; margin: 0; flex: none; position: relative; cursor: pointer;
+  width: 34px; height: 20px; border-radius: 99px; background: color-mix(in srgb, var(--tinta) 25%, var(--superficie)); transition: background .2s ease; }
+.switch-modo input::before { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: transform .2s ease; }
+.switch-modo input:checked { background: var(--acento); }
+.switch-modo input:checked::before { transform: translateX(14px); }
+.switch-modo input:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
 body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); }
 @media (max-width: 760px) { .switch-modo span { font-size: 12px; } }
 
