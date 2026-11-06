@@ -501,7 +501,14 @@
             // La EMA Verde se trasladó de la Facultad a la EP N°23 (Bavío), donde
             // reemplazó a la EMA Violeta (ver más arriba). Mismo canal de ThingSpeak
             // de siempre, pero con la ubicación de la escuela.
-            { id: "2218686", key: "O85A0DJ31L8MQZ6F", isEmaVerde: true,
+            //
+            // ignorarLluviaAntesDe: PROVISORIO (06/11/2026) — durante la instalación
+            // del pluviómetro nuevo se sumaron pulsos de prueba como si fueran lluvia
+            // real, así que "Lluvia hoy" quedó con varios mm de más. Se ignora todo lo
+            // registrado antes de este momento para que hoy vuelva a arrancar de cero;
+            // sacar este campo cuando ya no haga falta (a partir de mañana ya no aplica,
+            // porque el día siguiente arranca de cero solo).
+            { id: "2218686", key: "O85A0DJ31L8MQZ6F", isEmaVerde: true, ignorarLluviaAntesDe: "2026-11-06%2011:25:00",
               n: "EMA Verde", loc: "Bavío (EP N°23)", c: [-35.0254, -57.7529], clr: "#22c55e", live: true, img: "imagenes/escuela23.jpg" },
             // Daza sacada del mapa: la estación se dio de baja (fuera de operatividad).
             // { source: "wunderground", wuId: "ILAPLA66", wuKey: "470147c769f6493f8147c769f6693fd9",
@@ -903,14 +910,16 @@
         // mínima/máxima de temperatura de HOY (aunque el período pedido sea más largo).
         // Para dias=1, "convencion" define si el día arranca a las 00 (calendario) o a
         // las 9 (meteorológico); para la semana siempre se usa el día calendario.
-        async function datosDelPeriodoTS(canales, rainField, rainMult, dias, convencion) {
+        // "inicioForzado" (opcional, solo afecta dias=1) pisa ese arranque: se usa para
+        // "reiniciar a cero" la lluvia de hoy de una estación puntual (ver p.ignorarLluviaAntesDe).
+        async function datosDelPeriodoTS(canales, rainField, rainMult, dias, convencion, inicioForzado) {
             let feeds;
             if (dias > 1) {
                 feeds = await fetchFeedsVariosDias(canales, dias);
             } else {
-                const inicioPeriodo = convencion === 'meteorologico'
+                const inicioPeriodo = inicioForzado || (convencion === 'meteorologico'
                     ? formatearInicioDiaMeteorologico()
-                    : formatearInicioNDiasAtras(1);
+                    : formatearInicioNDiasAtras(1));
                 const respuestas = await Promise.all(canales.map(ch => fetchFeedsCanal(ch, `&start=${inicioPeriodo}`)));
                 feeds = respuestas.flatMap(d => d.feeds || []);
             }
@@ -1102,7 +1111,7 @@
                         const paramResultados = periodo === 'semana' ? 'days=7' : 'days=1';
                         return fetch(`https://api.thingspeak.com/channels/${ch.id}/feeds.json?${paramResultados}${apiKeyParam}`).then(r => r.json());
                     })),
-                    datosDelPeriodoTS(canales, rainField, estacion.rainMult, dias, convencionLluvia)
+                    datosDelPeriodoTS(canales, rainField, estacion.rainMult, dias, convencionLluvia, estacion.ignorarLluviaAntesDe)
                 ]);
 
                 let feeds = respuestas.flatMap(d => d.feeds || []);

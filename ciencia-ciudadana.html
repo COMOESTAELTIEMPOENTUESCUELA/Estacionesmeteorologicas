@@ -684,7 +684,10 @@
             { id: "2218687", key: "TH3V4TJLRFZD3JSG", n: "San Vicente", c: [-34.9031, -57.9485], live: true },
             { id: "2823820", key: "FFI1HK80ZKDNS6V8", n: "Observatorio (Campbell)", c: [-34.908364, -57.933164], live: true },
             // La EMA Verde se trasladó de la Facultad a la EP N°23 (Bavío).
-            { id: "2218686", key: "O85A0DJ31L8MQZ6F", isEmaVerde: true, n: "EMA Verde", c: [-35.0254, -57.7529], live: true },
+            // ignorarLluviaAntesDe: PROVISORIO (06/11/2026), ver el mismo comentario en
+            // red-meteorologica.html — pulsos de prueba de la instalación sumados como
+            // lluvia real.
+            { id: "2218686", key: "O85A0DJ31L8MQZ6F", isEmaVerde: true, ignorarLluviaAntesDe: "2026-11-06%2011:25:00", n: "EMA Verde", c: [-35.0254, -57.7529], live: true },
             // Daza sacada del mapa: la estación se dio de baja (fuera de operatividad).
             // { source: "wunderground", wuId: "ILAPLA66", wuKey: "470147c769f6493f8147c769f6693fd9",
             //   n: "Daza", c: [-34.9091, -57.9325], live: true },
@@ -707,7 +710,9 @@
         async function fetchLluviaHoyThingSpeak(estacion) {
             const canales = estacion.channels || [{ id: estacion.id, key: estacion.key }];
             const rainField = estacion.isEmaVerde ? 'field4' : 'field5';
-            const inicioHoy = formatearInicioDeHoyEmas();
+            // ignorarLluviaAntesDe (ver red-meteorologica.html) pisa el arranque del
+            // día para "reiniciar a cero" una estación puntual.
+            const inicioHoy = estacion.ignorarLluviaAntesDe || formatearInicioDeHoyEmas();
             const respuestas = await Promise.all(canales.map(function(ch) {
                 const apiKeyParam = ch.key ? `&api_key=${ch.key}` : '';
                 // timezone: si no, ThingSpeak toma "start" en UTC (= desde las 21 hs de ayer).
