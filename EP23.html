@@ -58,23 +58,22 @@
     <main class="bg-gradient-to-br from-sky-400 via-blue-300 to-sky-200 bg-sky-pattern scroll-smooth min-h-screen">
         <div class="max-w-5xl mx-auto space-y-5 p-4 lg:p-8 relative z-10">
 
-            <header class="relative rounded-[1.5rem] lg:rounded-[2rem] overflow-hidden shadow-xl border-4 border-white">
+            <header class="bg-white/95 backdrop-blur-sm rounded-[1.5rem] lg:rounded-[2rem] overflow-hidden shadow-xl border-4 border-white">
                 <img src="imagenes/escuela23.jpg" alt="Escuela de Enseñanza Primaria N°23 'María del Carmen Traverso de Castelli'" class="w-full h-56 md:h-72 lg:h-80 object-cover" onerror="this.src='https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&q=80&w=1200'">
-                <div class="absolute inset-0 bg-gradient-to-t from-blue-950/90 via-blue-950/30 to-transparent"></div>
-                <div class="absolute bottom-0 left-0 right-0 p-4 md:p-6 lg:p-8">
-                    <p class="text-cyan-200 text-[10px] md:text-xs font-black uppercase tracking-[0.2em] mb-1.5 flex items-center gap-1.5">
+                <div class="p-4 md:p-6 lg:p-8">
+                    <p class="text-blue-500 text-[10px] md:text-xs font-black uppercase tracking-[0.2em] mb-1.5 flex items-center gap-1.5">
                         <i data-lucide="telescope" class="w-3.5 h-3.5 md:w-4 md:h-4"></i> Estación Meteorológica Automática de
                     </p>
-                    <h2 class="text-2xl md:text-4xl lg:text-5xl font-black text-white tracking-tight leading-[1.05] drop-shadow-lg">Escuela de Enseñanza Primaria N°23</h2>
-                    <p class="text-base md:text-xl lg:text-2xl font-black text-cyan-100 leading-tight mt-1 drop-shadow">"María del Carmen Traverso de Castelli"</p>
-                    <p class="text-white/80 text-xs md:text-sm font-bold mt-3 flex items-center gap-2 flex-wrap">
-                        <span class="flex items-center gap-1">
+                    <h2 class="text-2xl md:text-4xl lg:text-5xl font-black text-blue-900 tracking-tight leading-[1.05]">Escuela de Enseñanza Primaria N°23</h2>
+                    <p class="text-base md:text-xl lg:text-2xl font-black text-blue-700 leading-tight mt-1">"María del Carmen Traverso de Castelli"</p>
+                    <p class="text-slate-600 text-xs md:text-sm font-bold mt-3 flex items-center gap-2 flex-wrap">
+                        <span class="flex items-center gap-1 text-slate-500">
                             <i data-lucide="map-pin" class="w-3.5 h-3.5"></i> Paraje San Martín, Bavío
                         </span>
-                        <span id="estado-estacion" class="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur px-2 py-0.5 rounded-xl border border-white/25">
-                            <span class="w-2 h-2 rounded-full bg-slate-300"></span> Cargando...
+                        <span id="estado-estacion" class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded-xl border-2 border-slate-200">
+                            <span class="w-2 h-2 rounded-full bg-slate-400"></span> Cargando...
                         </span>
-                        <span id="ultima-lectura" class="text-white/60 font-semibold text-[11px] md:text-xs"></span>
+                        <span id="ultima-lectura" class="text-slate-400 font-semibold text-[11px] md:text-xs"></span>
                     </p>
                 </div>
             </header>
@@ -271,6 +270,14 @@
         }
         feeds.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
+        // IGNORAR_LLUVIA_ANTES_DE también filtra acá, no solo en el pedido del día: si
+        // no, el acumulado semanal seguía sumando los pulsos de antes del corte
+        // (fetchFeedsVariosDias trae la semana entera, sin saber de este corte).
+        if (IGNORAR_LLUVIA_ANTES_DE) {
+            const corte = new Date(IGNORAR_LLUVIA_ANTES_DE.replace('%20', 'T'));
+            feeds = feeds.filter(f => new Date(f.created_at) >= corte);
+        }
+
         const incluirFecha = dias > 1;
         let total = 0;
         const horas = [], curva = [];
@@ -465,13 +472,13 @@
         if (hist.lastEntryTime) {
             const diffMin = Math.round((new Date() - new Date(hist.lastEntryTime)) / 60000);
             const enLinea = diffMin <= 120;
-            badge.className = 'inline-flex items-center gap-1.5 bg-white/15 backdrop-blur px-2 py-0.5 rounded-xl border border-white/25 text-white';
-            badge.innerHTML = `<span class="w-2 h-2 rounded-full ${enLinea ? 'bg-emerald-400' : 'bg-red-400'}"></span> ${enLinea ? 'Transmitiendo' : 'Sin datos recientes'}`;
+            badge.className = `inline-flex items-center gap-1.5 px-2 py-0.5 rounded-xl border-2 ${enLinea ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-red-100 text-red-700 border-red-200'}`;
+            badge.innerHTML = `<span class="w-2 h-2 rounded-full ${enLinea ? 'bg-emerald-500' : 'bg-red-500'}"></span> ${enLinea ? 'Transmitiendo' : 'Sin datos recientes'}`;
             const d = new Date(hist.lastEntryTime);
             document.getElementById('ultima-lectura').textContent = `Última lectura: ${pad(d.getDate())}/${pad(d.getMonth() + 1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
         } else {
-            badge.className = 'inline-flex items-center gap-1.5 bg-white/15 backdrop-blur px-2 py-0.5 rounded-xl border border-white/25 text-white';
-            badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-red-400"></span> Sin datos';
+            badge.className = 'inline-flex items-center gap-1.5 bg-red-100 text-red-700 px-2 py-0.5 rounded-xl border-2 border-red-200';
+            badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-red-500"></span> Sin datos';
             document.getElementById('ultima-lectura').textContent = '';
         }
     }

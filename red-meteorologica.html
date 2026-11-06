@@ -925,6 +925,14 @@
             }
             feeds.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
+            // inicioForzado también filtra acá, no solo en el pedido del día: si no, el
+            // acumulado semanal seguía sumando los pulsos de antes del corte (fetchFeedsVariosDias
+            // trae la semana entera, sin saber de este corte puntual).
+            if (inicioForzado) {
+                const corte = new Date(inicioForzado.replace('%20', 'T'));
+                feeds = feeds.filter(f => new Date(f.created_at) >= corte);
+            }
+
             // Si se combinan varios canales (caso EMA Violeta), evitamos contar dos
             // veces la misma lectura si apareciera con el mismo timestamp en ambos.
             // OJO: esto es solo para ese caso. Con un solo canal, ThingSpeak redondea
@@ -1055,7 +1063,7 @@
                 }
                 const canales = estacion.channels || [{ id: estacion.id, key: estacion.key }];
                 const rainField = estacion.isEmaVerde ? 'field4' : 'field5';
-                const datosSemana = await datosDelPeriodoTS(canales, rainField, estacion.rainMult, 7, 'calendario');
+                const datosSemana = await datosDelPeriodoTS(canales, rainField, estacion.rainMult, 7, 'calendario', estacion.ignorarLluviaAntesDe);
                 return datosSemana.total;
             } catch (e) {
                 console.error('No se pudo obtener la lluvia semanal de', estacion.n, e);
