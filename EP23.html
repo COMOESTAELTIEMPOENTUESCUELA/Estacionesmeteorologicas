@@ -3,864 +3,551 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EMA — Escuela Primaria N° 23</title>
+    <title>EP N°23 (Bavío) — ¿Cómo está el tiempo en tu escuela?</title>
+    <link rel="icon" type="image/jpeg" href="imagenes/Logo1.jpg">
+
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@0.475.0/dist/umd/lucide.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800;900&display=swap" rel="stylesheet">
 
     <style>
-        :root {
-            --azul:      #004b87;
-            --azul-light:#e8f1f9;
-            --naranja:   #e07b20;
-            --naranja-bg:#fff5ea;
-            --celeste:   #0284c7;
-            --celeste-bg:#e0f2fe;
-            --verde:     #16a34a;
-            --verde-bg:  #dcfce7;
-            --violeta:   #7c3aed;
-            --violeta-bg:#ede9fe;
-            --lluvia:    #004b87;
-            --bg:        #f3f6fb;
-            --card-bg:   #ffffff;
-            --border:    #dde4ef;
-            --text:      #1e293b;
-            --muted:     #64748b;
-        }
-
-        * { box-sizing: border-box; }
-
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg);
-            color: var(--text);
             margin: 0;
-            overflow-x: hidden;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #e0f2fe;
         }
 
-        /* ── Header ── */
-        .page-header {
-            background: linear-gradient(135deg, #003a6e 0%, #004b87 60%, #005fa3 100%);
-            color: white;
-            padding: 1.5rem 2rem;
-            border-radius: 16px;
-            position: relative;
-            overflow: hidden;
-            box-shadow: 0 8px 24px rgba(0,75,135,0.25);
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
         }
-        .page-header::before {
-            content: '';
-            position: absolute;
-            right: -60px; top: -60px;
-            width: 220px; height: 220px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 50%;
+        .animate-float { animation: float 3s ease-in-out infinite; }
+
+        .kid-card {
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            border-bottom-width: 8px;
         }
-        .page-header::after {
-            content: '';
-            position: absolute;
-            right: 60px; top: 30px;
-            width: 120px; height: 120px;
-            background: rgba(255,255,255,0.04);
-            border-radius: 50%;
+        @media (min-width: 640px) {
+            .kid-card:hover {
+                transform: scale(1.05) translateY(-8px) rotate(-2deg);
+                box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+            }
         }
 
-        /* ── Metric cards ── */
-        .metric-card {
-            background: var(--card-bg);
-            border: 1.5px solid var(--border);
-            border-radius: 14px;
-            padding: 1.2rem 1.3rem;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-            transition: box-shadow 0.2s, transform 0.2s;
-            position: relative;
-            overflow: hidden;
-        }
-        .metric-card:hover {
-            box-shadow: 0 8px 24px rgba(0,0,0,0.10);
-            transform: translateY(-2px);
-        }
-        .metric-card .accent-bar {
-            position: absolute;
-            left: 0; top: 0; bottom: 0;
-            width: 5px;
-            border-radius: 14px 0 0 14px;
-        }
-        .metric-label {
-            font-size: 0.68rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            color: var(--muted);
-            margin-bottom: 0.5rem;
-        }
-        .metric-value {
-            font-family: 'Nunito', sans-serif;
-            font-size: 2.4rem;
-            font-weight: 900;
-            line-height: 1;
-            letter-spacing: -0.03em;
-        }
-        .metric-unit {
-            font-size: 0.9rem;
-            font-weight: 600;
-            color: var(--muted);
-            margin-left: 0.2rem;
-        }
-        .metric-icon {
-            width: 38px; height: 38px;
-            border-radius: 10px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 1rem;
-        }
-
-        /* ── Chart cards ── */
-        .chart-card {
-            background: var(--card-bg);
-            border: 1.5px solid var(--border);
-            border-radius: 14px;
-            padding: 1.4rem 1.6rem;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-        }
-        .chart-title {
-            font-size: 0.72rem;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 0.07em;
-            color: var(--muted);
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            margin-bottom: 1rem;
-        }
-        .chart-title .dot {
-            width: 8px; height: 8px;
-            border-radius: 50%;
-            flex-shrink: 0;
-        }
-
-        /* ── Filtros / tabs ── */
-        .filter-bar {
-            background: var(--card-bg);
-            border: 1.5px solid var(--border);
-            border-radius: 14px;
-            padding: 0.9rem 1.2rem;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-        }
-        .tab-group {
-            background: var(--bg);
-            border: 1.5px solid var(--border);
-            border-radius: 10px;
-            padding: 3px;
-            display: flex; gap: 2px;
-        }
-        .tab-btn {
-            font-size: 0.82rem;
-            font-weight: 700;
-            padding: 0.45rem 1.2rem;
-            border-radius: 7px;
-            border: none;
-            cursor: pointer;
-            color: var(--muted);
-            background: transparent;
-            transition: all 0.18s;
-            white-space: nowrap;
-        }
-        .tab-btn:hover { background: #e8edf5; color: var(--text); }
-        .tab-btn.active {
-            background: var(--azul);
-            color: white;
-            box-shadow: 0 2px 8px rgba(0,75,135,0.25);
-        }
-        .dt-input-wrap {
-            display: flex; align-items: center; gap: 0.5rem;
-            background: var(--bg);
-            border: 1.5px solid var(--border);
-            border-radius: 8px;
-            padding: 0.4rem 0.75rem;
-        }
-        .dt-label {
-            font-size: 0.62rem; font-weight: 800;
-            text-transform: uppercase; letter-spacing: 0.07em;
-            color: var(--muted); white-space: nowrap;
-        }
-        .dt-input-wrap input {
-            background: transparent; border: none;
-            font-size: 0.82rem; color: var(--text);
-            outline: none; min-width: 0;
-        }
-        .apply-btn {
-            background: var(--azul);
-            color: white;
-            border: none;
-            padding: 0.55rem 1.2rem;
-            border-radius: 8px;
-            font-weight: 700;
-            font-size: 0.82rem;
-            cursor: pointer;
-            display: flex; align-items: center; gap: 0.4rem;
-            white-space: nowrap;
-            transition: background 0.2s;
-            box-shadow: 0 2px 8px rgba(0,75,135,0.2);
-        }
-        .apply-btn:hover { background: #003a6e; }
-
-        /* ── Status badge ── */
-        .status-badge {
-            font-size: 0.65rem;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 0.07em;
-            padding: 0.35rem 0.75rem;
-            border-radius: 20px;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.35rem;
-        }
-
-        /* ── Anomaly warning ── */
-        .anomaly-notice {
-            display: none;
-            background: #fff7ed;
-            border: 1.5px solid #fdba74;
-            border-radius: 10px;
-            padding: 0.6rem 1rem;
-            font-size: 0.75rem;
-            font-weight: 600;
-            color: #92400e;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        .anomaly-notice.visible { display: flex; }
-
-        /* ── Scrollbar ── */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: var(--bg); }
-        ::-webkit-scrollbar-thumb { background: #c8d3e0; border-radius: 3px; }
-
-        /* ── Section divider ── */
-        .section-label {
-            font-size: 0.65rem;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: #94a3b8;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-        .section-label::after {
-            content: '';
-            flex: 1;
-            height: 1px;
-            background: var(--border);
+        .bg-sky-pattern {
+            background-image:
+                radial-gradient(circle at 15% 20%, #ffffff33 0%, transparent 30%),
+                radial-gradient(circle at 85% 15%, #ffffff26 0%, transparent 25%),
+                radial-gradient(circle at 70% 75%, #ffffff26 0%, transparent 35%),
+                radial-gradient(circle at 20% 85%, #ffffff33 0%, transparent 30%);
+            background-attachment: fixed;
         }
     </style>
 </head>
 
-<body class="p-3 md:p-5 lg:p-7">
-<div class="max-w-7xl mx-auto space-y-5">
+<body>
+<div id="layout-root">
 
-    <!-- ═══ HEADER ═══ -->
-    <header class="page-header">
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative z-10">
-            <div class="flex items-center gap-4">
-                <div class="w-14 h-14 bg-white/15 rounded-2xl flex items-center justify-center border border-white/20 flex-shrink-0">
-                    <i class="fa-solid fa-cloud-sun text-2xl text-white"></i>
+    <!-- BARRA SUPERIOR -->
+    <div class="bg-white border-b-4 border-slate-200 shadow-sm p-3 lg:p-4 flex justify-between items-center relative z-[700]">
+        <div class="flex items-center gap-3">
+            <img src="imagenes/Logo1.jpg" alt="Logo del Proyecto" class="w-11 h-11 lg:w-14 lg:h-14 object-cover rounded-full border-2 border-yellow-400 shadow-sm" onerror="this.src='https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&q=80&w=100'">
+            <div>
+                <h1 class="text-base lg:text-xl font-black text-slate-900 tracking-tight leading-tight">EP N°23 (Bavío)</h1>
+                <p class="text-[9px] lg:text-[10px] text-blue-600 font-bold uppercase tracking-widest mt-0.5">FCAG · UNLP</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-2">
+            <a href="red-meteorologica.html" class="p-2 lg:p-3 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-2xl transition shadow-sm" title="Ver toda la red">
+                <i data-lucide="map" class="w-5 h-5 lg:w-6 lg:h-6"></i>
+            </a>
+            <a href="index.html" class="p-2 lg:p-3 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-2xl transition shadow-sm" title="Volver al inicio">
+                <i data-lucide="home" class="w-5 h-5 lg:w-6 lg:h-6"></i>
+            </a>
+        </div>
+    </div>
+
+    <!-- ÁREA PRINCIPAL -->
+    <main class="bg-gradient-to-br from-sky-400 via-blue-300 to-sky-200 bg-sky-pattern scroll-smooth min-h-screen">
+        <div class="max-w-5xl mx-auto space-y-5 p-4 lg:p-8 relative z-10">
+
+            <header class="flex items-center gap-3 lg:gap-4 bg-white/90 backdrop-blur-md p-4 lg:p-5 rounded-[1.5rem] lg:rounded-[2rem] border-4 border-white shadow-xl">
+                <div class="p-3 lg:p-4 bg-gradient-to-tr from-blue-600 to-cyan-400 rounded-2xl text-white shadow-lg shrink-0 transform -rotate-6 hover:rotate-0 transition duration-300">
+                    <i data-lucide="telescope" class="w-7 h-7 lg:w-10 lg:h-10 animate-float"></i>
                 </div>
-                <div>
-                    <div class="text-white/60 text-[0.68rem] font-bold uppercase tracking-widest mb-0.5">
-                        Estación Meteorológica Automática
-                    </div>
-                    <h1 class="text-xl md:text-2xl font-black text-white tracking-tight leading-tight" style="font-family: 'Nunito', sans-serif;">
-                        Escuela Primaria N° 23
-                    </h1>
-                    <div class="flex items-center gap-3 mt-1.5 flex-wrap">
-                        <span class="text-white/70 text-xs flex items-center gap-1.5">
-                            <i class="fa-solid fa-location-dot text-white/50"></i>
-                            Zona Rural · Buenos Aires
+                <div class="min-w-0 flex-grow">
+                    <h2 class="text-lg lg:text-3xl font-black text-blue-900 tracking-tight leading-tight">EP N°23 (Bavío)</h2>
+                    <p class="text-xs lg:text-sm text-slate-600 font-bold mt-1 flex items-center gap-2 flex-wrap">
+                        <span id="estado-estacion" class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded-xl border-2 border-slate-200">
+                            <span class="w-2 h-2 rounded-full bg-slate-400"></span> Cargando...
                         </span>
-                        <span class="text-white/40 text-xs">·</span>
-                        <span class="text-white/70 text-xs flex items-center gap-1.5">
-                            <i class="fa-solid fa-gauge text-white/50"></i>
-                            Factor pluviómetro: ×0.68 mm/pulso
-                        </span>
+                        <span id="ultima-lectura" class="text-slate-400 font-semibold text-[11px] lg:text-xs"></span>
+                    </p>
+                </div>
+            </header>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 lg:gap-5">
+                <!-- Tarjetas de Datos -->
+                <div class="bg-gradient-to-b from-orange-50 to-orange-100 border-2 border-orange-300 border-b-[6px] rounded-2xl p-4 lg:p-5 kid-card shadow-md flex flex-col justify-between">
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="block text-[9px] lg:text-[10px] uppercase font-black text-orange-600 leading-tight">🌡️ Temperatura</span>
+                        <i data-lucide="sun" class="text-orange-400 opacity-50 w-6 h-6 lg:w-8 lg:h-8 shrink-0"></i>
                     </div>
+                    <span class="text-2xl lg:text-4xl font-black text-slate-800 tracking-tighter" id="live-val-temp">--°C</span>
+                    <span id="live-val-tempminmax" class="block text-[9px] lg:text-[10px] font-bold text-slate-400 mt-1">Hoy: mín --° · máx --°</span>
                 </div>
-            </div>
-            <div class="flex flex-col items-start md:items-end gap-2">
-                <span id="systemStatus" class="status-badge bg-white/15 text-white/80 border border-white/20">
-                    <i class="fa-solid fa-arrows-rotate animate-spin"></i> Cargando...
-                </span>
-                <span id="lastUpdate" class="text-white/45 text-[0.65rem] font-medium"></span>
-            </div>
-        </div>
-    </header>
 
-    <!-- ═══ BARRA DE FILTROS ═══ -->
-    <div class="filter-bar">
-        <div class="flex flex-col xl:flex-row items-start xl:items-center gap-3">
-            <div class="tab-group flex-shrink-0">
-                <button onclick="setPreset('day')"   id="btn-day"   class="tab-btn active">Hoy</button>
-                <button onclick="setPreset('week')"  id="btn-week"  class="tab-btn">Semana</button>
-                <button onclick="setPreset('month')" id="btn-month" class="tab-btn">Mes</button>
-            </div>
-            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-1 w-full xl:w-auto">
-                <div class="dt-input-wrap flex-1">
-                    <span class="dt-label">Desde</span>
-                    <input type="datetime-local" id="startDatetime">
+                <div class="bg-gradient-to-b from-blue-50 to-blue-100 border-2 border-blue-300 border-b-[6px] rounded-2xl p-4 lg:p-5 kid-card shadow-md flex flex-col justify-between">
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="block text-[9px] lg:text-[10px] uppercase font-black text-blue-600 leading-tight">💧 Humedad</span>
+                        <i data-lucide="droplets" class="text-blue-400 opacity-50 w-6 h-6 lg:w-8 lg:h-8 shrink-0"></i>
+                    </div>
+                    <span class="text-2xl lg:text-4xl font-black text-slate-800 tracking-tighter" id="live-val-hum">--%</span>
                 </div>
-                <div class="dt-input-wrap flex-1">
-                    <span class="dt-label">Hasta</span>
-                    <input type="datetime-local" id="endDatetime">
+
+                <div class="bg-gradient-to-b from-emerald-50 to-emerald-100 border-2 border-emerald-300 border-b-[6px] rounded-2xl p-4 lg:p-5 kid-card shadow-md flex flex-col justify-between">
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="block text-[9px] lg:text-[10px] uppercase font-black text-emerald-600 leading-tight">🎈 Presión</span>
+                        <i data-lucide="gauge" class="text-emerald-400 opacity-50 w-6 h-6 lg:w-8 lg:h-8 shrink-0"></i>
+                    </div>
+                    <span class="text-xl lg:text-3xl font-black text-slate-800 tracking-tighter" id="live-val-pres">-- hPa</span>
                 </div>
-                <button onclick="updateDashboard(true)" class="apply-btn">
-                    <i class="fa-solid fa-magnifying-glass"></i> Consultar
-                </button>
-            </div>
-        </div>
-    </div>
 
-    <!-- ═══ TARJETAS DE MÉTRICAS ═══ -->
-    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-
-        <!-- Temperatura -->
-        <div class="metric-card pl-6">
-            <div class="accent-bar" style="background:var(--naranja)"></div>
-            <div class="flex justify-between items-center mb-3">
-                <span class="metric-label">Temperatura</span>
-                <div class="metric-icon" style="background:var(--naranja-bg)">
-                    <i class="fa-solid fa-temperature-half" style="color:var(--naranja)"></i>
-                </div>
-            </div>
-            <div class="flex items-baseline">
-                <span class="metric-value" id="valTemp" style="color:var(--naranja)">--</span>
-                <span class="metric-unit">°C</span>
-            </div>
-        </div>
-
-        <!-- Humedad Relativa -->
-        <div class="metric-card pl-6">
-            <div class="accent-bar" style="background:var(--celeste)"></div>
-            <div class="flex justify-between items-center mb-3">
-                <span class="metric-label">Humedad Rel.</span>
-                <div class="metric-icon" style="background:var(--celeste-bg)">
-                    <i class="fa-solid fa-droplet" style="color:var(--celeste)"></i>
-                </div>
-            </div>
-            <div class="flex items-baseline">
-                <span class="metric-value" id="valHum" style="color:var(--celeste)">--</span>
-                <span class="metric-unit">%</span>
-            </div>
-        </div>
-
-        <!-- Humedad Suelo -->
-        <div class="metric-card pl-6">
-            <div class="accent-bar" style="background:var(--verde)"></div>
-            <div class="flex justify-between items-center mb-3">
-                <span class="metric-label">Hum. Suelo</span>
-                <div class="metric-icon" style="background:var(--verde-bg)">
-                    <i class="fa-solid fa-seedling" style="color:var(--verde)"></i>
-                </div>
-            </div>
-            <div class="flex items-baseline">
-                <span class="metric-value" id="valHumTierra" style="color:var(--verde)">--</span>
-                <span class="metric-unit">%</span>
-            </div>
-        </div>
-
-        <!-- Presión -->
-        <div class="metric-card pl-6">
-            <div class="accent-bar" style="background:var(--violeta)"></div>
-            <div class="flex justify-between items-center mb-3">
-                <span class="metric-label">Presión Abs.</span>
-                <div class="metric-icon" style="background:var(--violeta-bg)">
-                    <i class="fa-solid fa-gauge-high" style="color:var(--violeta)"></i>
-                </div>
-            </div>
-            <div class="flex items-baseline">
-                <span class="metric-value" id="valPres" style="color:var(--violeta)">--</span>
-                <span class="metric-unit">hPa</span>
-            </div>
-        </div>
-
-        <!-- Lluvia acumulada -->
-        <div class="metric-card pl-6 md:col-span-1 col-span-2">
-            <div class="accent-bar" style="background:var(--azul)"></div>
-            <div class="flex justify-between items-center mb-3">
-                <span class="metric-label" style="color:var(--azul)">Lluvia Acum.</span>
-                <div class="metric-icon" style="background:var(--azul-light)">
-                    <i class="fa-solid fa-cloud-showers-heavy" style="color:var(--azul)"></i>
-                </div>
-            </div>
-            <div class="flex items-baseline">
-                <span class="metric-value" id="valPrecip" style="color:var(--azul)">0.0</span>
-                <span class="metric-unit" style="color:var(--azul)">mm</span>
-            </div>
-        </div>
-
-    </div>
-
-    <!-- ═══ ALERTA DE PRESIÓN ANÓMALA ═══ -->
-    <div id="anomalyNotice" class="anomaly-notice">
-        <i class="fa-solid fa-triangle-exclamation text-orange-400"></i>
-        <span id="anomalyText">Se detectaron y filtraron valores de presión anómalos.</span>
-    </div>
-
-    <!-- ═══ GRÁFICO PRECIPITACIÓN (ancho completo) ═══ -->
-    <div>
-        <div class="section-label mb-3">Precipitación</div>
-        <div class="chart-card">
-            <div class="chart-title">
-                <span class="dot" style="background:var(--azul)"></span>
-                Lluvia acumulada en el período
-            </div>
-            <div class="relative w-full" style="height:260px">
-                <canvas id="chartPrecip"></canvas>
-            </div>
-        </div>
-    </div>
-
-    <!-- ═══ TEMPERATURA + HUMEDAD (separadas, lado a lado) ═══ -->
-    <div>
-        <div class="section-label mb-3">Temperatura y Humedad Relativa</div>
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-
-            <div class="chart-card">
-                <div class="chart-title">
-                    <span class="dot" style="background:var(--naranja)"></span>
-                    Temperatura del Aire
-                    <span class="ml-auto text-xs font-semibold px-2 py-0.5 rounded-full" style="background:var(--naranja-bg);color:var(--naranja)">°C</span>
-                </div>
-                <div class="relative w-full" style="height:240px">
-                    <canvas id="chartTemp"></canvas>
+                <div class="bg-gradient-to-b from-cyan-50 to-cyan-100 border-2 border-cyan-300 border-b-[6px] rounded-2xl p-4 lg:p-5 kid-card shadow-md flex flex-col justify-between">
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="block text-[9px] lg:text-[10px] uppercase font-black text-cyan-600 leading-tight" id="label-live-rain">🌧️ Lluvia hoy</span>
+                        <i data-lucide="cloud-rain" class="text-cyan-400 opacity-50 w-6 h-6 lg:w-8 lg:h-8 shrink-0"></i>
+                    </div>
+                    <span class="text-2xl lg:text-4xl font-black text-slate-800 tracking-tighter" id="live-val-rain">-- mm</span>
                 </div>
             </div>
 
-            <div class="chart-card">
-                <div class="chart-title">
-                    <span class="dot" style="background:var(--celeste)"></span>
-                    Humedad Relativa del Aire
-                    <span class="ml-auto text-xs font-semibold px-2 py-0.5 rounded-full" style="background:var(--celeste-bg);color:var(--celeste)">%</span>
+            <!-- SELECTOR DE PERÍODO -->
+            <div class="flex items-center gap-1.5 bg-white/90 backdrop-blur-md p-1.5 rounded-2xl border-4 border-white shadow-md w-fit">
+                <button id="btn-periodo-hoy" class="periodo-btn px-4 py-2 rounded-xl font-black text-xs lg:text-sm transition">Últimas 24 hs</button>
+                <button id="btn-periodo-semana" class="periodo-btn px-4 py-2 rounded-xl font-black text-xs lg:text-sm transition">Última semana</button>
+            </div>
+
+            <!-- Gráficos -->
+            <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6">
+                <div class="bg-white/95 backdrop-blur-sm rounded-2xl lg:rounded-[2rem] p-5 lg:p-6 border-4 border-white shadow-xl">
+                    <h3 class="text-base lg:text-lg font-black text-slate-800 flex items-center gap-2 lg:gap-3 mb-4">
+                        <span class="bg-orange-100 p-1.5 lg:p-2 rounded-xl text-orange-500 border-2 border-orange-200 shadow-sm"><i data-lucide="sun" class="w-4 h-4 lg:w-5 lg:h-5"></i></span>
+                        <span id="titulo-chart-temp">Temperatura de hoy</span>
+                    </h3>
+                    <div class="h-[180px] lg:h-[220px] w-full"><canvas id="chartTemp"></canvas></div>
                 </div>
-                <div class="relative w-full" style="height:240px">
-                    <canvas id="chartHum"></canvas>
+
+                <div class="bg-white/95 backdrop-blur-sm rounded-2xl lg:rounded-[2rem] p-5 lg:p-6 border-4 border-white shadow-xl">
+                    <h3 class="text-base lg:text-lg font-black text-slate-800 flex items-center gap-2 lg:gap-3 mb-4">
+                        <span class="bg-blue-100 p-1.5 lg:p-2 rounded-xl text-blue-500 border-2 border-blue-200 shadow-sm"><i data-lucide="droplets" class="w-4 h-4 lg:w-5 lg:h-5"></i></span>
+                        <span id="titulo-chart-hum">Humedad de hoy</span>
+                    </h3>
+                    <div class="h-[180px] lg:h-[220px] w-full"><canvas id="chartHum"></canvas></div>
+                </div>
+
+                <div class="bg-white/95 backdrop-blur-sm rounded-2xl lg:rounded-[2rem] p-5 lg:p-6 border-4 border-white shadow-xl">
+                    <h3 class="text-base lg:text-lg font-black text-slate-800 flex items-center gap-2 lg:gap-3 mb-4">
+                        <span class="bg-emerald-100 p-1.5 lg:p-2 rounded-xl text-emerald-500 border-2 border-emerald-200 shadow-sm"><i data-lucide="gauge" class="w-4 h-4 lg:w-5 lg:h-5"></i></span>
+                        <span id="titulo-chart-pres">Presión de hoy</span>
+                    </h3>
+                    <div class="h-[180px] lg:h-[220px] w-full"><canvas id="chartPres"></canvas></div>
+                </div>
+
+                <div class="bg-white/95 backdrop-blur-sm rounded-2xl lg:rounded-[2rem] p-5 lg:p-6 border-4 border-white shadow-xl relative overflow-hidden">
+                    <div class="absolute -right-4 -bottom-4 opacity-5"><i data-lucide="cloud-rain" class="w-32 h-32"></i></div>
+                    <h3 class="text-base lg:text-lg font-black text-slate-800 flex items-center gap-2 lg:gap-3 mb-3 relative z-10">
+                        <span class="bg-cyan-100 p-1.5 lg:p-2 rounded-xl text-cyan-500 border-2 border-cyan-200 shadow-sm"><i data-lucide="cloud-rain" class="w-4 h-4 lg:w-5 lg:h-5"></i></span>
+                        <span id="titulo-chart-rain">Lluvia acumulada hoy</span>
+                    </h3>
+                    <div id="lluvia-convencion-toggle" class="flex items-center gap-1.5 mb-3 relative z-10">
+                        <button id="btn-lluvia-calendario" class="lluvia-btn px-3 py-1.5 rounded-lg font-bold text-[10px] lg:text-xs transition">Día calendario (00 a 00)</button>
+                        <button id="btn-lluvia-meteorologico" class="lluvia-btn px-3 py-1.5 rounded-lg font-bold text-[10px] lg:text-xs transition">Día meteorológico (9 a 9)</button>
+                    </div>
+                    <div class="h-[180px] lg:h-[220px] w-full relative z-10"><canvas id="chartRain"></canvas></div>
                 </div>
             </div>
+
+            <footer class="text-center pb-6 pt-2">
+                <p class="text-[11px] font-black text-blue-800 uppercase tracking-widest bg-white/80 backdrop-blur inline-block px-5 py-3 rounded-full border-2 border-white shadow-lg">
+                    EMA Verde · Red de estaciones meteorológicas FCAG-UNLP
+                </p>
+            </footer>
 
         </div>
-    </div>
-
-    <!-- ═══ PRESIÓN + SUELO ═══ -->
-    <div>
-        <div class="section-label mb-3">Presión y Humedad del Suelo</div>
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-
-            <div class="chart-card">
-                <div class="chart-title">
-                    <span class="dot" style="background:var(--violeta)"></span>
-                    Presión Atmosférica
-                    <span class="ml-auto text-xs font-semibold px-2 py-0.5 rounded-full" style="background:var(--violeta-bg);color:var(--violeta)">hPa</span>
-                </div>
-                <div class="relative w-full" style="height:220px">
-                    <canvas id="chartPres"></canvas>
-                </div>
-            </div>
-
-            <div class="chart-card">
-                <div class="chart-title">
-                    <span class="dot" style="background:var(--verde)"></span>
-                    Humedad del Suelo
-                    <span class="ml-auto text-xs font-semibold px-2 py-0.5 rounded-full" style="background:var(--verde-bg);color:var(--verde)">%</span>
-                </div>
-                <div class="relative w-full" style="height:220px">
-                    <canvas id="chartSoil"></canvas>
-                </div>
-            </div>
-
-        </div>
-    </div>
-
-    <!-- footer -->
-    <footer class="text-center text-slate-400 text-xs pb-4 pt-2 font-medium">
-        Red de Monitoreo Ambiental · EMA EP N° 23 · Datos actualizados automáticamente cada 5 min
-    </footer>
+    </main>
 
 </div>
 
-<!-- ═══ SCRIPTS ═══ -->
 <script>
-    /* ── Configuración ── */
-    const V_ACTUAL    = { id: "2626952", api: "4XYH56YSV64HE17H" };
-    const V_HISTORICO = { id: "1778165", api: "OJ1JHKAPCCIQB4CB" };
-    const MULT_PRECIP = 0.68;
+    lucide.createIcons();
 
-    /* Rango válido de presión (hPa) — se filtran valores fuera de este rango */
-    const PRES_MIN = 850;
-    const PRES_MAX = 1100;
-    /* Umbral adicional: si un valor se aleja más de este delta de la mediana, también se descarta */
-    const PRES_MAX_DELTA = 30;
+    // Equipo de la EMA Verde, instalado en la EP N°23 (Bavío) en reemplazo de la
+    // EMA Violeta (ver red-meteorologica.html). Un solo canal de ThingSpeak: field1
+    // temperatura, field2 humedad, field4 lluvia del intervalo (ya en mm, no en
+    // pulsos crudos — el firmware hace la conversión antes de mandar el dato),
+    // field6 presión absoluta de estación (sin corregir a nivel del mar).
+    const STATION = { id: "2218686", key: "O85A0DJ31L8MQZ6F" };
 
-    let charts = {};
+    const graficos = { temp: null, hum: null, pres: null, rain: null };
 
-    /* ── Utilidades de fecha ── */
     const pad = (n) => n.toString().padStart(2, '0');
-    function toDatetimeLocal(date) {
-        return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+
+    function formatearEtiquetaFecha(date, incluirFecha) {
+        const hhmm = `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+        if (!incluirFecha) return hhmm;
+        return `${pad(date.getDate())}/${pad(date.getMonth() + 1)} ${hhmm}`;
     }
 
-    /* ── Filtro de valores anómalos de presión ──
-       1. Rango físico absoluto (850–1100 hPa)
-       2. Detección IQR: se eliminan valores fuera de Q1-1.5·IQR … Q3+1.5·IQR
-       3. Spike: si un valor supera PRES_MAX_DELTA respecto a la mediana, se elimina  */
-    function filterPressure(rawValues) {
-        // Paso 1: rango físico
-        let valid = rawValues.filter(v => v >= PRES_MIN && v <= PRES_MAX);
-        if (valid.length === 0) return { filtered: [], anomalyCount: rawValues.length };
-
-        // Paso 2: IQR
-        const sorted = [...valid].sort((a, b) => a - b);
-        const q1 = sorted[Math.floor(sorted.length * 0.25)];
-        const q3 = sorted[Math.floor(sorted.length * 0.75)];
-        const iqr = q3 - q1;
-        const lo = q1 - 1.5 * iqr;
-        const hi = q3 + 1.5 * iqr;
-
-        // Paso 3: mediana para spike
-        const median = sorted[Math.floor(sorted.length / 2)];
-
-        const anomalyCount = rawValues.length - valid.length; // previo al IQR
-        let filtered = valid.filter(v => v >= lo && v <= hi && Math.abs(v - median) <= PRES_MAX_DELTA);
-        const totalAnomalies = rawValues.length - filtered.length;
-
-        return { filtered, anomalyCount: totalAnomalies };
+    function formatearInicioNDiasAtras(dias) {
+        const fecha = new Date();
+        fecha.setDate(fecha.getDate() - (dias - 1));
+        return `${fecha.getFullYear()}-${pad(fecha.getMonth() + 1)}-${pad(fecha.getDate())}%2000:00:00`;
     }
 
-    /* ── Presets de rango temporal ── */
-    function setPreset(range) {
-        const now = new Date();
-        const start = new Date(now);
-        if      (range === 'day')   { start.setHours(0, 0, 0, 0); }
-        else if (range === 'week')  { start.setDate(start.getDate() - 7);  start.setHours(0, 0, 0, 0); }
-        else if (range === 'month') { start.setDate(start.getDate() - 30); start.setHours(0, 0, 0, 0); }
-
-        document.getElementById('startDatetime').value = toDatetimeLocal(start);
-        document.getElementById('endDatetime').value   = toDatetimeLocal(now);
-
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        const btn = document.getElementById('btn-' + range);
-        if (btn) btn.classList.add('active');
-
-        updateDashboard();
+    function formatearInicioDiaMeteorologico() {
+        const ahora = new Date();
+        const inicio = new Date(ahora);
+        inicio.setHours(9, 0, 0, 0);
+        if (ahora < inicio) inicio.setDate(inicio.getDate() - 1);
+        return `${inicio.getFullYear()}-${pad(inicio.getMonth() + 1)}-${pad(inicio.getDate())}%2009:00:00`;
     }
 
-    /* ── Fetch de feeds ThingSpeak ── */
-    async function fetchAllFeeds(station, startStr, endStr) {
-        const tsStart = startStr.replace('T', '%20') + ':00';
-        const tsEnd   = endStr.replace('T',   '%20') + ':59';
-        const url = `https://api.thingspeak.com/channels/${station.id}/feeds.json?api_key=${station.api}&start=${tsStart}&end=${tsEnd}&timezone=America/Argentina/Buenos_Aires&results=8000`;
-        try {
-            const res  = await fetch(url);
-            const data = await res.json();
-            return data.feeds || [];
-        } catch (e) { return []; }
+    // timezone: sin este parámetro ThingSpeak interpreta "start"/"end" en UTC.
+    async function fetchFeedsCanal(extraParams = '') {
+        const res = await fetch(`https://api.thingspeak.com/channels/${STATION.id}/feeds.json?results=8000&api_key=${STATION.key}${extraParams}&timezone=America%2FArgentina%2FBuenos_Aires`);
+        return res.json();
     }
 
-    /* ── Estado del sistema ── */
-    function setStatus(status) {
-        const badge = document.getElementById('systemStatus');
-        const map = {
-            loading:    { cls: 'bg-sky-100 text-sky-700 border border-sky-200',      html: '<i class="fa-solid fa-arrows-rotate animate-spin"></i> Sincronizando...' },
-            online:     { cls: 'bg-emerald-100 text-emerald-700 border border-emerald-200', html: '<i class="fa-solid fa-circle-check"></i> Sistema Activo' },
-            historical: { cls: 'bg-amber-100 text-amber-700 border border-amber-200', html: '<i class="fa-solid fa-clock-rotate-left"></i> Datos Históricos' },
-            error:      { cls: 'bg-red-100 text-red-700 border border-red-200',       html: '<i class="fa-solid fa-circle-xmark"></i> Sin datos' }
-        };
-        const s = map[status] || map.error;
-        badge.className = 'status-badge ' + s.cls;
-        badge.innerHTML = s.html;
-    }
-
-    /* ── Dashboard principal ── */
-    async function updateDashboard(isManual = false) {
-        if (isManual) document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-
-        const startStr = document.getElementById('startDatetime').value;
-        const endStr   = document.getElementById('endDatetime').value;
-        if (!startStr || !endStr) return;
-
-        setStatus('loading');
-
-        const [feedsActual, feedsHist] = await Promise.all([
-            fetchAllFeeds(V_ACTUAL,    startStr, endStr),
-            fetchAllFeeds(V_HISTORICO, startStr, endStr)
-        ]);
-
-        let allFeeds = [...feedsHist, ...feedsActual];
-        const uniqueMap = new Map();
-        allFeeds.forEach(f => uniqueMap.set(f.created_at, f));
-        allFeeds = Array.from(uniqueMap.values()).sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
-
-        if      (feedsActual.length > 0) setStatus('online');
-        else if (feedsHist.length  > 0) setStatus('historical');
-        else                             setStatus('error');
-
-        // Timestamp de última actualización
-        if (allFeeds.length > 0) {
-            const last = new Date(allFeeds[allFeeds.length-1].created_at);
-            document.getElementById('lastUpdate').textContent =
-                `Última lectura: ${pad(last.getDate())}/${pad(last.getMonth()+1)}/${last.getFullYear()} ${pad(last.getHours())}:${pad(last.getMinutes())}`;
+    // Pide la semana día por día (no en un solo pedido de 7 días): esta estación
+    // manda un dato por minuto, así que una semana entera (~10000 lecturas) supera
+    // el tope de 8000 resultados por pedido de la API de ThingSpeak.
+    async function fetchFeedsVariosDias(dias) {
+        const aParam = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+        const hoy = new Date();
+        const diasArr = [];
+        for (let i = dias - 1; i >= 0; i--) {
+            const d = new Date(hoy);
+            d.setDate(d.getDate() - i);
+            diasArr.push(d);
         }
-
-        processData(allFeeds, startStr, endStr);
+        const respuestas = await Promise.all(
+            diasArr.map(d => fetchFeedsCanal(`&start=${aParam(d)}%2000:00:00&end=${aParam(d)}%2023:59:59`))
+        );
+        return respuestas.flatMap(d => d.feeds || []);
     }
 
-    /* ── Procesamiento de datos ── */
-    function processData(feeds, startStr, endStr) {
-        const labels = [];
-        const dataTemp = [], dataHum = [], dataSoil = [], dataPresRaw = [];
-        let lastTemp = '--', lastHum = '--', lastSoil = '--', lastPres = '--';
+    // Rangos plausibles para esta zona, para descartar lecturas de sensor con fallas.
+    const TEMP_MIN_PLAUSIBLE = -10;
+    const TEMP_MAX_PLAUSIBLE = 48;
+    const DESVIO_MAX_TEMP_MEDIANA = 15; // °C
 
-        const start = new Date(startStr), end = new Date(endStr);
-        const diffHours = (end - start) / 3600000;
-        const bucketByHour = diffHours <= 72;
+    function calcularMinMax(valores) {
+        let nums = (valores || [])
+            .map(v => parseFloat(v))
+            .filter(v => !isNaN(v) && v >= TEMP_MIN_PLAUSIBLE && v <= TEMP_MAX_PLAUSIBLE);
+        if (!nums.length) return { tempMin: null, tempMax: null };
 
-        /* Cubetas para precipitación acumulada */
-        const precipBuckets = new Map();
-        let current = new Date(start);
-        if (bucketByHour) {
-            current.setMinutes(0, 0, 0);
-            while (current <= end) {
-                precipBuckets.set(`${pad(current.getDate())}/${pad(current.getMonth()+1)} ${pad(current.getHours())}:00`, 0);
-                current.setHours(current.getHours() + 1);
-            }
+        if (nums.length >= 4) {
+            const ordenados = nums.slice().sort((a, b) => a - b);
+            const mediana = ordenados[Math.floor(ordenados.length / 2)];
+            const sinOutliers = nums.filter(v => Math.abs(v - mediana) <= DESVIO_MAX_TEMP_MEDIANA);
+            if (sinOutliers.length) nums = sinOutliers;
+        }
+        return { tempMin: Math.min(...nums).toFixed(1), tempMax: Math.max(...nums).toFixed(1) };
+    }
+
+    // Acumulado de lluvia de los últimos `dias` días (1 = solo hoy): field4 ya viene
+    // en mm (el firmware convierte los pulsos), así que acá solo se suma.
+    async function datosDelPeriodoTS(dias, convencion) {
+        let feeds;
+        if (dias > 1) {
+            feeds = await fetchFeedsVariosDias(dias);
         } else {
-            current.setHours(0, 0, 0, 0);
-            while (current <= end) {
-                precipBuckets.set(`${pad(current.getDate())}/${pad(current.getMonth()+1)}/${current.getFullYear()}`, 0);
-                current.setDate(current.getDate() + 1);
-            }
+            const inicioPeriodo = convencion === 'meteorologico'
+                ? formatearInicioDiaMeteorologico()
+                : formatearInicioNDiasAtras(1);
+            feeds = (await fetchFeedsCanal(`&start=${inicioPeriodo}`)).feeds || [];
         }
+        feeds.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
-        let accumRain = 0;
-
+        const incluirFecha = dias > 1;
+        let total = 0;
+        const horas = [], curva = [];
         feeds.forEach(f => {
-            const d = new Date(f.created_at);
-            const timeLabel = bucketByHour
-                ? `${pad(d.getDate())}/${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`
-                : `${pad(d.getDate())}/${pad(d.getMonth()+1)}`;
+            const v = parseFloat(f.field4);
+            if (isNaN(v) || v < 0) return;
+            total += v;
+            horas.push(formatearEtiquetaFecha(new Date(f.created_at), incluirFecha));
+            curva.push(+total.toFixed(2));
+        });
 
-            labels.push(timeLabel);
+        const hoyStr = new Date().toDateString();
+        const tempsHoy = feeds
+            .filter(f => new Date(f.created_at).toDateString() === hoyStr)
+            .map(f => f.field1);
+        const { tempMin, tempMax } = calcularMinMax(tempsHoy);
 
-            const temp      = parseFloat(f.field1);
-            const hum       = parseFloat(f.field2);
-            const soil      = parseFloat(f.field3);
-            const rainPulse = parseFloat(f.field5);
-            const pres      = parseFloat(f.field6);
+        return { total: +total.toFixed(2), horas, curva, tempMin, tempMax };
+    }
 
-            if (!isNaN(temp)) { dataTemp.push(temp); lastTemp = temp.toFixed(1); }
-            if (!isNaN(hum))  { dataHum.push(hum);   lastHum  = hum.toFixed(0); }
-            if (!isNaN(soil)) { dataSoil.push(soil);  lastSoil = soil.toFixed(0); }
-            if (!isNaN(pres)) { dataPresRaw.push(pres + 36.6); }
+    async function fetchHistorialEstacion(periodo) {
+        try {
+            const dias = periodo === 'semana' ? 7 : 1;
+            const incluirFecha = dias > 1;
 
-            if (!isNaN(rainPulse) && rainPulse > 0) {
-                accumRain += MULT_PRECIP;
-                const bKey = bucketByHour
-                    ? `${pad(d.getDate())}/${pad(d.getMonth()+1)} ${pad(d.getHours())}:00`
-                    : `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`;
-                if (precipBuckets.has(bKey)) {
-                    precipBuckets.set(bKey, precipBuckets.get(bKey) + MULT_PRECIP);
+            const [data, datosPeriodo] = await Promise.all([
+                fetch(`https://api.thingspeak.com/channels/${STATION.id}/feeds.json?${periodo === 'semana' ? 'days=7' : 'days=1'}&api_key=${STATION.key}`).then(r => r.json()),
+                datosDelPeriodoTS(dias, convencionLluvia)
+            ]);
+
+            let feeds = data.feeds || [];
+            feeds.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+            if (feeds.length > 2000) feeds = feeds.slice(feeds.length - 2000);
+
+            const horas = [], temps = [], hums = [], press = [];
+            let lastEntryTime = feeds.length ? feeds[feeds.length - 1].created_at : null;
+
+            feeds.forEach(f => {
+                horas.push(formatearEtiquetaFecha(new Date(f.created_at), incluirFecha));
+                const t = parseFloat(f.field1);
+                temps.push(isNaN(t) ? null : t.toFixed(1));
+                const h = parseFloat(f.field2);
+                hums.push(isNaN(h) ? null : h.toFixed(0));
+                const p = parseFloat(f.field6);
+                press.push(isNaN(p) ? null : p.toFixed(1));
+            });
+
+            const horasLluvia = datosPeriodo.horas.length ? datosPeriodo.horas : horas;
+            const rains = datosPeriodo.curva.length ? datosPeriodo.curva.map(v => v.toFixed(2)) : [];
+
+            return { horas, horasLluvia, temps, hums, press, rains, lastEntryTime, tempMin: datosPeriodo.tempMin, tempMax: datosPeriodo.tempMax };
+        } catch (e) {
+            console.error('Error obteniendo datos de la EP N°23', e);
+            return { horas: [], horasLluvia: [], temps: [], hums: [], press: [], rains: [], lastEntryTime: null, tempMin: null, tempMax: null };
+        }
+    }
+
+    function crearGraficoEvolucion(canvasId, tipoGrafico, horas, valores, colorLinea, tituloHover) {
+        const ctx = document.getElementById(canvasId).getContext('2d');
+        if (graficos[tipoGrafico]) graficos[tipoGrafico].destroy();
+        const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+        gradient.addColorStop(0, `${colorLinea}80`);
+        gradient.addColorStop(1, `${colorLinea}00`);
+        graficos[tipoGrafico] = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: horas,
+                datasets: [{
+                    label: tituloHover,
+                    data: valores,
+                    borderColor: colorLinea,
+                    backgroundColor: gradient,
+                    borderWidth: 3,
+                    pointBackgroundColor: '#ffffff',
+                    pointBorderColor: colorLinea,
+                    pointBorderWidth: 2,
+                    pointRadius: 4,
+                    pointHoverRadius: 7,
+                    fill: true,
+                    tension: 0.4,
+                    spanGaps: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: colorLinea,
+                        padding: 10,
+                        titleFont: { size: 12, family: "'Plus Jakarta Sans', sans-serif" },
+                        bodyFont: { size: 16, weight: '900', family: "'Plus Jakarta Sans', sans-serif" },
+                        displayColors: false,
+                        cornerRadius: 10
+                    }
+                },
+                scales: {
+                    y: {
+                        min: tipoGrafico === 'rain' ? 0 : undefined,
+                        grid: { color: '#f1f5f9', borderDash: [6, 6], lineWidth: 2 },
+                        ticks: { font: { weight: '800', family: "'Plus Jakarta Sans', sans-serif", size: 11 }, color: '#94a3b8', maxTicksLimit: 5 }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { font: { weight: '700', family: "'Plus Jakarta Sans', sans-serif", size: 10 }, color: '#cbd5e1', maxTicksLimit: 6 }
+                    }
                 }
             }
         });
+    }
 
-        /* ── Filtrado de presión anómala ── */
-        const { filtered: dataPres, anomalyCount } = filterPressure(dataPresRaw);
+    // Junta lecturas consecutivas en "baldes" y promedia, para que el gráfico no
+    // se vea con ruido cuando hay muchos puntos.
+    function suavizarParaGrafico(horas, valores, modo = 'avg') {
+        const maxPuntos = 48;
+        const n = valores.length;
+        if (n <= maxPuntos) return { horas, valores };
 
-        // Mostramos advertencia si hubo anomalías
-        const notice = document.getElementById('anomalyNotice');
-        if (anomalyCount > 0) {
-            notice.classList.add('visible');
-            document.getElementById('anomalyText').textContent =
-                `Se detectaron y filtraron ${anomalyCount} valor${anomalyCount > 1 ? 'es' : ''} de presión anómal${anomalyCount > 1 ? 'os' : 'o'} — el gráfico muestra solo lecturas válidas.`;
+        const tamBalde = Math.ceil(n / maxPuntos);
+        const horasOut = [], valoresOut = [];
+        for (let i = 0; i < n; i += tamBalde) {
+            const horasBalde = horas.slice(i, i + tamBalde);
+            const valoresBalde = valores.slice(i, i + tamBalde)
+                .map(v => parseFloat(v))
+                .filter(v => !isNaN(v));
+
+            horasOut.push(horasBalde[Math.floor(horasBalde.length / 2)]);
+
+            if (valoresBalde.length === 0) {
+                valoresOut.push(null);
+            } else if (modo === 'last') {
+                valoresOut.push(valoresBalde[valoresBalde.length - 1].toFixed(2));
+            } else {
+                const promedio = valoresBalde.reduce((a, b) => a + b, 0) / valoresBalde.length;
+                valoresOut.push(promedio.toFixed(1));
+            }
+        }
+        return { horas: horasOut, valores: valoresOut };
+    }
+
+    let periodoActual = 'hoy';
+    let convencionLluvia = 'calendario'; // 'calendario' (00 a 00) | 'meteorologico' (9 a 9)
+
+    function actualizarTitulosDeGraficos() {
+        const sufijo = periodoActual === 'semana' ? 'de la última semana' : 'de las últimas 24 hs';
+        document.getElementById('titulo-chart-temp').textContent = `Temperatura ${sufijo}`;
+        document.getElementById('titulo-chart-hum').textContent = `Humedad ${sufijo}`;
+        document.getElementById('titulo-chart-pres').textContent = `Presión ${sufijo}`;
+
+        if (periodoActual === 'semana') {
+            document.getElementById('titulo-chart-rain').textContent = 'Lluvia acumulada de la última semana';
         } else {
-            notice.classList.remove('visible');
+            document.getElementById('titulo-chart-rain').textContent = convencionLluvia === 'meteorologico'
+                ? 'Lluvia del día meteorológico (9 a 9)'
+                : 'Lluvia acumulada hoy (00 a 00)';
         }
 
-        /* Último valor de presión válido */
-        if (dataPres.length > 0) lastPres = dataPres[dataPres.length - 1].toFixed(1);
+        document.getElementById('lluvia-convencion-toggle').classList.toggle('hidden', periodoActual === 'semana');
 
-        /* Etiquetas para el gráfico de presión (subset limpio, usamos índice) */
-        const presLabels = labels.slice(0, dataPres.length);
-
-        /* Precipitación acumulada */
-        const precipLabels = Array.from(precipBuckets.keys());
-        let runningSum = 0;
-        const precipData = Array.from(precipBuckets.values()).map(v => (runningSum += v, runningSum));
-
-        /* ── UI de métricas ── */
-        document.getElementById('valTemp').innerText       = lastTemp;
-        document.getElementById('valHum').innerText        = lastHum;
-        document.getElementById('valHumTierra').innerText  = lastSoil;
-        document.getElementById('valPres').innerText       = lastPres;
-        document.getElementById('valPrecip').innerText     = accumRain.toFixed(1);
-
-        /* ── Renderizado de gráficos ── */
-        renderPrecipChart(precipLabels, precipData);
-        renderTempChart(labels, dataTemp);
-        renderHumChart(labels, dataHum);
-        renderPresChart(presLabels, dataPres);
-        renderSoilChart(labels, dataSoil);
+        document.getElementById('label-live-rain').textContent = periodoActual === 'semana'
+            ? '🌧️ Lluvia últ. semana'
+            : '🌧️ Lluvia hoy';
     }
 
-    /* ── Opciones base de Chart.js ── */
-    const baseOpts = {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: { display: false },
-            tooltip: {
-                backgroundColor: '#1e293b',
-                padding: 10, cornerRadius: 8,
-                titleFont: { family: 'Inter', size: 11 },
-                bodyFont:  { family: 'Inter', size: 13, weight: 'bold' }
-            }
-        },
-        elements: { point: { radius: 0, hitRadius: 10 } },
-        scales: {
-            x: { grid: { display: false }, ticks: { maxTicksLimit: 8, color: '#94a3b8', font: { family: 'Inter', size: 11 } } },
-            y: { grid: { color: '#f1f5f9', lineWidth: 1 }, ticks: { color: '#64748b', font: { family: 'Inter', size: 11 } }, border: { display: false } }
+    function actualizarBotonesLluvia() {
+        const activo = 'bg-cyan-500 text-white';
+        const inactivo = 'bg-slate-100 text-slate-500 hover:bg-slate-200';
+        document.getElementById('btn-lluvia-calendario').className =
+            `lluvia-btn px-3 py-1.5 rounded-lg font-bold text-[10px] lg:text-xs transition ${convencionLluvia === 'calendario' ? activo : inactivo}`;
+        document.getElementById('btn-lluvia-meteorologico').className =
+            `lluvia-btn px-3 py-1.5 rounded-lg font-bold text-[10px] lg:text-xs transition ${convencionLluvia === 'meteorologico' ? activo : inactivo}`;
+    }
+
+    async function cambiarConvencionLluvia(nueva) {
+        if (nueva === convencionLluvia) return;
+        convencionLluvia = nueva;
+        actualizarBotonesLluvia();
+        actualizarTitulosDeGraficos();
+        await cargarYRenderizar();
+    }
+
+    function actualizarBotonesDePeriodo() {
+        const activo = 'bg-blue-500 text-white';
+        const inactivo = 'text-slate-500 hover:bg-slate-100';
+        document.getElementById('btn-periodo-hoy').className = `periodo-btn px-4 py-2 rounded-xl font-black text-xs lg:text-sm transition ${periodoActual === 'hoy' ? activo : inactivo}`;
+        document.getElementById('btn-periodo-semana').className = `periodo-btn px-4 py-2 rounded-xl font-black text-xs lg:text-sm transition ${periodoActual === 'semana' ? activo : inactivo}`;
+    }
+
+    function actualizarEstado(hist) {
+        const badge = document.getElementById('estado-estacion');
+        if (hist.lastEntryTime) {
+            const diffMin = Math.round((new Date() - new Date(hist.lastEntryTime)) / 60000);
+            const enLinea = diffMin <= 120;
+            badge.className = `inline-flex items-center gap-1.5 px-2 py-0.5 rounded-xl border-2 ${enLinea ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-red-100 text-red-700 border-red-200'}`;
+            badge.innerHTML = `<span class="w-2 h-2 rounded-full ${enLinea ? 'bg-emerald-500' : 'bg-red-500'}"></span> ${enLinea ? 'Transmitiendo' : 'Sin datos recientes'}`;
+            const d = new Date(hist.lastEntryTime);
+            document.getElementById('ultima-lectura').textContent = `Última lectura: ${pad(d.getDate())}/${pad(d.getMonth() + 1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        } else {
+            badge.className = 'inline-flex items-center gap-1.5 bg-red-100 text-red-700 px-2 py-0.5 rounded-xl border-2 border-red-200';
+            badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-red-500"></span> Sin datos';
+            document.getElementById('ultima-lectura').textContent = '';
         }
-    };
-
-    function makeChart(id, config) {
-        const key = id.replace('chart', '').toLowerCase();
-        if (charts[key]) charts[key].destroy();
-        charts[key] = new Chart(document.getElementById(id).getContext('2d'), config);
     }
 
-    function renderPrecipChart(labels, data) {
-        makeChart('chartPrecip', {
-            type: 'line',
-            data: {
-                labels,
-                datasets: [{
-                    label: 'Lluvia acumulada (mm)',
-                    data,
-                    borderColor: '#004b87',
-                    backgroundColor: 'rgba(0,75,135,0.07)',
-                    borderWidth: 2.5,
-                    fill: true,
-                    stepped: 'after',
-                    tension: 0
-                }]
-            },
-            options: { ...baseOpts }
-        });
+    function renderizarPanel(hist) {
+        actualizarEstado(hist);
+
+        if (hist && hist.temps.length > 0) {
+            const getUltimoValido = (arr) => arr.slice().reverse().find(val => val !== null) || '--';
+
+            const ultTemp = getUltimoValido(hist.temps);
+            document.getElementById('live-val-temp').innerText = ultTemp !== '--' ? `${ultTemp}°C` : '--°C';
+
+            document.getElementById('live-val-tempminmax').innerText =
+                (hist.tempMin != null && hist.tempMax != null)
+                    ? `Hoy: mín ${hist.tempMin}° · máx ${hist.tempMax}°`
+                    : 'Hoy: mín --° · máx --°';
+
+            const ultHum = getUltimoValido(hist.hums);
+            document.getElementById('live-val-hum').innerText = ultHum !== '--' ? `${ultHum}%` : '--%';
+
+            const ultPres = getUltimoValido(hist.press);
+            document.getElementById('live-val-pres').innerText = ultPres !== '--' ? `${ultPres} hPa` : '-- hPa';
+
+            const ultRain = getUltimoValido(hist.rains);
+            document.getElementById('live-val-rain').innerText = ultRain !== '--' ? `${ultRain} mm` : '-- mm';
+
+            const gTemp = suavizarParaGrafico(hist.horas, hist.temps);
+            crearGraficoEvolucion('chartTemp', 'temp', gTemp.horas, gTemp.valores, '#f97316', 'Temperatura (°C)');
+
+            const gHum = suavizarParaGrafico(hist.horas, hist.hums);
+            crearGraficoEvolucion('chartHum', 'hum', gHum.horas, gHum.valores, '#3b82f6', 'Humedad (%)');
+
+            const gPres = suavizarParaGrafico(hist.horas, hist.press);
+            crearGraficoEvolucion('chartPres', 'pres', gPres.horas, gPres.valores, '#10b981', 'Presión (hPa)');
+
+            const gRain = suavizarParaGrafico(hist.horasLluvia || hist.horas, hist.rains, 'last');
+            crearGraficoEvolucion('chartRain', 'rain', gRain.horas, gRain.valores, '#06b6d4', 'Lluvia acumulada (mm)');
+        } else {
+            document.getElementById('live-val-temp').innerText = '--°C';
+            document.getElementById('live-val-tempminmax').innerText = 'Hoy: mín --° · máx --°';
+            document.getElementById('live-val-hum').innerText = '--%';
+            document.getElementById('live-val-pres').innerText = '-- hPa';
+            document.getElementById('live-val-rain').innerText = '-- mm';
+            ['chartTemp', 'chartHum', 'chartPres', 'chartRain'].forEach(id => {
+                const canvas = document.getElementById(id);
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                if (graficos[id.replace('chart', '').toLowerCase()]) graficos[id.replace('chart', '').toLowerCase()].destroy();
+            });
+        }
     }
 
-    function renderTempChart(labels, data) {
-        makeChart('chartTemp', {
-            type: 'line',
-            data: {
-                labels,
-                datasets: [{
-                    label: 'Temperatura (°C)',
-                    data,
-                    borderColor: '#e07b20',
-                    backgroundColor: 'rgba(224,123,32,0.08)',
-                    borderWidth: 2.5,
-                    fill: true,
-                    tension: 0.3
-                }]
-            },
-            options: {
-                ...baseOpts,
-                scales: {
-                    x: baseOpts.scales.x,
-                    y: { ...baseOpts.scales.y, title: { display: true, text: '°C', color: '#94a3b8', font: { size: 11 } } }
-                }
-            }
-        });
+    async function cargarYRenderizar() {
+        const hist = await fetchHistorialEstacion(periodoActual);
+        renderizarPanel(hist);
     }
 
-    function renderHumChart(labels, data) {
-        makeChart('chartHum', {
-            type: 'line',
-            data: {
-                labels,
-                datasets: [{
-                    label: 'Humedad relativa (%)',
-                    data,
-                    borderColor: '#0284c7',
-                    backgroundColor: 'rgba(2,132,199,0.07)',
-                    borderWidth: 2.5,
-                    fill: true,
-                    tension: 0.3
-                }]
-            },
-            options: {
-                ...baseOpts,
-                scales: {
-                    x: baseOpts.scales.x,
-                    y: { ...baseOpts.scales.y, min: 0, max: 100, title: { display: true, text: '%', color: '#94a3b8', font: { size: 11 } } }
-                }
-            }
-        });
+    async function cambiarPeriodo(nuevoPeriodo) {
+        if (nuevoPeriodo === periodoActual) return;
+        periodoActual = nuevoPeriodo;
+        actualizarBotonesDePeriodo();
+        actualizarTitulosDeGraficos();
+        await cargarYRenderizar();
     }
 
-    function renderPresChart(labels, data) {
-        makeChart('chartPres', {
-            type: 'line',
-            data: {
-                labels,
-                datasets: [{
-                    label: 'Presión (hPa)',
-                    data,
-                    borderColor: '#7c3aed',
-                    backgroundColor: 'rgba(124,58,237,0.07)',
-                    borderWidth: 2.5,
-                    fill: true,
-                    tension: 0.3
-                }]
-            },
-            options: {
-                ...baseOpts,
-                scales: {
-                    x: baseOpts.scales.x,
-                    y: { ...baseOpts.scales.y, title: { display: true, text: 'hPa', color: '#94a3b8', font: { size: 11 } } }
-                }
-            }
-        });
-    }
+    document.getElementById('btn-periodo-hoy').addEventListener('click', () => cambiarPeriodo('hoy'));
+    document.getElementById('btn-periodo-semana').addEventListener('click', () => cambiarPeriodo('semana'));
+    document.getElementById('btn-lluvia-calendario').addEventListener('click', () => cambiarConvencionLluvia('calendario'));
+    document.getElementById('btn-lluvia-meteorologico').addEventListener('click', () => cambiarConvencionLluvia('meteorologico'));
 
-    function renderSoilChart(labels, data) {
-        makeChart('chartSoil', {
-            type: 'line',
-            data: {
-                labels,
-                datasets: [{
-                    label: 'Humedad suelo (%)',
-                    data,
-                    borderColor: '#16a34a',
-                    backgroundColor: 'rgba(22,163,74,0.07)',
-                    borderWidth: 2.5,
-                    fill: true,
-                    tension: 0.3
-                }]
-            },
-            options: {
-                ...baseOpts,
-                scales: {
-                    x: baseOpts.scales.x,
-                    y: { ...baseOpts.scales.y, min: 0, max: 100, title: { display: true, text: '%', color: '#94a3b8', font: { size: 11 } } }
-                }
-            }
-        });
-    }
-
-    /* ── Inicio ── */
-    window.addEventListener('load', () => setPreset('day'));
+    actualizarBotonesDePeriodo();
+    actualizarBotonesLluvia();
+    actualizarTitulosDeGraficos();
+    cargarYRenderizar();
 </script>
 </body>
 </html>
