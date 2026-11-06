@@ -476,18 +476,21 @@
         // IMPORTANTE: el canal 2218689 era de EP N°34 (Malagamba, marcada live: false),
         // pero ese equipo se reinstaló en el Observatorio (FCAG) como "EMA Blanca".
         //
-        // EP N°23 (Bavío) es la EMA Violeta: se combinan su canal actual y el histórico
-        // porque migraron de canal de ThingSpeak en algún momento. rainMult convierte los
-        // pulsos crudos del pluviómetro a mm (cada pulso = 0.68mm).
+        // EP N°23 (Bavío, EMA Violeta) se dio de baja: el equipo se reemplazó por la
+        // EMA Verde (ver más abajo), que se trasladó físicamente de la Facultad a esa
+        // escuela. Se deja comentada por si se reactiva en otro lado.
         //
-        // EMA Verde, Observatorio (Campbell) y EMA Blanca están las tres en el mismo
-        // lugar, en la Facultad (FCAG) — no en ninguna escuela — por eso comparten
-        // zona en el mapa con las coordenadas apenas separadas para que se puedan
-        // distinguir los marcadores. Observatorio (Davis) también está ahí, pero por
-        // ahora está sacado del mapa (ver más abajo), igual que Daza (ver más abajo).
+        // Observatorio (Campbell) y EMA Blanca están las dos en el mismo lugar, en la
+        // Facultad (FCAG) — no en ninguna escuela — por eso comparten zona en el mapa
+        // con las coordenadas apenas separadas para que se puedan distinguir los
+        // marcadores. Observatorio (Davis) también está ahí, pero por ahora está
+        // sacado del mapa (ver más abajo). La EMA Verde usaba estar acá también, pero
+        // se trasladó a la EP N°23 (Bavío) y ya no se agrupa con estas.
         const puntos = [
-            { channels: [{ id: "2626952", key: "4XYH56YSV64HE17H" }, { id: "1778165", key: "OJ1JHKAPCCIQB4CB" }], rainMult: 0.68,
-              n: "EP N°23", loc: "Bavío (EMA Violeta)", c: [-35.0254, -57.7529], clr: "#10b981", live: true, img: "imagenes/escuela23.jpg", ocultarPresion: true },
+            // EP N°23 (Bavío, EMA Violeta) sacada del mapa: el equipo se reemplazó por
+            // la EMA Verde, que ahora transmite desde esa misma escuela (ver abajo).
+            // { channels: [{ id: "2626952", key: "4XYH56YSV64HE17H" }, { id: "1778165", key: "OJ1JHKAPCCIQB4CB" }], rainMult: 0.68,
+            //   n: "EP N°23", loc: "Bavío (EMA Violeta)", c: [-35.0254, -57.7529], clr: "#10b981", live: true, img: "imagenes/escuela23.jpg", ocultarPresion: true },
             { id: "2218689", key: "ZLNOSLZJPQM3H7SD",
               n: "EMA Blanca", loc: "Facultad (FCAG)", c: [-34.9089, -57.9327], clr: "#facc15", live: true, img: "imagenes/observatorio.png", grupoObservatorio: true },
             { source: "wunderground", wuId: "IVERNI9", wuKey: "6b6ee16ebab34fe5aee16ebab38fe57a",
@@ -495,8 +498,11 @@
             { id: "2218687", key: "TH3V4TJLRFZD3JSG", n: "San Vicente", loc: "La Plata", c: [-34.9031, -57.9485], clr: "#8b5cf6", live: true, img: "https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&q=80&w=300" },
             { id: "2823820", key: "FFI1HK80ZKDNS6V8",
               n: "Observatorio", loc: "Facultad (FCAG) · Campbell", c: [-34.908364, -57.933164], clr: "#ef4444", live: true, img: "imagenes/observatorio.png", grupoObservatorio: true },
+            // La EMA Verde se trasladó de la Facultad a la EP N°23 (Bavío), donde
+            // reemplazó a la EMA Violeta (ver más arriba). Mismo canal de ThingSpeak
+            // de siempre, pero con la ubicación de la escuela.
             { id: "2218686", key: "O85A0DJ31L8MQZ6F", isEmaVerde: true,
-              n: "EMA Verde", loc: "Facultad (FCAG) · en prueba", c: [-34.9086, -57.9328], clr: "#22c55e", live: true, img: "imagenes/observatorio.png", grupoObservatorio: true },
+              n: "EMA Verde", loc: "Bavío (EP N°23)", c: [-35.0254, -57.7529], clr: "#22c55e", live: true, img: "imagenes/escuela23.jpg" },
             // Daza sacada del mapa: la estación se dio de baja (fuera de operatividad).
             // { source: "wunderground", wuId: "ILAPLA66", wuKey: "470147c769f6493f8147c769f6693fd9",
             //   n: "Daza", loc: "Facultad (FCAG) · Wunderground", c: [-34.9091, -57.9325], clr: "#f43f5e", live: true, img: "imagenes/observatorio.png", grupoObservatorio: true },
@@ -870,16 +876,44 @@
             return res.json();
         }
 
+        // Pide varios días uno por uno, en vez de un solo rango largo: una estación
+        // muy frecuente (ej. la EMA Verde, que manda un dato por minuto) puede superar
+        // en una semana las 8000 lecturas que entrega como máximo cada pedido a la API
+        // de ThingSpeak, y un solo pedido de 7 días quedaría recortado (subestimando
+        // el acumulado). Pidiendo un día a la vez, cada pedido queda muy por debajo.
+        async function fetchFeedsVariosDias(canales, dias) {
+            const pad = (n) => n.toString().padStart(2, '0');
+            const aParam = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+            const hoy = new Date();
+            const diasArr = [];
+            for (let i = dias - 1; i >= 0; i--) {
+                const d = new Date(hoy);
+                d.setDate(d.getDate() - i);
+                diasArr.push(d);
+            }
+            const respuestas = await Promise.all(
+                diasArr.flatMap(d => canales.map(ch =>
+                    fetchFeedsCanal(ch, `&start=${aParam(d)}%2000:00:00&end=${aParam(d)}%2023:59:59`)
+                ))
+            );
+            return respuestas.flatMap(d => d.feeds || []);
+        }
+
         // Acumulado de lluvia de los últimos `dias` días (1 = solo hoy), y de paso la
         // mínima/máxima de temperatura de HOY (aunque el período pedido sea más largo).
         // Para dias=1, "convencion" define si el día arranca a las 00 (calendario) o a
         // las 9 (meteorológico); para la semana siempre se usa el día calendario.
         async function datosDelPeriodoTS(canales, rainField, rainMult, dias, convencion) {
-            const inicioPeriodo = (dias === 1 && convencion === 'meteorologico')
-                ? formatearInicioDiaMeteorologico()
-                : formatearInicioNDiasAtras(dias);
-            const respuestas = await Promise.all(canales.map(ch => fetchFeedsCanal(ch, `&start=${inicioPeriodo}`)));
-            let feeds = respuestas.flatMap(d => d.feeds || []);
+            let feeds;
+            if (dias > 1) {
+                feeds = await fetchFeedsVariosDias(canales, dias);
+            } else {
+                const inicioPeriodo = convencion === 'meteorologico'
+                    ? formatearInicioDiaMeteorologico()
+                    : formatearInicioNDiasAtras(1);
+                const respuestas = await Promise.all(canales.map(ch => fetchFeedsCanal(ch, `&start=${inicioPeriodo}`)));
+                feeds = respuestas.flatMap(d => d.feeds || []);
+            }
             feeds.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
             // Si se combinan varios canales (caso EMA Violeta), evitamos contar dos
