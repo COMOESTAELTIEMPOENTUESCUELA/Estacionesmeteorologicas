@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EP N°23 (Bavío) — ¿Cómo está el tiempo en tu escuela?</title>
+    <title>EEP N°23 "Traverso de Castelli" — ¿Cómo está el tiempo en tu escuela?</title>
     <link rel="icon" type="image/jpeg" href="imagenes/Logo1.jpg">
 
     <script src="https://cdn.tailwindcss.com"></script>
@@ -17,12 +17,6 @@
             font-family: 'Plus Jakarta Sans', sans-serif;
             background-color: #e0f2fe;
         }
-
-        @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-8px); }
-        }
-        .animate-float { animation: float 3s ease-in-out infinite; }
 
         .kid-card {
             transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -54,8 +48,8 @@
         <div class="flex items-center gap-3">
             <img src="imagenes/Logo1.jpg" alt="Logo del Proyecto" class="w-11 h-11 lg:w-14 lg:h-14 object-cover rounded-full border-2 border-yellow-400 shadow-sm" onerror="this.src='https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&q=80&w=100'">
             <div>
-                <h1 class="text-base lg:text-xl font-black text-slate-900 tracking-tight leading-tight">EP N°23 (Bavío)</h1>
-                <p class="text-[9px] lg:text-[10px] text-blue-600 font-bold uppercase tracking-widest mt-0.5">FCAG · UNLP</p>
+                <h1 class="text-base lg:text-xl font-black text-slate-900 tracking-tight leading-tight">Escuela de Enseñanza Primaria N°23</h1>
+                <p class="text-[9px] lg:text-[10px] text-blue-600 font-bold uppercase tracking-widest mt-0.5">"María del Carmen Traverso de Castelli" · FCAG · UNLP</p>
             </div>
         </div>
         <div class="flex items-center gap-2">
@@ -73,12 +67,14 @@
         <div class="max-w-5xl mx-auto space-y-5 p-4 lg:p-8 relative z-10">
 
             <header class="flex items-center gap-3 lg:gap-4 bg-white/90 backdrop-blur-md p-4 lg:p-5 rounded-[1.5rem] lg:rounded-[2rem] border-4 border-white shadow-xl">
-                <div class="p-3 lg:p-4 bg-gradient-to-tr from-blue-600 to-cyan-400 rounded-2xl text-white shadow-lg shrink-0 transform -rotate-6 hover:rotate-0 transition duration-300">
-                    <i data-lucide="telescope" class="w-7 h-7 lg:w-10 lg:h-10 animate-float"></i>
-                </div>
+                <img src="imagenes/escuela23.jpg" alt="Escuela de Enseñanza Primaria N°23 'María del Carmen Traverso de Castelli'" class="w-16 h-16 lg:w-20 lg:h-20 object-cover rounded-2xl shadow-lg shrink-0 transform -rotate-6 hover:rotate-0 transition duration-300" onerror="this.src='https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&q=80&w=300'">
                 <div class="min-w-0 flex-grow">
-                    <h2 class="text-lg lg:text-3xl font-black text-blue-900 tracking-tight leading-tight">EP N°23 (Bavío)</h2>
-                    <p class="text-xs lg:text-sm text-slate-600 font-bold mt-1 flex items-center gap-2 flex-wrap">
+                    <h2 class="text-lg lg:text-3xl font-black text-blue-900 tracking-tight leading-tight">Escuela de Enseñanza Primaria N°23</h2>
+                    <p class="text-sm lg:text-base font-black text-blue-700 leading-tight">"María del Carmen Traverso de Castelli"</p>
+                    <p class="text-xs lg:text-sm text-slate-600 font-bold mt-1.5 flex items-center gap-2 flex-wrap">
+                        <span class="text-slate-500 font-semibold flex items-center gap-1">
+                            <i data-lucide="map-pin" class="w-3.5 h-3.5"></i> Bavío, Buenos Aires
+                        </span>
                         <span id="estado-estacion" class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded-xl border-2 border-slate-200">
                             <span class="w-2 h-2 rounded-full bg-slate-400"></span> Cargando...
                         </span>
