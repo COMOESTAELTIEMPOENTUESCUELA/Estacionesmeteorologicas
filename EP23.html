@@ -179,6 +179,13 @@
     // field6 presión absoluta de estación (sin corregir a nivel del mar).
     const STATION = { id: "2218686", key: "O85A0DJ31L8MQZ6F" };
 
+    // Hubo pulsos de prueba el 6/11 durante la instalación del pluviómetro, así que
+    // el acumulado semanal arranca a contar recién desde el 7/11. Es solo un recorte
+    // de la ventana de días (ver fetchFeedsVariosDias), no un override sin tope: en
+    // unos días "última semana" ya no va a llegar hasta el 6/11 de por sí, y este
+    // recorte deja de tener efecto solo.
+    const NO_CONTAR_ANTES_DE = "2026-11-07";
+
     const graficos = { temp: null, hum: null, pres: null, rain: null };
 
     const pad = (n) => n.toString().padStart(2, '0');
@@ -215,11 +222,15 @@
     async function fetchFeedsVariosDias(dias) {
         const aParam = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
         const hoy = new Date();
-        const diasArr = [];
+        let diasArr = [];
         for (let i = dias - 1; i >= 0; i--) {
             const d = new Date(hoy);
             d.setDate(d.getDate() - i);
             diasArr.push(d);
+        }
+        if (NO_CONTAR_ANTES_DE) {
+            const corte = new Date(NO_CONTAR_ANTES_DE + 'T00:00:00');
+            diasArr = diasArr.filter(d => d >= corte);
         }
         const respuestas = await Promise.all(
             diasArr.map(d => fetchFeedsCanal(`&start=${aParam(d)}%2000:00:00&end=${aParam(d)}%2023:59:59`))

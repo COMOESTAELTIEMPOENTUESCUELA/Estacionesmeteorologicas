@@ -501,7 +501,14 @@
             // El equipo de la EMA Verde se trasladó de la Facultad a la EP N°23
             // (Bavío), donde reemplazó a la EMA Violeta (ver más arriba). Se muestra
             // como "EP N°23": es la estación de la escuela, lo que cambió es el equipo.
-            { id: "2218686", key: "O85A0DJ31L8MQZ6F", isEmaVerde: true,
+            //
+            // noContarAntesDe: hubo pulsos de prueba el 6/11 durante la instalación del
+            // pluviómetro, así que el acumulado semanal arranca a contar recién desde el
+            // 7/11. A diferencia de un override de "ignorar antes de X" sin tope, esto
+            // es solo un recorte de la ventana de días (ver fetchFeedsVariosDias): dentro
+            // de unos días, "última semana" ya no va a llegar hasta el 6/11 de por sí, y
+            // este recorte deja de tener efecto solo, sin que haga falta sacarlo.
+            { id: "2218686", key: "O85A0DJ31L8MQZ6F", isEmaVerde: true, noContarAntesDe: "2026-11-07",
               n: "EP N°23", loc: "Magdalena (EMA Verde)", c: [-35.0254, -57.7529], clr: "#22c55e", live: true, img: "imagenes/escuela23.jpg" },
             // Daza sacada del mapa: la estación se dio de baja (fuera de operatividad).
             // { source: "wunderground", wuId: "ILAPLA66", wuKey: "470147c769f6493f8147c769f6693fd9",
@@ -881,15 +888,24 @@
         // en una semana las 8000 lecturas que entrega como máximo cada pedido a la API
         // de ThingSpeak, y un solo pedido de 7 días quedaría recortado (subestimando
         // el acumulado). Pidiendo un día a la vez, cada pedido queda muy por debajo.
-        async function fetchFeedsVariosDias(canales, dias) {
+        // "noAntesDe" (opcional, "YYYY-MM-DD") recorta los días más viejos de la
+        // ventana, para estaciones puntuales con datos de prueba a descartar (ver
+        // p.noContarAntesDe). Al ser una fecha fija, deja de tener efecto solo cuando
+        // la ventana de `dias` naturalmente ya no llega tan atrás — no hace falta
+        // sacarlo a mano más adelante.
+        async function fetchFeedsVariosDias(canales, dias, noAntesDe) {
             const pad = (n) => n.toString().padStart(2, '0');
             const aParam = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
             const hoy = new Date();
-            const diasArr = [];
+            let diasArr = [];
             for (let i = dias - 1; i >= 0; i--) {
                 const d = new Date(hoy);
                 d.setDate(d.getDate() - i);
                 diasArr.push(d);
+            }
+            if (noAntesDe) {
+                const corte = new Date(noAntesDe + 'T00:00:00');
+                diasArr = diasArr.filter(d => d >= corte);
             }
             const respuestas = await Promise.all(
                 diasArr.flatMap(d => canales.map(ch =>
@@ -903,10 +919,10 @@
         // mínima/máxima de temperatura de HOY (aunque el período pedido sea más largo).
         // Para dias=1, "convencion" define si el día arranca a las 00 (calendario) o a
         // las 9 (meteorológico); para la semana siempre se usa el día calendario.
-        async function datosDelPeriodoTS(canales, rainField, rainMult, dias, convencion) {
+        async function datosDelPeriodoTS(canales, rainField, rainMult, dias, convencion, noContarAntesDe) {
             let feeds;
             if (dias > 1) {
-                feeds = await fetchFeedsVariosDias(canales, dias);
+                feeds = await fetchFeedsVariosDias(canales, dias, noContarAntesDe);
             } else {
                 const inicioPeriodo = convencion === 'meteorologico'
                     ? formatearInicioDiaMeteorologico()
@@ -1046,7 +1062,7 @@
                 }
                 const canales = estacion.channels || [{ id: estacion.id, key: estacion.key }];
                 const rainField = estacion.isEmaVerde ? 'field4' : 'field5';
-                const datosSemana = await datosDelPeriodoTS(canales, rainField, estacion.rainMult, 7, 'calendario');
+                const datosSemana = await datosDelPeriodoTS(canales, rainField, estacion.rainMult, 7, 'calendario', estacion.noContarAntesDe);
                 return datosSemana.total;
             } catch (e) {
                 console.error('No se pudo obtener la lluvia semanal de', estacion.n, e);
@@ -1102,7 +1118,7 @@
                         const paramResultados = periodo === 'semana' ? 'days=7' : 'days=1';
                         return fetch(`https://api.thingspeak.com/channels/${ch.id}/feeds.json?${paramResultados}${apiKeyParam}`).then(r => r.json());
                     })),
-                    datosDelPeriodoTS(canales, rainField, estacion.rainMult, dias, convencionLluvia)
+                    datosDelPeriodoTS(canales, rainField, estacion.rainMult, dias, convencionLluvia, estacion.noContarAntesDe)
                 ]);
 
                 let feeds = respuestas.flatMap(d => d.feeds || []);
