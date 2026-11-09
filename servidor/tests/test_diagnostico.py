@@ -26,6 +26,10 @@ def test_indice_y_tramos():
         (250, 599, [("HGT", "500 mb"), ("TMP", "500 mb")])]
     with pytest.raises(KeyError):
         gfs.tramos(ind, {("ABSV", "500 mb")})
+    # La lluvia acumulada no viene en el análisis (+0 h): se sigue sin ella
+    # (antes frenaba toda la corrida del pronóstico, del 2 al 9/11/2026).
+    t = gfs.tramos(ind, {("HGT", "500 mb"), ("APCP", "surface")})
+    assert [[k for k, *_ in p] for *_, p in t] == [[("HGT", "500 mb")]]
 
 
 def test_urls_del_analisis():

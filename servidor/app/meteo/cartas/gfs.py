@@ -59,12 +59,19 @@ def leer_indice(texto):
     return indice
 
 
+# Campos ACUMULADOS (lluvia): el análisis (+0 h) no los trae, porque
+# todavía no pasó tiempo para acumular. Si faltan, se siguen sin ellos.
+# (Hasta el 9/11/2026 su falta frenaba toda la corrida: ver docs/06-cartas.md.)
+ACUMULADOS = {("APCP", "surface"), ("ACPCP", "surface")}
+
+
 def tramos(indice, pedidos):
     """Rangos de bytes a pedir, juntando los mensajes que están seguidos en el
     archivo (menos pedidos HTTP). -> [(inicio, fin, [(clave, inicio, fin)])]"""
-    faltan = [k for k in pedidos if k not in indice]
+    faltan = [k for k in pedidos if k not in indice and k not in ACUMULADOS]
     if faltan:
-        raise KeyError(f"el análisis no trae: {faltan[:5]}")
+        raise KeyError(f"el GFS no trae: {faltan[:5]}")
+    pedidos = [k for k in pedidos if k in indice]
     partes = sorted((indice[k][0], indice[k][1], k) for k in pedidos)
     grupos = []
     for ini, fin, k in partes:
