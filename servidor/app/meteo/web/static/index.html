@@ -1689,6 +1689,93 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
     box-shadow: -14px 0 12px -4px var(--superficie-elevada), 0 2px 8px color-mix(in srgb, var(--acento) 35%, transparent); }
 }
 
+/* ===== Panel de cartas y satélite: estética "instrumento pro" (propuesta revisada con otra IA) =====
+   Va encima de los estilos de las cartas. Ajustes propios: las transiciones
+   solo en botones, campos y tarjetas (NO en la imagen del visor, que se mueve
+   con el zoom y al arrastrar), y textos claros en el visor también en tema claro. */
+/* :is(:root, :root[data-theme]) le da a esta regla la misma "fuerza" que la del
+   tema oscuro de arriba; como está después, gana: la paleta es la misma en los dos temas. */
+:is(:root, :root[data-theme]) #tab-cartas, :is(:root, :root[data-theme]) #c-dialogo {
+  --ins-panel: #0f1722;
+  --ins-panel-2: #162231;
+  --ins-panel-texto: #94a3b8;
+  --ins-amarillo: #f59e0b;
+  --ins-tarjeta: #131b24;
+  --ins-sombra: rgba(0, 0, 0, 0.4);
+  --ins-fondo: #0b1017;
+  --ins-tinta: #f8fafc;
+  --ins-tenue: #64748b;
+  --ins-borde: rgba(255, 255, 255, 0.08);
+  --ins-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+#tab-cartas :is(button, .boton, select, input, .carta), #c-dialogo :is(button, .boton, select, input) {
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+/* Panel de mando tipo instrumento */
+#c-analisis > .filtros, #c-dialogo .barra:not(:first-child) {
+  background: linear-gradient(135deg, var(--ins-panel) 0%, var(--ins-panel-2) 100%);
+  border: 1px solid var(--ins-borde); border-radius: 12px; padding: 12px 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25); gap: 10px;
+}
+#c-analisis > .filtros select, #c-analisis > .filtros input[type="text"], #c-analisis > .filtros input[type="date"], #c-dialogo .barra select {
+  background: rgba(0, 0, 0, 0.3); color: var(--ins-tinta); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 8px;
+  font-family: var(--ins-mono); padding: 6px 10px; box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+#c-analisis > .filtros select:focus, #c-analisis > .filtros input:focus {
+  border-color: var(--ins-amarillo); outline: none;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3), 0 0 0 2px color-mix(in srgb, var(--ins-amarillo) 30%, transparent);
+}
+/* Botones de hora como indicadores LED */
+#c-analisis > .filtros .horas-c { background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 9px; padding: 2px; }
+#c-analisis > .filtros .horas-c button { color: var(--ins-panel-texto); border-right: 1px solid rgba(255, 255, 255, 0.06); font-family: var(--ins-mono); padding: 6px 14px; border-radius: 7px; }
+#c-analisis > .filtros .horas-c button[aria-pressed="true"] { background: var(--ins-amarillo); color: #0b1017; font-weight: 700;
+  box-shadow: 0 0 14px color-mix(in srgb, var(--ins-amarillo) 50%, transparent); }
+/* Cartas como pantallas de monitoreo */
+#c-grid .carta { background: var(--ins-tarjeta); border: 1px solid var(--ins-borde); border-radius: 12px; padding: 10px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2); }
+#c-grid .carta:hover { transform: translateY(-3px); border-color: color-mix(in srgb, var(--ins-amarillo) 40%, var(--ins-borde)); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); }
+#c-grid .carta img { border-radius: 8px; filter: contrast(1.03) saturate(1.05); }
+#c-grid figcaption b { font-family: var(--ins-mono); font-size: 11px; letter-spacing: 0.08em;
+  background: linear-gradient(135deg, var(--ins-panel-2), var(--ins-panel)); color: var(--ins-amarillo);
+  padding: 2px 8px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.06); }
+/* El visor */
+#c-dialogo { background: var(--ins-fondo); color: var(--ins-tinta); border: 1px solid var(--ins-borde); border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7); }
+#c-vista { background: radial-gradient(circle at center, #111827 0%, #06090f 100%); border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.05); }
+#c-dialogo .barra { background: var(--ins-panel); border: 1px solid var(--ins-borde); border-radius: 10px; padding: 8px 12px; gap: 8px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); }
+#c-dialogo-titulo { color: var(--ins-tinta); }
+#c-dialogo .barra:first-child .boton { background: var(--ins-panel-2); color: var(--ins-tinta); border: 1px solid rgba(255, 255, 255, 0.1); }
+#c-dialogo .barra:first-child .boton:hover { border-color: var(--ins-amarillo); }
+/* Herramientas de dibujo y medición: la activa se ilumina en ámbar */
+#c-herr .boton.herr, #c-medir-barra .boton.herr { background: var(--ins-panel-2); color: var(--ins-panel-texto); border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px; padding: 5px 10px; font-size: 13px; }
+#c-herr .boton.herr:hover, #c-medir-barra .boton.herr:hover { background: rgba(255, 255, 255, 0.08); color: var(--ins-tinta); border-color: rgba(255, 255, 255, 0.2); }
+#c-herr .herr.activa, #c-medir-barra .herr.activa { background: var(--ins-amarillo) !important; color: #0b1017 !important; font-weight: 600;
+  border-color: var(--ins-amarillo) !important; box-shadow: 0 0 12px color-mix(in srgb, var(--ins-amarillo) 45%, transparent); outline: none !important; }
+#c-herr input[type="color"] { -webkit-appearance: none; appearance: none; border: none; width: 32px; height: 28px; border-radius: 6px; cursor: pointer; background: transparent; padding: 0; }
+#c-herr input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+#c-herr input[type="color"]::-webkit-color-swatch { border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 6px; }
+#c-herr select { background: var(--ins-panel-2); color: var(--ins-tinta); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 6px; padding: 4px 8px; font-family: var(--ins-mono); font-size: 12px; }
+/* Resultados de las mediciones */
+.c-m-res { background: rgba(15, 23, 34, 0.95); border-left: 4px solid var(--ins-amarillo); border-radius: 8px; padding: 10px 14px;
+  font-family: var(--ins-mono); font-size: 12.5px; color: var(--ins-tinta); box-shadow: 0 4px 16px rgba(0,0,0,0.4); }
+.c-m-desp { background: color-mix(in srgb, #db2777 12%, transparent); border-left: 4px solid #db2777; border-radius: 8px; padding: 8px 12px; }
+@media (max-width: 760px) {
+  #c-dialogo { border-radius: 0; padding: 8px; }
+  #c-analisis > .filtros { gap: 8px; padding: 10px; }
+  #c-dialogo .barra button { padding: 8px 14px; font-size: 13.5px; border-radius: 10px; }
+}
+
+/* ===== Visor de cartas: fondo con degradado radial y aspecto flotante (propuesta revisada) =====
+   Sin transición en la imagen: el dibujo y las mediciones van en otra capa encima y
+   se moverían "atrasados" respecto de la carta al hacer zoom o arrastrar. */
+#c-dialogo { background: var(--ins-panel); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 16px;
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.8), 0 0 40px rgba(59, 130, 246, 0.08); }
+#c-vista { background: radial-gradient(circle at center, #1e293b 0%, #0f172a 65%, #070a10 100%); border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.06); box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.5); overflow: hidden; }
+@media (min-width: 761px) { #c-vista img { filter: drop-shadow(0 10px 25px rgba(0, 0, 0, 0.4)); } }     /* en el celular no: hace lento el arrastre */
+#c-dialogo .barra { background: linear-gradient(135deg, rgba(15, 23, 34, 0.95) 0%, rgba(22, 34, 49, 0.95) 100%);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
+@media (max-width: 760px) { #c-dialogo { border-radius: 0; } }
+
 /* ===== Para quien pide "reducir movimiento" en su sistema (accesibilidad) ===== */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
@@ -2309,8 +2396,8 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
       </div>
       <div class="barra" id="c-herr">
         <span class="tenue solo-dibujo">Dibujar:</span>
-        <button class="boton herr activa solo-dibujo" data-herr="mover" title="Mover y hacer zoom (sin dibujar)">✋</button>
-        <button class="boton herr solo-dibujo" data-herr="trazo" title="Lápiz: isolíneas, contornos, áreas">✏️</button>
+        <button class="boton herr activa solo-dibujo" data-herr="mover" title="Mover y hacer zoom (sin dibujar) (atajo: V)">✋</button>
+        <button class="boton herr solo-dibujo" data-herr="trazo" title="Lápiz: isolíneas, contornos, áreas (atajo: P)">✏️</button>
         <button class="boton herr solo-dibujo" data-herr="frio" title="Frente frío" style="color:#1d4ed8">▲ Frío</button>
         <button class="boton herr solo-dibujo" data-herr="calido" title="Frente cálido" style="color:#dc2626">◗ Cálido</button>
         <button class="boton herr solo-dibujo" data-herr="ocluido" title="Frente ocluido" style="color:#7e22ce">▲◗ Ocluido</button>
@@ -2337,11 +2424,11 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
       </div>
       <div class="barra" id="c-medir-barra">
         <span class="tenue">Medir:</span>
-        <button class="boton herr" data-herr="m_dist" title="Distancia sobre la Tierra (varios tramos): longitud de onda, desplazamiento de un sistema">📏 Distancia</button>
-        <button class="boton herr" data-herr="m_desp" title="Cuánto se movió un sistema entre dos horas: dónde estaba y dónde está. Da la velocidad y hacia dónde va">🧭 Desplazamiento</button>
-        <button class="boton herr" data-herr="m_area" title="Área y ejes de un contorno: tamaño de un sistema convectivo (criterios de CCM)">⬠ Área</button>
-        <button class="boton herr" data-herr="m_radio" title="Círculo de un radio dado (apretar en el centro y arrastrar)">◎ Radio</button>
-        <button class="boton herr" data-herr="m_cal" title="Para las cartas sin coordenadas (el satélite de NOAA): tocar 3 lugares conocidos. Queda guardada para todos">📍 Calibrar</button>
+        <button class="boton herr" data-herr="m_dist" title="Distancia sobre la Tierra (varios tramos): longitud de onda, desplazamiento de un sistema (atajo: D)">📏 Distancia</button>
+        <button class="boton herr" data-herr="m_desp" title="Cuánto se movió un sistema entre dos horas: dónde estaba y dónde está. Da la velocidad y hacia dónde va (atajo: E)">🧭 Desplazamiento</button>
+        <button class="boton herr" data-herr="m_area" title="Área y ejes de un contorno: tamaño de un sistema convectivo (criterios de CCM) (atajo: A)">⬠ Área</button>
+        <button class="boton herr" data-herr="m_radio" title="Círculo de un radio dado (apretar en el centro y arrastrar) (atajo: R)">◎ Radio</button>
+        <button class="boton herr" data-herr="m_cal" title="Para las cartas sin coordenadas (el satélite de NOAA): tocar 3 lugares conocidos. Queda guardada para todos (atajo: C)">📍 Calibrar</button>
         <button class="boton primario" id="c-m-terminar" hidden title="Terminar la línea o el contorno (o doble clic, o Enter)">✓ Terminar</button>
         <label class="en-linea" id="c-m-l-horas" hidden title="Las horas que pasaron entre las dos posiciones del sistema">tiempo entre las dos posiciones: <input type="number" id="c-m-horas" value="6" min="1" max="240" step="1" style="width:56px"> h</label>
         <button class="boton" id="c-m-borrar" title="Borrar todas las medidas">Borrar medidas</button>
@@ -6293,6 +6380,15 @@ function iniciarHerramientas() {
   });
   $("#c-exportar").addEventListener("click", exportarPNG);
   window.addEventListener("resize", () => { if ($("#c-dialogo").open) ubicarSVG(); });
+  // Atajos del visor: una letra elige la herramienta (no mientras se escribe en un campo).
+  const ATAJOS = { v: "mover", m: "mover", p: "trazo", l: "trazo", d: "m_dist", e: "m_desp", a: "m_area", r: "m_radio", c: "m_cal" };
+  document.addEventListener("keydown", (e) => {
+    if (!$("#c-dialogo").open || e.ctrlKey || e.altKey || e.metaKey) return;
+    if (["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)) return;
+    const h = ATAJOS[e.key.toLowerCase()];
+    const b = h && document.querySelector(`#c-dialogo [data-herr="${h}"]`);
+    if (b && !b.closest("[hidden]")) { e.preventDefault(); b.click(); }
+  });
   document.addEventListener("keydown", (e) => {
     if ($("#c-dialogo").open && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); deshacerDibujo(); }
     if ($("#c-dialogo").open && med.actual && e.key === "Enter") { e.preventDefault(); terminarMedida(); }
