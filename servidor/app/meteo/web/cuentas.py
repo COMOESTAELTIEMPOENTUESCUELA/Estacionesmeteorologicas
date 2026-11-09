@@ -63,6 +63,10 @@ GOOGLE_USUARIO = "https://openidconnect.googleapis.com/v1/userinfo"
 
 COOKIE = "meteo_sesion"
 COOKIE_OAUTH = "meteo_oauth"
+# "Ver como pronosticador": un administrador o coordinador puede ver la página
+# con los permisos de un pronosticador común. Solo BAJA permisos (nunca los
+# sube), así que no importa que la cookie la pueda poner el JavaScript.
+COOKIE_VER_COMO = "meteo_ver_como"
 DURACION = timedelta(days=30)
 TIPOS_NOTA = ("vi", "llamo_atencion", "duda", "pregunta")
 # Del contexto de una nota solo se guardan estas claves (texto o número corto).
@@ -124,6 +128,8 @@ def usuario_actual(request: Request):
             FROM sesion s JOIN usuario u ON u.id = s.usuario_id
             WHERE s.huella = %s AND s.expira > now() AND u.activo""", (_huella(token),))
         u = filas[0] if filas else None
+        if u and u["rol"] in ("coordinador", "admin") and request.cookies.get(COOKIE_VER_COMO) == "pronosticador":
+            u = {**u, "rol": "pronosticador", "rol_real": u["rol"]}
     request.state.usuario = u
     return u
 

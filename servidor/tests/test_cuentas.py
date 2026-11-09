@@ -549,3 +549,25 @@ def test_ingreso_con_nombre_de_usuario(cliente, cuentas, monkeypatch, capsys):
             conn.execute("DELETE FROM usuario WHERE email IN ('dylan@hotmail.com', 'otro@gmail.com')")
             conn.execute("DELETE FROM ingreso_fallido")
             conn.commit()
+
+
+def test_ver_como_pronosticador(cliente, cuentas, monkeypatch):
+    """Un coordinador puede ver la página como un pronosticador: el servidor
+    le baja los permisos de verdad. La cookie nunca sube permisos."""
+    cliente.cookies.clear()
+    ingresar(cliente, cuentas, monkeypatch, "coord@gmail.com")
+    assert cliente.get("/api/yo/pronosticos/grupo").status_code == 200
+    cliente.cookies.set("meteo_ver_como", "pronosticador")
+    yo = cliente.get("/api/yo").json()["usuario"]
+    assert (yo["rol"], yo["rol_real"]) == ("pronosticador", "coordinador")
+    assert cliente.get("/api/yo/pronosticos/grupo").status_code == 403          # como un pronosticador
+    cliente.cookies.delete("meteo_ver_como")
+    assert cliente.get("/api/yo/pronosticos/grupo").status_code == 200
+    # A un pronosticador la cookie no le cambia nada (ni le "sube" nada otro valor).
+    cliente.cookies.clear()
+    ingresar(cliente, cuentas, monkeypatch, "beto@gmail.com")
+    for valor in ("pronosticador", "admin"):
+        cliente.cookies.set("meteo_ver_como", valor)
+        yo = cliente.get("/api/yo").json()["usuario"]
+        assert yo["rol"] == "pronosticador" and "rol_real" not in yo
+    assert cliente.get("/api/yo/pronosticos/grupo").status_code == 403

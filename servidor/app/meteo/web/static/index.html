@@ -235,6 +235,10 @@ td.nw { white-space: nowrap; }
 /* Mini-gráfico del pronóstico */
 .spark-pron { display: block; width: 100%; height: auto; max-height: 190px; }
 .spark-pron text { font: 10px system-ui, sans-serif; fill: var(--tenue); }
+/* Aviso de "viendo como pronosticador" */
+.ver-como { position: sticky; top: 0; z-index: 1000; display: flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap;
+  padding: 6px 12px; font-size: 13.5px; background: #fef3c7; color: #78350f; border-bottom: 1px solid #f59e0b; }
+.ver-como .boton { background: #fff; }
 /* Diálogos chicos: ingresar y cambiar la contraseña */
 .d-chico { width: min(380px, calc(100vw - 32px)); }
 .d-chico h2 { margin: 0 0 6px; font-size: 20px; }
@@ -5941,6 +5945,13 @@ $("#barra-abajo").addEventListener("click", (e) => {
 });
 if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("/sw.js").catch(() => {});
 
+// ----- "Ver como pronosticador" (una cookie que el servidor usa para BAJARte los permisos) -----
+function verComo(prender) {
+  document.cookie = prender ? "meteo_ver_como=pronosticador; path=/; max-age=86400; samesite=lax"
+                            : "meteo_ver_como=; path=/; max-age=0; samesite=lax";
+  location.reload();
+}
+
 // ----- Ingresar con mail y contraseña (o con Google) -----
 function abrirIngreso() {
   const f = $("#f-ingreso");
@@ -5999,6 +6010,15 @@ async function cargarCuenta() {
     c.innerHTML = `<span>👤 ${esc(YO.nombre)}</span><button class="boton" id="cuenta-clave" title="${YO.tiene_clave ? "Cambiar mi contraseña" : "Ponerme una contraseña (para entrar sin Google)"}">🔑</button><button class="boton" id="cuenta-salir">Salir</button>`;
     $("#cuenta-salir").addEventListener("click", async () => { await apiEnviar("/auth/salir", "POST"); location.hash = ""; location.reload(); });
     $("#cuenta-clave").addEventListener("click", () => abrirCambioClave(false));
+    // Administradores y coordinadores: ver la página como la ve un pronosticador.
+    if (YO.rol_real) {
+      document.body.insertAdjacentHTML("afterbegin", `<div class="ver-como" role="status">👁 Estás viendo la página <b>como un pronosticador</b>
+        (sin tus permisos de ${YO.rol_real === "admin" ? "administrador" : "coordinador"}). <button class="boton chico" id="ver-como-salir">Volver a mi vista</button></div>`);
+      $("#ver-como-salir").addEventListener("click", () => verComo(false));
+    } else if (esCoord()) {
+      c.insertAdjacentHTML("afterbegin", `<button class="boton" id="ver-como" title="Ver la página como la ve un pronosticador común (sin tus permisos)">👁</button>`);
+      $("#ver-como").addEventListener("click", () => verComo(true));
+    }
     if (YO.clave_temporal) abrirCambioClave(true);            // entró con la que le dio un coordinador
   } else if (CUENTA.login || CUENTA.login_clave) {
     c.innerHTML = `<button class="boton" id="cuenta-ingresar" title="Para pronosticadores del grupo: perfil, métricas y libreta">Ingresar</button>`;

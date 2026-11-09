@@ -36,6 +36,11 @@ La página de Cartas (también la copia pública) sigue igual para todos. Quien
     pronosticó (lo que se veía), y las notas con esa fecha. ‹ › pasan de
     día. Sirve para ver si un error fue de todos (situación difícil) o de uno.
     (`GET /api/yo/dia?ciudad=&fecha=`.)
+  - **👁 Ver como pronosticador** (administradores y coordinadores, arriba a
+    la derecha): la página se ve con los permisos de un pronosticador común
+    (el servidor se los baja de verdad, no es una imitación). Una franja
+    amarilla lo recuerda; "Volver a mi vista" lo apaga (si no, se apaga solo
+    al día siguiente).
   - **Modo Análisis 🤓** (interruptor arriba): sin él, la página muestra lo
     esencial (sin la tabla de cada pronóstico, el gráfico del modelo, los
     textos de ayuda fijos ni los atajos de teclado). Se recuerda en cada
