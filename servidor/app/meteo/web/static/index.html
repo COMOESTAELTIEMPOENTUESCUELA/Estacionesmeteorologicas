@@ -310,6 +310,10 @@ td.nw { white-space: nowrap; }
 .pp-desde { font-size: 11px; color: var(--tenue); white-space: nowrap; cursor: help; }
 .spark-pron .sp-val { font-size: 9.5px; font-weight: 600; }
 .spark-pron .sp-val.max { fill: #dc2626; } .spark-pron .sp-val.min { fill: #2563eb; }
+.sp-modo { display: inline-flex; border: 1px solid var(--borde); border-radius: 8px; overflow: hidden; }
+.sp-modo button { border: 0; border-right: 1px solid var(--borde); background: none; font: inherit; font-size: 11.5px; padding: 2px 8px; cursor: pointer; color: var(--tinta-2); }
+.sp-modo button:last-child { border-right: 0; }
+.sp-modo button[aria-pressed="true"] { background: var(--acento); color: #fff; }
 .spark-pron .sp-val .sp-fl { fill: var(--tenue); font-weight: 400; }
 .spark-pron .sp-val .sp-obs { font-weight: 800; }
 .spark-pron .sp-dia { font-size: 9.5px; }
@@ -6391,6 +6395,15 @@ function contraGFS(it) {
 // Mini-gráfico: máxima (rojo) y mínima (azul) de los días del pronóstico:
 // pronosticado (línea punteada), observado (línea llena con puntos) y el GFS
 // de la corrida que había al publicar (gris).
+// Ciudad (urbana: el Observatorio) y afueras (suburbana: el aeropuerto), cada
+// una contra su propio pronóstico. Se elige con los botones de abajo del
+// gráfico (se recuerda por tarjeta y como preferencia general).
+const SERIES_SPARK = {
+  ciudad:  { nombre: "Ciudad", max: (d) => d.tmax, min: (d) => d.tmin, cmax: "#dc2626", cmin: "#2563eb" },
+  afueras: { nombre: "Afueras", max: (d) => d.tmax_sub, min: (d) => d.tmin_sub, cmax: "#ea580c", cmin: "#0891b2" },
+};
+const modoSpark = new Map();          // objeto del pronóstico -> "ciudad" | "afueras" | "ambas"
+function prefSpark() { try { return localStorage.getItem("spark-modo") || "ciudad"; } catch (_) { return "ciudad"; } }
 function sparkPron(it) {
   // Mini-gráfico con los VALORES escritos: arriba de la máxima y abajo de la
   // mínima va "pronosticado → observado" (el observado en negrita). Cada
@@ -6400,7 +6413,15 @@ function sparkPron(it) {
   const W = 320, H = 132, iz = 24, de = 6, ar = 22, ab = 30;
   // La mínima "ya conocida" (Día 1, antes de publicar) se dibuja como observada pero no se califica.
   const obsDe = (t) => t ? (ok(t.obs) ? t.obs : t.ya_conocida) : undefined;
-  const vals = dias.flatMap((d) => [d.tmin?.pron, obsDe(d.tmin), d.tmax?.pron, d.tmax?.obs, d.gfs?.tmin, d.gfs?.tmax]).filter(ok);
+  const tieneObs = (t) => ok(obsDe(t));
+  const haySub = dias.some((d) => [d.tmin_sub, d.tmax_sub].some((t) => t && (ok(t.pron) || tieneObs(t))));
+  // Si a la ciudad le falta lo observado de algún día y a las afueras no, se muestran las dos.
+  const faltaCiudad = haySub && dias.some((d) => !tieneObs(d.tmin) && !tieneObs(d.tmax) && (tieneObs(d.tmin_sub) || tieneObs(d.tmax_sub)));
+  let modo = haySub ? (modoSpark.get(it.objeto) || prefSpark()) : "ciudad";
+  if (haySub && !modoSpark.has(it.objeto) && modo === "ciudad" && faltaCiudad) modo = "ambas";
+  const series = modo === "ambas" ? [SERIES_SPARK.ciudad, SERIES_SPARK.afueras] : [SERIES_SPARK[modo] || SERIES_SPARK.ciudad];
+  const vals = dias.flatMap((d) => [...series.flatMap((S) => [S.min(d)?.pron, obsDe(S.min(d)), S.max(d)?.pron, obsDe(S.max(d))]),
+                                     d.gfs?.tmin, d.gfs?.tmax]).filter(ok);
   if (vals.length < 3) return "";
   const y0 = Math.floor(Math.min(...vals) - 1), y1 = Math.ceil(Math.max(...vals) + 1);
   const ancho = (W - iz - de) / dias.length;
@@ -6413,33 +6434,45 @@ function sparkPron(it) {
       : pts.map(([i, v]) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="3" fill="${color}"/>`).join(""));
   };
   // "26 → 27,2": lo pronosticado (redondeado, como se publica) y lo observado.
-  const etiqueta = (t) => !t || !ok(t.pron) ? "" : ok(t.obs)
-    ? `${num(t.pron, 0)}<tspan class="sp-fl"> → </tspan><tspan class="sp-obs">${num(t.obs)}</tspan>`
-    : ok(t.ya_conocida) ? `${num(t.pron, 0)}<tspan class="sp-fl"> → ${num(t.ya_conocida)} ⏱</tspan>` : `${num(t.pron, 0)}`;
+  const etiqueta = (t, marca = "") => !t || !ok(t.pron) ? "" : ok(t.obs)
+    ? `${num(t.pron, 0)}<tspan class="sp-fl"> → </tspan><tspan class="sp-obs">${num(t.obs)}</tspan>${marca}`
+    : ok(t.ya_conocida) ? `${num(t.pron, 0)}<tspan class="sp-fl"> → ${num(t.ya_conocida)} ⏱</tspan>${marca}` : `${num(t.pron, 0)}${marca}`;
+  // Los valores escritos son de UNA serie por día: la principal, o la de las
+  // afueras (marcada "af.") si a la principal le falta lo observado ese día.
   const valores = dias.map((d, i) => {
-    const sup = [d.tmax?.pron, d.tmax?.obs].filter(ok), inf = [d.tmin?.pron, obsDe(d.tmin)].filter(ok);
-    return (sup.length ? `<text class="sp-val max" x="${X(i)}" y="${Math.max(10, Y(Math.max(...sup)) - 7)}" text-anchor="middle">${etiqueta(d.tmax)}</text>` : "")
-      + (inf.length ? `<text class="sp-val min" x="${X(i)}" y="${Math.min(H - ab + 12, Y(Math.min(...inf)) + 14)}" text-anchor="middle">${etiqueta(d.tmin)}</text>` : "");
+    let S = series[0];
+    if (series.length > 1 && !tieneObs(S.min(d)) && !tieneObs(S.max(d)) && (tieneObs(series[1].min(d)) || tieneObs(series[1].max(d)))) S = series[1];
+    const marca = series.length > 1 && S === SERIES_SPARK.afueras ? '<tspan class="sp-fl"> af.</tspan>' : "";
+    const sup = [S.max(d)?.pron, obsDe(S.max(d))].filter(ok), inf = [S.min(d)?.pron, obsDe(S.min(d))].filter(ok);
+    return (sup.length ? `<text class="sp-val" style="fill:${S.cmax}" x="${X(i)}" y="${Math.max(10, Y(Math.max(...sup)) - 7)}" text-anchor="middle">${etiqueta(S.max(d), marca)}</text>` : "")
+      + (inf.length ? `<text class="sp-val" style="fill:${S.cmin}" x="${X(i)}" y="${Math.min(H - ab + 12, Y(Math.min(...inf)) + 14)}" text-anchor="middle">${etiqueta(S.min(d), marca)}</text>` : "");
   }).join("");
   const detalle = (d) => {
     const t = (n, x) => !x || !ok(x.pron) ? "" : `\n${n}: pronosticada ${num(x.pron, 0)} °C${ok(x.obs) ? `, observada ${num(x.obs)} °C (error ${x.obs - x.pron > 0 ? "+" : ""}${num(x.obs - x.pron)})`
       : ok(x.ya_conocida) ? `, observada ${num(x.ya_conocida)} °C antes de publicar (ya conocida: no se califica)` : ", sin observación (faltan datos de la estación)"}`;
     const g = d.gfs ? `\nGFS de ese momento: ${num(d.gfs.tmin, 0)} / ${num(d.gfs.tmax, 0)} °C` : "";
-    return `Día ${d.plazo + 1} · ${diaCorto(d.fecha)}${t("Máxima", d.tmax)}${t("Mínima", d.tmin)}${g}\n\nTocá para ver el panorama de ese día: todos los pronósticos para esa fecha, lo observado y las cartas`;
+    const sub = haySub ? `${t("Máxima afueras", d.tmax_sub)}${t("Mínima afueras", d.tmin_sub)}` : "";
+    return `Día ${d.plazo + 1} · ${diaCorto(d.fecha)}${t(haySub ? "Máxima ciudad" : "Máxima", d.tmax)}${t(haySub ? "Mínima ciudad" : "Mínima", d.tmin)}${sub}${g}\n\nTocá para ver el panorama de ese día: todos los pronósticos para esa fecha, lo observado y las cartas`;
   };
   const columnas = dias.map((d, i) => `<g class="sp-col" data-dia="${esc(d.fecha)}" data-plazo="${d.plazo}" data-ciudad="${esc(it.ciudad)}">
       <title>${esc(detalle(d))}</title><rect x="${(iz + i * ancho).toFixed(1)}" y="0" width="${ancho.toFixed(1)}" height="${H}" rx="6"/></g>`).join("");
   const hayGfs = dias.some((d) => d.gfs);
+  // La segunda serie (afueras, en "ambas") un poco más fina: la principal manda.
+  const dibujar = (S, k) => linea((d) => S.max(d)?.pron, S.cmax, `stroke-width="${k ? 1.6 : 2}" stroke-dasharray="5 4"`)
+    + linea((d) => S.min(d)?.pron, S.cmin, `stroke-width="${k ? 1.6 : 2}" stroke-dasharray="5 4"`)
+    + linea((d) => obsDe(S.max(d)), S.cmax, `stroke-width="${k ? 1.7 : 2.2}"`) + linea((d) => obsDe(S.min(d)), S.cmin, `stroke-width="${k ? 1.7 : 2.2}"`);
+  const botones = haySub ? `<span class="sp-modo" role="group" aria-label="Qué temperaturas mostrar">${["ciudad", "afueras", "ambas"].map((m) =>
+    `<button type="button" data-sp-modo="${m}" aria-pressed="${m === modo}" title="${{ ciudad: "Ciudad (urbana: el Observatorio) contra su pronóstico", afueras: "Afueras (suburbana: el aeropuerto) contra su pronóstico", ambas: "Las dos" }[m]}">${{ ciudad: "Ciudad", afueras: "Afueras", ambas: "Ambas" }[m]}</button>`).join("")}</span>` : "";
+  const colores = series.map((S) => `<span style="color:${S.cmax}">máx${series.length > 1 ? " " + S.nombre.toLowerCase() : ""}</span><span style="color:${S.cmin}">mín${series.length > 1 ? " " + S.nombre.toLowerCase() : ""}</span>`).join("");
   return `<svg class="spark-pron" viewBox="0 0 ${W} ${H}" role="img" aria-label="Pronosticado, observado y GFS (tocá un día para ver su panorama)">
     ${columnas}
     <text x="2" y="${Y(y1) + 8}">${y1}°</text><text x="2" y="${Y(y0)}">${y0}°</text>
     ${dias.map((d, i) => `<text x="${X(i)}" y="${H - 4}" text-anchor="middle" class="sp-dia">D${d.plazo + 1} · ${esc(diaCorto(d.fecha).split(" ").pop())}</text>`).join("")}
     ${hayGfs ? linea((d) => d.gfs?.tmax, "#9ca3af", 'stroke-width="1.5" data-gris="1"') + linea((d) => d.gfs?.tmin, "#9ca3af", 'stroke-width="1.5" data-gris="1"') : ""}
-    ${linea((d) => d.tmax?.pron, "#dc2626", 'stroke-width="2" stroke-dasharray="5 4"')}${linea((d) => d.tmin?.pron, "#2563eb", 'stroke-width="2" stroke-dasharray="5 4"')}
-    ${linea((d) => d.tmax?.obs, "#dc2626", 'stroke-width="2.2"')}${linea((d) => obsDe(d.tmin), "#2563eb", 'stroke-width="2.2"')}
+    ${series.slice().reverse().map((S) => dibujar(S, series.length > 1 && S === SERIES_SPARK.afueras ? 1 : 0)).join("")}
     ${valores}
-  </svg><div class="spark-ley"><span>┄ pronosticado</span><span>━● observado</span>${hayGfs ? '<span style="color:#9ca3af">━ GFS</span>' : ""}
-    <span style="color:#dc2626">máx</span><span style="color:#2563eb">mín</span><span>· 26 → <b>27,2</b> = pronosticado → observado · tocá un día para ver su panorama</span></div>`;
+  </svg><div class="spark-ley">${botones}<span>┄ pronosticado</span><span>━● observado</span>${hayGfs ? '<span style="color:#9ca3af">━ GFS</span>' : ""}
+    ${colores}<span>· 26 → <b>27,2</b> = pronosticado → observado · tocá un día para ver su panorama</span></div>`;
 }
 function tarjetaPron(it) {
   const quien = it.usuario ? it.usuario.nombre : it.firma;
@@ -7518,6 +7551,14 @@ async function accionRed(e) {
   }
   const ve = e.target.closest("[data-embed]");
   if (ve) { abrirEmbed(ve); return; }
+  const sm = e.target.closest("[data-sp-modo]");
+  if (sm) {
+    const obj = sm.closest(".postit")?.dataset.obj;
+    if (obj) modoSpark.set(obj, sm.dataset.spModo);
+    try { localStorage.setItem("spark-modo", sm.dataset.spModo); } catch (_) {}    // la próxima vez, las tarjetas nuevas arrancan así
+    redibujar();
+    return;
+  }
   const ay = e.target.closest("[data-ayer]");
   if (ay) {
     const fila = e.target.closest("[data-ayer-plazo]");
