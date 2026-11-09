@@ -98,6 +98,13 @@ CREATE INDEX IF NOT EXISTS ingreso_fallido_ts ON ingreso_fallido (ts);
 ALTER TABLE usuario ADD COLUMN IF NOT EXISTS nombre_usuario text;
 CREATE UNIQUE INDEX IF NOT EXISTS usuario_nombre_usuario ON usuario (lower(nombre_usuario));
 
+-- Foto de perfil: cuadrada, chica (WebP de 320 px), la sube cada uno.
+CREATE TABLE IF NOT EXISTS usuario_foto (
+    usuario_id int PRIMARY KEY REFERENCES usuario(id) ON DELETE CASCADE,
+    datos      bytea NOT NULL,
+    actualizada timestamptz NOT NULL DEFAULT now()
+);
+
 -- objeto: "nota:12" o "pron|La Plata|2026-11-02|Mate" (ciudad, fecha del
 -- pronóstico y firma: una publicación).
 CREATE TABLE IF NOT EXISTS reaccion (

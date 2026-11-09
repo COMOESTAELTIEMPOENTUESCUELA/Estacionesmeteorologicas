@@ -36,6 +36,11 @@ La página de Cartas (también la copia pública) sigue igual para todos. Quien
     pronosticó (lo que se veía), y las notas con esa fecha. ‹ › pasan de
     día. Sirve para ver si un error fue de todos (situación difícil) o de uno.
     (`GET /api/yo/dia?ciudad=&fecha=`.)
+  - **Foto de perfil**: en Mi perfil, "📷 Subir foto". Se achica en el
+    navegador, el servidor la recorta cuadrada (320 px, WebP, sin los datos
+    del archivo como la ubicación GPS) y aparece en lugar del círculo con la
+    inicial en todos lados. Solo la ven los que ingresaron. "Quitar foto"
+    vuelve a la inicial.
   - **👁 Ver como pronosticador** (administradores y coordinadores, arriba a
     la derecha): la página se ve con los permisos de un pronosticador común
     (el servidor se los baja de verdad, no es una imitación). Una franja

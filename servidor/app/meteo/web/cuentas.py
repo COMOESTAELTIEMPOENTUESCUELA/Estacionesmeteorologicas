@@ -340,7 +340,61 @@ def yo(request: Request):
     if u:
         f = _leer("SELECT clave IS NOT NULL AS tiene, clave_temporal FROM usuario WHERE id = %s", (u["id"],))[0]
         u = {**u, "tiene_clave": f["tiene"], "clave_temporal": f["clave_temporal"]}
-    return {"login": login_disponible(), "login_clave": True, "url_publica": URL_PUBLICA, "usuario": u}
+    # Quién tiene foto (id -> versión): la página arma /api/yo/foto/ID?v=VERSIÓN.
+    fotos = {str(r["usuario_id"]): int(r["v"]) for r in _leer(
+        "SELECT usuario_id, extract(epoch FROM actualizada)::bigint AS v FROM usuario_foto")} if u else {}
+    return {"login": login_disponible(), "login_clave": True, "url_publica": URL_PUBLICA, "usuario": u, "fotos": fotos}
+
+
+# ---------------------------------------------------------------------------
+# Foto de perfil
+# ---------------------------------------------------------------------------
+LADO_FOTO = 320
+
+
+def _foto_cuadrada(dato):
+    """data URL -> WebP cuadrado de LADO_FOTO (recorta el centro; respeta la
+    orientación de las fotos de celular). Se vuelve a codificar: no queda
+    nada de lo que traía el archivo (ni la ubicación GPS de la foto)."""
+    import io
+
+    from PIL import Image, ImageOps
+    webp, _, _ = _limpiar_imagen(dato)            # valida y la deja limpia
+    img = Image.open(io.BytesIO(webp))
+    img = ImageOps.fit(img, (LADO_FOTO, LADO_FOTO), Image.LANCZOS, centering=(0.5, 0.4))   # un poco arriba: las caras
+    salida = io.BytesIO()
+    img.save(salida, "WEBP", quality=85, method=4)
+    return salida.getvalue()
+
+
+@router.put("/api/yo/foto")
+async def subir_foto(request: Request):
+    u = requiere_usuario(request)
+    datos = await request.json()
+    foto = _foto_cuadrada(datos.get("imagen"))
+    filas = _escribir("""INSERT INTO usuario_foto (usuario_id, datos, actualizada) VALUES (%s, %s, now())
+                         ON CONFLICT (usuario_id) DO UPDATE SET datos = EXCLUDED.datos, actualizada = now()
+                         RETURNING extract(epoch FROM actualizada)::bigint AS v""", (u["id"], foto))
+    return {"v": int(filas[0]["v"])}
+
+
+@router.delete("/api/yo/foto")
+def quitar_foto(request: Request):
+    u = requiere_usuario(request)
+    _escribir("DELETE FROM usuario_foto WHERE usuario_id = %s", (u["id"],))
+    return {"ok": True}
+
+
+@router.get("/api/yo/foto/{usuario_id}")
+def ver_foto(request: Request, usuario_id: int):
+    """Solo para los que ingresaron (las fotos son del grupo, no públicas)."""
+    requiere_usuario(request)
+    filas = _leer("SELECT datos FROM usuario_foto WHERE usuario_id = %s", (usuario_id,))
+    if not filas:
+        raise HTTPException(404, "Sin foto")
+    # La dirección lleva ?v=versión: si cambia la foto, cambia la dirección. Por eso se puede guardar mucho.
+    return Response(bytes(filas[0]["datos"]), media_type="image/webp",
+                    headers={"Cache-Control": "private, max-age=31536000, immutable"})
 
 
 def _rango(desde, hasta):
@@ -481,7 +535,8 @@ def _limpiar_imagen(dato):
         img.load()
     except (binascii.Error, UnidentifiedImageError, OSError, Image.DecompressionBombError):
         raise HTTPException(400, "imagen: no se pudo leer")
-    img = img.convert("RGB")
+    from PIL import ImageOps
+    img = ImageOps.exif_transpose(img).convert("RGB")       # fotos de celular: derechas, como se sacaron
     img.thumbnail((MAX_LADO, MAX_LADO * 3))
     salida = io.BytesIO()
     img.save(salida, "WEBP", quality=82, method=4)

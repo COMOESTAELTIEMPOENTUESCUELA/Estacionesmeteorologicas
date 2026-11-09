@@ -571,3 +571,31 @@ def test_ver_como_pronosticador(cliente, cuentas, monkeypatch):
         yo = cliente.get("/api/yo").json()["usuario"]
         assert yo["rol"] == "pronosticador" and "rol_real" not in yo
     assert cliente.get("/api/yo/pronosticos/grupo").status_code == 403
+
+
+def test_foto_de_perfil(cliente, cuentas, monkeypatch):
+    """Cada uno sube su foto: queda cuadrada, chica, en WebP, y solo la ven
+    los que ingresaron."""
+    import base64
+    import io
+
+    from PIL import Image
+    cliente.cookies.clear()
+    ingresar(cliente, cuentas, monkeypatch, "beto@gmail.com")
+    yo = cliente.get("/api/yo").json()
+    beto = yo["usuario"]["id"]
+    assert str(beto) not in yo["fotos"]
+    b = io.BytesIO()
+    Image.new("RGB", (900, 600), (200, 30, 30)).save(b, "JPEG")
+    dato = "data:image/jpeg;base64," + base64.b64encode(b.getvalue()).decode()
+    assert cliente.put("/api/yo/foto", json={"imagen": "data:text/html;base64,PGI+"}, headers=X).status_code == 400
+    v = cliente.put("/api/yo/foto", json={"imagen": dato}, headers=X).json()["v"]
+    assert cliente.get("/api/yo").json()["fotos"][str(beto)] == v
+    r = cliente.get(f"/api/yo/foto/{beto}?v={v}")
+    assert r.status_code == 200 and r.headers["content-type"] == "image/webp"
+    assert Image.open(io.BytesIO(r.content)).size == (320, 320)
+    cliente.cookies.clear()
+    assert cliente.get(f"/api/yo/foto/{beto}").status_code == 401          # no es pública
+    ingresar(cliente, cuentas, monkeypatch, "beto@gmail.com")
+    assert cliente.delete("/api/yo/foto", headers=X).status_code == 200
+    assert cliente.get(f"/api/yo/foto/{beto}").status_code == 404

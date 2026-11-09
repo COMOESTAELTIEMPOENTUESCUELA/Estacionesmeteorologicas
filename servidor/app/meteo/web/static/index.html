@@ -302,6 +302,7 @@ td.nw { white-space: nowrap; }
 .avatar { width: 26px; height: 26px; border-radius: 50%; display: inline-grid; place-items: center; color: #fff; font-weight: 700; font-size: 12px; flex: none; }
 .avatar.grande { width: 40px; height: 40px; font-size: 17px; }
 .avatar.enorme { width: 84px; height: 84px; font-size: 36px; border: 4px solid var(--superficie); }
+img.avatar { object-fit: cover; background: var(--plano); display: inline-block; }
 .comp-fila { display: flex; gap: 10px; align-items: flex-start; }
 .comp-fila textarea { flex: 1; }
 [data-perfil] { cursor: pointer; }
@@ -6006,6 +6007,7 @@ document.querySelectorAll(".d-chico [data-cerrar]").forEach((b) => b.addEventLis
 async function cargarCuenta() {
   try { CUENTA = await api("/api/yo"); } catch (_) { return; }
   YO = CUENTA.usuario;
+  FOTOS = CUENTA.fotos || {};
   const c = $("#cuenta");
   if (YO) {
     c.innerHTML = `<span>👤 ${esc(YO.nombre)}</span><button class="boton" id="cuenta-clave" title="${YO.tiene_clave ? "Cambiar mi contraseña" : "Ponerme una contraseña (para entrar sin Google)"}">🔑</button><button class="boton" id="cuenta-salir">Salir</button>`;
@@ -6047,7 +6049,12 @@ const TIPO_CORTO = { vi: "Lo que vi", llamo_atencion: "Me llamó la atención", 
 const COLORES_AVATAR = ["--s1", "--s2", "--s3", "--s4", "--s5", "--s6", "--s7", "--s8"];
 const colorAvatar = (nombre) => css(COLORES_AVATAR[[...String(nombre)].reduce((a, c) => a + c.charCodeAt(0), 0) % 8]);
 // (con Array.from: la primera letra entera aunque sea un emoji, como la del 🤖 bot)
-const avatar = (nombre, clase = "") => `<span class="avatar ${clase}" style="background:${colorAvatar(nombre)}">${esc((Array.from(String(nombre || "?"))[0] || "?").toUpperCase())}</span>`;
+// El círculo de cada persona: su foto si subió una (FOTOS: id -> versión, viene en /api/yo), si no la inicial.
+let FOTOS = {};
+const fotoDe = (id) => id && FOTOS[id] ? `/api/yo/foto/${id}?v=${FOTOS[id]}` : null;
+const avatar = (nombre, clase = "", id = null) => fotoDe(id)
+  ? `<img class="avatar ${clase}" src="${fotoDe(id)}" alt="${esc(nombre || "")}" loading="lazy">`
+  : `<span class="avatar ${clase}" style="background:${colorAvatar(nombre)}">${esc((Array.from(String(nombre || "?"))[0] || "?").toUpperCase())}</span>`;
 const fmtEscrita = new Intl.DateTimeFormat("es-AR", { timeZone: "America/Argentina/Buenos_Aires", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 const fmtDiaMuro = new Intl.DateTimeFormat("es-AR", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long" });
 function nombreDiaMuro(iso) {
@@ -6195,7 +6202,7 @@ function tarjetaNota(nt, reunion = false) {
     + (esCoord() && nt.compartida ? `<button class="boton" data-acc="presentar" title="Mostrarla a pantalla completa en la reunión">🖥️</button>` : "")
     + (nt.mia ? `<button class="boton" data-acc="editar" title="Editar">✏️</button><button class="boton" data-acc="borrar" title="Borrar">🗑️</button>` : "");
   return `<article class="postit ${esc(nt.tipo)}" data-id="${nt.id}"${reunion && puede ? ' draggable="true"' : ""}>
-    <div class="cab"><span data-perfil="${nt.autor_id}">${avatar(nt.autor)}</span>
+    <div class="cab"><span data-perfil="${nt.autor_id}">${avatar(nt.autor, "", nt.autor_id)}</span>
       <span class="quien"><b data-perfil="${nt.autor_id}">${nt.mia ? "Vos" : esc(nt.autor)}</b>
         ${conCtx ? `<span class="lugar" data-acc="abrir" title="Ir a donde se escribió">📍 ${esc(describirContexto(nt.contexto))}</span>` : ""}</span>
       <span class="der"><span class="hora" title="${esc(fmtEscrita.format(new Date(nt.creada)))}">${esc(hace(nt.creada))}</span>
@@ -6303,7 +6310,7 @@ function tarjetaPron(it) {
   const r = resumenPron(it);
   const celda = (t) => !t || t.pron === null || t.pron === undefined ? '<td class="pend">–</td>' : `<td>${celdaTemp(t)}</td>`;
   return `<article class="postit pron" data-obj="${esc(it.objeto)}">
-    <div class="cab"><span data-perfil="${esc(perfil)}">${avatar(quien)}</span>
+    <div class="cab"><span data-perfil="${esc(perfil)}">${avatar(quien, "", it.usuario?.id)}</span>
       <span class="quien"><span><b data-perfil="${esc(perfil)}">${yo ? "Vos" : esc(quien)}</b> pronosticó <b>${esc(it.ciudad)}</b></span>
         <span title="${esc(fmtEscrita.format(new Date(it.ts)))}">${esc(hace(it.ts))}${it.anticipado ? " · la noche anterior" : ""}${it.correccion ? " · corrección" : ""}</span></span>
       <span class="der"><span class="lb-tipo" style="background:var(--s3)">Pronóstico</span></span></div>
@@ -6551,7 +6558,7 @@ function numerosPersona(p) {
 async function dibujarPersonas() {
   const ps = await cargarPersonas(true);
   $("#red-personas").innerHTML = ps.map((p) => `<button class="persona" data-perfil="${p.id ?? "f:" + esc(p.nombre)}">
-      <div class="top">${avatar(p.nombre, "grande")}<div><b>${esc(p.nombre)}${p.yo ? " (vos)" : ""}</b><br>
+      <div class="top">${avatar(p.nombre, "grande", p.id)}<div><b>${esc(p.nombre)}${p.yo ? " (vos)" : ""}</b><br>
         <small>${p.sin_cuenta ? "firma sin cuenta" : esc({ admin: "administrador", coordinador: "coordinador", pronosticador: "pronosticador" }[p.rol] || "")}${p.firmas.length && !p.sin_cuenta ? ` · firma ${esc(p.firmas.join(", "))}` : ""}</small></div></div>
       ${p.bio ? `<div class="bio">${esc(p.bio.slice(0, 140))}${p.bio.length > 140 ? "…" : ""}</div>` : ""}
       <small>${p.emisiones} pronósticos en 90 días · ${p.notas} notas</small>
@@ -6576,6 +6583,22 @@ async function abrirPerfil(id) {
   red.perfil.params = params;
   cargarFeed(red.perfil, params, "#red-feed-perfil", "#red-mas-perfil", `${p.id === YO.id ? "Todavía no publicaste" : "Todavía no publicó"} nada en estas semanas`);
 }
+// Una foto del celular puede pesar 5 MB: se achica en el navegador antes de mandarla
+// (el servidor igual la recorta cuadrada y la vuelve a codificar).
+async function achicarImagen(archivo, lado) {
+  const bmp = await createImageBitmap(archivo, { imageOrientation: "from-image" });
+  const k = Math.min(1, lado / Math.max(bmp.width, bmp.height));
+  const cv = document.createElement("canvas");
+  cv.width = Math.round(bmp.width * k); cv.height = Math.round(bmp.height * k);
+  cv.getContext("2d").drawImage(bmp, 0, 0, cv.width, cv.height);
+  return cv.toDataURL("image/jpeg", 0.88);
+}
+function fotoCambiada() {
+  $("#red-yo").innerHTML = `${avatar(YO.nombre, "grande", YO.id)}<span><b>${esc(YO.nombre)}</b><small>${esc({ admin: "administrador", coordinador: "coordinador", pronosticador: "pronosticador" }[YO.rol] || "")}</small></span>`;
+  $("#mc-avatar").outerHTML = avatar(YO.nombre, "grande", YO.id).replace(/^<(img|span) class="/, '<$1 id="mc-avatar" class="');
+  abrirPerfil(YO.id);
+  redibujar();
+}
 function dibujarCabecera(p) {
   const yo = p.id === YO.id;
   const r = p.resumen && p.resumen["0"];
@@ -6584,14 +6607,16 @@ function dibujarCabecera(p) {
         ${r ? `<span><b>${maeColor(r.tmin_urbana?.mae)}</b>error medio mín (día 1)</span><span><b>${maeColor(r.tmax_urbana?.mae)}</b>error medio máx (día 1)</span>
         ${r.pp && r.pp.n ? `<span><b>${Math.round(100 * r.pp.pc)} %</b>aciertos de lluvia</span>` : ""}` : ""}</div>`;
   $("#red-cab").style.setProperty("--c1", colorAvatar(p.nombre));
-  $("#red-cab").innerHTML = `<div class="portada"></div><div class="cuerpo">${avatar(p.nombre, "enorme")}
+  $("#red-cab").innerHTML = `<div class="portada"></div><div class="cuerpo">${avatar(p.nombre, "enorme", p.id)}
       <h2>${esc(p.nombre)}</h2>
       <div class="sub">${p.sin_cuenta ? "Firma de los pronósticos (sin cuenta en la página)" : esc({ admin: "Administrador", coordinador: "Coordinador", pronosticador: "Pronosticador" }[p.rol] || "")}
         ${p.firmas && p.firmas.length && !p.sin_cuenta ? ` · firma "${esc(p.firmas.join('", "'))}"` : ""}${yo ? (YO.metricas_publicas ? " · 🔓 números visibles para el grupo" : " · 🔒 números privados") : ""}</div>
       ${p.bio ? `<div class="bio">${esc(p.bio)}</div>` : yo ? '<div class="bio tenue">Contale al grupo quién sos (Editar perfil).</div>' : ""}
       ${contarInsignias(p.insignias) ? `<div class="sub" style="margin-top:6px">Insignias de los últimos 90 días: ${contarInsignias(p.insignias)}</div>` : ""}
       ${numeros}
-      ${yo ? `<div style="margin-top:10px"><button class="boton" id="pf-editar">✏️ Editar perfil</button></div>
+      ${yo ? `<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap"><button class="boton" id="pf-editar">✏️ Editar perfil</button>
+        <label class="boton" title="Una foto tuya (se recorta cuadrada; la ven solo los del grupo)">📷 ${FOTOS[YO.id] ? "Cambiar foto" : "Subir foto"}<input type="file" id="pf-foto" accept="image/*" hidden></label>
+        ${FOTOS[YO.id] ? '<button class="boton" id="pf-foto-quitar">Quitar foto</button>' : ""}</div>
         <form id="pf-form" hidden style="margin-top:10px;display:flex;flex-direction:column;gap:8px;max-width:520px">
           <label>Presentación <textarea name="bio" rows="3" maxlength="500" placeholder="Ej.: estudiante de 4º año, me interesan las tormentas de verano…">${esc(YO.bio || "")}</textarea></label>
           <label class="en-linea"><input type="checkbox" name="pub" ${YO.metricas_publicas ? "checked" : ""}> Mostrar mis números (errores medios, aciertos) a todo el grupo</label>
@@ -6599,6 +6624,21 @@ function dibujarCabecera(p) {
     </div>`;
   if (yo) {
     $("#pf-editar").addEventListener("click", () => { $("#pf-form").hidden = !$("#pf-form").hidden; });
+    $("#pf-foto").addEventListener("change", async (e) => {
+      const archivo = e.target.files[0];
+      if (!archivo) return;
+      try {
+        const r = await apiEnviar("/api/yo/foto", "PUT", { imagen: await achicarImagen(archivo, 1000) });
+        FOTOS[YO.id] = r.v;
+      } catch (err) { alert(`No se pudo subir la foto: ${err.message}`); return; }
+      fotoCambiada();
+    });
+    $("#pf-foto-quitar")?.addEventListener("click", async () => {
+      if (!confirm("¿Quitar tu foto? Vuelve a aparecer tu inicial.")) return;
+      await apiEnviar("/api/yo/foto", "DELETE");
+      delete FOTOS[YO.id];
+      fotoCambiada();
+    });
     $("#pf-form").addEventListener("submit", async (e) => {
       e.preventDefault();
       const f = e.target;
@@ -6882,8 +6922,8 @@ function datosComposer() {
     compartida: tipo === "pregunta" || !$("#mc-priv").checked };
 }
 async function iniciarPerfil() {
-  $("#red-yo").innerHTML = `${avatar(YO.nombre, "grande")}<span><b>${esc(YO.nombre)}</b><small>${esc({ admin: "administrador", coordinador: "coordinador", pronosticador: "pronosticador" }[YO.rol] || "")}</small></span>`;
-  $("#mc-avatar").outerHTML = avatar(YO.nombre, "grande");
+  $("#red-yo").innerHTML = `${avatar(YO.nombre, "grande", YO.id)}<span><b>${esc(YO.nombre)}</b><small>${esc({ admin: "administrador", coordinador: "coordinador", pronosticador: "pronosticador" }[YO.rol] || "")}</small></span>`;
+  $("#mc-avatar").outerHTML = avatar(YO.nombre, "grande", YO.id).replace(/^<(img|span) class="/, '<$1 id="mc-avatar" class="');
   $("#red-nav").addEventListener("click", (e) => { const b = e.target.closest("[data-rv]"); if (b) verRed(b.dataset.rv); });
   $("#red-yo").addEventListener("click", () => verRed("perfil"));
   $("#rv-b-metricas").hidden = !esCoord();
