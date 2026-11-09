@@ -395,6 +395,16 @@ img.avatar { object-fit: cover; background: var(--plano); display: inline-block;
 .muro-comp input[type=text], .muro-filtros input[type=search] { font: inherit; font-size: 13px; padding: 5px 9px; border: 1px solid var(--borde);
   border-radius: 8px; background: var(--superficie); color: var(--tinta); }
 .muro-filtros { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin-bottom: 8px; font-size: 13px; }
+/* Botones de la hora en Diagnóstico: un grupo pegado, el elegido resaltado */
+.horas-c { display: inline-flex; border: 1px solid var(--borde); border-radius: 10px; overflow: hidden; background: var(--superficie); }
+.horas-c button { border: 0; border-right: 1px solid var(--borde); background: none; font: inherit; color: var(--tinta); cursor: pointer;
+  padding: 4px 12px; line-height: 1.15; display: flex; flex-direction: column; align-items: center; font-weight: 650; }
+.horas-c button:last-child { border-right: 0; }
+.horas-c button small { font-weight: 400; font-size: 10px; color: var(--tenue); }
+.horas-c button span { font-weight: 400; font-size: 11px; color: var(--tenue); }
+.horas-c button:hover { background: var(--plano); }
+.horas-c button[aria-pressed="true"] { background: var(--acento); color: #fff; }
+.horas-c button[aria-pressed="true"] small, .horas-c button[aria-pressed="true"] span { color: rgba(255,255,255,.85); }
 .chip-f { border: 1px solid var(--borde); background: var(--superficie); color: var(--tinta-2); border-radius: 99px; padding: 2px 10px;
   font: inherit; font-size: 12.5px; cursor: pointer; }
 .chip-f.activa { background: var(--tinta); color: var(--superficie); border-color: var(--tinta); }
@@ -700,6 +710,13 @@ img.con-fondo { background-color: #fff !important; background-size: 100% 100%; b
 #c-analisis > .filtros .boton:hover, #c-dialogo .barra:not(:first-child) .boton:hover { border-color: var(--ins-amarillo); }
 #c-analisis > .filtros select, #c-analisis > .filtros input[type="text"],
 #c-dialogo .barra select { background: var(--ins-panel-2); color: #e6ecf1; border: 1px solid #33414e; border-radius: 6px; font-family: var(--ins-mono); }
+/* Los botones de la hora, con el estilo del panel: la elegida en ámbar, como un display */
+#c-analisis > .filtros .horas-c { background: var(--ins-panel-2); border-color: #33414e; border-radius: 6px; }
+#c-analisis > .filtros .horas-c button { color: #e6ecf1; border-right-color: #33414e; font-family: var(--ins-mono); }
+#c-analisis > .filtros .horas-c button small, #c-analisis > .filtros .horas-c button span { color: var(--ins-panel-texto); }
+#c-analisis > .filtros .horas-c button:hover { background: #2b3845; }
+#c-analisis > .filtros .horas-c button[aria-pressed="true"] { background: var(--ins-amarillo); color: #17212b; }
+#c-analisis > .filtros .horas-c button[aria-pressed="true"] small, #c-analisis > .filtros .horas-c button[aria-pressed="true"] span { color: #3d3418; }
 #c-ultima, #c-anim, #c-herr .herr.activa { background: var(--ins-amarillo) !important; color: #17212b !important; font-weight: 600; outline: none !important; }
 #c-dialogo .barra .tenue { color: var(--ins-panel-texto); }
 /* Título de la hora */
@@ -1527,14 +1544,18 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
     <div class="tarjeta" id="c-analisis" data-cvista="diag">
       <div class="filtros">
         <label>Fecha <input type="date" id="f-c-fecha"></label>
-        <label>Hora
-          <select id="f-c-hora">
-            <option value="0">00 UTC (21 hs del día anterior)</option>
-            <option value="6">06 UTC (03 hs)</option>
-            <option value="12" selected>12 UTC (09 hs)</option>
-            <option value="18">18 UTC (15 hs)</option>
-          </select>
-        </label>
+        <!-- La hora: cuatro botones fijos. El <select> queda escondido: es el que
+             lee y escribe el resto del código (los botones solo lo manejan). -->
+        <div class="horas-c" role="group" aria-label="Hora de las cartas" id="f-c-horas">
+          <button type="button" data-h="0" title="21 hs del día anterior (hora argentina)">00 <small>UTC</small><span>21 hs ant.</span></button>
+          <button type="button" data-h="6" title="03 hs (hora argentina)">06 <small>UTC</small><span>03 hs</span></button>
+          <button type="button" data-h="12" title="09 hs (hora argentina)">12 <small>UTC</small><span>09 hs</span></button>
+          <button type="button" data-h="18" title="15 hs (hora argentina)">18 <small>UTC</small><span>15 hs</span></button>
+        </div>
+        <select id="f-c-hora" hidden aria-hidden="true" tabindex="-1">
+          <option value="0">00 UTC</option><option value="6">06 UTC</option>
+          <option value="12" selected>12 UTC</option><option value="18">18 UTC</option>
+        </select>
         <button class="boton" id="c-menos-dia" title="Un día antes">« −1 día</button>
         <button class="boton" id="c-menos" title="6 horas antes (flecha izquierda)">‹ −6 h</button>
         <button class="boton" id="c-mas" title="6 horas después (flecha derecha)">+6 h ›</button>
@@ -3621,6 +3642,10 @@ async function iniciarCartas() {
   ponerTsCarta(claves.length ? new Date(claves[claves.length - 1]) : new Date(Math.floor(Date.now() / 21600e3) * 21600e3));
   $("#f-c-fecha").addEventListener("change", cargarCartas);
   $("#f-c-hora").addEventListener("change", cargarCartas);
+  $("#f-c-horas").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-h]");
+    if (b && $("#f-c-hora").value !== b.dataset.h) { $("#f-c-hora").value = b.dataset.h; cargarCartas(); }
+  });
   $("#c-menos").addEventListener("click", () => moverCarta(-6));
   $("#c-mas").addEventListener("click", () => moverCarta(6));
   $("#c-menos-dia").addEventListener("click", () => moverCarta(-24));
@@ -3707,6 +3732,8 @@ function moverCruces(img, e) {
 
 async function cargarCartas() {
   const t = tsCarta();
+  // El botón de la hora elegida queda marcado (venga de un botón, de ±6 h o de una nota).
+  document.querySelectorAll("#f-c-horas button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.h === $("#f-c-hora").value)));
   const titulo = fmtCartaTitulo.format(t);
   $("#c-titulo").innerHTML = `${esc(titulo.charAt(0).toUpperCase() + titulo.slice(1))} <span class="hora-utc">${String(t.getUTCHours()).padStart(2, "0")} UTC</span>`;
   const r = await api(`/api/cartas?ts=${encodeURIComponent(t.toISOString())}`);
