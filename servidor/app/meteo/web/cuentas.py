@@ -70,7 +70,8 @@ COOKIE_VER_COMO = "meteo_ver_como"
 DURACION = timedelta(days=30)
 TIPOS_NOTA = ("vi", "llamo_atencion", "duda", "pregunta")
 # Del contexto de una nota solo se guardan estas claves (texto o número corto).
-CLAVES_CONTEXTO = ("ts", "producto", "corrida", "plazo", "carta", "vista", "ciudad", "desde", "hasta", "seccion")
+CLAVES_CONTEXTO = ("ts", "producto", "corrida", "plazo", "carta", "vista", "ciudad", "desde", "hasta", "seccion",
+                   "para")          # "para": el día pronosticado del que habla la nota (AAAA-MM-DD)
 # La imagen pegada a una nota ("pizarra"): lo que manda la página (data URL
 # PNG/JPEG/WebP) se abre con Pillow y se vuelve a codificar en WebP, así se
 # guarda siempre una imagen limpia y chica, sin importar lo que llegó.

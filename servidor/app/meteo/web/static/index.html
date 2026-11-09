@@ -236,6 +236,19 @@ td.nw { white-space: nowrap; }
 /* Mini-gráfico del pronóstico */
 .spark-pron { display: block; width: 100%; height: auto; max-height: 190px; }
 .spark-pron text { font: 10px system-ui, sans-serif; fill: var(--tenue); }
+/* La fecha "para" en una nota, y la nota flotando sobre las cartas */
+.para-dia { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13.5px; padding: 6px 10px; border-radius: 10px;
+  background: color-mix(in srgb, var(--acento) 10%, var(--superficie)); border: 1px solid color-mix(in srgb, var(--acento) 30%, transparent); }
+.para-dia .boton { margin-left: auto; }
+.red-feed .postit:not(.pron) > .para-dia { margin: 0 14px 10px; }
+.nota-flota { position: fixed; right: 16px; bottom: 16px; z-index: 900; width: min(360px, calc(100vw - 32px));
+  background: var(--superficie); border: 1px solid var(--borde); border-left: 4px solid var(--acento); border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.2); padding: 10px 12px; font-size: 13.5px; }
+.nota-flota .nf-cab { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.nota-flota .nf-cerrar { margin-left: auto; border: 0; background: none; font-size: 16px; cursor: pointer; color: var(--tenue); }
+.nota-flota .nf-texto { white-space: pre-wrap; max-height: 5.6em; overflow: hidden; cursor: pointer; }
+.nota-flota .nf-texto.abierta { max-height: 50vh; overflow: auto; }
+@media (max-width: 760px) { .nota-flota { bottom: 72px; right: 16px; } body.con-barra-abajo .nota-flota { bottom: 136px; } }
 /* Aviso de "viendo como pronosticador" */
 .ver-como { position: sticky; top: 0; z-index: 1000; display: flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap;
   padding: 6px 12px; font-size: 13.5px; background: #fef3c7; color: #78350f; border-bottom: 1px solid #f59e0b; }
@@ -1762,6 +1775,7 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
             <div class="comp-fila"><span class="avatar grande" id="mc-avatar"></span>
               <textarea id="mc-texto" rows="2" maxlength="10000" placeholder="¿Qué viste hoy? Ej.: la vaguada en 500 está más al oeste que ayer… (podés pegar un link de Instagram, YouTube, TikTok o X: el video se ve acá)"></textarea></div>
             <div class="fila">
+              <select id="mc-para" title="¿De qué día habla? Si es de un día que viene, la nota queda con esa fecha y con las cartas del pronóstico (GFS) de ahora"></select>
               <select id="mc-tipo" title="Tipo de nota"><option value="vi">👀 Lo que vi</option><option value="llamo_atencion">⚡ Me llamó la atención</option>
                 <option value="duda">🤔 Duda</option><option value="pregunta">❓ Pregunta para la reunión</option></select>
               <input type="text" id="mc-etiquetas" list="lb-sugeridas" placeholder="#etiquetas, separadas por coma" class="crece" style="min-width:140px">
@@ -1869,6 +1883,7 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
   </section>
 </main>
 
+<aside id="nota-flota" class="nota-flota" hidden aria-label="La nota desde la que se abrieron las cartas"></aside>
 <button id="red-volver" class="red-volver" hidden title="Volver a donde estabas en Mi perfil">← Volver al pronóstico</button>
 
 <!-- Ingresar: con Google o con mail y contraseña -->
@@ -2065,9 +2080,12 @@ new MutationObserver(() => document.querySelectorAll('input[type="date"]:not([da
 const cargadas = {};
 // Volver a la red después de ir a ver las cartas de un pronóstico (ver irACartasDesdeRed).
 let volverRed = null;
+let notaFlotante = null;          // la nota desde la que se abrieron las cartas (se muestra encima)
 function abrir(tab) {
   const v = document.getElementById("red-volver");
   if (v) v.hidden = !(tab === "cartas" && volverRed);
+  const nf = document.getElementById("nota-flota");
+  if (nf) nf.hidden = !(tab === "cartas" && notaFlotante);
   document.querySelectorAll("nav button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
   document.querySelectorAll("main > section").forEach((s) => (s.hidden = s.id !== `tab-${tab}`));
   if (tab === "mapa") setTimeout(medirMapa, 30);
@@ -6207,6 +6225,8 @@ function tarjetaNota(nt, reunion = false) {
         ${conCtx ? `<span class="lugar" data-acc="abrir" title="Ir a donde se escribió">📍 ${esc(describirContexto(nt.contexto))}</span>` : ""}</span>
       <span class="der"><span class="hora" title="${esc(fmtEscrita.format(new Date(nt.creada)))}">${esc(hace(nt.creada))}</span>
         <span class="lb-tipo ${esc(nt.tipo)}" title="${esc(NOMBRE_TIPO[nt.tipo] || "")}">${esc(TIPO_CORTO[nt.tipo] || nt.tipo)}</span>${nt.compartida ? "" : '<span title="Privada: la ven el autor y los administradores">🔒</span>'}</span></div>
+    ${nt.contexto?.para ? `<div class="para-dia"><span>📅 Para el <b>${esc(diaCorto(nt.contexto.para))}</b> <small>(${relativoDia(nt.contexto.para)})</small></span>
+      <button class="boton chico" data-acc="abrir" title="Las cartas del pronóstico GFS que había cuando se escribió, para ese día">🗺️ Cartas del pronóstico</button></div>` : ""}
     ${img}
     ${bloqueVideos(nt.texto)}
     ${nt.compartida || acciones ? `<div class="barra-ig">${nt.compartida ? barraReacciones(`nota:${nt.id}`, nt.reacciones, ["util", "acuerdo", "duda"]) : "<span></span>"}
@@ -6915,9 +6935,33 @@ function redibujar() {
   if (red.vista === "reunion") cargarReunion();
   if (red.vista === "dia" && red.dia?.datos) dibujarDia();
 }
-function datosComposer() {
-  const tipo = $("#mc-tipo").value;
-  return { tipo, texto: $("#mc-texto").value.trim(), fecha_evento: diaArg(Date.now()), contexto: {},
+// "Para qué día": la nota de un día que viene queda con esa fecha y con la
+// corrida del GFS de este momento a esa hora (las 15 hs), para abrir esas cartas.
+function opcionesPara() {
+  const hoy = diaArg(Date.now());
+  const nombres = ["📅 Hoy", "📅 Mañana", "📅 Pasado mañana", "📅 En 3 días", "📅 En 4 días"];
+  $("#mc-para").innerHTML = nombres.map((n, k) => `<option value="${k}">${n}${k ? ` (${diaCorto(sumarDias(hoy, k))})` : ""}</option>`).join("");
+}
+async function contextoPara(fecha) {
+  const ctx = { seccion: "gfs", para: fecha, ts: fecha + "T18:00:00Z" };        // 18 UTC = 15 hs
+  try {
+    const c = ((await api("/api/cartas/pronostico")).productos?.[0]?.corridas || [])[0];
+    if (c && c.plazos.length) {
+      const ini = new Date(c.inicio), h = Math.round((Date.parse(ctx.ts) - ini) / HORA);
+      const plazo = c.plazos.reduce((m, x) => Math.abs(x - h) < Math.abs(m - h) ? x : m, c.plazos[0]);
+      Object.assign(ctx, { corrida: claveCorrida(ini), plazo });
+    }
+  } catch (_) {}
+  return ctx;
+}
+const relativoDia = (fecha) => {
+  const n = Math.round((Date.parse(fecha) - Date.parse(diaArg(Date.now()))) / 864e5);
+  return n === 0 ? "hoy" : n === 1 ? "mañana" : n === -1 ? "ayer" : n > 1 ? `en ${n} días` : `hace ${-n} días`;
+};
+async function datosComposer() {
+  const tipo = $("#mc-tipo").value, k = Number($("#mc-para").value || 0);
+  const fecha = sumarDias(diaArg(Date.now()), k);
+  return { tipo, texto: $("#mc-texto").value.trim(), fecha_evento: fecha, contexto: k ? await contextoPara(fecha) : {},
     etiquetas: $("#mc-etiquetas").value.split(",").map((x) => x.trim().replace(/^#/, "")).filter(Boolean),
     compartida: tipo === "pregunta" || !$("#mc-priv").checked };
 }
@@ -6943,15 +6987,18 @@ async function iniciarPerfil() {
   $("#red-mas").addEventListener("click", () => cargarInicio(true));
   $("#red-mas-perfil").addEventListener("click", () => cargarFeed(red.perfil, red.perfil.params || {}, "#red-feed-perfil", "#red-mas-perfil", "Nada publicado", true));
   $("#mc-tipo").addEventListener("change", () => { $("#mc-priv").disabled = $("#mc-tipo").value === "pregunta"; if ($("#mc-priv").disabled) $("#mc-priv").checked = false; });
+  opcionesPara();
   $("#mc-publicar").addEventListener("click", async () => {
-    const d = datosComposer();
-    if (!d.texto) { $("#mc-texto").focus(); return; }
+    if (!$("#mc-texto").value.trim()) { $("#mc-texto").focus(); return; }
     $("#mc-publicar").disabled = true;
-    try { await apiEnviar("/api/yo/notas", "POST", d); $("#mc-texto").value = ""; $("#mc-etiquetas").value = ""; cargarLibreta(); }
+    try {
+      await apiEnviar("/api/yo/notas", "POST", await datosComposer());
+      $("#mc-texto").value = ""; $("#mc-etiquetas").value = ""; $("#mc-para").value = "0"; cargarLibreta();
+    }
     catch (err) { alert(`No se pudo guardar: ${err.message}`); }
     finally { $("#mc-publicar").disabled = false; }
   });
-  $("#mc-mas").addEventListener("click", () => abrirNota(datosComposer()));
+  $("#mc-mas").addEventListener("click", async () => abrirNota(await datosComposer()));
   $("#mc-pegar").addEventListener("click", async () => {
     let t = "";
     try { t = await navigator.clipboard.readText(); } catch (_) {}
@@ -7151,12 +7198,23 @@ function irACartasDesdeRed(fecha, tarjeta) {
   $("#red-volver").textContent = `← Volver${quien ? ` al pronóstico de ${quien === "Vos" ? "vos" : quien}` : ""}`;
   irACartas(fecha + "T12:00:00Z");
 }
+function mostrarNotaFlotante(nt) {
+  notaFlotante = nt;
+  $("#nota-flota").innerHTML = `<div class="nf-cab">${avatar(nt.autor, "", nt.autor_id)}<b>${nt.mia ? "Vos" : esc(nt.autor)}</b>
+      ${nt.contexto?.para ? `<span class="tenue">· 📅 para el ${esc(diaCorto(nt.contexto.para))}</span>` : ""}
+      <button class="nf-cerrar" title="Ocultar la nota" aria-label="Ocultar la nota">✕</button></div>
+    <div class="nf-texto">${textoConEnlaces(nt.texto)}</div>`;
+  $("#nota-flota .nf-cerrar").addEventListener("click", () => { notaFlotante = null; $("#nota-flota").hidden = true; });
+  $("#nota-flota .nf-texto").addEventListener("click", (e) => e.currentTarget.classList.toggle("abierta"));
+}
 function volverALaRed() {
   const v = volverRed;
   volverRed = null;
+  notaFlotante = null;
   abrir("perfil");
   if (!v) return;
-  const buscar = () => document.querySelector(`#tab-perfil .rv:not([hidden]) .postit[data-obj="${CSS.escape(v.obj || "")}"]`);
+  const buscar = () => document.querySelector(`#tab-perfil .rv:not([hidden]) .postit[data-obj="${CSS.escape(v.obj || "")}"]`)
+    || (v.obj?.startsWith("nota:") && document.querySelector(`#tab-perfil .rv:not([hidden]) .postit[data-id="${CSS.escape(v.obj.slice(5))}"]`));
   const ir = (intentos = 0) => {
     const t = v.obj && buscar();
     if (!t) { if (intentos < 10) return setTimeout(() => ir(intentos + 1), 200); window.scrollTo(0, v.scroll); return; }
@@ -7250,7 +7308,12 @@ async function accionRed(e) {
   e.preventDefault();
   const id = Number(b.closest(".postit").dataset.id), nt = buscarNota(id);
   if (!nt) return;
-  if (b.dataset.acc === "abrir") abrirContexto(nt.contexto);
+  if (b.dataset.acc === "abrir") {
+    volverRed = { obj: `nota:${id}`, vista: red.vista, scroll: window.scrollY };
+    $("#red-volver").textContent = "← Volver a la nota";
+    mostrarNotaFlotante(nt);
+    abrirContexto(nt.contexto);
+  }
   if (b.dataset.acc === "editar") abrirNota(nt);
   if (b.dataset.acc === "borrar" && confirm("¿Borrar esta nota?")) { await apiEnviar(`/api/yo/notas/${id}`, "DELETE"); cargarLibreta(); }
   if (b.dataset.acc === "estado") await moverPregunta(nt, b.dataset.estado);
@@ -7444,6 +7507,7 @@ function describirContexto(c) {
   if (!c || !Object.keys(c).length) return "Sin carta asociada.";
   const t = c.ts ? new Date(c.ts) : null;
   const cuando = t ? `${fmtCartaTitulo.format(t)}, ${String(t.getUTCHours()).padStart(2, "0")} UTC` : "";
+  if (c.para) return `Pronóstico GFS para el ${diaCorto(c.para)}${c.corrida ? ` · corrida ${c.corrida.slice(6, 8)}/${c.corrida.slice(4, 6)} ${c.corrida.slice(8)} UTC` : ""}`;
   if (c.seccion === "gfs" && c.ciudad) return `Meteograma del pronóstico GFS · ${c.ciudad} · corrida ${c.corrida}`;
   if (c.seccion === "gfs") return `Pronóstico GFS · corrida ${c.corrida}, +${c.plazo} h${c.carta ? " · " + c.carta : ""}`;
   if (c.seccion === "meteograma") return `Diagnóstico de ${c.ciudad || ""}${cuando ? " · " + cuando : ""}`;

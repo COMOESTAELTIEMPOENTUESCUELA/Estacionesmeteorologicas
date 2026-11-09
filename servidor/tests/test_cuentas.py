@@ -599,3 +599,20 @@ def test_foto_de_perfil(cliente, cuentas, monkeypatch):
     ingresar(cliente, cuentas, monkeypatch, "beto@gmail.com")
     assert cliente.delete("/api/yo/foto", headers=X).status_code == 200
     assert cliente.get(f"/api/yo/foto/{beto}").status_code == 404
+
+
+def test_nota_para_un_dia_que_viene(cliente, cuentas, monkeypatch):
+    """Una nota sobre un día que viene: guarda la fecha ("para") y la corrida
+    y el plazo del GFS, para abrir esas cartas; aparece en el panorama de ese día."""
+    cliente.cookies.clear()
+    ingresar(cliente, cuentas, monkeypatch, "ana@gmail.com")
+    ctx = {"seccion": "gfs", "para": "2026-10-14", "ts": "2026-10-14T18:00:00Z", "corrida": "2026101206", "plazo": 60}
+    nid = cliente.post("/api/yo/notas", json={"texto": "el jueves entra el frente", "compartida": True,
+                                              "fecha_evento": "2026-10-14", "contexto": ctx}, headers=X).json()["id"]
+    try:
+        n = [i["nota"] for i in cliente.get("/api/yo/muro").json()["items"] if i["tipo"] == "nota" and i["nota"]["id"] == nid][0]
+        assert n["contexto"] == ctx and str(n["fecha_evento"]) == "2026-10-14"
+        d = cliente.get("/api/yo/dia?ciudad=La%20Plata&fecha=2026-10-14").json()
+        assert [x["id"] for x in d["notas"]] == [nid]
+    finally:
+        cliente.delete(f"/api/yo/notas/{nid}", headers=X)

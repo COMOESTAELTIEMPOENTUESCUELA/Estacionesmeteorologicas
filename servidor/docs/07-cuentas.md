@@ -36,6 +36,12 @@ La página de Cartas (también la copia pública) sigue igual para todos. Quien
     pronosticó (lo que se veía), y las notas con esa fecha. ‹ › pasan de
     día. Sirve para ver si un error fue de todos (situación difícil) o de uno.
     (`GET /api/yo/dia?ciudad=&fecha=`.)
+  - **Notas para un día que viene**: al publicar, "📅 Hoy / Mañana / Pasado
+    mañana / En 3 o 4 días". La nota queda con esa fecha (aparece en el
+    panorama de ese día) y con la corrida del GFS de ese momento a las 15 hs
+    de ese día: "🗺️ Cartas del pronóstico" las abre, y la nota queda
+    flotando encima de las cartas (✕ la oculta; "← Volver a la nota" vuelve).
+    Al abrir cualquier nota desde su 📍 pasa lo mismo.
   - **Foto de perfil**: en Mi perfil, "📷 Subir foto". Se achica en el
     navegador, el servidor la recorta cuadrada (320 px, WebP, sin los datos
     del archivo como la ubicación GPS) y aparece en lugar del círculo con la
