@@ -1150,6 +1150,524 @@ body:not(.modo-pro) .postit { font-size: 13.5px; }
 body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); }
 @media (max-width: 760px) { .switch-modo span { font-size: 12px; } }
 
+/* ===== Estética renovada de la red social (paleta, radios, sombras y espaciados) =====
+   Propuesta revisada con otra IA a partir de los estilos de la red: acá van SOLO
+   las reglas que cambian (las de arriba quedan como base). Lo que sigue después
+   (íconos, degradados, cristal y pulso) va encima de esto. */
+:root {
+  color-scheme: light;
+  --plano: #f6f6f3;
+  --superficie: #ffffff;
+  --superficie-elevada: #fcfcfb;
+  --tinta: #0f1115;
+  --tinta-2: #4a4d55;
+  --tenue: #7c818c;
+  --grilla: #e2e4ea;
+  --eje: #c5c8d2;
+  --borde: rgba(15, 17, 21, 0.08);
+  --borde-resaltado: color-mix(in srgb, var(--acento) 35%, var(--borde));
+  --acento: #2563eb;
+  --s1:#2563eb; --s2:#ea580c; --s3:#059669; --s4:#d97706; --s5:#db2777; --s6:#16a34a; --s7:#7c3aed; --s8:#dc2626;
+  --ok:#16a34a; --demora:#d97706; --caida:#dc2626;
+  --r1:#93c5fd; --r2:#3b82f6; --r3:#1d4ed8; --r4:#1e3a8a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --plano: #090a0f;
+    --superficie: #13161c;
+    --superficie-elevada: #1a1e26;
+    --tinta: #f1f3f7;
+    --tinta-2: #949ba4;
+    --tenue: #6b7280;
+    --grilla: #212630;
+    --eje: #303642;
+    --borde: rgba(255, 255, 255, 0.08);
+    --borde-resaltado: color-mix(in srgb, var(--acento) 45%, var(--borde));
+    --acento: #3b82f6;
+    --s1:#3b82f6; --s2:#f97316; --s3:#10b981; --s4:#f59e0b; --s5:#ec4899; --s6:#22c55e; --s7:#8b5cf6; --s8:#ef4444;
+    --r1:#1e40af; --r2:#3b82f6; --r3:#60a5fa; --r4:#93c5fd;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --plano: #090a0f;
+  --superficie: #13161c;
+  --superficie-elevada: #1a1e26;
+  --tinta: #f1f3f7;
+  --tinta-2: #949ba4;
+  --tenue: #6b7280;
+  --grilla: #212630;
+  --eje: #303642;
+  --borde: rgba(255, 255, 255, 0.08);
+  --borde-resaltado: color-mix(in srgb, var(--acento) 45%, var(--borde));
+  --acento: #3b82f6;
+  --s1:#3b82f6; --s2:#f97316; --s3:#10b981; --s4:#f59e0b; --s5:#ec4899; --s6:#22c55e; --s7:#8b5cf6; --s8:#ef4444;
+  --r1:#1e40af; --r2:#3b82f6; --r3:#60a5fa; --r4:#93c5fd;
+}
+
+button, .boton, a, input, select, textarea, .tarjeta, .postit, .persona {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.persona:hover, .postit.resaltada:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 25px -5px var(--borde), 0 8px 10px -6px var(--borde);
+  border-color: var(--borde-resaltado);
+}
+
+body {
+  margin: 0;
+  background: var(--plano);
+  color: var(--tinta);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+  letter-spacing: -0.01em;
+}
+
+.tarjeta {
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+}
+
+select, .boton {
+  font: inherit;
+  color: var(--tinta);
+  background: var(--superficie);
+  border: 1px solid var(--eje);
+  border-radius: 9px;
+  padding: 7px 12px;
+}
+
+.boton { cursor: pointer; text-decoration: none; display: inline-block; font-weight: 500; }
+
+.boton:hover { background: var(--plano); border-color: var(--tenue); }
+
+.chip { font-size: 11.5px; padding: 2px 8px; border-radius: 99px; border: 1px solid var(--borde); color: var(--tinta-2); white-space: nowrap; font-weight: 500; }
+
+.boton.primario { background: var(--acento); border-color: var(--acento); color: #fff; box-shadow: 0 2px 8px color-mix(in srgb, var(--acento) 35%, transparent); }
+
+.boton.primario:hover { background: var(--acento); filter: brightness(1.1); box-shadow: 0 4px 12px color-mix(in srgb, var(--acento) 45%, transparent); }
+
+.boton.chico { padding: 3px 9px; font-size: 12px; }
+
+.lb-nota { border: 1px solid var(--borde); border-radius: 10px; padding: 12px 14px; background: var(--superficie); box-shadow: 0 1px 2px rgba(0,0,0,0.01); }
+
+.lb-tipo { font-weight: 650; padding: 2px 9px; border-radius: 99px; color: #fff; font-size: 11.5px; }
+
+.red { display: grid; grid-template-columns: 220px minmax(0, 1fr) 280px; gap: 20px; align-items: start; }
+
+@media (max-width: 760px) {
+  .barra-abajo:not([hidden]) {
+    display: grid; grid-template-columns: repeat(6, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 800;
+    background: color-mix(in srgb, var(--superficie) 85%, transparent);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-top: 1px solid var(--borde);
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.06);
+  }
+  .barra-abajo button { border: 0; background: none; color: var(--tinta-2); font: inherit; font-size: 11px; display: flex; flex-direction: column;
+    align-items: center; gap: 2px; padding: 4px 0; cursor: pointer; border-radius: 12px; }
+  .barra-abajo button.publicar span { background: var(--acento); color: #fff; border-radius: 14px; width: 44px; display: grid; place-items: center; box-shadow: 0 4px 12px color-mix(in srgb, var(--acento) 40%, transparent); }
+  body.con-barra-abajo { padding-bottom: 76px; }
+  body.con-barra-abajo .red-volver { bottom: 84px; }
+}
+
+.kanban { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-items: start; }
+
+.kanban .col { background: color-mix(in srgb, var(--tinta) 2%, var(--superficie)); border: 1px solid var(--borde); border-radius: 14px; padding: 10px;
+  display: flex; flex-direction: column; gap: 10px; min-height: 180px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.01); }
+
+.kanban .col h4 .cuenta-n { background: var(--tenue); color: #fff; border-radius: 99px; padding: 1px 8px; font-size: 11.5px; }
+
+.boton.tema { padding: 5px 10px; }
+
+.letra { display: inline-flex; align-items: center; border: 1px solid var(--borde); border-radius: 10px; overflow: hidden; background: var(--superficie); font-size: 13px; box-shadow: 0 1px 2px rgba(0,0,0,0.01); }
+
+.letra-tit { padding: 0 8px 0 12px; color: var(--tinta-2); }
+
+.letra button { border: 0; border-left: 1px solid var(--borde); background: none; font: inherit; font-weight: 700; color: var(--tinta); padding: 6px 11px; cursor: pointer; }
+
+#letra-val { border-left: 1px solid var(--borde); padding: 6px 10px; min-width: 3.6em; text-align: center; cursor: pointer; font-variant-numeric: tabular-nums; }
+
+.red-feed .postit.pron { background: color-mix(in srgb, var(--tinta) 2%, var(--superficie)); border-top: 1px solid var(--borde);
+  border-left: 4px solid var(--s3); border-radius: 8px 12px 12px 8px; }
+
+.red-feed .postit.pron .pron-tabla td, .red-feed .postit.pron .pron-tabla th { padding: 4px 6px; font-size: 12.5px; }
+
+.para-dia { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13.5px; padding: 8px 12px; border-radius: 10px;
+  background: color-mix(in srgb, var(--acento) 8%, var(--superficie)); border: 1px solid color-mix(in srgb, var(--acento) 25%, transparent); }
+
+.nota-flota { position: fixed; right: 20px; bottom: 20px; z-index: 900; width: min(360px, calc(100vw - 32px));
+  background: var(--superficie); border: 1px solid var(--borde); border-left: 4px solid var(--acento); border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.12); padding: 12px 14px; font-size: 13.5px; backdrop-filter: blur(12px); }
+
+.nota-flota .nf-cab { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+
+@media (max-width: 760px) {
+  .nota-flota { bottom: 76px; right: 16px; }
+  body.con-barra-abajo .nota-flota { bottom: 140px; }
+}
+
+.ver-como { position: sticky; top: 0; z-index: 1000; display: flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap;
+  padding: 8px 14px; font-size: 13.5px; background: #fef3c7; color: #78350f; border-bottom: 1px solid #f59e0b; box-shadow: 0 2px 4px rgba(0,0,0,0.03); }
+
+.d-chico h2 { margin: 0 0 8px; font-size: 20px; }
+
+.d-chico label { display: block; margin: 12px 0; font-size: 14px; }
+
+.d-chico input:not([type=checkbox]) { display: block; width: 100%; margin-top: 5px; padding: 9px 12px; font: inherit; box-sizing: border-box; border-radius: 9px; }
+
+.d-chico .acc { justify-content: flex-end; margin-top: 14px; }
+
+.chat { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 14px; min-height: 60vh; }
+
+.chat-lista, .chat-conv { background: var(--superficie); border: 1px solid var(--borde); border-radius: 14px; min-width: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+
+.chat-lista { padding: 10px; display: flex; flex-direction: column; gap: 6px; max-height: 75vh; overflow: auto; }
+
+.chat-c { display: flex; gap: 10px; align-items: center; padding: 10px; border-radius: 10px; cursor: pointer; border: 0; background: none; font: inherit; text-align: left; width: 100%; color: inherit; }
+
+.chat-c.activa { background: color-mix(in srgb, var(--acento) 10%, transparent); }
+
+.chat-c .n { background: var(--acento); color: #fff; border-radius: 99px; font-size: 11px; padding: 2px 8px; font-weight: 700; }
+
+.chat-ico { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: var(--plano); flex: none; font-size: 17px; }
+
+.chat-cab { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--borde); }
+
+.chat-msjs { flex: 1; overflow: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; min-height: 200px; }
+
+.chat-m { max-width: 78%; align-self: flex-start; background: var(--plano); border-radius: 14px 14px 14px 4px; padding: 8px 12px; font-size: 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.01); }
+
+.chat-m.mio { align-self: flex-end; background: color-mix(in srgb, var(--acento) 14%, var(--superficie)); border-radius: 14px 14px 4px 14px; border: 1px solid color-mix(in srgb, var(--acento) 20%, transparent); }
+
+.chat-m .pie { display: flex; gap: 8px; align-items: center; justify-content: flex-end; font-size: 11px; color: var(--tenue); margin-top: 3px; }
+
+.chat-pron { border: 1px solid var(--borde); border-radius: 10px; padding: 8px 10px; margin: 6px 0; background: var(--superficie); min-width: 230px; }
+
+.chat-pron .cp-cab { font-size: 12.5px; margin-bottom: 3px; }
+
+.chat-escribir { display: flex; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--borde); align-items: flex-end; flex-wrap: wrap; }
+
+.chat-escribir textarea { flex: 1 1 200px; resize: none; font: inherit; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--borde); background: var(--superficie); color: inherit; min-height: 40px; max-height: 140px; }
+
+.chat-aviso { color: var(--tenue); font-size: 12.5px; margin: 8px 4px 0; }
+
+.chat-personas { max-height: 40vh; overflow: auto; margin: 8px 0; display: flex; flex-direction: column; gap: 3px; }
+
+.chat-personas label { display: flex !important; gap: 10px; align-items: center; margin: 0 !important; padding: 6px 8px; border-radius: 8px; cursor: pointer; }
+
+.dia-barra { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px;
+  position: sticky; top: 0; z-index: 20; background: var(--plano); padding: 8px 0; }
+
+@keyframes destello {
+  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--acento) 70%, transparent), 0 4px 16px rgba(0,0,0,.15); transform: scale(1); }
+  30%  { transform: scale(1.04); }
+  70%  { box-shadow: 0 0 0 14px transparent, 0 4px 16px rgba(0,0,0,.15); transform: scale(1); }
+  100% { box-shadow: 0 0 0 0 transparent, 0 4px 16px rgba(0,0,0,.15); }
+}
+
+.dia-obs { display: flex; gap: 10px; flex-wrap: wrap; margin: 8px 0 12px; }
+
+.dia-obs .dato { border: 1px solid var(--borde); border-radius: 12px; padding: 8px 14px; background: var(--superficie); min-width: 96px; box-shadow: 0 1px 2px rgba(0,0,0,0.01); }
+
+.dia-graf .col-sel { fill: color-mix(in srgb, var(--acento) 12%, transparent); }
+
+.dia-tabla td .boton { padding: 2px 9px; font-size: 12px; }
+
+.ya-conocida { font-size: 11px; color: var(--tenue); white-space: nowrap; cursor: help; border: 1px dashed var(--borde); border-radius: 6px; padding: 1px 5px; }
+
+.sp-modo { display: inline-flex; border: 1px solid var(--borde); border-radius: 9px; overflow: hidden; background: var(--superficie); }
+
+.sp-modo button { border: 0; border-right: 1px solid var(--borde); background: none; font: inherit; font-size: 11.5px; padding: 3px 10px; cursor: pointer; color: var(--tinta-2); }
+
+.spark-pron .sp-col:hover rect, .spark-pron .sp-col:focus rect { fill: color-mix(in srgb, var(--acento) 12%, transparent); }
+
+.spark-ley { display: flex; gap: 12px; flex-wrap: wrap; font-size: 11.5px; color: var(--tenue); }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .lb-tipo { background: color-mix(in srgb, var(--c, var(--s1)) 28%, transparent) !important; color: color-mix(in srgb, var(--c, var(--s1)) 45%, #fff); }
+}
+
+:root[data-theme="dark"] .lb-tipo { background: color-mix(in srgb, var(--c, var(--s1)) 28%, transparent) !important; color: color-mix(in srgb, var(--c, var(--s1)) 45%, #fff); }
+
+.red-volver { position: fixed; left: 20px; bottom: 20px; z-index: 900; border: 0; border-radius: 99px; padding: 12px 20px; font: inherit; font-weight: 650;
+  background: color-mix(in srgb, var(--acento) 92%, transparent); color: #fff; box-shadow: 0 6px 20px rgba(0,0,0,.2); cursor: pointer; backdrop-filter: blur(8px); }
+
+.pron-tabla th button { border: 0; background: none; font: inherit; color: inherit; cursor: pointer; padding: 3px 6px; border-radius: 6px; }
+
+.red-izq, .red-der { position: sticky; top: 12px; display: flex; flex-direction: column; gap: 12px; }
+
+.red-yo { display: flex; gap: 12px; align-items: center; border: 1px solid var(--borde); border-radius: 14px; background: var(--superficie);
+  padding: 12px; cursor: pointer; text-align: left; font: inherit; color: var(--tinta); box-shadow: 0 1px 2px rgba(0,0,0,0.01); }
+
+.red-nav { display: flex; flex-direction: column; gap: 3px; }
+
+.red-nav button { display: flex; gap: 12px; align-items: center; border: 0; background: none; color: var(--tinta); font: inherit; font-size: 14.5px;
+  padding: 10px 14px; border-radius: 12px; cursor: pointer; text-align: left; }
+
+.red-nav button.activa { font-weight: 700; background: color-mix(in srgb, var(--acento) 10%, transparent); color: var(--acento); }
+
+.red-feed { display: flex; flex-direction: column; gap: 16px; max-width: 680px; }
+
+.red-mas { display: block; margin: 16px auto; }
+
+.avatar { width: 30px; height: 30px; border-radius: 50%; display: inline-grid; place-items: center; color: #fff; font-weight: 700; font-size: 12px; flex: none; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+
+.avatar.grande { width: 44px; height: 44px; font-size: 17px; }
+
+.avatar.enorme { width: 88px; height: 88px; font-size: 36px; border: 4px solid var(--superficie); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+
+.reac button { border: 1px solid var(--borde); background: var(--plano); color: var(--tinta-2); border-radius: 99px; padding: 4px 12px; font: inherit;
+  font-size: 12.5px; cursor: pointer; }
+
+.reac button.mia { border-color: var(--acento); color: var(--acento); background: color-mix(in srgb, var(--acento) 10%, transparent); font-weight: 600; }
+
+.pron-tabla th, .pron-tabla td { padding: 6px 8px; border-bottom: 1px solid var(--borde); text-align: center; white-space: nowrap; }
+
+.embed iframe { width: 100%; border: 0; border-radius: 12px; background: #000; }
+
+.embed-ver { display: flex; gap: 12px; align-items: center; width: 100%; text-align: left; font: inherit; color: var(--tinta); cursor: pointer;
+  border: 1px solid var(--borde); border-left: 4px solid var(--c); border-radius: 12px; background: var(--plano); padding: 12px 14px; }
+
+.embed-ver .play { width: 40px; height: 40px; border-radius: 50%; background: var(--c); color: #fff; display: grid; place-items: center; font-size: 15px; flex: none; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+
+.pron-modelo { border: 1px solid var(--borde); border-radius: 10px; padding: 8px 10px; background: var(--plano); }
+
+.pron-modelo .ley { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--tinta-2); margin-top: 6px; }
+
+.insignia { border-radius: 99px; padding: 2px 10px; font-size: 12px; font-weight: 600; background: color-mix(in srgb, var(--ok) 15%, transparent); color: var(--tinta); }
+
+.red-cab { padding: 0; overflow: hidden; border-radius: 14px; border: 1px solid var(--borde); background: var(--superficie); box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+
+.red-cab .portada { height: 96px; background: linear-gradient(120deg, var(--c1, var(--s1)), var(--c2, var(--s3))); }
+
+.red-cab .cuerpo { padding: 0 18px 16px; margin-top: -46px; }
+
+.red-cab h2 { margin: 8px 0 0; font-size: 22px; }
+
+.red-cab .bio { margin: 10px 0; white-space: pre-wrap; }
+
+.red-num { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 10px; font-size: 13px; color: var(--tinta-2); }
+
+.red-num b { display: block; font-size: 18px; color: var(--tinta); }
+
+.red-subtabs { display: flex; gap: 6px; border-bottom: 1px solid var(--borde); margin: 14px 0; }
+
+.red-subtabs button { border: 0; background: none; font: inherit; font-weight: 600; color: var(--tinta-2); padding: 8px 14px; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -1px; }
+
+.red-personas { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+
+.persona { border: 1px solid var(--borde); border-radius: 14px; background: var(--superficie); padding: 14px; display: flex; flex-direction: column; gap: 8px;
+  cursor: pointer; text-align: left; font: inherit; color: var(--tinta); box-shadow: 0 1px 2px rgba(0,0,0,0.01); }
+
+.persona .top { display: flex; gap: 10px; align-items: center; }
+
+.red-mini { padding: 12px 14px; font-size: 13px; }
+
+.red-mini h4 { margin: 0 0 8px; font-size: 13.5px; }
+
+.red-mini .linea { display: flex; gap: 8px; align-items: baseline; padding: 6px 0; border-bottom: 1px dashed var(--borde); flex-wrap: wrap; }
+
+.ayer-c { border: 1px solid var(--borde); border-radius: 12px; padding: 8px 10px; margin-bottom: 10px; cursor: pointer; transition: border-color .15s, background .15s, transform .15s; background: var(--superficie); }
+
+.ayer-c:hover, .ayer-c:focus-visible { border-color: var(--acento); background: color-mix(in srgb, var(--acento) 4%, var(--superficie)); transform: translateY(-1px); }
+
+.ayer-cab { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+
+.ayer-cab .ayer-obs { margin-left: auto; display: inline-flex; gap: 4px; align-items: center; font-size: 12px; }
+
+.ayer-t th { font-weight: 500; color: var(--tenue); font-size: 11px; text-align: right; padding: 2px 4px; }
+
+.ayer-t td { padding: 3px 4px; white-space: nowrap; text-align: right; }
+
+@media (max-width: 1150px) {
+  .red { grid-template-columns: 200px minmax(0, 1fr); }
+  .red-der { display: none; }
+}
+
+@media (max-width: 760px) {
+  .red { grid-template-columns: 1fr; }
+  .red-izq { position: static; }
+  .red-yo { display: none; }
+  .red-nav { flex-direction: row; overflow-x: auto; gap: 4px; padding-bottom: 4px; }
+  .red-nav button { white-space: nowrap; font-size: 14px; padding: 8px 12px; border-radius: 10px; }
+  .muro-comp .avatar { display: none; }
+}
+
+.muro-tabs { display: flex; gap: 6px; flex-wrap: wrap; border-bottom: 1px solid var(--borde); margin: -4px 0 14px; }
+
+.muro-tabs button { border: 0; background: none; color: var(--tinta-2); font: inherit; font-weight: 600; padding: 8px 14px; cursor: pointer;
+  border-bottom: 3px solid transparent; margin-bottom: -1px; }
+
+.muro-tabs .cuenta-n { background: var(--s7); color: #fff; border-radius: 99px; padding: 1px 8px; font-size: 11.5px; margin-left: 6px; }
+
+.muro-comp { border: 1px solid var(--borde); border-radius: 12px; padding: 12px; margin-bottom: 12px; background: var(--superficie); box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+
+.muro-comp textarea { width: 100%; resize: vertical; min-height: 48px; font: inherit; border: 1px solid var(--borde); border-radius: 10px;
+  padding: 10px; background: var(--plano); color: var(--tinta); }
+
+.muro-comp .fila { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; font-size: 13px; }
+
+.muro-comp input[type=text], .muro-filtros input[type=search] { font: inherit; font-size: 13px; padding: 6px 10px; border: 1px solid var(--borde);
+  border-radius: 9px; background: var(--superficie); color: var(--tinta); }
+
+.muro-filtros { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin-bottom: 10px; font-size: 13px; }
+
+.horas-c { display: inline-flex; border: 1px solid var(--borde); border-radius: 10px; overflow: hidden; background: var(--superficie); box-shadow: 0 1px 2px rgba(0,0,0,0.01); }
+
+.horas-c button { border: 0; border-right: 1px solid var(--borde); background: none; font: inherit; color: var(--tinta); cursor: pointer;
+  padding: 5px 12px; line-height: 1.15; display: flex; flex-direction: column; align-items: center; font-weight: 650; }
+
+.chip-f { border: 1px solid var(--borde); background: var(--superficie); color: var(--tinta-2); border-radius: 99px; padding: 3px 12px;
+  font: inherit; font-size: 12.5px; cursor: pointer; }
+
+.chip-f.activa { background: var(--tinta); color: var(--superficie); border-color: var(--tinta); font-weight: 600; }
+
+.muro-dia { margin: 16px 0 8px; font-size: 13px; color: var(--tinta-2); display: flex; gap: 10px; align-items: center; }
+
+.postit { break-inside: avoid; margin: 0 0 12px; border: 1px solid var(--borde); border-radius: 12px; background: var(--superficie);
+  border-top: 4px solid var(--c, var(--s1)); padding: 12px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+
+.postit .cab { display: flex; gap: 10px; align-items: center; font-size: 12.5px; color: var(--tinta-2); }
+
+.postit .img { position: relative; display: block; border-radius: 8px; overflow: hidden; border: 1px solid var(--borde); background: var(--plano); }
+
+.postit .texto { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; }
+
+.postit .etqs { display: flex; gap: 5px; flex-wrap: wrap; }
+
+.postit .coment { border-top: 1px dashed var(--borde); padding-top: 8px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+
+.c-hilo.resp { margin-left: calc(min(var(--n), 4) * 0px + 14px); padding-left: 10px; border-left: 2px solid var(--borde); margin-top: 4px; }
+
+.postit .coment input { flex: 1; min-width: 0; font: inherit; font-size: 13px; padding: 5px 10px; border: 1px solid var(--borde); border-radius: 99px;
+  background: var(--plano); color: var(--tinta); }
+
+.capa-ver { position: absolute; right: 8px; top: 8px; border: 0; border-radius: 99px; padding: 3px 10px; font: inherit; font-size: 12px;
+  background: rgba(0,0,0,.7); color: #fff; cursor: pointer; backdrop-filter: blur(4px); }
+
+.lb-resp { margin-top: 8px; padding: 8px 12px; border-left: 3px solid var(--s3); background: color-mix(in srgb, var(--s3) 8%, transparent); white-space: pre-wrap; border-radius: 0 8px 8px 0; }
+
+.t-escala { display: inline-block; min-width: 3.4em; text-align: right; padding: 2px 8px; border-radius: 6px; font-weight: 600; }
+
+.err { display: inline-block; min-width: 1.6em; padding: 1px 6px; border-radius: 6px; font-size: 11px; font-weight: 600; text-align: center; }
+
+.pron-detalles summary { cursor: pointer; font-size: 12.5px; color: var(--tinta-2); padding: 4px 0; font-weight: 500; }
+
+@media (max-width: 760px) {
+  .pron-detalles summary {
+    display: block;
+    text-align: center;
+    background: var(--plano);
+    border: 1px solid var(--borde);
+    border-radius: 10px;
+    padding: 8px;
+    margin: 10px 0;
+    font-size: 13px;
+    font-weight: 600;
+  }
+}
+
+.red-feed .postit:not(.pron) { padding: 0; border: 1px solid var(--borde); border-radius: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.03); gap: 0; overflow: hidden; }
+
+.red-feed .postit:not(.pron) .cab { padding: 14px 16px; }
+
+.red-feed .postit:not(.pron) > .videos, .red-feed .postit:not(.pron) > .insig, .red-feed .postit:not(.pron) > .lb-resp { margin: 10px 16px 0; }
+
+.red-feed .postit:not(.pron) .barra-ig { padding: 10px 16px 4px; }
+
+.red-feed .postit:not(.pron) .reac { gap: 14px; }
+
+.red-feed .postit:not(.pron) .reac button { border: none; background: transparent; font-size: 14px; padding: 4px 8px; }
+
+.red-feed .postit:not(.pron) .barra-ig .acc .boton { border: none; background: transparent; font-size: 15px; padding: 2px 8px; }
+
+.red-feed .postit:not(.pron) .texto { padding: 4px 16px 8px; font-size: 14px; }
+
+.red-feed .postit:not(.pron) .texto .autor-ig { display: inline; color: var(--tinta); margin-right: 6px; cursor: pointer; font-weight: 600; }
+
+.red-feed .postit:not(.pron) .etqs { padding: 0 16px 8px; }
+
+.red-feed .postit:not(.pron) .coment { border-top: none; padding: 4px 16px 16px; margin: 0; }
+
+@media (max-width: 760px) {
+  .red-feed .postit:not(.pron) { border-radius: 0; border-left: none; border-right: none; margin-left: -16px; margin-right: -16px; border-top-width: 1px; border-bottom-width: 1px; }
+  .red-feed .postit:not(.pron) .reac button { padding: 4px 6px; font-size: 13px; }
+}
+
+.switch-modo { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; user-select: none;
+  padding: 4px 12px; border: 1px solid var(--borde); border-radius: 99px; background: var(--superficie); box-shadow: 0 1px 2px rgba(0,0,0,0.01); }
+
+.switch-modo input { appearance: none; -webkit-appearance: none; margin: 0; flex: none; position: relative; cursor: pointer;
+  width: 36px; height: 20px; border-radius: 99px; background: color-mix(in srgb, var(--tinta) 20%, var(--superficie)); transition: background .2s cubic-bezier(0.16, 1, 0.3, 1); }
+
+.switch-modo input::before { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.25); transition: transform .2s cubic-bezier(0.16, 1, 0.3, 1); }
+
+.switch-modo input:checked::before { transform: translateX(16px); }
+
+body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); font-weight: 500; }
+
+/* ===== Mejoras visuales: superficies en capas, estados, íconos, cristal y pulso =====
+   Todo con las variables del tema: funciona igual en claro y oscuro. */
+:root {
+  --superficie-elevada: color-mix(in srgb, var(--superficie) 92%, var(--acento) 8%);   /* lo que "flota" sobre el fondo */
+  --borde-resaltado: color-mix(in srgb, var(--acento) 35%, var(--borde));
+  --sombra-suave: 0 1px 2px rgba(0,0,0,.04), 0 10px 28px -16px rgba(0,0,0,.28);
+  --cristal: color-mix(in srgb, var(--superficie) 78%, transparent);
+}
+/* 1. Capas: el fondo es plano; las tarjetas y paneles, un escalón más arriba */
+.muro-comp, .red-der .red-mini, .red-yo { background: var(--superficie-elevada); }
+.red-feed .postit { border-radius: 16px; box-shadow: var(--sombra-suave); transition: border-color .2s, box-shadow .2s, transform .2s; }
+.red-feed .postit:hover { border-color: var(--borde-resaltado); }
+.red-feed .postit.pron { border-radius: 16px; }
+@media (max-width: 760px) { .red-feed .postit:not(.pron) { border-radius: 0; box-shadow: none; } }
+/* 2. Estados de un vistazo: etiquetas de tipo y errores con un degradado suave */
+.lb-tipo { background: linear-gradient(135deg, var(--c, var(--s1)), color-mix(in srgb, var(--c, var(--s1)) 70%, #fff)) !important; }
+.red-feed .postit:not(.pron) .lb-tipo { background: linear-gradient(135deg, color-mix(in srgb, var(--c) 20%, transparent), color-mix(in srgb, var(--c) 6%, transparent)) !important;
+  color: var(--c); padding: 1px 9px; border-radius: 99px; border: 1px solid color-mix(in srgb, var(--c) 30%, transparent); }
+.err.e-ok    { background: linear-gradient(135deg, color-mix(in srgb, var(--ok) 32%, transparent), color-mix(in srgb, var(--ok) 12%, transparent)); }
+.err.e-medio { background: linear-gradient(135deg, color-mix(in srgb, var(--demora) 45%, transparent), color-mix(in srgb, var(--demora) 18%, transparent)); }
+.err.e-mal   { background: linear-gradient(135deg, color-mix(in srgb, var(--caida) 40%, transparent), color-mix(in srgb, var(--caida) 15%, transparent)); }
+/* 3. Íconos de línea (SVG, trazo de 1,5 px, toman el color del texto) */
+.ico { display: inline-grid; place-items: center; }
+.ico svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.red-nav button .ico svg { width: 19px; height: 19px; }
+.red-nav button.activa .ico svg { stroke-width: 2; }
+.barra-abajo button .ico svg { width: 23px; height: 23px; }
+.barra-abajo button.publicar .ico svg { stroke: #fff; stroke-width: 2.2; }
+/* 4. Cristal: lo que va ENCIMA de algo (etiquetas sobre imágenes, la nota flotante, la barra del celular) */
+.postit .img span, .capa-ver { background: rgba(15, 20, 25, .42) !important; backdrop-filter: blur(8px) saturate(140%); -webkit-backdrop-filter: blur(8px) saturate(140%);
+  border: 1px solid rgba(255,255,255,.18); }
+.nota-flota { background: var(--cristal); backdrop-filter: blur(14px) saturate(150%); -webkit-backdrop-filter: blur(14px) saturate(150%); }
+@media (max-width: 760px) {
+  .barra-abajo:not([hidden]) { background: var(--cristal); backdrop-filter: blur(16px) saturate(160%); -webkit-backdrop-filter: blur(16px) saturate(160%); }
+}
+/* 5. Pulso: avisos que piden atención (mensajes sin leer, una alerta del bot de las últimas horas).
+   Solo se anima la sombra: casi no gasta. */
+@keyframes pulso-meteorologico {
+  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--acento) 45%, transparent); }
+  70%  { box-shadow: 0 0 0 8px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+.alerta-activa, #chat-n:not([hidden]), #chat-n2:not([hidden]), .postit.alerta-viva .lb-tipo { animation: pulso-meteorologico 2s infinite; }
+#chat-n:not([hidden]) { background: var(--acento); color: #fff; border-radius: 99px; padding: 0 7px; font-size: 11.5px; }
+/* 6. Filtros del muro en el celular: deslizamiento suave, sin "saltos" y sin arrastrar la página */
+.muro-filtros { scroll-behavior: smooth; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
+@media (max-width: 760px) {
+  .muro-filtros { scroll-snap-type: x proximity; }
+  /* El cuadro de publicar, en una sola fila deslizable (la regla general de arriba lo dejaba en varias) */
+  .muro-comp .fila { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .muro-comp .fila > * { flex-shrink: 0; }
+}
+
 /* ===== Para quien pide "reducir movimiento" en su sistema (accesibilidad) ===== */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
@@ -1189,12 +1707,12 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
 
 <!-- Barra de abajo en el celular (con sesión): lo más usado a mano con el pulgar -->
 <div class="barra-abajo" id="barra-abajo" role="navigation" aria-label="Navegación rápida" hidden>
-  <button data-ir="inicio"><span>🏠</span>Inicio</button>
-  <button data-ir="cartas"><span>🗺️</span>Cartas</button>
-  <button data-ir="publicar" class="publicar"><span>➕</span>Publicar</button>
-  <button data-ir="chat"><span>💬<b class="ba-n" id="chat-n2" hidden></b></span>Mensajes</button>
-  <button data-ir="personas"><span>👥</span>Grupo</button>
-  <button data-ir="perfil"><span>👤</span>Perfil</button>
+  <button data-ir="inicio"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg></span>Inicio</button>
+  <button data-ir="cartas"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2zM9 4v14M15 6v14"/></svg></span>Cartas</button>
+  <button data-ir="publicar" class="publicar"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span>Publicar</button>
+  <button data-ir="chat"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 21l1.9-5.4A8 8 0 1 1 21 12z"/><path d="M8.5 12h.01M12 12h.01M15.5 12h.01"/></svg><b class="ba-n" id="chat-n2" hidden></b></span>Mensajes</button>
+  <button data-ir="personas"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.5 3-5.5 6.5-5.5s6.5 2 6.5 5.5M16 4.5a3.5 3.5 0 0 1 0 7M18 14.8c2.2.6 3.5 2.4 3.5 5.2"/></svg></span>Grupo</button>
+  <button data-ir="perfil"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></span>Perfil</button>
 </div>
 
 <main>
@@ -1885,13 +2403,13 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
       <aside class="red-izq">
         <button class="red-yo" id="red-yo" data-perfil-yo title="Ver mi perfil"></button>
         <div class="red-nav" id="red-nav" role="navigation" aria-label="Secciones del perfil">
-          <button data-rv="inicio" class="activa"><span>🏠</span> Inicio</button>
-          <button data-rv="perfil"><span>👤</span> Mi perfil</button>
-          <button data-rv="personas"><span>👥</span> El grupo</button>
-          <button data-rv="chat"><span>💬</span> Mensajes <b class="cuenta-n" id="chat-n" hidden></b></button>
-          <button data-rv="reunion"><span>❓</span> Reunión sinóptica <b class="cuenta-n" id="rs-n" hidden></b></button>
-          <button data-rv="metricas" id="rv-b-metricas" hidden><span>📊</span> Métricas del grupo</button>
-          <button data-rv="admin" id="rv-b-admin" hidden><span>🛠️</span> Administración</button>
+          <button data-rv="inicio" class="activa"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg></span> Inicio</button>
+          <button data-rv="perfil"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></span> Mi perfil</button>
+          <button data-rv="personas"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.5 3-5.5 6.5-5.5s6.5 2 6.5 5.5M16 4.5a3.5 3.5 0 0 1 0 7M18 14.8c2.2.6 3.5 2.4 3.5 5.2"/></svg></span> El grupo</button>
+          <button data-rv="chat"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 21l1.9-5.4A8 8 0 1 1 21 12z"/><path d="M8.5 12h.01M12 12h.01M15.5 12h.01"/></svg></span> Mensajes <b class="cuenta-n" id="chat-n" hidden></b></button>
+          <button data-rv="reunion"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01"/></svg></span> Reunión sinóptica <b class="cuenta-n" id="rs-n" hidden></b></button>
+          <button data-rv="metricas" id="rv-b-metricas" hidden><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M2 20h20"/></svg></span> Métricas del grupo</button>
+          <button data-rv="admin" id="rv-b-admin" hidden><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.1L3 17.7 6.3 21l6.3-6.3a4 4 0 0 0 5.1-5.4l-2.5 2.5-2.6-.6-.6-2.6z"/></svg></span> Administración</button>
         </div>
       </aside>
 
@@ -6439,7 +6957,8 @@ function tarjetaNota(nt, reunion = false) {
   const acciones = accReunion
     + (esCoord() && nt.compartida ? `<button class="boton" data-acc="presentar" title="Mostrarla a pantalla completa en la reunión">🖥️</button>` : "")
     + (nt.mia ? `<button class="boton" data-acc="editar" title="Editar">✏️</button><button class="boton" data-acc="borrar" title="Borrar">🗑️</button>` : "");
-  return `<article class="postit ${esc(nt.tipo)}" data-id="${nt.id}"${reunion && puede ? ' draggable="true"' : ""}>
+  const alertaViva = (nt.etiquetas || []).includes("alertanowcasting") && Date.now() - Date.parse(nt.creada) < 6 * HORA;
+  return `<article class="postit ${esc(nt.tipo)}${alertaViva ? " alerta-viva" : ""}" data-id="${nt.id}"${reunion && puede ? ' draggable="true"' : ""}>
     <div class="cab"><span data-perfil="${nt.autor_id}">${avatar(nt.autor, "", nt.autor_id)}</span>
       <span class="quien"><b data-perfil="${nt.autor_id}">${nt.mia ? "Vos" : esc(nt.autor)}</b>
         ${conCtx ? `<span class="lugar" data-acc="abrir" title="Ir a donde se escribió">📍 ${esc(describirContexto(nt.contexto))}</span>` : ""}</span>
@@ -6587,7 +7106,7 @@ function tarjetaPron(it) {
     <div class="cab"><span data-perfil="${esc(perfil)}">${avatar(quien, "", it.usuario?.id)}</span>
       <span class="quien"><span><b data-perfil="${esc(perfil)}">${yo ? "Vos" : esc(quien)}</b> pronosticó <b>${esc(it.ciudad)}</b></span>
         <span title="${esc(fmtEscrita.format(new Date(it.ts)))}">${esc(hace(it.ts))}${it.anticipado ? " · la noche anterior" : ""}${it.correccion ? " · corrección" : ""}</span></span>
-      <span class="der"><span class="lb-tipo" style="background:var(--s3)">Pronóstico</span></span></div>
+      <span class="der"><span class="lb-tipo" style="--c:var(--s3)">Pronóstico</span></span></div>
 
     <!-- 1. El gráfico y el resumen quedan siempre a la vista -->
     ${sparkPron(it)}
