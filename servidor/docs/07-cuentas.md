@@ -78,9 +78,9 @@ La página de Cartas (también la copia pública) sigue igual para todos. Quien
       cualquier columna y buscando texto. **Solo lectura** (la consulta va
       por la conexión que la base tiene en modo solo lectura) y sin las
       huellas de contraseñas y sesiones.
-  - **Aa (tamaño de la letra)**, arriba junto al tema: normal → grande →
-    más grande → enorme. Agranda toda la página de forma pareja (zoom de
-    CSS) y queda guardado en ese navegador.
+  - **Letra  A−  100 %  A+** (arriba, junto al tema): achica o agranda la
+    letra y toda la página (100, 115, 130 o 150 %); tocando el porcentaje
+    vuelve a 100 %. Con zoom de CSS; queda guardado en ese navegador.
   - **Modo Análisis 🤓** (interruptor arriba): sin él, la página muestra lo
     esencial (sin la tabla de cada pronóstico, el gráfico del modelo, los
     textos de ayuda fijos ni los atajos de teclado). Se recuerda en cada
