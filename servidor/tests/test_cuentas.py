@@ -474,3 +474,78 @@ def test_isla_de_calor_y_observado(cliente, cuentas, monkeypatch):
         with m._pools["e"].connection() as conn:
             conn.execute("DELETE FROM observacion WHERE estacion_id IN ('observatorio_campbell', 'observatorio_davis', 'omm_87593') AND ts > now() - interval '5 hours'")
             conn.commit()
+
+
+def test_ingreso_con_contrasena(cliente, cuentas, capsys):
+    """Ingreso con mail y contraseña: la temporal la genera un administrador,
+    se guarda solo su huella, se pide cambiarla y se frena a quien prueba al azar."""
+    m = cuentas
+    cliente.cookies.clear()
+    assert m.main(["clave", "--email", "nadie@gmail.com"]) == 1          # primero hay que agregarlo
+    m.main(["clave", "--email", "beto@gmail.com"])
+    temporal = capsys.readouterr().out.split("beto@gmail.com:")[1].split()[0]
+    assert len(temporal) == 19 and temporal.count("-") == 3
+    guardada = m._leer("SELECT clave, clave_temporal FROM usuario WHERE email = 'beto@gmail.com'")[0]
+    assert guardada["clave"].startswith("scrypt$") and temporal not in guardada["clave"] and guardada["clave_temporal"]
+    try:
+        # Sin el encabezado anti-falsificación, no.
+        assert cliente.post("/auth/clave", json={"email": "beto@gmail.com", "clave": temporal}).status_code == 403
+        # Mal y bien (el mismo mensaje si el mail no existe).
+        r1 = cliente.post("/auth/clave", json={"email": "beto@gmail.com", "clave": "otra"}, headers=X)
+        r2 = cliente.post("/auth/clave", json={"email": "noexiste@gmail.com", "clave": "otra"}, headers=X)
+        assert r1.status_code == r2.status_code == 401 and r1.json() == r2.json()
+        r = cliente.post("/auth/clave", json={"email": " Beto@Gmail.com", "clave": temporal}, headers=X)
+        assert r.status_code == 200 and r.json() == {"ok": True, "temporal": True}
+        yo = cliente.get("/api/yo").json()["usuario"]
+        assert yo["nombre"] == "Beto" and yo["clave_temporal"] and yo["tiene_clave"]
+        # Cambiarla: pide la actual, mínimo 10 caracteres.
+        assert cliente.put("/api/yo/clave", json={"actual": "mal", "nueva": "una frase larga"}, headers=X).status_code == 403
+        assert cliente.put("/api/yo/clave", json={"actual": temporal, "nueva": "corta"}, headers=X).status_code == 400
+        assert cliente.put("/api/yo/clave", json={"actual": temporal, "nueva": "nubes de tormenta"}, headers=X).status_code == 200
+        assert not cliente.get("/api/yo").json()["usuario"]["clave_temporal"]
+        cliente.cookies.clear()
+        assert cliente.post("/auth/clave", json={"email": "beto@gmail.com", "clave": temporal}, headers=X).status_code == 401
+        assert cliente.post("/auth/clave", json={"email": "beto@gmail.com", "clave": "nubes de tormenta"}, headers=X).status_code == 200
+        # Desactivado no entra aunque sepa la contraseña.
+        cliente.cookies.clear()
+        m.main(["desactivar", "--email", "beto@gmail.com"])
+        assert cliente.post("/auth/clave", json={"email": "beto@gmail.com", "clave": "nubes de tormenta"}, headers=X).status_code == 401
+        m.main(["activar", "--email", "beto@gmail.com"])
+        # Muchos intentos fallidos: se frena (aunque después acierte).
+        for _ in range(5):
+            cliente.post("/auth/clave", json={"email": "beto@gmail.com", "clave": "adivinando"}, headers=X)
+        r = cliente.post("/auth/clave", json={"email": "beto@gmail.com", "clave": "nubes de tormenta"}, headers=X)
+        assert r.status_code == 429
+    finally:
+        with m._pools["e"].connection() as conn:
+            conn.execute("DELETE FROM ingreso_fallido")
+            conn.execute("UPDATE usuario SET clave = NULL, clave_temporal = false")
+            conn.commit()
+
+
+def test_ingreso_con_nombre_de_usuario(cliente, cuentas, monkeypatch, capsys):
+    """Un nombre de usuario (ej. meteodylan) sirve igual que el mail; la
+    contraseña la puede elegir el administrador (se pide sin mostrarla)."""
+    import getpass
+    m = cuentas
+    cliente.cookies.clear()
+    try:
+        m.main(["agregar", "--email", "dylan@hotmail.com", "--nombre", "Dylan", "--firma", "Dylan", "--usuario", "MeteoDylan"])
+        assert m.main(["agregar", "--email", "otro@gmail.com", "--nombre", "Otro", "--usuario", "meteodylan"]) == 1   # ya está tomado
+        respuestas = iter(["nubes y sol", "otra cosa"])
+        monkeypatch.setattr(getpass, "getpass", lambda _: next(respuestas))
+        assert m.main(["clave", "--email", "dylan@hotmail.com", "--elegir"]) == 1                          # no coinciden
+        monkeypatch.setattr(getpass, "getpass", lambda _: "nubes y sol")
+        m.main(["clave", "--email", "dylan@hotmail.com", "--elegir"])
+        assert "nubes y sol" not in capsys.readouterr().out
+        r = cliente.post("/auth/clave", json={"email": "meteodylan", "clave": "nubes y sol"}, headers=X)
+        assert r.status_code == 200 and r.json()["temporal"]
+        assert cliente.get("/api/yo").json()["usuario"]["nombre"] == "Dylan"
+        # Volver a "agregar" (cambiarle el rol) no le borra el nombre de usuario.
+        m.main(["agregar", "--email", "dylan@hotmail.com", "--nombre", "Dylan", "--firma", "Dylan", "--rol", "coordinador"])
+        assert m._leer("SELECT nombre_usuario FROM usuario WHERE email = 'dylan@hotmail.com'")[0]["nombre_usuario"] == "meteodylan"
+    finally:
+        with m._pools["e"].connection() as conn:
+            conn.execute("DELETE FROM usuario WHERE email IN ('dylan@hotmail.com', 'otro@gmail.com')")
+            conn.execute("DELETE FROM ingreso_fallido")
+            conn.commit()

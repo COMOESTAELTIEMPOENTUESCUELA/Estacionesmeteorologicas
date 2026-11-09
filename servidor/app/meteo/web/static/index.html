@@ -235,6 +235,14 @@ td.nw { white-space: nowrap; }
 /* Mini-gráfico del pronóstico */
 .spark-pron { display: block; width: 100%; height: auto; max-height: 190px; }
 .spark-pron text { font: 10px system-ui, sans-serif; fill: var(--tenue); }
+/* Diálogos chicos: ingresar y cambiar la contraseña */
+.d-chico { width: min(380px, calc(100vw - 32px)); }
+.d-chico h2 { margin: 0 0 6px; font-size: 20px; }
+.d-chico label { display: block; margin: 10px 0; font-size: 14px; }
+.d-chico input:not([type=checkbox]) { display: block; width: 100%; margin-top: 4px; padding: 8px 10px; font: inherit; box-sizing: border-box; }
+.d-chico .acc { justify-content: flex-end; margin-top: 12px; }
+.d-error { color: #b91c1c; background: color-mix(in srgb, #dc2626 10%, transparent); border-radius: 8px; padding: 6px 10px; font-size: 13.5px; }
+.d-o { text-align: center; color: var(--tenue); margin: 14px 0 8px; position: relative; }
 /* Panorama de un día */
 .dia-barra { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
 .dia-barra h2 { margin: 0; font-size: 18px; flex: 1 1 200px; text-align: center; }
@@ -1855,6 +1863,32 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
 </main>
 
 <button id="red-volver" class="red-volver" hidden title="Volver a donde estabas en Mi perfil">← Volver al pronóstico</button>
+
+<!-- Ingresar: con Google o con mail y contraseña -->
+<dialog id="d-ingreso" class="d-chico">
+  <form id="f-ingreso">
+    <h2>Ingresar</h2>
+    <p class="tenue" style="margin-top:0">Para los pronosticadores del grupo: perfil, métricas y libreta.</p>
+    <label>Mail o usuario <input name="email" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required></label>
+    <label>Contraseña <input name="clave" type="password" autocomplete="current-password" required></label>
+    <p class="d-error" id="ing-error" hidden></p>
+    <div class="acc"><button type="button" class="boton" data-cerrar>Cancelar</button><button class="boton primario" id="ing-entrar">Entrar</button></div>
+    <p class="tenue" style="font-size:12.5px">¿No tenés contraseña? Pedísela a un coordinador.</p>
+    <div id="ing-google-caja"><p class="d-o">o</p><a class="boton" id="ing-google" style="display:block;text-align:center">Ingresar con Google</a></div>
+  </form>
+</dialog>
+<dialog id="d-clave" class="d-chico">
+  <form id="f-clave">
+    <h2>Cambiar la contraseña</h2>
+    <p class="tenue" id="clave-aviso" style="margin-top:0"></p>
+    <input name="usuario" autocomplete="username" hidden>
+    <label id="clave-l-actual">Contraseña actual <input name="actual" type="password" autocomplete="current-password"></label>
+    <label>Nueva <small class="tenue">(10 caracteres o más; puede ser una frase)</small> <input name="nueva" type="password" autocomplete="new-password" minlength="10" required></label>
+    <label>Repetila <input name="nueva2" type="password" autocomplete="new-password" required></label>
+    <p class="d-error" id="clave-error" hidden></p>
+    <div class="acc"><button type="button" class="boton" data-cerrar id="clave-cancelar">Cancelar</button><button class="boton primario">Guardar</button></div>
+  </form>
+</dialog>
 
 <dialog id="d-ci">
   <div style="display:flex;gap:10px;align-items:center"><h2 id="gci-tit"></h2><button class="boton" id="gci-cerrar">Cerrar</button></div>
@@ -5904,17 +5938,68 @@ $("#barra-abajo").addEventListener("click", (e) => {
 });
 if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("/sw.js").catch(() => {});
 
+// ----- Ingresar con mail y contraseña (o con Google) -----
+function abrirIngreso() {
+  const f = $("#f-ingreso");
+  f.reset(); $("#ing-error").hidden = true;
+  // El ingreso con Google vuelve siempre a la dirección pública (https): desde otra, se va para allá.
+  const base = CUENTA.url_publica && location.origin !== CUENTA.url_publica ? CUENTA.url_publica : "";
+  $("#ing-google-caja").hidden = !CUENTA.login;
+  $("#ing-google").href = `${base}/auth/google`;
+  $("#d-ingreso").showModal();
+  f.email.focus();
+}
+$("#f-ingreso").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const f = e.target, err = $("#ing-error"), b = $("#ing-entrar");
+  err.hidden = true; b.disabled = true; b.textContent = "Entrando…";
+  try {
+    await apiEnviar("/auth/clave", "POST", { email: f.email.value, clave: f.clave.value });
+    location.hash = "#perfil"; location.reload();       // con la sesión nueva (si era temporal, al cargar pide cambiarla)
+  } catch (ex) { err.textContent = ex.message; err.hidden = false; f.clave.select(); }
+  finally { b.disabled = false; b.textContent = "Entrar"; }
+});
+function abrirCambioClave(obligatorio) {
+  const f = $("#f-clave");
+  f.reset(); $("#clave-error").hidden = true;
+  f.usuario.value = YO.email || "";
+  $("#clave-aviso").textContent = obligatorio
+    ? "Entraste con la contraseña temporal que te dio un coordinador. Elegí una tuya (solo vos la vas a saber)."
+    : YO.tiene_clave ? "Al cambiarla se cierran tus sesiones en otros dispositivos." : "Con una contraseña podés entrar sin Google: con tu mail y esta clave.";
+  $("#clave-l-actual").hidden = !YO.tiene_clave;
+  $("#clave-cancelar").hidden = obligatorio;
+  const d = $("#d-clave");
+  d.dataset.obligatorio = obligatorio ? "1" : "";
+  d.showModal();
+  (YO.tiene_clave ? f.actual : f.nueva).focus();
+}
+$("#d-clave").addEventListener("cancel", (e) => { if (e.target.dataset.obligatorio) e.preventDefault(); });   // Esc no la saltea
+$("#f-clave").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const f = e.target, err = $("#clave-error");
+  err.hidden = true;
+  if (f.nueva.value !== f.nueva2.value) { err.textContent = "Las dos nuevas no coinciden."; err.hidden = false; return; }
+  try {
+    await apiEnviar("/api/yo/clave", "PUT", { actual: f.actual.value, nueva: f.nueva.value });
+    YO.tiene_clave = true; YO.clave_temporal = false;
+    $("#d-clave").close();
+    alert("Listo: tu contraseña quedó cambiada.");
+  } catch (ex) { err.textContent = ex.message; err.hidden = false; }
+});
+document.querySelectorAll(".d-chico [data-cerrar]").forEach((b) => b.addEventListener("click", () => b.closest("dialog").close()));
+
 async function cargarCuenta() {
   try { CUENTA = await api("/api/yo"); } catch (_) { return; }
   YO = CUENTA.usuario;
   const c = $("#cuenta");
   if (YO) {
-    c.innerHTML = `<span>👤 ${esc(YO.nombre)}</span><button class="boton" id="cuenta-salir">Salir</button>`;
+    c.innerHTML = `<span>👤 ${esc(YO.nombre)}</span><button class="boton" id="cuenta-clave" title="${YO.tiene_clave ? "Cambiar mi contraseña" : "Ponerme una contraseña (para entrar sin Google)"}">🔑</button><button class="boton" id="cuenta-salir">Salir</button>`;
     $("#cuenta-salir").addEventListener("click", async () => { await apiEnviar("/auth/salir", "POST"); location.hash = ""; location.reload(); });
-  } else if (CUENTA.login) {
-    // El ingreso vuelve siempre a la dirección pública (https): desde otra, se va para allá.
-    const base = CUENTA.url_publica && location.origin !== CUENTA.url_publica ? CUENTA.url_publica : "";
-    c.innerHTML = `<a class="boton" href="${esc(base)}/auth/google" title="Para pronosticadores del grupo: perfil, métricas y libreta">Ingresar con Google</a>`;
+    $("#cuenta-clave").addEventListener("click", () => abrirCambioClave(false));
+    if (YO.clave_temporal) abrirCambioClave(true);            // entró con la que le dio un coordinador
+  } else if (CUENTA.login || CUENTA.login_clave) {
+    c.innerHTML = `<button class="boton" id="cuenta-ingresar" title="Para pronosticadores del grupo: perfil, métricas y libreta">Ingresar</button>`;
+    $("#cuenta-ingresar").addEventListener("click", abrirIngreso);
   } else c.innerHTML = "";
   $('nav button[data-tab="perfil"]').hidden = !YO;
   $("#barra-abajo").hidden = !YO;

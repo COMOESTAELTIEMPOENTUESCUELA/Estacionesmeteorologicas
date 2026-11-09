@@ -82,6 +82,22 @@ ALTER TABLE usuario ADD COLUMN IF NOT EXISTS bio text;
 -- coordinadores. Los pronósticos día por día ya son públicos (Verificación).
 ALTER TABLE usuario ADD COLUMN IF NOT EXISTS metricas_publicas boolean NOT NULL DEFAULT false;
 
+-- Ingreso con contraseña (además de Google). Se guarda la HUELLA scrypt
+-- ("scrypt$n$r$p$sal$huella"), nunca la contraseña. clave_temporal: la que
+-- generó un administrador; la página pide cambiarla al entrar.
+ALTER TABLE usuario ADD COLUMN IF NOT EXISTS clave text;
+ALTER TABLE usuario ADD COLUMN IF NOT EXISTS clave_temporal boolean NOT NULL DEFAULT false;
+-- Intentos fallidos, para frenar a quien prueba contraseñas al azar.
+CREATE TABLE IF NOT EXISTS ingreso_fallido (
+    email text NOT NULL,
+    ip    text,
+    ts    timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS ingreso_fallido_ts ON ingreso_fallido (ts);
+-- Nombre de usuario (opcional): para entrar con "meteodylan" en vez del mail.
+ALTER TABLE usuario ADD COLUMN IF NOT EXISTS nombre_usuario text;
+CREATE UNIQUE INDEX IF NOT EXISTS usuario_nombre_usuario ON usuario (lower(nombre_usuario));
+
 -- objeto: "nota:12" o "pron|La Plata|2026-11-02|Mate" (ciudad, fecha del
 -- pronóstico y firma: una publicación).
 CREATE TABLE IF NOT EXISTS reaccion (

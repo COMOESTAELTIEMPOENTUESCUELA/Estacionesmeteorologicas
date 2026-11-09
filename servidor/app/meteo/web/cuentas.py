@@ -6,9 +6,14 @@ La página pública de Cartas sigue igual para todos; quien INGRESA ve además
 su perfil y puede anotar. Ver docs/07-cuentas.md.
 
 Seguridad, paso por paso:
-- Google dice QUIÉN es (con su mail verificado); la tabla `usuario` dice si
-  puede entrar: solo los mails cargados por un administrador (lista de
-  permitidos). No se guarda ninguna contraseña.
+- Dos formas de entrar: con Google (dice QUIÉN es, con su mail verificado)
+  o con mail y contraseña. En las dos, la tabla `usuario` dice si puede
+  entrar: solo los mails cargados por un administrador (lista de permitidos).
+- Contraseñas: se guarda solo su huella scrypt (con sal propia; calcularla
+  cuesta a propósito ~50 ms y 16 MB, así probar millones es carísimo). La
+  primera la genera un administrador al azar y es temporal: la página pide
+  cambiarla. Después de 5 intentos fallidos con un mail (o 20 desde una
+  dirección) en 15 minutos, se frena el ingreso con contraseña un rato.
 - El ingreso usa el flujo "código de autorización" de OAuth con `state` (que
   la respuesta venga del pedido que hicimos nosotros) y PKCE (que el código,
   si alguien lo intercepta, no sirva sin el secreto que quedó acá). El
@@ -32,6 +37,7 @@ botón de ingresar no aparece y todo sigue como antes.
 import argparse
 import base64
 import hashlib
+import hmac
 import logging
 import os
 import secrets
@@ -194,18 +200,119 @@ def volver(request: Request, code: str = "", state: str = "", error: str = ""):
         log.info("ingreso rechazado: %s", email)
         return _pagina("Cuenta no habilitada",
                        f"La cuenta <b>{email}</b> no está en la lista del grupo. Pedile a un coordinador que la agregue.", 403)
-    token = secrets.token_urlsafe(32)
-    _escribir("INSERT INTO sesion (huella, usuario_id, expira, ip, agente) VALUES (%s, %s, %s, %s, %s)",
-              (_huella(token), filas[0]["id"], datetime.now(timezone.utc) + DURACION,
-               request.headers.get("x-forwarded-for", request.client.host if request.client else None),
-               (request.headers.get("user-agent") or "")[:200]))
-    _escribir("UPDATE usuario SET ultimo_ingreso = now() WHERE id = %s", (filas[0]["id"],))
-    _escribir("DELETE FROM sesion WHERE expira < now()")
+    token = _abrir_sesion(request, filas[0]["id"])
     log.info("ingresó %s", email)
     r = RedirectResponse("/#perfil", status_code=302)
     r.set_cookie(COOKIE, token, max_age=int(DURACION.total_seconds()), httponly=True, secure=_seguro(), samesite="lax")
     r.delete_cookie(COOKIE_OAUTH, path="/auth")
     return r
+
+
+# ---------------------------------------------------------------------------
+# Ingreso con mail y contraseña
+# ---------------------------------------------------------------------------
+SCRYPT = (2 ** 14, 8, 1)              # n, r, p: ~16 MB de memoria por intento
+MIN_CLAVE = 10
+MAX_FALLOS_MAIL, MAX_FALLOS_IP, VENTANA_FALLOS = 5, 20, timedelta(minutes=15)
+
+
+def huella_clave(clave):
+    n, r, p = SCRYPT
+    sal = secrets.token_bytes(16)
+    h = hashlib.scrypt(clave.encode(), salt=sal, n=n, r=r, p=p, dklen=32)
+    return f"scrypt${n}${r}${p}${sal.hex()}${h.hex()}"
+
+
+def clave_correcta(clave, guardada):
+    try:
+        _, n, r, p, sal, h = guardada.split("$")
+        calc = hashlib.scrypt(clave.encode(), salt=bytes.fromhex(sal), n=int(n), r=int(r), p=int(p), dklen=32)
+        return hmac.compare_digest(calc.hex(), h)       # comparación en tiempo constante
+    except (ValueError, AttributeError):
+        return False
+
+
+_HUELLA_FALSA = None
+
+
+def _abrir_sesion(request, usuario_id):
+    """Crea la sesión y devuelve el token (para la cookie)."""
+    token = secrets.token_urlsafe(32)
+    _escribir("INSERT INTO sesion (huella, usuario_id, expira, ip, agente) VALUES (%s, %s, %s, %s, %s)",
+              (_huella(token), usuario_id, datetime.now(timezone.utc) + DURACION, _ip(request),
+               (request.headers.get("user-agent") or "")[:200]))
+    _escribir("UPDATE usuario SET ultimo_ingreso = now() WHERE id = %s", (usuario_id,))
+    _escribir("DELETE FROM sesion WHERE expira < now()")
+    return token
+
+
+def _ip(request):
+    return request.headers.get("x-forwarded-for", request.client.host if request.client else None)
+
+
+def _poner_cookie(r, request, token):
+    # Secure solo si se entró por https (por la red de Tailscale, con http, va cifrado igual por el túnel).
+    r.set_cookie(COOKIE, token, max_age=int(DURACION.total_seconds()), httponly=True,
+                 secure=request.url.scheme == "https" or _seguro() and request.headers.get("x-forwarded-proto") == "https",
+                 samesite="lax")
+
+
+@router.post("/auth/clave")
+async def ingresar_con_clave(request: Request):
+    """Mail (o nombre de usuario) y contraseña -> sesión. El mismo mensaje si
+    no existe o la contraseña está mal (así no se puede averiguar quién tiene cuenta)."""
+    global _HUELLA_FALSA
+    if request.headers.get("x-pedido") != "libreta":
+        raise HTTPException(403, "Pedido no válido")
+    try:
+        datos = await request.json()
+    except Exception:
+        raise HTTPException(400, "Faltan los datos")
+    email = str(datos.get("email") or "").strip().lower()[:200]
+    clave = str(datos.get("clave") or "")[:200]
+    ip = _ip(request)
+    fallos = _leer("""SELECT count(*) FILTER (WHERE email = %s) AS mail, count(*) FILTER (WHERE ip = %s) AS ip
+                      FROM ingreso_fallido WHERE ts > now() - %s""", (email, ip, VENTANA_FALLOS))[0]
+    if fallos["mail"] >= MAX_FALLOS_MAIL or fallos["ip"] >= MAX_FALLOS_IP:
+        log.warning("ingreso con contraseña frenado: %s desde %s", email, ip)
+        raise HTTPException(429, "Demasiados intentos fallidos. Esperá 15 minutos y probá de nuevo.")
+    filas = _leer("SELECT id, clave, clave_temporal FROM usuario WHERE (email = %s OR lower(nombre_usuario) = %s) AND activo",
+                  (email, email))
+    if filas and filas[0]["clave"]:
+        ok = clave_correcta(clave, filas[0]["clave"])
+    else:
+        _HUELLA_FALSA = _HUELLA_FALSA or huella_clave(secrets.token_hex(8))
+        clave_correcta(clave, _HUELLA_FALSA)       # tarda lo mismo: no delata si el mail existe
+        ok = False
+    if not ok:
+        _escribir("INSERT INTO ingreso_fallido (email, ip) VALUES (%s, %s)", (email, ip))
+        _escribir("DELETE FROM ingreso_fallido WHERE ts < now() - interval '1 day'")
+        log.info("contraseña incorrecta: %s desde %s", email, ip)
+        raise HTTPException(401, "Usuario o contraseña incorrectos.")
+    _escribir("DELETE FROM ingreso_fallido WHERE email = %s", (email,))
+    log.info("ingresó con contraseña %s", email)
+    r = Response('{"ok": true, "temporal": %s}' % ("true" if filas[0]["clave_temporal"] else "false"),
+                 media_type="application/json")
+    _poner_cookie(r, request, _abrir_sesion(request, filas[0]["id"]))
+    return r
+
+
+@router.put("/api/yo/clave")
+async def cambiar_clave(request: Request):
+    """Cambiar la propia contraseña (pide la actual). Cierra las otras sesiones."""
+    u = requiere_usuario(request)
+    datos = await request.json()
+    actual, nueva = str(datos.get("actual") or ""), str(datos.get("nueva") or "")
+    guardada = _leer("SELECT clave FROM usuario WHERE id = %s", (u["id"],))[0]["clave"]
+    if guardada and not clave_correcta(actual, guardada):
+        raise HTTPException(403, "La contraseña actual no es esa.")
+    if len(nueva) < MIN_CLAVE or len(nueva) > 200:
+        raise HTTPException(400, f"La nueva tiene que tener al menos {MIN_CLAVE} caracteres.")
+    if nueva.strip().lower() in (u["email"], actual.strip().lower()):
+        raise HTTPException(400, "La nueva tiene que ser distinta de la actual y del mail.")
+    _escribir("UPDATE usuario SET clave = %s, clave_temporal = false WHERE id = %s", (huella_clave(nueva), u["id"]))
+    _escribir("DELETE FROM sesion WHERE usuario_id = %s AND huella <> %s", (u["id"], _huella(request.cookies.get(COOKIE, ""))))
+    return {"ok": True}
 
 
 @router.post("/auth/salir")
@@ -224,7 +331,10 @@ def salir(request: Request):
 @router.get("/api/yo")
 def yo(request: Request):
     u = usuario_actual(request)
-    return {"login": login_disponible(), "url_publica": URL_PUBLICA, "usuario": u}
+    if u:
+        f = _leer("SELECT clave IS NOT NULL AS tiene, clave_temporal FROM usuario WHERE id = %s", (u["id"],))[0]
+        u = {**u, "tiene_clave": f["tiene"], "clave_temporal": f["clave_temporal"]}
+    return {"login": login_disponible(), "login_clave": True, "url_publica": URL_PUBLICA, "usuario": u}
 
 
 def _rango(desde, hasta):
@@ -1001,20 +1111,26 @@ def main(argv=None):
     from psycopg.rows import dict_row
     ap = argparse.ArgumentParser(prog="python -m meteo.web.cuentas", description=main.__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("comando", choices=["agregar", "listar", "desactivar", "activar"])
+    ap.add_argument("comando", choices=["agregar", "listar", "desactivar", "activar", "clave"])
     ap.add_argument("--email")
     ap.add_argument("--nombre")
     ap.add_argument("--rol", choices=["pronosticador", "coordinador", "admin"], default="pronosticador")
     ap.add_argument("--firma", action="append", default=[],
                     help="cómo firma los pronósticos en el portal (se puede repetir)")
+    ap.add_argument("--con-clave", action="store_true",
+                    help="al agregar, generarle también una contraseña temporal")
+    ap.add_argument("--usuario", help="nombre de usuario para entrar sin escribir el mail (ej. meteodylan)")
+    ap.add_argument("--elegir", action="store_true",
+                    help="con 'clave': escribir vos la contraseña (la pide sin mostrarla) en vez de generarla al azar")
     a = ap.parse_args(argv)
     dsn = os.environ.get("DATABASE_URL", "postgresql://meteo:meteo@db:5432/meteo")
     with psycopg.connect(dsn, row_factory=dict_row) as conn:
         conn.execute(SQL.read_text(encoding="utf-8"))
         if a.comando == "listar":
             for u in conn.execute("SELECT * FROM usuario ORDER BY nombre"):
-                print(f"{u['email']:35} {u['nombre']:20} {u['rol']:13} firmas={','.join(u['firmas']) or '-':20} "
-                      f"{'activo' if u['activo'] else 'INACTIVO'}  último ingreso: {u['ultimo_ingreso'] or '-'}")
+                cl = "con clave (temporal)" if u["clave_temporal"] else "con clave" if u["clave"] else "solo Google"
+                print(f"{u['email']:35} {u['nombre_usuario'] or '-':14} {u['nombre']:20} {u['rol']:13} firmas={','.join(u['firmas']) or '-':20} "
+                      f"{'activo' if u['activo'] else 'INACTIVO'}  {cl:20} último ingreso: {u['ultimo_ingreso'] or '-'}")
             return
         if not a.email:
             ap.error("falta --email")
@@ -1022,12 +1138,43 @@ def main(argv=None):
         if a.comando == "agregar":
             if not a.nombre:
                 ap.error("falta --nombre")
+            usuario = (a.usuario or "").strip().lower() or None
+            if usuario and conn.execute("SELECT 1 FROM usuario WHERE lower(nombre_usuario) = %s AND email <> %s",
+                                        (usuario, email)).fetchone():
+                print(f"el usuario '{usuario}' ya lo tiene otra persona")
+                return 1
             conn.execute("""
-                INSERT INTO usuario (email, nombre, rol, firmas) VALUES (%s, %s, %s, %s)
-                ON CONFLICT (email) DO UPDATE SET nombre = EXCLUDED.nombre, rol = EXCLUDED.rol,
-                    firmas = EXCLUDED.firmas, activo = true""", (email, a.nombre, a.rol, a.firma))
+                INSERT INTO usuario (email, nombre, rol, firmas, nombre_usuario) VALUES (%s, %s, %s, %s, %s)
+                ON CONFLICT (email) DO UPDATE SET nombre = EXCLUDED.nombre, rol = EXCLUDED.rol, firmas = EXCLUDED.firmas,
+                    nombre_usuario = COALESCE(EXCLUDED.nombre_usuario, usuario.nombre_usuario), activo = true""",
+                         (email, a.nombre, a.rol, a.firma, usuario))
             print(f"listo: {email} ({a.rol}) puede ingresar")
-        else:
+        if a.comando == "clave" or (a.comando == "agregar" and a.con_clave):
+            # Contraseña temporal al azar: 4 grupos de 4 letras/números (fácil de dictar, difícil de adivinar).
+            letras = "abcdefghjkmnpqrstuvwxyz23456789"
+            clave = "-".join("".join(secrets.choice(letras) for _ in range(4)) for _ in range(4))
+            if a.elegir:
+                # Se pide sin mostrarla y sin pasarla en el comando (no queda en el historial de la terminal).
+                import getpass
+                clave = getpass.getpass("Contraseña (no se ve al escribir): ")
+                if clave != getpass.getpass("Repetila: "):
+                    print("no coinciden; no se cambió nada")
+                    return 1
+                if len(clave) < MIN_CLAVE:
+                    print(f"tiene que tener al menos {MIN_CLAVE} caracteres; no se cambió nada")
+                    return 1
+            n = conn.execute("UPDATE usuario SET clave = %s, clave_temporal = true WHERE email = %s",
+                             (huella_clave(clave), email)).rowcount
+            if not n:
+                print("no existe ese mail (agregalo primero)")
+                return 1
+            conn.execute("DELETE FROM sesion WHERE usuario_id IN (SELECT id FROM usuario WHERE email = %s)", (email,))
+            if a.elegir:
+                print(f"listo: contraseña de {email} cambiada (temporal: al entrar la página le pide elegir una propia)")
+            else:
+                print(f"contraseña temporal de {email}:  {clave}\n"
+                      "Pasásela por un canal privado; al entrar la página le pide cambiarla. No queda guardada en ningún lado.")
+        if a.comando not in ("agregar", "clave"):
             activo = a.comando == "activar"
             n = conn.execute("UPDATE usuario SET activo = %s WHERE email = %s", (activo, email)).rowcount
             if not activo:

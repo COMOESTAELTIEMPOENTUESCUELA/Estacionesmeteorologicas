@@ -177,6 +177,22 @@ docker compose exec web python -m meteo.web.cuentas listar
 docker compose exec web python -m meteo.web.cuentas desactivar --email ana@gmail.com
 ```
 
+**Con contraseña (sin Google).** Se puede entrar con el mail **o** un nombre
+de usuario, y una contraseña. Guardamos solo su huella (scrypt), nunca la
+contraseña; después de 5 intentos fallidos se frena 15 minutos.
+
+```bash
+# alta con nombre de usuario y contraseña temporal al azar (la muestra una sola vez)
+docker compose exec web python -m meteo.web.cuentas agregar --email dylan@hotmail.com --nombre "Dylan" --firma "Dylan" --usuario meteodylan --con-clave
+# o poner una contraseña elegida (la pide sin mostrarla; no queda en el historial)
+docker compose exec web python -m meteo.web.cuentas clave --email dylan@hotmail.com --elegir
+# si alguien se olvidó la suya: generarle otra temporal
+docker compose exec web python -m meteo.web.cuentas clave --email dylan@hotmail.com
+```
+
+La que pone el administrador es **temporal**: al entrar, la página pide
+elegir una propia (10 caracteres o más). Cada uno la cambia cuando quiera con 🔑.
+
 `--firma` es cómo firma los pronósticos en el portal (el campo "publicado
 por": "Mate", "Micaela", "Leo"...). Se puede repetir si firmó de varias
 formas. Sin firma, el perfil anda pero "Mis pronósticos" queda vacío.
