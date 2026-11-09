@@ -260,6 +260,44 @@ def test_imagen_pegada_a_la_nota(cliente, cuentas, monkeypatch):
     assert cliente.get(f"/api/yo/notas/{comp}/imagen").status_code == 404
 
 
+def test_panorama_de_un_dia(cliente, cuentas, monkeypatch):
+    """Al tocar un día en el gráfico de un pronóstico: todos los pronósticos
+    para ESA fecha (de quien sea y con cualquier anticipación), lo observado y
+    las notas de ese día."""
+    m = cuentas
+    with m._pools["e"].connection() as conn:
+        # Para el 12/10: Ana con 2 días de anticipación (el 10) y Beto el mismo día (el 12).
+        for fecha, firma, plazo, tmax in (("2026-10-10", "AnaP", 2, 25), ("2026-10-12", "BetoP", 0, 21)):
+            eid = conn.execute("""INSERT INTO pronostico_emision (ciudad, fecha_pronostico, publicado_por, contenido, huella, capturado)
+                                  VALUES ('Ciudad Dia', %s, %s, '{}', %s, %s) RETURNING id""",
+                               (fecha, firma, f"dia-{fecha}", fecha + " 08:00Z")).fetchone()["id"]
+            conn.execute("""INSERT INTO pronostico_dia (emision_id, fecha, plazo_dias, temp_min, temp_max, periodos)
+                            VALUES (%s, '2026-10-12', %s, 11, %s, '[]')""", (eid, plazo, tmax))
+        conn.execute("""INSERT INTO verif_observado (ciudad, fecha, elemento, valor, categoria, estacion_id, detalle)
+                        VALUES ('Ciudad Dia', '2026-10-12', 'tmax_urbana', 20.6, NULL, 'omm_87593', '{}')""")
+        conn.commit()
+    try:
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "ana@gmail.com")
+        cliente.post("/api/yo/notas", json={"texto": "pasó el frente a la tarde", "compartida": True, "fecha_evento": "2026-10-12"}, headers=X)
+        cliente.post("/api/yo/notas", json={"texto": "otro día", "compartida": True, "fecha_evento": "2026-10-13"}, headers=X)
+        d = cliente.get("/api/yo/dia?ciudad=Ciudad%20Dia&fecha=2026-10-12").json()
+        assert d["observado"]["tmax_urbana"] == 20.6
+        assert [(p["plazo"], p["firma"], p["tmax"], p["fecha_emision"]) for p in d["pronosticos"]] == \
+            [(0, "BetoP", 21, "2026-10-12"), (2, "AnaP", 25, "2026-10-10")]
+        assert d["pronosticos"][1]["usuario"]["nombre"] == "Ana"
+        assert [n["texto"] for n in d["notas"]] == ["pasó el frente a la tarde"]
+        assert cliente.get("/api/yo/dia?ciudad=Ciudad%20Dia&fecha=2026-10-20").json()["pronosticos"] == []
+        cliente.cookies.clear()
+        assert cliente.get("/api/yo/dia?ciudad=Ciudad%20Dia&fecha=2026-10-12").status_code == 401
+    finally:
+        with m._pools["e"].connection() as conn:
+            conn.execute("DELETE FROM pronostico_emision WHERE ciudad = 'Ciudad Dia'")
+            conn.execute("DELETE FROM verif_observado WHERE ciudad = 'Ciudad Dia'")
+            conn.execute("DELETE FROM nota WHERE fecha_evento IN ('2026-10-12', '2026-10-13')")
+            conn.commit()
+
+
 def test_red_muro_reacciones_y_metricas(cliente, cuentas, monkeypatch):
     """La parte "red social": el inicio mezcla notas y pronósticos con lo
     observado; reacciones y comentarios; métricas visibles solo si se elige."""

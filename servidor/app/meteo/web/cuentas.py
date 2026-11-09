@@ -810,6 +810,43 @@ def muro(request: Request, hasta: date | None = None, dias: int = 7, autor_id: i
             "siguiente": (desde - timedelta(days=1)) if mas_viejo and mas_viejo < desde else None}
 
 
+
+@router.get("/api/yo/dia")
+def panorama_del_dia(request: Request, ciudad: str, fecha: date):
+    """El panorama de UN día en una ciudad: lo que se observó y lo que cada uno
+    había pronosticado para ese día con 1, 2, 3 y 4 días de anticipación
+    (y el GFS que había en cada momento), más las notas de ese día.
+    Es la misma información que el muro (los pronósticos son del grupo),
+    ordenada por fecha en vez de por publicación."""
+    u = requiere_usuario(request)
+    filas = [f for f in _pares(_vigentes(fecha, fecha), fecha, fecha) if f["ciudad"] == ciudad]
+    capturas = {(e["fecha_pronostico"], e["publicado_por"]): e["capturado"] for e in _leer("""
+        SELECT fecha_pronostico, publicado_por, max(capturado) AS capturado FROM pronostico_emision
+        WHERE ciudad = %s AND fecha_pronostico BETWEEN %s AND %s GROUP BY 1, 2""", (ciudad, fecha - timedelta(days=6), fecha))}
+    usuarios = {f: x for x in _leer("SELECT id, nombre, firmas FROM usuario WHERE activo") for f in x["firmas"]}
+    obs, pron, gfs = {}, [], {}
+    for f in sorted(filas, key=lambda f: (f["plazo"], f["pronosticador"] or "")):
+        for k in ("tmin_urbana", "tmax_urbana", "tmin_suburbana", "tmax_suburbana"):
+            if f[k]["obs"] is not None:
+                obs[k] = f[k]["obs"]
+        if f["pp"]["obs"] is not None:
+            obs["pp"] = f["pp"]["obs"]
+        cap = capturas.get((f["fecha_emision"], f["pronosticador"]))
+        modelo, corrida = _gfs_diario(ciudad, cap) if cap else ({}, None)
+        g = modelo.get(fecha)
+        if g and corrida and f["plazo"] not in gfs:
+            gfs[f["plazo"]] = {**g, "corrida": corrida}          # el GFS que había cuando se pronosticó a ese plazo
+        us = usuarios.get(f["pronosticador"])
+        pron.append({"plazo": f["plazo"], "fecha_emision": f["fecha_emision"], "firma": f["pronosticador"],
+                     "usuario": {"id": us["id"], "nombre": us["nombre"]} if us else None,
+                     "objeto": objeto_pronostico(ciudad, f["fecha_emision"], f["pronosticador"]),
+                     "tmin": f["tmin_urbana"]["pron"], "tmax": f["tmax_urbana"]["pron"],
+                     "tmin_sub": f["tmin_suburbana"]["pron"], "tmax_sub": f["tmax_suburbana"]["pron"],
+                     "pp": f["pp"]["pron"], "pp_tipo": f["pp"]["tipo"]})
+    notas = _notas_con_extras(u, ["(n.usuario_id = %s OR n.compartida)", "n.fecha_evento = %s"], [u["id"], fecha], limite=50)
+    return {"ciudad": ciudad, "fecha": fecha, "observado": obs, "pronosticos": pron,
+            "gfs": [{"plazo": k, **v} for k, v in sorted(gfs.items())], "notas": notas}
+
 ARCHIVO_DIR = os.environ.get("ARCHIVO_DIR", "/archivo")
 
 

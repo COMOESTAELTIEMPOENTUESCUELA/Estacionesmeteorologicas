@@ -26,6 +26,20 @@ La página de Cartas (también la copia pública) sigue igual para todos. Quien
     modelo. **🌐 Cartas del GFS** abre las cartas y el meteograma de esa
     corrida para esa ciudad. Las corridas se guardan 8 días: para pronósticos
     más viejos lo avisa.
+  - **Panorama de un día**: el gráfico de cada pronóstico tiene los valores
+    escritos ("26 → **27,2**" = pronosticado → observado). Tocando un día del
+    gráfico se abre el panorama de ESA fecha en esa ciudad: lo observado, un
+    gráfico de cómo se fue acercando el pronóstico (lo que pronosticó cada
+    uno con 3, 2, 1 días de anticipación y el mismo día, y el GFS de ese
+    momento) contra lo observado, la tabla con todos los pronósticos y sus
+    errores, botones a las cartas del día y a las del día en que se
+    pronosticó (lo que se veía), y las notas con esa fecha. ‹ › pasan de
+    día. Sirve para ver si un error fue de todos (situación difícil) o de uno.
+    (`GET /api/yo/dia?ciudad=&fecha=`.)
+  - **Modo Análisis 🤓** (interruptor arriba): sin él, la página muestra lo
+    esencial (sin la tabla de cada pronóstico, el gráfico del modelo, los
+    textos de ayuda fijos ni los atajos de teclado). Se recuerda en cada
+    navegador.
   - **Videos y links**: los links que se pegan en una nota o un comentario
     se pueden tocar. Los de **Instagram, YouTube, TikTok, X, Facebook y
     Vimeo** muestran una tarjeta "▶ Ver el video": el reproductor de ese

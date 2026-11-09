@@ -233,8 +233,34 @@ td.nw { white-space: nowrap; }
   border-left: 4px solid var(--s3); border-radius: 6px 10px 10px 6px; }
 .red-feed .postit.pron .pron-tabla td, .red-feed .postit.pron .pron-tabla th { padding: 3px 5px; font-size: 12.5px; }
 /* Mini-gráfico del pronóstico */
-.spark-pron { display: block; width: 100%; height: auto; max-height: 120px; }
+.spark-pron { display: block; width: 100%; height: auto; max-height: 190px; }
 .spark-pron text { font: 10px system-ui, sans-serif; fill: var(--tenue); }
+/* Panorama de un día */
+.dia-barra { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.dia-barra h2 { margin: 0; font-size: 18px; flex: 1 1 200px; text-align: center; }
+.dia-obs { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0 10px; }
+.dia-obs .dato { border: 1px solid var(--borde); border-radius: 10px; padding: 6px 12px; background: var(--superficie); min-width: 92px; }
+.dia-obs .dato small { display: block; color: var(--tenue); font-size: 11.5px; }
+.dia-obs .dato b { font-size: 20px; }
+.dia-graf { display: block; width: 100%; height: auto; max-height: 300px; }
+.dia-graf text { font: 11px system-ui, sans-serif; fill: var(--tenue); }
+.dia-graf .dv { font-size: 11px; font-weight: 700; }
+.dia-graf .col-sel { fill: color-mix(in srgb, var(--acento) 10%, transparent); }
+.dia-tabla tr.sel td { background: color-mix(in srgb, var(--acento) 10%, transparent); }
+.dia-tabla td .boton { padding: 1px 8px; font-size: 12px; }
+@media (max-width: 760px) {
+  .dia-barra h2 { order: -1; flex-basis: 100%; text-align: left; font-size: 16px; }
+  .dia-barra [data-dia-volver] { margin-right: auto; }
+  .dia-obs .dato { min-width: 0; flex: 1 1 40%; }
+}
+.spark-pron .sp-val { font-size: 9.5px; font-weight: 600; }
+.spark-pron .sp-val.max { fill: #dc2626; } .spark-pron .sp-val.min { fill: #2563eb; }
+.spark-pron .sp-val .sp-fl { fill: var(--tenue); font-weight: 400; }
+.spark-pron .sp-val .sp-obs { font-weight: 800; }
+.spark-pron .sp-dia { font-size: 9.5px; }
+.spark-pron .sp-col { cursor: pointer; }
+.spark-pron .sp-col rect { fill: transparent; transition: fill .15s; }
+.spark-pron .sp-col:hover rect, .spark-pron .sp-col:focus rect { fill: color-mix(in srgb, var(--acento) 10%, transparent); }
 .spark-ley { display: flex; gap: 10px; flex-wrap: wrap; font-size: 11.5px; color: var(--tenue); }
 /* Etiquetas de tipo en modo oscuro: tonos suaves que no encandilan */
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .lb-tipo { background: color-mix(in srgb, var(--c, var(--s1)) 28%, transparent) !important; color: color-mix(in srgb, var(--c, var(--s1)) 45%, #fff); } }
@@ -1784,6 +1810,15 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
             <button class="boton" id="rs-presentar" hidden title="Pantalla completa con lo que está en discusión (← → para pasar)">🖥️ Presentar</button>
             <button class="boton primario" id="rs-nueva">❓ Nueva pregunta</button></div>
           <div id="rs-lista" class="kanban"></div>
+        </div>
+
+        <!-- Panorama de un día: todos los pronósticos para esa fecha, lo observado, el GFS, las cartas y las notas -->
+        <div class="rv" id="rv-dia" hidden>
+          <div class="dia-barra"><button class="boton" data-dia-volver>← Volver</button>
+            <button class="boton" data-dia-mover="-1" title="Día anterior">‹</button>
+            <h2 id="dia-tit"></h2>
+            <button class="boton" data-dia-mover="1" title="Día siguiente">›</button></div>
+          <div id="dia-cont"></div>
         </div>
 
         <!-- Modo presentación (coordinadores): una nota a pantalla completa -->
@@ -6107,29 +6142,50 @@ function contraGFS(it) {
 // pronosticado (línea punteada), observado (línea llena con puntos) y el GFS
 // de la corrida que había al publicar (gris).
 function sparkPron(it) {
+  // Mini-gráfico con los VALORES escritos: arriba de la máxima y abajo de la
+  // mínima va "pronosticado → observado" (el observado en negrita). Cada
+  // columna (un día) se puede tocar: abre el panorama de ese día.
   const dias = it.dias;
   if (dias.length < 2) return "";
-  const W = 320, H = 92, iz = 26, de = 8, ar = 8, ab = 16;
-  const vals = dias.flatMap((d) => [d.tmin?.pron, d.tmin?.obs, d.tmax?.pron, d.tmax?.obs, d.gfs?.tmin, d.gfs?.tmax]).filter((v) => v !== null && v !== undefined);
+  const W = 320, H = 132, iz = 24, de = 6, ar = 22, ab = 30;
+  const vals = dias.flatMap((d) => [d.tmin?.pron, d.tmin?.obs, d.tmax?.pron, d.tmax?.obs, d.gfs?.tmin, d.gfs?.tmax]).filter(ok);
   if (vals.length < 3) return "";
   const y0 = Math.floor(Math.min(...vals) - 1), y1 = Math.ceil(Math.max(...vals) + 1);
-  const X = (i) => iz + (i + 0.5) * (W - iz - de) / dias.length, Y = (v) => ar + (H - ar - ab) * (1 - (v - y0) / (y1 - y0));
+  const ancho = (W - iz - de) / dias.length;
+  const X = (i) => iz + (i + 0.5) * ancho, Y = (v) => ar + (H - ar - ab) * (1 - (v - y0) / (y1 - y0));
   const linea = (f, color, estilo) => {
-    const pts = dias.map((d, i) => [i, f(d)]).filter(([, v]) => v !== null && v !== undefined);
+    const pts = dias.map((d, i) => [i, f(d)]).filter(([, v]) => ok(v));
     if (!pts.length) return "";
     const d = pts.map(([i, v], k) => `${k ? "L" : "M"}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join("");
     return `<path d="${d}" fill="none" stroke="${color}" ${estilo}/>` + (estilo.includes("dash") || estilo.includes("gris") ? ""
       : pts.map(([i, v]) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="3" fill="${color}"/>`).join(""));
   };
+  // "26 → 27,2": lo pronosticado (redondeado, como se publica) y lo observado.
+  const etiqueta = (t) => !t || !ok(t.pron) ? "" : ok(t.obs)
+    ? `${num(t.pron, 0)}<tspan class="sp-fl"> → </tspan><tspan class="sp-obs">${num(t.obs)}</tspan>` : `${num(t.pron, 0)}`;
+  const valores = dias.map((d, i) => {
+    const sup = [d.tmax?.pron, d.tmax?.obs].filter(ok), inf = [d.tmin?.pron, d.tmin?.obs].filter(ok);
+    return (sup.length ? `<text class="sp-val max" x="${X(i)}" y="${Math.max(10, Y(Math.max(...sup)) - 7)}" text-anchor="middle">${etiqueta(d.tmax)}</text>` : "")
+      + (inf.length ? `<text class="sp-val min" x="${X(i)}" y="${Math.min(H - ab + 12, Y(Math.min(...inf)) + 14)}" text-anchor="middle">${etiqueta(d.tmin)}</text>` : "");
+  }).join("");
+  const detalle = (d) => {
+    const t = (n, x) => !x || !ok(x.pron) ? "" : `\n${n}: pronosticada ${num(x.pron, 0)} °C${ok(x.obs) ? `, observada ${num(x.obs)} °C (error ${x.obs - x.pron > 0 ? "+" : ""}${num(x.obs - x.pron)})` : ", todavía sin observar"}`;
+    const g = d.gfs ? `\nGFS de ese momento: ${num(d.gfs.tmin, 0)} / ${num(d.gfs.tmax, 0)} °C` : "";
+    return `Día ${d.plazo + 1} · ${diaCorto(d.fecha)}${t("Máxima", d.tmax)}${t("Mínima", d.tmin)}${g}\n\nTocá para ver el panorama de ese día: todos los pronósticos para esa fecha, lo observado y las cartas`;
+  };
+  const columnas = dias.map((d, i) => `<g class="sp-col" data-dia="${esc(d.fecha)}" data-plazo="${d.plazo}" data-ciudad="${esc(it.ciudad)}">
+      <title>${esc(detalle(d))}</title><rect x="${(iz + i * ancho).toFixed(1)}" y="0" width="${ancho.toFixed(1)}" height="${H}" rx="6"/></g>`).join("");
   const hayGfs = dias.some((d) => d.gfs);
-  return `<svg class="spark-pron" viewBox="0 0 ${W} ${H}" role="img" aria-label="Pronosticado, observado y GFS">
+  return `<svg class="spark-pron" viewBox="0 0 ${W} ${H}" role="img" aria-label="Pronosticado, observado y GFS (tocá un día para ver su panorama)">
+    ${columnas}
     <text x="2" y="${Y(y1) + 8}">${y1}°</text><text x="2" y="${Y(y0)}">${y0}°</text>
-    ${dias.map((d, i) => `<text x="${X(i)}" y="${H - 3}" text-anchor="middle">D${d.plazo + 1}</text>`).join("")}
+    ${dias.map((d, i) => `<text x="${X(i)}" y="${H - 4}" text-anchor="middle" class="sp-dia">D${d.plazo + 1} · ${esc(diaCorto(d.fecha).split(" ").pop())}</text>`).join("")}
     ${hayGfs ? linea((d) => d.gfs?.tmax, "#9ca3af", 'stroke-width="1.5" data-gris="1"') + linea((d) => d.gfs?.tmin, "#9ca3af", 'stroke-width="1.5" data-gris="1"') : ""}
     ${linea((d) => d.tmax?.pron, "#dc2626", 'stroke-width="2" stroke-dasharray="5 4"')}${linea((d) => d.tmin?.pron, "#2563eb", 'stroke-width="2" stroke-dasharray="5 4"')}
     ${linea((d) => d.tmax?.obs, "#dc2626", 'stroke-width="2.2"')}${linea((d) => d.tmin?.obs, "#2563eb", 'stroke-width="2.2"')}
+    ${valores}
   </svg><div class="spark-ley"><span>┄ pronosticado</span><span>━● observado</span>${hayGfs ? '<span style="color:#9ca3af">━ GFS</span>' : ""}
-    <span style="color:#dc2626">máx</span><span style="color:#2563eb">mín</span></div>`;
+    <span style="color:#dc2626">máx</span><span style="color:#2563eb">mín</span><span>· 26 → <b>27,2</b> = pronosticado → observado · tocá un día para ver su panorama</span></div>`;
 }
 function tarjetaPron(it) {
   const quien = it.usuario ? it.usuario.nombre : it.firma;
@@ -6560,6 +6616,118 @@ function dibujarGrupo() {
       : `<tr><td colspan="8" class="tenue">Nadie tiene pronósticos de ese plazo con observación en el período.</td></tr>`);
 }
 
+// ----- Panorama de un día -----
+// Desde el gráfico de un pronóstico: al tocar un día se abre esta vista con
+// TODO lo que hay para esa fecha en esa ciudad. Así se ve, por ejemplo, si el
+// error del día 2 fue de una sola persona o de todos (y del modelo): si todos
+// fallaron igual, la situación era difícil; las cartas y las notas ayudan a ver por qué.
+const fmtDiaLargo = new Intl.DateTimeFormat("es-AR", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long", year: "numeric" });
+const anticipacion = (k) => k === 0 ? "el mismo día" : k === 1 ? "1 día antes" : `${k} días antes`;
+async function abrirDia(ciudad, fecha, plazo = null, desde = null) {
+  if (desde) red.diaVolver = { vista: red.vista, obj: desde.dataset.obj || (desde.dataset.id ? `nota:${desde.dataset.id}` : ""), scroll: window.scrollY };
+  red.dia = { ciudad, fecha, plazo, datos: null };
+  verRed("dia", false);
+  window.scrollTo({ top: 0 });
+  $("#dia-tit").textContent = `${ciudad} · ${fmtDiaLargo.format(new Date(fecha + "T12:00:00Z"))}`;
+  $("#dia-cont").innerHTML = '<p class="tenue">Cargando…</p>';
+  try {
+    const d = await api(`/api/yo/dia?ciudad=${encodeURIComponent(ciudad)}&fecha=${fecha}`);
+    if (red.dia.fecha !== fecha) return;            // ya se pidió otro día
+    red.dia.datos = d;
+    dibujarDia();
+  } catch (err) { $("#dia-cont").innerHTML = `<p class="tenue">No se pudo cargar: ${esc(err.message)}</p>`; }
+}
+function volverDelDia() {
+  const v = red.diaVolver || { vista: "inicio" };
+  red.diaVolver = null;
+  verRed(v.vista, false);                            // el feed sigue cargado: no hace falta pedirlo de nuevo
+  const t = v.obj && document.querySelector(`#rv-${v.vista} .postit[data-obj="${CSS.escape(v.obj)}"], #rv-${v.vista} .postit[data-id="${CSS.escape(v.obj.replace("nota:", ""))}"]`);
+  if (t) { t.scrollIntoView({ block: "center" }); t.classList.add("resaltada"); setTimeout(() => t.classList.remove("resaltada"), 2000); }
+  else window.scrollTo(0, v.scroll || 0);
+}
+// Gráfico: cómo se fue acercando el pronóstico a medida que llegaba el día.
+// Eje x: con cuánta anticipación se pronosticó (4 días antes → el mismo día).
+// Líneas llenas: lo observado. Puntos: cada pronóstico. Rombos grises: el GFS.
+function graficoDia(d, sel) {
+  const o = d.observado, P = d.pronosticos, G = d.gfs;
+  const vals = [o.tmin_urbana, o.tmax_urbana, ...P.flatMap((p) => [p.tmin, p.tmax]), ...G.flatMap((g) => [g.tmin, g.tmax])].filter(ok);
+  if (!vals.length) return "";
+  const angosto = window.innerWidth < 600;                 // en el celular, menos ancho = letras más grandes
+  const W = angosto ? 380 : 640, H = angosto ? 240 : 260, iz = 30, de = angosto ? 62 : 80, ar = 14, ab = 30;
+  const plazos = [3, 2, 1, 0];
+  const y0 = Math.floor(Math.min(...vals) - 1), y1 = Math.ceil(Math.max(...vals) + 1);
+  const anchoCol = (W - iz - de) / plazos.length;
+  const X = (k) => iz + (plazos.indexOf(k) + 0.5) * anchoCol, Y = (v) => ar + (H - ar - ab) * (1 - (v - y0) / (y1 - y0));
+  const grilla = [];
+  for (let v = Math.ceil(y0 / 5) * 5; v <= y1; v += 5) grilla.push(`<line x1="${iz}" x2="${W - de}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--borde)"/><text x="${iz - 4}" y="${Y(v) + 4}" text-anchor="end">${v}°</text>`);
+  const cols = plazos.map((k) => `${k === sel ? `<rect class="col-sel" x="${iz + plazos.indexOf(k) * anchoCol}" y="${ar - 6}" width="${anchoCol}" height="${H - ar - ab + 12}" rx="8"/>` : ""}
+    <text x="${X(k)}" y="${H - 6}" text-anchor="middle">${angosto ? (k ? `−${k} d` : "mismo día") : anticipacion(k)}</text>`).join("");
+  const obsL = (v, color, nom) => ok(v) ? `<line x1="${iz}" x2="${W - de}" y1="${Y(v)}" y2="${Y(v)}" stroke="${color}" stroke-width="2"/>
+    <text x="${W - de + 5}" y="${Y(v) + 4}" style="fill:${color};font-weight:700">${nom} ${num(v)}°</text>` : "";
+  // Si hay más de un pronóstico con el mismo plazo, se corren un poco a los costados.
+  const porPlazo = {};
+  P.forEach((p) => (porPlazo[p.plazo] = porPlazo[p.plazo] || []).push(p));
+  const puntos = P.map((p) => {
+    const grupo = porPlazo[p.plazo], i = grupo.indexOf(p), dx = (i - (grupo.length - 1) / 2) * (angosto ? 24 : 34);
+    const quien = p.usuario ? p.usuario.nombre : p.firma;
+    const punto = (v, color, ref, arriba) => !ok(v) ? "" : `<g><title>${esc(`${quien} (${anticipacion(p.plazo)}, el ${diaCorto(p.fecha_emision)}): ${num(v, 0)} °C${ok(ref) ? ` · error ${ref - v > 0 ? "+" : ""}${num(ref - v)}` : ""}`)}</title>
+      <circle cx="${X(p.plazo) + dx}" cy="${Y(v)}" r="5" fill="${color}" stroke="var(--superficie)" stroke-width="1.5"/>
+      <text class="dv" x="${X(p.plazo) + dx + 8}" y="${Y(v) + (arriba ? -5 : 13)}" style="fill:${color}">${num(v, 0)}</text></g>`;
+    return punto(p.tmax, "#dc2626", o.tmax_urbana, true) + punto(p.tmin, "#2563eb", o.tmin_urbana, false)
+      + `<text x="${X(p.plazo) + dx}" y="${H - ab + 10}" text-anchor="middle" style="font-size:10px;font-weight:600">${esc(quien.split(" ")[0])}</text>`;
+  }).join("");
+  const rombo = (x, y) => `<path d="M${x},${y - 5}L${x + 5},${y}L${x},${y + 5}L${x - 5},${y}Z" fill="#9ca3af"/>`;
+  const gfs = G.filter((g) => plazos.includes(g.plazo)).map((g) => `<g><title>GFS ${g.corrida.slice(6, 8)}/${g.corrida.slice(4, 6)} ${g.corrida.slice(8)} UTC (el que había ${anticipacion(g.plazo)}): ${num(g.tmin, 0)} / ${num(g.tmax, 0)} °C</title>
+    ${rombo(X(g.plazo) + 22, Y(g.tmax))}${rombo(X(g.plazo) + 22, Y(g.tmin))}</g>`).join("");
+  return `<svg class="dia-graf" viewBox="0 0 ${W} ${H}" role="img" aria-label="Los pronósticos para este día según la anticipación, contra lo observado">
+    ${grilla.join("")}${cols}${obsL(o.tmax_urbana, "#dc2626", "máx")}${obsL(o.tmin_urbana, "#2563eb", "mín")}${gfs}${puntos}</svg>
+    <div class="spark-ley"><span style="color:#dc2626">● máxima</span><span style="color:#2563eb">● mínima</span><span>━ observado (a la derecha, su valor)</span>
+      ${G.length ? '<span style="color:#9ca3af">◆ GFS de ese momento</span>' : ""}<span>· pasá el mouse (o tocá) un punto para ver de quién es y su error</span></div>`;
+}
+function dibujarDia() {
+  const { fecha, plazo: sel, datos: d } = red.dia;
+  const o = d.observado, P = d.pronosticos;
+  const hoy = diaArg(Date.now());
+  const dato = (nom, v, u = "°C") => `<div class="dato"><small>${nom}</small><b>${ok(v) ? (typeof v === "boolean" ? (v ? "sí" : "no") : `${num(v)} ${u}`) : "–"}</b></div>`;
+  const haySub = P.some((p) => ok(p.tmin_sub) || ok(p.tmax_sub)) || ok(o.tmin_suburbana) || ok(o.tmax_suburbana);
+  const gfsDe = Object.fromEntries(d.gfs.map((g) => [g.plazo, g]));
+  const filas = P.map((p) => {
+    const quien = p.usuario ? p.usuario.nombre : p.firma, perfil = p.usuario ? p.usuario.id : `f:${p.firma}`;
+    const g = gfsDe[p.plazo];
+    return `<tr class="${p.plazo === sel ? "sel" : ""}"><td><b>Día ${p.plazo + 1}</b><br><small class="tenue">${anticipacion(p.plazo)}</small></td>
+      <td><a href="#" data-perfil="${esc(perfil)}">${esc(quien)}</a><br><small class="tenue">${esc(diaCorto(p.fecha_emision))}</small></td>
+      <td>${celdaTemp({ pron: p.tmin, obs: o.tmin_urbana })}</td><td>${celdaTemp({ pron: p.tmax, obs: o.tmax_urbana })}</td>
+      ${haySub ? `<td>${celdaTemp({ pron: p.tmin_sub, obs: o.tmin_suburbana })}</td><td>${celdaTemp({ pron: p.tmax_sub, obs: o.tmax_suburbana })}</td>` : ""}
+      <td>${ok(p.pp) ? celdaPP({ pron: p.pp, obs: o.pp }) : "–"}</td>
+      <td>${g ? `${num(g.tmin, 0)} / ${num(g.tmax, 0)}` : '<span class="tenue">–</span>'}</td>
+      <td><button class="boton" data-cartas="${esc(p.fecha_emision)}" title="Las cartas del día en que se hizo este pronóstico: lo que se veía en ese momento">🗺️ ${esc(diaCorto(p.fecha_emision).split(" ").pop())}</button></td></tr>`;
+  }).join("");
+  const notas = d.notas || [];
+  $("#dia-cont").innerHTML = `
+    <div class="tarjeta">
+      <h3 style="margin:0 0 4px">Lo observado</h3>
+      ${fecha >= hoy ? '<p class="tenue" style="margin:0">Todavía no terminó (o no llegó): se completa al día siguiente.</p>' : ""}
+      <div class="dia-obs">${dato("Mínima (ciudad)", o.tmin_urbana)}${dato("Máxima (ciudad)", o.tmax_urbana)}
+        ${haySub ? dato("Mínima (afueras)", o.tmin_suburbana) + dato("Máxima (afueras)", o.tmax_suburbana) : ""}${dato("¿Llovió?", o.pp, "")}</div>
+      <div class="acc"><button class="boton primario" data-cartas="${esc(fecha)}" title="Las cartas de diagnóstico de ese día (lo que pasó)">🗺️ Cartas de ese día</button>
+        <button class="boton" data-dia-nota title="Escribir una nota sobre este día (queda en su panorama)">📝 Anotar algo de este día</button></div>
+    </div>
+    <div class="tarjeta">
+      <h3 style="margin:0 0 4px">Cómo se fue acercando el pronóstico</h3>
+      <p class="ayuda" style="margin-top:0">Cada punto es lo que alguien pronosticó para este día, según con cuánta anticipación lo hizo. Si todos (y el GFS)
+        erraron para el mismo lado, la situación era difícil de prever; si uno solo, vale la pena preguntarle qué vio.</p>
+      ${P.length ? graficoDia(d, sel) : '<p class="tenue">Nadie pronosticó este día para esta ciudad.</p>'}
+    </div>
+    ${P.length ? `<div class="tarjeta"><h3 style="margin:0 0 4px">Todos los pronósticos para este día</h3>
+      <p class="ayuda" style="margin-top:0">En cada celda, pronosticado / observado y el error. El botón 🗺️ abre las cartas del día en que se pronosticó (lo que se veía en ese momento).</p>
+      <div class="tabla-scroll" style="max-height:none"><table class="pron-tabla dia-tabla">
+        <tr><th>Plazo</th><th>Quién<small>cuándo</small></th><th>Mín<small>ciudad</small></th><th>Máx<small>ciudad</small></th>
+          ${haySub ? "<th>Mín<small>afueras</small></th><th>Máx<small>afueras</small></th>" : ""}<th>Lluvia</th><th>GFS<small>mín / máx</small></th><th>Cartas</th></tr>
+        ${filas}</table></div></div>` : ""}
+    <h3 style="margin:16px 0 8px">Notas de este día ${notas.length ? `<span class="tenue">(${notas.length})</span>` : ""}</h3>
+    ${notas.length ? `<div class="red-feed">${notas.map((n) => tarjetaNota(n)).join("")}</div>` : '<p class="tenue">Nadie escribió nada sobre este día todavía.</p>'}`;
+}
+
 // ----- Navegación entre secciones -----
 function verRed(v, cargar = true) {
   red.vista = v;
@@ -6578,22 +6746,25 @@ function verRed(v, cargar = true) {
 function cargarLibreta() {
   if (red.vista === "perfil" && red.perfil.quien) cargarFeed(red.perfil, red.perfil.params || {}, "#red-feed-perfil", "#red-mas-perfil", "Nada publicado en estas semanas");
   else if (red.vista === "inicio") cargarInicio();
+  else if (red.vista === "dia" && red.dia) abrirDia(red.dia.ciudad, red.dia.fecha, red.dia.plazo);
   cargarReunion();
 }
 function buscarNota(id) {
   const r = red.reunion.find((n) => n.id === id);          // la del tablero es la más fresca (estado)
   if (r) return r;
   for (const it of [...red.inicio.items, ...red.perfil.items]) if (it.tipo === "nota" && it.nota.id === id) return it.nota;
-  return null;
+  return (red.dia?.datos?.notas || []).find((n) => n.id === id) || null;
 }
 function buscarObjeto(obj) {
   return [...red.inicio.items, ...red.perfil.items].filter((it) => (it.tipo === "nota" ? `nota:${it.nota.id}` : it.objeto) === obj)
-    .concat(red.reunion.filter((n) => `nota:${n.id}` === obj).map((n) => ({ tipo: "nota", nota: n })));
+    .concat(red.reunion.filter((n) => `nota:${n.id}` === obj).map((n) => ({ tipo: "nota", nota: n })))
+    .concat((red.dia?.datos?.notas || []).filter((n) => `nota:${n.id}` === obj).map((n) => ({ tipo: "nota", nota: n })));
 }
 function redibujar() {
   if (red.vista === "inicio") dibujarFeed("#red-feed", red.inicio, "Todavía no hay nada");
   if (red.vista === "perfil") dibujarFeed("#red-feed-perfil", red.perfil, "Nada publicado en estas semanas");
   if (red.vista === "reunion") cargarReunion();
+  if (red.vista === "dia" && red.dia?.datos) dibujarDia();
 }
 function datosComposer() {
   const tipo = $("#mc-tipo").value;
@@ -6870,6 +7041,16 @@ async function accionRed(e) {
   }
   const ve = e.target.closest("[data-embed]");
   if (ve) { abrirEmbed(ve); return; }
+  const cd = e.target.closest("[data-dia]");
+  if (cd) { abrirDia(cd.dataset.ciudad, cd.dataset.dia, Number(cd.dataset.plazo), cd.closest(".postit")); return; }
+  const dm = e.target.closest("[data-dia-mover]");
+  if (dm && red.dia) { abrirDia(red.dia.ciudad, sumarDias(red.dia.fecha, Number(dm.dataset.diaMover)), null); return; }
+  if (e.target.closest("[data-dia-volver]")) { volverDelDia(); return; }
+  if (e.target.closest("[data-dia-nota]") && red.dia) {
+    abrirNota({ tipo: "vi", fecha_evento: red.dia.fecha, compartida: true, etiquetas: [], texto: "",
+                contexto: { seccion: "meteograma", ciudad: red.dia.ciudad, ts: red.dia.fecha + "T15:00:00Z" } });
+    return;
+  }
   const bd = e.target.closest("[data-modelo-duda]");
   if (bd) {
     const t = bd.closest(".postit"), it = buscarObjeto(t.dataset.obj)[0], caja = t.querySelector(".pron-modelo");
