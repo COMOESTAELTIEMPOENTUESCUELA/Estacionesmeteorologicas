@@ -25,10 +25,12 @@ import asyncio
 import base64
 import csv
 import io
+import json
 import logging
 import mimetypes
 import math
 import os
+import re
 import secrets
 from contextlib import asynccontextmanager
 from datetime import date, datetime, timedelta, timezone
@@ -759,6 +761,85 @@ def _georef_region(region):
     return _GEOREF_CACHE[clave]
 
 
+_LATLON_OGIMET = re.compile(r"Lat:\s*(\d+)-(\d+)-(\d+)([NS])\s+Lon:\s*(\d+)-(\d+)-(\d+)([EW])")
+
+
+def ajustar_lineal(puntos):
+    """puntos: [(fx, fy, lon, lat)] (fx, fy: fracción de la imagen, 0 a 1) ->
+    las rectas fx = ax*lon + bx y fy = ay*Y(lat) + by por mínimos cuadrados,
+    con Y la latitud o la de Mercator (la que mejor ajuste), y el error medio
+    en km. Es el mismo formato que la calibración a mano del visor."""
+    import math
+
+    import numpy as np
+    lon = np.array([p[2] for p in puntos]); lat = np.array([p[3] for p in puntos])
+    fx = np.array([p[0] for p in puntos]); fy = np.array([p[1] for p in puntos])
+    ax, bx = np.polyfit(lon, fx, 1)
+    mejor = None
+    for tipo in ("lat", "merc"):
+        Y = lat if tipo == "lat" else np.log(np.tan(np.pi / 4 + np.radians(lat) / 2))
+        ay, by = np.polyfit(Y, fy, 1)
+        lon2 = (fx - bx) / ax
+        y2 = (fy - by) / ay
+        lat2 = y2 if tipo == "lat" else np.degrees(2 * np.arctan(np.exp(y2)) - np.pi / 2)
+        # distancia en km entre la posición real y la que da el ajuste (aprox. plana, alcanza para el error)
+        dkm = 111.2 * np.hypot((lon2 - lon) * np.cos(np.radians(lat)), lat2 - lat)
+        g = {"tipo": "lineal", "ax": float(ax), "bx": float(bx), "ay": float(ay), "by": float(by), "y": tipo,
+             "error_km": round(float(dkm.mean()), 1), "n": len(puntos)}
+        if mejor is None or g["error_km"] < mejor["error_km"]:
+            mejor = g
+    return mejor if math.isfinite(mejor["error_km"]) else None
+
+
+def _georef_ogimet(producto):
+    """Los mapas de Ogimet no dicen su proyección, pero cada estación del mapa
+    trae su cartel con la latitud y la longitud exactas y el lugar (en
+    píxeles) donde está dibujada: con decenas de estaciones se calibra solo.
+    Se usa el último mapa con carteles guardado de ese producto."""
+    from PIL import Image
+
+    from ..cartas import archivo
+    carpeta = Path(ARCHIVO_DIR) / "cartas" / "_areas" / producto
+    ultimos = sorted(carpeta.glob("*/*/*.json"))
+    if not ultimos:
+        return None
+    ruta = ultimos[-1]
+    clave = ("ogimet", str(ruta), ruta.stat().st_mtime)
+    if clave in _GEOREF_CACHE:
+        return _GEOREF_CACHE[clave]
+    ts = datetime.strptime(ruta.stem.rsplit("_", 1)[1], "%Y%m%d%H").replace(tzinfo=timezone.utc)
+    imagen = next((f for f in (archivo.ruta(ARCHIVO_DIR, producto, ts, e) for e in ("png", "gif", "jpg")) if f.exists()), None)
+    if not imagen:
+        return None
+    with Image.open(imagen) as im:
+        ancho, alto = im.size
+    zonas = json.loads(ruta.read_text(encoding="utf-8"))
+    puntos = []
+    for z in zonas if isinstance(zonas, list) else []:
+        m = _LATLON_OGIMET.search(z.get("texto") or "")
+        if not m:
+            continue
+        g1, m1, s1, ns, g2, m2, s2, ew = m.groups()
+        lat = (int(g1) + int(m1) / 60 + int(s1) / 3600) * (-1 if ns == "S" else 1)
+        lon = (int(g2) + int(m2) / 60 + int(s2) / 3600) * (-1 if ew == "W" else 1)
+        x1, y1, x2, y2 = z["caja"]
+        puntos.append(((x1 + x2) / 2 / ancho, (y1 + y2) / 2 / alto, lon, lat))
+    g = ajustar_lineal(puntos) if len(puntos) >= 4 else None
+    if g:
+        g["origen"] = f"automática, con {len(puntos)} estaciones del mapa (error medio {g['error_km']} km)"
+    _GEOREF_CACHE[clave] = g
+    return g
+
+
+def _calibraciones_compartidas():
+    """Las calibraciones hechas a mano en el visor y guardadas para todos."""
+    try:
+        return {r["producto"]: {**r["georef"], "compartida": True, "por": r["por"]}
+                for r in consultar("SELECT producto, georef, por FROM carta_calibracion")}
+    except Exception:                  # la tabla todavía no existe
+        return {}
+
+
 @app.get("/api/cartas/georef")
 def cartas_georef():
     """Para cada carta, cómo pasar de un punto de la imagen a latitud y
@@ -770,6 +851,7 @@ def cartas_georef():
     except FileNotFoundError:
         cfg = {}
     salida = {}
+    compartidas = _calibraciones_compartidas()
     for p in _cartas_productos(con_pronosticos=True):
         c = cfg.get(p["id"], {})
         try:
@@ -779,8 +861,10 @@ def cartas_georef():
                 salida[p["id"]] = _georef_mercator()
             elif p["fuente"] == "glm" and c.get("region"):
                 salida[p["id"]] = _georef_region(c["region"])
+            elif p["fuente"] == "ogimet":
+                salida[p["id"]] = _georef_ogimet(p["id"]) or compartidas.get(p["id"])
             else:
-                salida[p["id"]] = None
+                salida[p["id"]] = compartidas.get(p["id"])
         except Exception as ex:                  # una carta sin coordenadas no rompe las demás
             logging.getLogger(__name__).warning("georef %s: %s", p["id"], ex)
             salida[p["id"]] = None

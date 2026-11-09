@@ -171,3 +171,12 @@ CREATE TABLE IF NOT EXISTS mensaje (
     compartido_nota int REFERENCES nota(id) ON DELETE SET NULL    -- si se pasó al Inicio
 );
 CREATE INDEX IF NOT EXISTS mensaje_conversacion ON mensaje (conversacion_id, id);
+
+-- Calibraciones de las cartas sin coordenadas (ej. el satélite de NOAA):
+-- alguien toca lugares conocidos en el visor y queda guardada para todos.
+CREATE TABLE IF NOT EXISTS carta_calibracion (
+    producto    text PRIMARY KEY,
+    georef      jsonb NOT NULL,
+    por         text,
+    actualizada timestamptz NOT NULL DEFAULT now()
+);

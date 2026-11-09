@@ -531,3 +531,63 @@ def test_sin_funciones_repetidas_en_la_pagina():
     nombres += re.findall(r"^(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=", js, re.M)
     repetidos = [n for n, c in collections.Counter(nombres).items() if c > 1]
     assert repetidos == [], f"nombres repetidos en el JavaScript de la página: {repetidos}"
+
+
+def test_calibracion_automatica_de_ogimet_y_compartida(cliente, tmp_path, monkeypatch):
+    """Los mapas de Ogimet se calibran solos con las estaciones (cada cartel
+    trae latitud y longitud); las calibraciones a mano quedan para todos."""
+    import json as js
+    import math
+
+    from PIL import Image
+
+    from meteo.web import app as A
+    # Un mapa "Mercator" de 800x600 con 6 estaciones en su lugar exacto.
+    ax, bx, ay, by = 0.02, 1.7, -1.5, 0.05
+    estaciones = [(-57.9, -34.97), (-58.5, -34.8), (-62.2, -38.7), (-64.2, -31.3), (-68.8, -32.8), (-56.0, -34.8)]
+    def dms(v, pos, neg, ancho):
+        a = abs(v); g = int(a); m = int((a - g) * 60); s = round(((a - g) * 60 - m) * 60)
+        return f"{g:0{ancho}d}-{m:02d}-{s:02d}{pos if v >= 0 else neg}"
+    zonas = []
+    for lon, lat in estaciones:
+        fx, fy = ax * lon + bx, ay * math.log(math.tan(math.pi / 4 + math.radians(lat) / 2)) + by
+        x, y = fx * 800, fy * 600
+        zonas.append({"omm": "1", "caja": [x - 6, y - 4, x + 6, y + 4], "texto": f"Lat: {dms(lat, 'N', 'S', 2)} Lon: {dms(lon, 'E', 'W', 3)} Alt: 1 m.", "enlace": ""})
+    carpeta = tmp_path / "cartas" / "_areas" / "og_te" / "2026" / "10"
+    carpeta.mkdir(parents=True)
+    (carpeta / "og_te_2026101212.json").write_text(js.dumps(zonas))
+    img = tmp_path / "cartas" / "og_te" / "2026" / "10"
+    img.mkdir(parents=True)
+    Image.new("RGB", (800, 600)).save(img / "og_te_2026101212.png")
+    monkeypatch.setattr(A, "ARCHIVO_DIR", str(tmp_path))
+    from meteo.cartas import archivo
+    if not archivo.ruta(str(tmp_path), "og_te", A.datetime(2026, 10, 12, 12, tzinfo=A.timezone.utc), "png").exists():
+        import pytest
+        pytest.skip("otra estructura de carpetas del archivo")
+    g = A._georef_ogimet("og_te")
+    assert g["y"] == "merc" and g["n"] == 6 and g["error_km"] < 2
+    assert abs(g["ax"] - ax) < 1e-3 and abs(g["ay"] - ay) < 1e-2
+    # Calibración a mano, guardada para todos (con sesión); solo números.
+    from meteo.web import cuentas as m
+    monkeypatch.setattr(m, "GOOGLE_CLIENT_ID", "id-prueba")
+    monkeypatch.setattr(m, "GOOGLE_CLIENT_SECRET", "secreto")
+    monkeypatch.setattr(m, "URL_PUBLICA", "https://prueba.ts.net")
+    m.main(["agregar", "--email", "cal@gmail.com", "--nombre", "Cal"])
+    from tests.test_cuentas import X, ingresar
+    try:
+        cliente.cookies.clear()
+        ingresar(cliente, m, monkeypatch, "cal@gmail.com")
+        buena = {"tipo": "lineal", "ax": 0.01, "bx": 1.2, "ay": -0.02, "by": -0.3, "y": "lat", "error_km": 12,
+                 "puntos": [{"p": [1, 2], "ll": [-57.9, -34.9], "nombre": "La Plata", "alto": 750}, {"p": [5, 6], "ll": [-56.2, -34.9], "nombre": "Montevideo"}]}
+        assert cliente.put("/api/yo/calibracion", json={"producto": "satelite_ir13", "georef": buena}, headers=X).status_code == 200
+        assert cliente.put("/api/yo/calibracion", json={"producto": "satelite_ir13", "georef": {**buena, "ax": "1;DROP"}}, headers=X).status_code == 400
+        assert cliente.put("/api/yo/calibracion", json={"producto": "../x", "georef": buena}, headers=X).status_code == 400
+        guardada = A._calibraciones_compartidas()["satelite_ir13"]
+        assert guardada["compartida"] and guardada["por"] == "Cal" and guardada["ax"] == 0.01 and len(guardada["puntos"]) == 2
+        assert cliente.delete("/api/yo/calibracion/satelite_ir13", headers=X).status_code == 200
+        assert "satelite_ir13" not in A._calibraciones_compartidas()
+    finally:
+        with m._pools["e"].connection() as conn:
+            conn.execute("DELETE FROM carta_calibracion")
+            conn.execute("DELETE FROM usuario WHERE email = 'cal@gmail.com'")
+            conn.commit()

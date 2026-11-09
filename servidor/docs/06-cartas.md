@@ -585,9 +585,14 @@ Las medidas salen en el "⬇ PNG" y en la imagen que se pega en las notas
 **Coordenadas de cada carta** (`/api/cartas/georef`): las cartas estilo
 Bentley (las propias del GFS y las de su página) usan el marco Mercator
 exacto de `estilo_bentley.marco()`; los mapas propios de rayos, la caja del
-mapa de `satelite/render.marco()`. Las imágenes de otros (satélite de NOAA
-STAR, Ogimet) no traen su proyección: se **calibran** con **📍 Calibrar**,
-tocando 3 lugares conocidos y lejos entre sí (mejor puntos de la costa). La
-página ajusta latitud-longitud o Mercator (la que mejor dé) y muestra el
-error. La calibración queda en ese navegador; para dejarla para todos, se
-copia la línea `georef: {...}` que muestra a esa carta en `config/cartas.yaml`.
+mapa de `satelite/render.marco()`. Los **mapas de Ogimet se calibran
+solos**: cada estación del mapa trae su cartel con la latitud y la longitud
+exactas y el lugar (en píxeles) donde está dibujada; con el último mapa
+guardado se ajustan por cuadrados mínimos las dos rectas (longitud → x;
+latitud o Mercator → y, la que mejor dé) y se informa el error medio en km.
+Las imágenes del satélite de NOAA STAR no traen ni proyección ni puntos: se
+**calibran** una vez con **📍 Calibrar**, tocando 3 lugares conocidos y
+lejos entre sí (mejor puntos de la costa). Con sesión, esa calibración queda
+**guardada en el servidor para todos** (tabla `carta_calibracion`, con quién
+la hizo); "Borrar calibración" la saca. También se puede fijar a mano con
+`georef: {...}` en `config/cartas.yaml`, que tiene prioridad.

@@ -1199,6 +1199,46 @@ def borrar_nota(nota_id: int, request: Request):
 
 
 # ---------------------------------------------------------------------------
+# Calibración compartida de las cartas sin coordenadas
+# ---------------------------------------------------------------------------
+@router.put("/api/yo/calibracion")
+async def guardar_calibracion(request: Request):
+    """La calibración que alguien hizo en el visor (lugares conocidos) queda
+    para todos. Solo números: dos rectas (ax, bx, ay, by) y los puntos usados."""
+    import math
+    u = requiere_usuario(request)
+    datos = await request.json()
+    producto = str(datos.get("producto") or "")[:80]
+    g = datos.get("georef") or {}
+    if not producto or not producto.replace("_", "").isalnum():
+        raise HTTPException(400, "producto inválido")
+    try:
+        limpio = {k: float(g[k]) for k in ("ax", "bx", "ay", "by")}
+        if not all(math.isfinite(v) for v in limpio.values()) or not limpio["ax"] or not limpio["ay"]:
+            raise ValueError
+        error = float(g.get("error_km") or 0)
+        puntos = [{"p": [float(c["p"][0]), float(c["p"][1])], "ll": [float(c["ll"][0]), float(c["ll"][1])],
+                   "nombre": str(c.get("nombre") or "")[:60], "alto": float(c.get("alto") or 0)}
+                  for c in (g.get("puntos") or [])[:40]]
+    except (KeyError, TypeError, ValueError, IndexError):
+        raise HTTPException(400, "calibración inválida")
+    if g.get("y") not in ("lat", "merc") or len(puntos) < 2:
+        raise HTTPException(400, "calibración inválida (hacen falta al menos 2 lugares)")
+    georef = {"tipo": "lineal", **limpio, "y": g["y"], "error_km": round(error, 1), "puntos": puntos}
+    _escribir("""INSERT INTO carta_calibracion (producto, georef, por, actualizada) VALUES (%s, %s, %s, now())
+                 ON CONFLICT (producto) DO UPDATE SET georef = EXCLUDED.georef, por = EXCLUDED.por, actualizada = now()""",
+              (producto, Jsonb(georef), u["nombre"]))
+    return {"ok": True}
+
+
+@router.delete("/api/yo/calibracion/{producto}")
+def borrar_calibracion(request: Request, producto: str):
+    requiere_usuario(request)
+    _escribir("DELETE FROM carta_calibracion WHERE producto = %s", (producto,))
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
 # Mensajes: chats privados, grupales y "dudas y sugerencias" a los admins
 # ---------------------------------------------------------------------------
 MAX_MENSAJE = 4000
