@@ -349,7 +349,7 @@ def _vigentes(desde, hasta):
     """La versión VIGENTE de cada pronóstico del período (de quien sea)."""
     from ..verificacion import puntajes
     dias = _leer("""
-        SELECT e.ciudad, e.fecha_pronostico, e.capturado, e.publicado_por, e.es_correccion,
+        SELECT e.ciudad, e.fecha_pronostico, e.capturado, e.publicado_por, e.es_correccion, e.hora_emision,
                COALESCE((e.contenido -> 'publicado_el' ->> 0)::date,
                         (e.capturado AT TIME ZONE 'America/Argentina/Buenos_Aires')::date) AS publicado_el,
                d.fecha, d.plazo_dias, d.temp_min, d.temp_max, d.temp_min_suburbana, d.temp_max_suburbana, d.periodos
@@ -907,7 +907,7 @@ def muro(request: Request, hasta: date | None = None, dias: int = 7, autor_id: i
                           "anticipado": any(f["anticipado"] for f in filas),
                           "dias": [{"fecha": f["fecha"], "plazo": f["plazo"], "tmin": f["tmin_urbana"], "tmax": f["tmax_urbana"],
                                     "tmin_sub": f["tmin_suburbana"], "tmax_sub": f["tmax_suburbana"],
-                                    "pp": {"pron": f["pp"]["pron"], "obs": f["pp"]["obs"], "tipo": f["pp"]["tipo"]},
+                                    "pp": {k: f["pp"].get(k) for k in ("pron", "obs", "tipo", "desde", "obs_dia")},
                                     "gfs": modelo.get(f["fecha"])} for f in filas],
                           "reacciones": reac.get(obj, {"conteo": {}, "mias": [], "quienes": {}}),
                           "comentarios": coment.get(obj, [])})
@@ -939,8 +939,9 @@ def panorama_del_dia(request: Request, ciudad: str, fecha: date):
         for k in ("tmin_urbana", "tmax_urbana", "tmin_suburbana", "tmax_suburbana"):
             if f[k]["obs"] is not None:
                 obs[k] = f[k]["obs"]
-        if f["pp"]["obs"] is not None:
-            obs["pp"] = f["pp"]["obs"]
+        dia_pp = f["pp"].get("obs_dia", f["pp"]["obs"])     # el día entero (en el Día 1 se verifica desde que se publicó)
+        if dia_pp is not None:
+            obs["pp"] = dia_pp
         cap = capturas.get((f["fecha_emision"], f["pronosticador"]))
         modelo, corrida = _gfs_diario(ciudad, cap) if cap else ({}, None)
         g = modelo.get(fecha)
@@ -952,7 +953,7 @@ def panorama_del_dia(request: Request, ciudad: str, fecha: date):
                      "objeto": objeto_pronostico(ciudad, f["fecha_emision"], f["pronosticador"]),
                      "tmin": f["tmin_urbana"]["pron"], "tmax": f["tmax_urbana"]["pron"],
                      "tmin_sub": f["tmin_suburbana"]["pron"], "tmax_sub": f["tmax_suburbana"]["pron"],
-                     "pp": f["pp"]["pron"], "pp_tipo": f["pp"]["tipo"]})
+                     "pp": f["pp"]["pron"], "pp_tipo": f["pp"]["tipo"], "pp_obs": f["pp"]["obs"], "pp_desde": f["pp"].get("desde")})
     notas = _notas_con_extras(u, ["(n.usuario_id = %s OR n.compartida)", "n.fecha_evento = %s"], [u["id"], fecha], limite=50)
     return {"ciudad": ciudad, "fecha": fecha, "observado": obs, "pronosticos": pron,
             "gfs": [{"plazo": k, **v} for k, v in sorted(gfs.items())], "notas": notas}

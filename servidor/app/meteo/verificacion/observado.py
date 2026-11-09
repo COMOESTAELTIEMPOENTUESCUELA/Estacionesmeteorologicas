@@ -51,6 +51,7 @@ SECTORES = ("N", "NE", "E", "SE", "S", "SW", "W", "NW")
 CALMA_MS = 0.5
 
 UMBRAL_PP_MM = 0.1
+INTERVALO_EMA = timedelta(minutes=10)      # lo que suele abarcar cada lectura de lluvia de una EMA
 
 
 def limites(dia):
@@ -205,6 +206,10 @@ def lluvia_ema(lecturas, dia):
         return None
     mm = round(sum(v for _, v in del_dia), 1)
     completitud = _completitud([t for t, _ in del_dia], inicio, fin)
+    # Cuándo llovió y qué horas hay datos: para el Día 1, que se verifica
+    # solo desde que se publicó el pronóstico (ver lluvia_despues).
+    lluvias = [[(t - INTERVALO_EMA).isoformat(), t.isoformat(), v, "ema"] for t, v in del_dia if v and v > 0]
+    horas = sorted({hora_local(t - timedelta(seconds=1)) for t, _ in del_dia})
     por_periodo = defaultdict(float)
     for t, v in del_dia:
         por_periodo[periodo_de(hora_local(t - timedelta(seconds=1)))] += v
@@ -215,7 +220,7 @@ def lluvia_ema(lecturas, dia):
     else:
         pp = None
     return {"pp": pp, "mm": mm, "completitud": completitud,
-            "periodos": {k: round(v, 1) for k, v in por_periodo.items()}}
+            "periodos": {k: round(v, 1) for k, v in por_periodo.items()}, "lluvias": lluvias, "horas": horas}
 
 
 def lluvia_synop(cantidades, ww, reportes, dia):
@@ -240,16 +245,18 @@ def lluvia_synop(cantidades, ww, reportes, dia):
     completitud = _completitud(reportes, inicio, fin)
     if not completitud and not cantidades:
         return None
-    evidencias = []
+    evidencias, lluvias = [], []
     for t, codigo in ww:
         if inicio < t <= fin and codigo in WW_PRECIPITACION:
             evidencias.append(f"ww {codigo} a las {hora_local(t):02d} hs")
+            lluvias.append([(t - timedelta(hours=1)).isoformat(), t.isoformat(), None, "ww"])   # la última hora
     horas_secas = set()
     for t, horas, mm in cantidades:
         desde = t - timedelta(hours=horas)
         dentro = (min(t, fin) - max(desde, inicio)) / timedelta(hours=horas)
         if dentro >= 0.75 and mm and mm > 0:
             evidencias.append(f"{mm:g} mm en {horas} h hasta las {hora_local(t):02d} hs")
+            lluvias.append([desde.isoformat(), t.isoformat(), mm, "cantidad"])
         if mm == 0:
             # Si no llovió en todo el período, tampoco en la parte que cae en el día.
             h = max(desde, inicio)
@@ -262,7 +269,38 @@ def lluvia_synop(cantidades, ww, reportes, dia):
         pp = False
     else:
         pp = None
-    return {"pp": pp, "completitud": completitud, "evidencias": evidencias[:8]}
+    cubiertas = {hora_local(t - timedelta(seconds=1)) for t in reportes if inicio < t <= fin} | {hora_local(h) for h in horas_secas}
+    return {"pp": pp, "completitud": completitud, "evidencias": evidencias[:8], "lluvias": lluvias, "horas": sorted(cubiertas)}
+
+
+def lluvia_despues(detalle, desde):
+    """¿Llovió en el resto del día DESPUÉS de `desde`? Para el Día 1: el
+    pronóstico se publica a la mañana y quien lo hizo ya sabía si había
+    llovido de madrugada; si el pronóstico dice "sin lluvias" para el resto
+    del día y no llovió más, es un acierto.
+    detalle: el de la fila "pp" de verif_observado (con "lluvias" y "horas").
+    Cada lluvia es un intervalo [desde, hasta, mm, tipo]: cuenta si cae
+    mayormente después (una cantidad del SYNOP, en un 75 %, como para el día).
+    -> True / False / None (no se sabe: filas viejas o pocos datos después)."""
+    if not detalle or "lluvias" not in detalle:
+        return None
+    fin = limites(desde.astimezone(HORA_ARG).date())[1]
+    mm, hubo = 0.0, False
+    for a, b, cant, tipo in detalle["lluvias"]:
+        a, b = datetime.fromisoformat(a), datetime.fromisoformat(b)
+        if b <= desde or b <= a:
+            continue
+        if (b - max(a, desde)) / (b - a) >= (0.75 if tipo == "cantidad" else 0.5):
+            if tipo == "ema":
+                mm += cant or 0
+            else:
+                hubo = True
+    if hubo or mm >= UMBRAL_PP_MM:
+        return True
+    restantes = set(range(hora_local(desde), 24)) if desde < fin else set()
+    if not restantes:
+        return None
+    return False if len(restantes & set(detalle.get("horas") or [])) >= COMPLETITUD_MINIMA * len(restantes) else None
 
 
 # ---------------------------------------------------------------------------

@@ -383,3 +383,48 @@ def test_intervalos_bootstrap():
     # Dos grupos iguales: la diferencia "puede ser azar"; muy distintos: no.
     assert puntajes.ic_diferencia_mae(muchos[:200], muchos[200:])["puede_ser_azar"] is True
     assert puntajes.ic_diferencia_mae([e + 5 for e in muchos[:200]], muchos[200:])["puede_ser_azar"] is False
+
+
+# ---------------------------------------------------------------------------
+# Día 1: la lluvia de antes de publicar no cuenta
+# ---------------------------------------------------------------------------
+def test_lluvia_de_madrugada_antes_de_publicar_no_cuenta_en_el_dia_1():
+    """Llovió de 3 a 6 hs; el pronóstico se publicó a las 8 sin lluvias para
+    el resto del día y no llovió más: en el Día 1 es un acierto (en el Día 2
+    del pronóstico de ayer, en cambio, el día cuenta entero como lluvioso)."""
+    reportes = [local(h) for h in range(24)]
+    syn = ob.lluvia_synop([(local(6), 3, 4.0)], [(local(4), 61), (local(5), 61)], reportes, DIA)
+    assert syn["pp"] is True and len(syn["lluvias"]) == 3
+    assert ob.lluvia_despues(syn, local(8)) is False
+    assert ob.lluvia_despues(syn, local(3)) is True                      # publicado antes: sí cuenta
+    # EMA: lecturas cada 15 min, 1,2 mm de 4 a 5 hs y nada más.
+    lect = [(local(h, m=m), 0.3 if h == 4 else 0.0) for h in range(24) for m in (0, 15, 30, 45)]
+    ema = ob.lluvia_ema(lect, DIA)
+    assert ema["pp"] is True and ob.lluvia_despues(ema, local(8, m=10)) is False
+    # Lluvia también a la tarde: sigue siendo día con lluvia.
+    assert ob.lluvia_despues(ob.lluvia_synop([], [(local(4), 61), (local(17), 80)], reportes, DIA), local(8)) is True
+    # Sin datos después de publicar: no se sabe.
+    pocos = ob.lluvia_synop([], [(local(4), 61)], [local(h) for h in range(10)], DIA)
+    assert ob.lluvia_despues(pocos, local(8)) is None
+    # Filas viejas (sin el detalle de cuándo llovió): no se puede recortar.
+    assert ob.lluvia_despues({"pp": True}, local(8)) is None
+
+    # En la comparación (armar_pares).
+    base = {"ciudad": "La Plata", "publicado_por": "A", "es_correccion": False, "temp_min": 5, "temp_max": 12,
+            "temp_min_suburbana": None, "temp_max_suburbana": None,
+            "periodos": [{"period": "tarde", "precipitation_description": None}], "fecha": DIA}
+    dia1 = dict(base, fecha_pronostico=DIA, plazo_dias=0, publicado_el=DIA, hora_emision="08:00:00",
+                capturado=local(8, m=40).astimezone(timezone.utc))
+    dia2 = dict(base, fecha_pronostico=DIA - timedelta(days=1), plazo_dias=1, publicado_el=DIA - timedelta(days=1),
+                capturado=local(8, DIA - timedelta(days=1)).astimezone(timezone.utc))
+    observado = {("La Plata", DIA, "pp"): {"valor": 1.0, "categoria": "SI", "estacion_id": "omm_87593",
+                                           "detalle": json.loads(json.dumps(syn))}}
+    f1, f2 = puntajes.armar_pares([dia1, dia2], observado)
+    assert (f1["pp"]["pron"], f1["pp"]["obs"], f1["pp"]["obs_dia"], f1["pp"]["desde"]) == (False, False, True, "08:00")
+    assert f2["pp"]["obs"] is True and "desde" not in f2["pp"]
+    # Publicado la noche anterior: el Día 1 cuenta entero.
+    noche = dict(dia1, publicado_el=DIA - timedelta(days=1), capturado=local(21, DIA - timedelta(days=1)).astimezone(timezone.utc))
+    assert puntajes.armar_pares([noche], observado)[0]["pp"]["obs"] is True
+    # La hora declarada, solo si no es posterior a cuando se vio.
+    assert puntajes.hora_publicacion(dict(dia1, hora_emision="11:00")) == local(8, m=40)
+    assert puntajes.hora_publicacion(dict(dia1, hora_emision=None)) == local(8, m=40)

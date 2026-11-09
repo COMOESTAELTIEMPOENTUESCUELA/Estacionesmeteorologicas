@@ -261,6 +261,7 @@ td.nw { white-space: nowrap; }
   .dia-barra [data-dia-volver] { margin-right: auto; }
   .dia-obs .dato { min-width: 0; flex: 1 1 40%; }
 }
+.pp-desde { font-size: 11px; color: var(--tenue); white-space: nowrap; cursor: help; }
 .spark-pron .sp-val { font-size: 9.5px; font-weight: 600; }
 .spark-pron .sp-val.max { fill: #dc2626; } .spark-pron .sp-val.min { fill: #2563eb; }
 .spark-pron .sp-val .sp-fl { fill: var(--tenue); font-weight: 400; }
@@ -4437,7 +4438,9 @@ function siNo(v) { return v === null || v === undefined ? '<span class="tenue">s
 function celdaPP(pp) {
   if (!pp) return "–";
   const ok = pp.obs === null || pp.obs === undefined ? "" : pp.obs === pp.pron ? ' <span class="err e-ok">✓</span>' : ' <span class="err e-mal">✗</span>';
-  return `${siNo(pp.pron)} / ${siNo(pp.obs)}${ok}`;
+  // Día 1: si llovió antes de publicarse, se verifica solo desde esa hora (la lluvia de la madrugada ya se sabía).
+  const desde = pp.desde ? ` <span class="pp-desde" title="Llovió antes de que se publicara el pronóstico (${esc(pp.desde)}): en el Día 1 se verifica solo lo que pasó después. El día entero: con lluvia.">⏱ desde ${esc(pp.desde)}</span>` : "";
+  return `${siNo(pp.pron)} / ${siNo(pp.obs)}${ok}${desde}`;
 }
 function celdaViento(f) {
   const vi = f.viento_int, vd = f.viento_dir;
@@ -6783,7 +6786,7 @@ function dibujarDia() {
       <td><a href="#" data-perfil="${esc(perfil)}">${esc(quien)}</a><br><small class="tenue">${esc(diaCorto(p.fecha_emision))}</small></td>
       <td>${celdaTemp({ pron: p.tmin, obs: o.tmin_urbana })}</td><td>${celdaTemp({ pron: p.tmax, obs: o.tmax_urbana })}</td>
       ${haySub ? `<td>${celdaTemp({ pron: p.tmin_sub, obs: o.tmin_suburbana })}</td><td>${celdaTemp({ pron: p.tmax_sub, obs: o.tmax_suburbana })}</td>` : ""}
-      <td>${ok(p.pp) ? celdaPP({ pron: p.pp, obs: o.pp }) : "–"}</td>
+      <td>${ok(p.pp) ? celdaPP({ pron: p.pp, obs: p.pp_obs !== undefined ? p.pp_obs : o.pp, desde: p.pp_desde }) : "–"}</td>
       <td>${g ? `${num(g.tmin, 0)} / ${num(g.tmax, 0)}` : '<span class="tenue">–</span>'}</td>
       <td><button class="boton" data-cartas="${esc(p.fecha_emision)}" title="Las cartas del día en que se hizo este pronóstico: lo que se veía en ese momento">🗺️ ${esc(diaCorto(p.fecha_emision).split(" ").pop())}</button></td></tr>`;
   }).join("");

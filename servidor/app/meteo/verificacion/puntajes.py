@@ -27,10 +27,12 @@ Para entender las medidas:
   0,3 = 30 % menos error que la persistencia.
 """
 import math
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import numpy as np
 
+from ..ingesta.base import HORA_ARG
+from .observado import lluvia_despues
 from .pronostico import INTENSIDADES, derivar
 
 TEMPERATURAS = {
@@ -60,6 +62,24 @@ def elegir_emisiones(dias, version="final"):
         if actual is None or (d["capturado"] > actual if version == "final" else d["capturado"] < actual):
             elegida[k] = d["capturado"]
     return [d for d in dias if elegida[(d["ciudad"], d["fecha_pronostico"])] == d["capturado"]]
+
+
+def hora_publicacion(d):
+    """Cuándo se publicó la emisión: la hora que trae (emission_time) si es
+    de ese mismo día y no después de cuando el servidor la vio; si no,
+    cuando el servidor la vio (se consulta cada hora: puede ser hasta 1 h tarde)."""
+    cap = d.get("capturado")
+    if cap is None:
+        return None
+    hora = str(d.get("hora_emision") or "")
+    try:
+        hh, mm = (int(x) for x in hora.split(":")[:2])
+        dec = datetime(d["fecha_pronostico"].year, d["fecha_pronostico"].month, d["fecha_pronostico"].day, hh, mm, tzinfo=HORA_ARG)
+        if dec <= cap and dec.date() == cap.astimezone(HORA_ARG).date():
+            return dec
+    except (ValueError, TypeError, AttributeError):
+        pass
+    return cap
 
 
 def armar_pares(dias, observado):
@@ -96,6 +116,13 @@ def armar_pares(dias, observado):
         si_no = lambda o: None if not o else o.get("categoria") == "SI"
         fila["pp"] = {"pron": der["pp"], "tipo": der["pp_tipo"], "obs": si_no(obs("pp")),
                       "pers": si_no(obs("pp", ayer)), "estacion": obs("pp").get("estacion_id")}
+        # Día 1 publicado esa misma mañana: la lluvia de ANTES de publicar ya
+        # se conocía; se verifica solo el resto del día.
+        if d["plazo_dias"] == 0 and not fila["anticipado"] and fila["pp"]["obs"]:
+            t = hora_publicacion(d)
+            despues = lluvia_despues((obs("pp").get("detalle") or {}), t) if t else None
+            if t and "lluvias" in (obs("pp").get("detalle") or {}):
+                fila["pp"].update(obs=despues, obs_dia=True, desde=t.astimezone(HORA_ARG).strftime("%H:%M"))
         pers_dir = obs("viento_dir", ayer).get("categoria")
         fila["viento_dir"] = {"pron": der["viento_dirs"], "obs": obs("viento_dir").get("categoria"),
                               "pers": [pers_dir] if pers_dir else None,

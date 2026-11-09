@@ -585,7 +585,7 @@ def verificacion(ciudad: str = "La Plata", desde: date | None = None, hasta: dat
     if desde > hasta or (hasta - desde).days > 3 * 366:
         raise HTTPException(400, "Rango de fechas inválido (máximo 3 años)")
     dias = consultar("""
-        SELECT e.ciudad, e.fecha_pronostico, e.capturado, e.publicado_por, e.es_correccion,
+        SELECT e.ciudad, e.fecha_pronostico, e.capturado, e.publicado_por, e.es_correccion, e.hora_emision,
                -- Día en que se publicó: el que trae la hoja importada, o el
                -- día (hora argentina) en que el servidor lo vio por primera vez.
                COALESCE((e.contenido -> 'publicado_el' ->> 0)::date,
