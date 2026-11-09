@@ -515,3 +515,19 @@ def test_app_instalable_y_compartir(cliente, monkeypatch):
     assert m["share_target"]["params"]["url"] == "compartir_url" and m["share_target"]["action"] == "/"
     assert cliente.get("/sw.js").status_code == 200
     assert cliente.get("/iconos/icono-192.png").headers["content-type"] == "image/png"
+
+
+def test_sin_funciones_repetidas_en_la_pagina():
+    """En JavaScript, dos funciones con el mismo nombre no dan error: la
+    segunda pisa a la primera en silencio. Pasó con rumbo(): la de las
+    mediciones (dos puntos) pisó a la del viento (grados) y la tabla de
+    observaciones y los gráficos de Diagnóstico quedaron vacíos."""
+    import collections
+    import re
+    from pathlib import Path
+    html = (Path(__file__).parents[1] / "app/meteo/web/static/index.html").read_text(encoding="utf-8")
+    js = html[html.rindex("<script>"):]
+    nombres = re.findall(r"^(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(", js, re.M)
+    nombres += re.findall(r"^(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=", js, re.M)
+    repetidos = [n for n, c in collections.Counter(nombres).items() if c > 1]
+    assert repetidos == [], f"nombres repetidos en el JavaScript de la página: {repetidos}"

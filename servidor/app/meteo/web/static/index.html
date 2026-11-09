@@ -4970,7 +4970,7 @@ function distKm(a, b) {
   const h = Math.sin(df / 2) ** 2 + Math.cos(f1) * Math.cos(f2) * Math.sin(dl / 2) ** 2;
   return 2 * R_TIERRA * Math.asin(Math.min(1, Math.sqrt(h)));
 }
-function rumbo(a, b) {
+function rumboEntre(a, b) {     // rumbo de un punto a otro (no confundir con rumbo(grados) del viento)
   const f1 = a[1] * RAD, f2 = b[1] * RAD, dl = (b[0] - a[0]) * RAD;
   return (Math.atan2(Math.sin(dl) * Math.cos(f2), Math.cos(f1) * Math.sin(f2) - Math.sin(f1) * Math.cos(f2) * Math.cos(dl)) / RAD + 360) % 360;
 }
@@ -5013,7 +5013,7 @@ const RUMBOS_8 = [["N", "↑", "el norte"], ["NE", "↗", "el noreste"], ["E", "
                   ["S", "↓", "el sur"], ["SO", "↙", "el suroeste"], ["O", "←", "el oeste"], ["NO", "↖", "el noroeste"]];
 function datosDesp(m) {
   const [a, b] = m.pts.map(lienzoALL), d = distKm(a, b), horas = m.horas || Number($("#c-m-horas").value) || 0;
-  const rb = rumbo(a, b), [corto, flecha, largo] = RUMBOS_8[Math.round(rb / 45) % 8];
+  const rb = rumboEntre(a, b), [corto, flecha, largo] = RUMBOS_8[Math.round(rb / 45) % 8];
   return { d, horas, rb, corto, flecha, largo, vel: horas ? d / horas : null };
 }
 // Etiqueta con fondo (para que se lea sobre cualquier carta sin taparla toda).
@@ -5090,7 +5090,7 @@ function describirMedida(m, i) {
     for (let k = 1; k < ll.length; k++) total += distKm(ll[k - 1], ll[k]);
     const latm = ll.reduce((a, p) => a + p[1], 0) / ll.length;
     const n = 2 * Math.PI * R_TIERRA * Math.cos(latm * RAD) / total;
-    const rb = ll.length === 2 ? rumbo(ll[0], ll[1]) : null;
+    const rb = ll.length === 2 ? rumboEntre(ll[0], ll[1]) : null;
     return `<div class="c-m-item"><b>📏 ${nKm(total)} km</b>${ll.length > 2 ? ` (${ll.length - 1} tramos)` : ""}${rb !== null ? ` · rumbo ${Math.round(rb)}°` : ""} · ${escala(total)} ${borrar}
       <div class="tenue">Si es una <b>longitud de onda</b> (de vaguada a vaguada, o de cresta a cresta) a ${nDec(Math.abs(latm), 0)}°S:
         número de onda zonal ≈ <b>${nDec(n, 1)}</b> (cuántas ondas así entran en el círculo de latitud;
