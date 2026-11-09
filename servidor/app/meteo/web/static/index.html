@@ -278,7 +278,18 @@ td.nw { white-space: nowrap; }
 .adm-datos th { cursor: pointer; position: sticky; top: 0; background: var(--superficie); }
 [data-adm-arch].activa { background: var(--acento); color: #fff; }
 /* Panorama de un día */
-.dia-barra { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.dia-barra { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px;
+  position: sticky; top: 0; z-index: 20; background: var(--plano); padding: 6px 0; }     /* queda a la vista al bajar */
+.dia-barra [data-dia-volver] { background: var(--acento); color: #fff; border-color: var(--acento); font-weight: 650; }
+/* Destello de los botones de volver: unas pocas ondas al aparecer, después quietos.
+   (Quien pidió "reducir movimiento" en su sistema no lo ve: ver más abajo.) */
+@keyframes destello {
+  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--acento) 70%, transparent), 0 4px 16px rgba(0,0,0,.25); transform: scale(1); }
+  30%  { transform: scale(1.06); }
+  70%  { box-shadow: 0 0 0 16px transparent, 0 4px 16px rgba(0,0,0,.25); transform: scale(1); }
+  100% { box-shadow: 0 0 0 0 transparent, 0 4px 16px rgba(0,0,0,.25); }
+}
+.destella { animation: destello 1.3s ease-out 4; }
 .dia-barra h2 { margin: 0; font-size: 18px; flex: 1 1 200px; text-align: center; }
 .dia-obs { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0 10px; }
 .dia-obs .dato { border: 1px solid var(--borde); border-radius: 10px; padding: 6px 12px; background: var(--superficie); min-width: 92px; }
@@ -2140,9 +2151,20 @@ const cargadas = {};
 // Volver a la red después de ir a ver las cartas de un pronóstico (ver irACartasDesdeRed).
 let volverRed = null;
 let notaFlotante = null;          // la nota desde la que se abrieron las cartas (se muestra encima)
+// Hace "destellar" un botón (vuelve a empezar la animación aunque ya la tuviera).
+function destellar(el) {
+  if (!el) return;
+  el.classList.remove("destella");
+  void el.offsetWidth;            // fuerza al navegador a "olvidar" la animación anterior
+  el.classList.add("destella");
+}
 function abrir(tab) {
   const v = document.getElementById("red-volver");
-  if (v) v.hidden = !(tab === "cartas" && volverRed);
+  if (v) {
+    const antes = v.hidden;
+    v.hidden = !(tab === "cartas" && volverRed);
+    if (antes && !v.hidden) destellar(v);          // recién aparece: que se note
+  }
   const nf = document.getElementById("nota-flota");
   if (nf) nf.hidden = !(tab === "cartas" && notaFlotante);
   document.querySelectorAll("nav button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
@@ -6904,6 +6926,7 @@ async function abrirDia(ciudad, fecha, plazo = null, desde = null) {
   if (desde) red.diaVolver = { vista: red.vista, obj: desde.dataset.obj || (desde.dataset.id ? `nota:${desde.dataset.id}` : ""), scroll: window.scrollY };
   red.dia = { ciudad, fecha, plazo, datos: null };
   verRed("dia", false);
+  if (desde || red.diaVolver) destellar(document.querySelector("[data-dia-volver]"));
   window.scrollTo({ top: 0 });
   $("#dia-tit").textContent = `${ciudad} · ${fmtDiaLargo.format(new Date(fecha + "T12:00:00Z"))}`;
   $("#dia-cont").innerHTML = '<p class="tenue">Cargando…</p>';
