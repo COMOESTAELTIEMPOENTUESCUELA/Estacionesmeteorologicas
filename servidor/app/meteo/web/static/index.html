@@ -1679,6 +1679,10 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
   /* El cuadro de publicar, en una sola fila deslizable (la regla general de arriba lo dejaba en varias) */
   .muro-comp .fila { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
   .muro-comp .fila > * { flex-shrink: 0; }
+  #mc-para, #mc-tipo { max-width: 150px; }        /* que se vean los dos selectores sin deslizar */
+  /* "Publicar" siempre a mano: queda pegado a la derecha y lo demás se desliza por detrás */
+  .muro-comp .fila #mc-publicar { position: sticky; right: 0; z-index: 2; order: 99;
+    box-shadow: -14px 0 12px -4px var(--superficie-elevada), 0 2px 8px color-mix(in srgb, var(--acento) 35%, transparent); }
 }
 
 /* ===== Para quien pide "reducir movimiento" en su sistema (accesibilidad) ===== */
