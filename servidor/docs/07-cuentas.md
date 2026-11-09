@@ -8,7 +8,15 @@ La página de Cartas (también la copia pública) sigue igual para todos. Quien
   dirección del viento), con las mismas cuentas que la pestaña Verificación.
   Se cuenta la **versión vigente** de cada pronóstico: si otro lo corrigió,
   ese día es de quien lo corrigió. Los coordinadores pueden ver los de cada uno.
-- **Mi perfil es una red del grupo**, con un menú a la izquierda:
+- **Las secciones de la página** (arriba), según lo que se hace en un turno:
+  **Ahora** (Mapa, EMAs, Estaciones SMN, Lluvia diaria, Comparar, Estado y
+  fallas: en la sub-barra), **Análisis** (cartas de análisis, satélite,
+  observaciones de la hora, meteogramas, corte y sondeos), **Pronóstico**
+  (Modelo GFS y Lo que pronosticamos), **Verificación** y **Grupo** (la red,
+  con sesión). La dirección lo refleja (`#analisis`, `#pronostico`,
+  `#verificacion`, `#grupo`, `#smn`...) y los enlaces viejos (`#perfil`,
+  `#cartas`) siguen llevando al lugar nuevo.
+- **Grupo (antes "Mi perfil") es una red del grupo**, con un menú a la izquierda:
   - **Inicio**: lo que publicó el grupo, lo más nuevo arriba y por día. Mezcla
     las **notas** (lo que vi, me llamó la atención, dudas, preguntas) con los
     **pronósticos publicados**: cada uno muestra sus 4 días, lo pronosticado

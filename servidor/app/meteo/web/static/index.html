@@ -65,6 +65,19 @@ nav { display: flex; gap: 4px; flex-wrap: wrap; }
 nav button { border: 1px solid transparent; background: none; color: var(--tinta-2); padding: 6px 12px;
              border-radius: 8px; font: inherit; cursor: pointer; }
 nav button:hover { background: var(--borde); }
+/* Sub-barra: las partes de la sección elegida (Ahora: Mapa, EMAs...; Pronóstico: Modelo, Lo que pronosticamos) */
+.subnav { display: flex; gap: 4px; flex-wrap: wrap; flex-basis: 100%; margin-top: -4px; }
+.subnav button { border: 0; background: none; color: var(--tinta-2); font: inherit; font-size: 13.5px; padding: 5px 12px; border-radius: 99px; cursor: pointer; }
+.subnav button:hover { background: var(--borde); }
+.subnav button[aria-selected="true"] { background: color-mix(in srgb, var(--acento) 12%, transparent); color: var(--acento); font-weight: 650; }
+#cartas-nav { display: none; }                  /* las mismas opciones están en la barra de arriba */
+@media (max-width: 760px) {
+  #nav-principal { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; flex-basis: 100%; gap: 2px; }
+  #nav-principal button { padding: 6px 6px; font-size: 13.5px; flex-shrink: 0; }     /* que entren las 5 en un celular */
+  #nav-principal::-webkit-scrollbar, .subnav::-webkit-scrollbar { display: none; }
+  .subnav { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .subnav button { flex-shrink: 0; white-space: nowrap; }
+}
 nav button[aria-selected="true"] { color: var(--tinta); border-color: var(--borde); background: var(--plano); font-weight: 600; }
 main { padding: 16px; max-width: 1400px; margin: 0 auto; }
 section[hidden] { display: none; }
@@ -1680,17 +1693,16 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
 <script>try { if (localStorage.getItem("modo-pro") === "activo") document.body.classList.add("modo-pro"); } catch (_) {}</script>
 <header>
   <h1>Red Meteorológica · servidor</h1>
-  <nav role="tablist">
-    <button role="tab" data-tab="mapa" aria-selected="true">Mapa</button>
-    <button role="tab" data-tab="emas" aria-selected="false">EMAs</button>
-    <button role="tab" data-tab="smn" aria-selected="false">Estaciones SMN</button>
-    <button role="tab" data-tab="series" aria-selected="false">Comparar</button>
-    <button role="tab" data-tab="lluvia" aria-selected="false">Lluvia diaria</button>
-    <button role="tab" data-tab="verif" aria-selected="false">Verificación</button>
-    <button role="tab" data-tab="cartas" aria-selected="false">Cartas</button>
-    <button role="tab" data-tab="estado" aria-selected="false">Estado de la red</button>
-    <button role="tab" data-tab="perfil" aria-selected="false" hidden>Mi perfil</button>
+  <!-- Las secciones, según lo que hace un pronosticador en su turno: mirar qué
+       pasa, analizar, pronosticar, verificar y conversar con el grupo. -->
+  <nav role="tablist" id="nav-principal" aria-label="Secciones">
+    <button role="tab" data-grupo="ahora" aria-selected="true" title="Lo que está pasando: estaciones, mapa, lluvia">Ahora</button>
+    <button role="tab" data-grupo="analisis" aria-selected="false" title="Lo que pasó: cartas de análisis, satélite, observaciones, meteogramas">Análisis</button>
+    <button role="tab" data-grupo="pronostico" aria-selected="false" title="El modelo (GFS) y lo que pronosticamos">Pronóstico</button>
+    <button role="tab" data-grupo="verif" aria-selected="false" title="Pronósticos contra lo observado">Verificación</button>
+    <button role="tab" data-grupo="grupo" aria-selected="false" hidden title="La red del grupo: inicio, mensajes, reunión, perfiles">Grupo</button>
   </nav>
+  <div class="subnav" id="subnav" role="tablist" aria-label="Partes de esta sección" hidden></div>
   <span class="tenue" id="actualizado"></span>
   <label class="switch-modo" title="Mostrar las herramientas de análisis completo: tablas, modelo, ayudas y atajos">
     <input type="checkbox" id="toggle-modo"> <span>Modo Análisis 🤓</span>
@@ -2065,7 +2077,7 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
     <div class="cartas-nav" id="cartas-nav" role="tablist" aria-label="Qué mirar">
       <button role="tab" data-cvista="pron" class="pron"><b>Pronóstico</b><span>cartas del GFS y meteograma</span></button>
       <button role="tab" data-cvista="diag" class="diag"><b>Diagnóstico</b><span>lo que pasó: análisis, satélite, observaciones</span></button>
-      <button role="tab" data-cvista="grupo" class="grupo"><b>Pronóstico del grupo</b><span>contra lo observado</span></button>
+      <button role="tab" data-cvista="grupo" class="grupo"><b>Lo que pronosticamos</b><span>contra lo observado</span></button>
     </div>
     <div class="tarjeta ci" id="ci">
       <div class="ci-cab">
@@ -2161,7 +2173,7 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
       <div id="cpm-paneles"></div>
     </div>
     <div class="cartas-seccion diag" id="sec-diag" data-cvista="diag">
-      <span class="etq">Diagnóstico</span>
+      <span class="etq">Análisis</span>
       <div><p>Análisis de cada hora (cartas archivadas, satélite, observaciones), el meteograma y el corte tiempo-altura de la fecha elegida.</p></div>
     </div>
     <div class="tarjeta" id="c-analisis" data-cvista="diag">
@@ -2212,7 +2224,7 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
         doble clic acerca o vuelve, y ← → cambian la hora sin perder el zoom (↑ ↓ cambian de carta).</p>
     </div>
     <div class="cartas-seccion grupo" id="sec-grupo" data-cvista="grupo">
-      <span class="etq">Pronóstico del grupo</span>
+      <span class="etq">Lo que pronosticamos</span>
       <div><p>Lo que pronosticó el grupo para cada ciudad contra lo que se observó ese día.</p></div>
     </div>
     <div class="tarjeta" id="cp" data-cvista="grupo">
@@ -2787,13 +2799,72 @@ function abrir(tab) {
   }
   const nf = document.getElementById("nota-flota");
   if (nf) nf.hidden = !(tab === "cartas" && notaFlotante);
-  document.querySelectorAll("nav button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
+  pestanaActual = tab;
   document.querySelectorAll("main > section").forEach((s) => (s.hidden = s.id !== `tab-${tab}`));
   if (tab === "mapa") setTimeout(medirMapa, 30);
   setTimeout(() => { if (typeof marcarBarraAbajo === "function") marcarBarraAbajo(); }, 0);
+  setTimeout(marcarNav, 0);
   if (!cargadas[tab]) { cargadas[tab] = true; ({ emas: iniciarEmas, smn: iniciarSmn, series: iniciarSeries, lluvia: cargarLluvia, verif: iniciarVerif, cartas: iniciarCartas, perfil: iniciarPerfil, estado: () => { cargarEstado(); iniciarBitacora().catch((e) => { $("#tabla-disp").innerHTML = `<tr><td>Error: ${esc(e.message)}</td></tr>`; }); } }[tab] || (() => {}))(); }
 }
-document.querySelectorAll("nav button").forEach((b) => b.addEventListener("click", () => abrir(b.dataset.tab)));
+// ----- Las 5 secciones y sus partes -----
+// Por debajo siguen las mismas pestañas de siempre (tab-mapa, tab-cartas...):
+// cada sección abre una o varias. Así los enlaces y funciones viejas siguen andando.
+let pestanaActual = "mapa";
+const GRUPOS = {
+  ahora: { partes: [["mapa", "Mapa"], ["emas", "EMAs"], ["smn", "Estaciones SMN"], ["lluvia", "Lluvia diaria"], ["series", "Comparar"], ["estado", "Estado y fallas"]] },
+  analisis: { tab: "cartas", vista: "diag" },
+  pronostico: { tab: "cartas", partes: [["pron", "Modelo (GFS)"], ["grupo", "Lo que pronosticamos"]] },
+  verif: { tab: "verif" },
+  grupo: { tab: "perfil" },
+};
+const VIEJOS = { perfil: "grupo", red: "grupo", cartas: "analisis", diagnostico: "analisis", verificacion: "verif",
+                 mapa: "ahora", emas: "ahora", smn: "ahora", lluvia: "ahora", series: "ahora", estado: "ahora" };
+let ultimaAhora = "mapa", ultimaPron = "pron";
+try { ultimaAhora = localStorage.getItem("ultima-ahora") || "mapa"; ultimaPron = localStorage.getItem("ultima-pron") || "pron"; } catch (_) {}
+function vistaCartas() { return document.querySelector('#cartas-nav [aria-selected="true"]')?.dataset.cvista || "pron"; }
+function grupoActual() {
+  if (pestanaActual === "cartas") return vistaCartas() === "diag" ? "analisis" : "pronostico";
+  if (pestanaActual === "verif") return "verif";
+  if (pestanaActual === "perfil") return "grupo";
+  return "ahora";
+}
+function irGrupo(g, parte) {
+  const G = GRUPOS[g] || GRUPOS.ahora;
+  if (g === "ahora") abrir(parte || ultimaAhora);
+  else if (G.tab === "cartas") { abrir("cartas"); verSeccionCartas(G.vista || parte || ultimaPron); }
+  else abrir(G.tab);
+}
+function marcarNav() {
+  const g = grupoActual();
+  document.querySelectorAll("#nav-principal button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.grupo === g)));
+  if (g === "ahora") { ultimaAhora = pestanaActual; try { localStorage.setItem("ultima-ahora", ultimaAhora); } catch (_) {} }
+  if (g === "pronostico") { ultimaPron = vistaCartas(); try { localStorage.setItem("ultima-pron", ultimaPron); } catch (_) {} }
+  const partes = GRUPOS[g].partes, sub = $("#subnav");
+  sub.hidden = !partes || MODO_WEB === "cartas" && g !== "pronostico";
+  if (partes) {
+    const actual = g === "ahora" ? pestanaActual : vistaCartas();
+    sub.innerHTML = partes.map(([k, n]) => `<button role="tab" data-parte="${k}" aria-selected="${k === actual}">${n}</button>`).join("");
+  }
+  // La dirección refleja dónde se está (para compartir el link o volver con "atrás" del navegador).
+  const h = "#" + (g === "ahora" && pestanaActual !== "mapa" ? pestanaActual : { ahora: "ahora", analisis: "analisis", pronostico: "pronostico", verif: "verificacion", grupo: "grupo" }[g]);
+  if (location.hash !== h && !location.search.includes("compartir_")) history.replaceState(null, "", location.pathname + location.search + h);
+}
+document.querySelectorAll("#nav-principal button").forEach((b) => b.addEventListener("click", () => irGrupo(b.dataset.grupo)));
+// Ir a la sección que dice la dirección (#analisis, #pronostico, #verificacion, #grupo, #smn...),
+// también con los nombres viejos (#cartas, #perfil). Al cargar, #perfil/#grupo los resuelve el ingreso.
+function irAlEnlace(alCargar) {
+  const pedido = location.hash.slice(1);
+  if (!pedido) { if (alCargar) marcarNav(); return; }
+  if (["perfil", "grupo"].includes(pedido)) { if (!alCargar && YO) abrir("perfil"); return; }
+  if (pedido === "verificacion") irGrupo("verif");
+  else if (GRUPOS[pedido]) irGrupo(pedido);
+  else if (VIEJOS[pedido] === "ahora") irGrupo("ahora", pedido);
+  else if (VIEJOS[pedido]) irGrupo(VIEJOS[pedido]);
+}
+$("#subnav").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-parte]"); if (!b) return;
+  irGrupo(grupoActual(), b.dataset.parte);
+});
 
 // ======================================================================
 // MAPA
@@ -4303,6 +4374,7 @@ function verSeccionCartas(v) {
     else el.classList.toggle("cv-oculta", el.dataset.cvista !== v);
   });
   try { localStorage.setItem("cartas-seccion", v); } catch (_) {}
+  if (typeof marcarNav === "function") setTimeout(marcarNav, 0);
   if (cargadas.cartas) actualizarIndices();
   if (v === "grupo" && cpMapa) setTimeout(() => cpMapa.invalidateSize(), 50);
 }
@@ -6783,11 +6855,11 @@ async function cargarCuenta() {
     c.innerHTML = `<button class="boton" id="cuenta-ingresar" title="Para pronosticadores del grupo: perfil, métricas y libreta">Ingresar</button>`;
     $("#cuenta-ingresar").addEventListener("click", abrirIngreso);
   } else c.innerHTML = "";
-  $('nav button[data-tab="perfil"]').hidden = !YO;
+  $('#nav-principal [data-grupo="grupo"]').hidden = !YO;
   $("#barra-abajo").hidden = !YO;
   document.body.classList.toggle("con-barra-abajo", !!YO);
   document.querySelectorAll(".anotar").forEach((b) => (b.hidden = !YO));
-  if (YO && location.hash === "#perfil") abrir("perfil");
+  if (YO && ["#perfil", "#grupo"].includes(location.hash)) abrir("perfil");
   usarCompartido();
 }
 
@@ -8755,7 +8827,7 @@ async function abrirContexto(c) {
 (async () => {
   try { MODO_WEB = (await api("/api/modo")).modo; } catch (_) {}
   if (MODO_WEB === "cartas") {
-    document.querySelectorAll("nav button").forEach((b) => (b.hidden = b.dataset.tab !== "cartas"));
+    document.querySelectorAll("#nav-principal button").forEach((b) => (b.hidden = !["analisis", "pronostico"].includes(b.dataset.grupo)));
     $("header h1").textContent = "Cartas de diagnóstico";
     document.title = "Cartas de diagnóstico";
     abrir("cartas");
@@ -8763,6 +8835,8 @@ async function abrirContexto(c) {
     return;
   }
   cargarCuenta();
+  irAlEnlace(true);
+  window.addEventListener("hashchange", () => irAlEnlace(false));      // un link con # dentro de la página, o "atrás"
   cargarMapa().catch((e) => { $("#lista").innerHTML = `<p>Error cargando estaciones: ${esc(e.message)}</p>`; });
   setInterval(() => { cargarMapa(); if (cargadas.estado) cargarEstado(); }, 5 * 60e3);  // refresca cada 5 min
 })();
