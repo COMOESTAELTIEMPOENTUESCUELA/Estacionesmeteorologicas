@@ -428,3 +428,31 @@ def test_lluvia_de_madrugada_antes_de_publicar_no_cuenta_en_el_dia_1():
     # La hora declarada, solo si no es posterior a cuando se vio.
     assert puntajes.hora_publicacion(dict(dia1, hora_emision="11:00")) == local(8, m=40)
     assert puntajes.hora_publicacion(dict(dia1, hora_emision=None)) == local(8, m=40)
+
+
+def test_minima_ya_conocida_en_el_dia_1():
+    """La mínima del Día 1 ocurrió de madrugada, ANTES de publicar a las 8:
+    quien pronosticó ya la conocía. Se muestra ("ya_conocida") pero no
+    cuenta en los errores. Si ocurrió después (o en los Días 2-4), cuenta."""
+    t = {h: 12.0 for h in range(24)}
+    t[6] = 8.5                                            # mínima a las 6
+    r = ob.temperaturas(horarias(t), [], DIA)
+    assert r["tmin"] == 8.5 and datetime.fromisoformat(r["tmin_ts"]) == local(6)
+    det = {"tmin_ts": r["tmin_ts"]}
+    base = {"ciudad": "La Plata", "publicado_por": "A", "es_correccion": False, "temp_min": 9, "temp_max": 20,
+            "temp_min_suburbana": None, "temp_max_suburbana": None, "periodos": [], "fecha": DIA, "hora_emision": "08:00"}
+    dia1 = dict(base, fecha_pronostico=DIA, plazo_dias=0, publicado_el=DIA, capturado=local(8, m=20).astimezone(timezone.utc))
+    dia2 = dict(base, fecha_pronostico=DIA - timedelta(days=1), plazo_dias=1, publicado_el=DIA - timedelta(days=1),
+                capturado=local(8, DIA - timedelta(days=1)).astimezone(timezone.utc))
+    observado = {("La Plata", DIA, "tmin_urbana"): {"valor": 8.5, "categoria": "madrugada", "estacion_id": "x", "detalle": det}}
+    f1, f2 = puntajes.armar_pares([dia1, dia2], observado)
+    assert f1["tmin_urbana"]["obs"] is None and f1["tmin_urbana"]["ya_conocida"] == 8.5 and f1["tmin_urbana"]["desde"] == "08:00"
+    assert f2["tmin_urbana"]["obs"] == 8.5 and "ya_conocida" not in f2["tmin_urbana"]
+    assert puntajes.resumen([f1])[0]["tmin_urbana"].get("n", 0) == 0                      # no entra en los errores
+    # Mínima a la noche (un frente): ocurrió después de publicar, cuenta.
+    tarde = {"tmin_ts": local(20).astimezone(timezone.utc).isoformat()}
+    observado[("La Plata", DIA, "tmin_urbana")]["detalle"] = tarde
+    assert puntajes.armar_pares([dia1], observado)[0]["tmin_urbana"]["obs"] == 8.5
+    # Filas viejas sin la hora: se califica como siempre (hasta recalcular).
+    observado[("La Plata", DIA, "tmin_urbana")]["detalle"] = {}
+    assert puntajes.armar_pares([dia1], observado)[0]["tmin_urbana"]["obs"] == 8.5

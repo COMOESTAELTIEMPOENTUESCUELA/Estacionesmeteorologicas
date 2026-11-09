@@ -192,6 +192,8 @@ def temperaturas(lecturas, extremos, dia):
     return {
         "tmax": tmax, "tmax_hora": hora_local(tmax_t) if tmax_t else None,
         "tmin": tmin, "tmin_hora": hora_local(tmin_t) if tmin_t else None,
+        # Cuándo fue (para el Día 1: si fue antes de publicar el pronóstico, ya se sabía).
+        "tmin_ts": tmin_t.isoformat() if tmin_t else None,
         "tmin_periodo": None if tmin_t is None else ("madrugada" if tmin_antes else periodo_de(hora_local(tmin_t))),
         "tmin_dia_anterior": tmin_antes, "tmin_civil": tmin_civil,
         "completitud": completitud, "fuente": fuente, "periodos": por_periodo,
@@ -430,7 +432,7 @@ def filas_ciudad(ciudad, defs, estaciones, dia):
             t = obs(est_id).get("temp")
             if t and (t["tmax_ok"] or t["tmin_ok"]):
                 detalle = {k: t[k] for k in ("completitud", "fuente", "periodos", "tmax_hora", "tmin_hora",
-                                             "tmin_dia_anterior", "tmin_civil")}
+                                             "tmin_dia_anterior", "tmin_civil", "tmin_ts")}
                 if t["tmax_ok"]:
                     filas.append((ciudad, dia, f"tmax_{ambito}", t["tmax"], None, est_id, detalle))
                 if t["tmin_ok"]:

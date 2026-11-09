@@ -999,8 +999,9 @@ def panorama_del_dia(request: Request, ciudad: str, fecha: date):
     obs, pron, gfs = {}, [], {}
     for f in sorted(filas, key=lambda f: (f["plazo"], f["pronosticador"] or "")):
         for k in ("tmin_urbana", "tmax_urbana", "tmin_suburbana", "tmax_suburbana"):
-            if f[k]["obs"] is not None:
-                obs[k] = f[k]["obs"]
+            v = f[k]["obs"] if f[k]["obs"] is not None else f[k].get("ya_conocida")
+            if v is not None:
+                obs[k] = v
         dia_pp = f["pp"].get("obs_dia", f["pp"]["obs"])     # el día entero (en el Día 1 se verifica desde que se publicó)
         if dia_pp is not None:
             obs["pp"] = dia_pp
@@ -1015,7 +1016,8 @@ def panorama_del_dia(request: Request, ciudad: str, fecha: date):
                      "objeto": objeto_pronostico(ciudad, f["fecha_emision"], f["pronosticador"]),
                      "tmin": f["tmin_urbana"]["pron"], "tmax": f["tmax_urbana"]["pron"],
                      "tmin_sub": f["tmin_suburbana"]["pron"], "tmax_sub": f["tmax_suburbana"]["pron"],
-                     "pp": f["pp"]["pron"], "pp_tipo": f["pp"]["tipo"], "pp_obs": f["pp"]["obs"], "pp_desde": f["pp"].get("desde")})
+                     "pp": f["pp"]["pron"], "pp_tipo": f["pp"]["tipo"], "pp_obs": f["pp"]["obs"], "pp_desde": f["pp"].get("desde"),
+                     "tmin_conocida": f["tmin_urbana"].get("desde"), "tmin_sub_conocida": f["tmin_suburbana"].get("desde")})
     notas = _notas_con_extras(u, ["(n.usuario_id = %s OR n.compartida)", "n.fecha_evento = %s"], [u["id"], fecha], limite=50)
     return {"ciudad": ciudad, "fecha": fecha, "observado": obs, "pronosticos": pron,
             "gfs": [{"plazo": k, **v} for k, v in sorted(gfs.items())], "notas": notas}

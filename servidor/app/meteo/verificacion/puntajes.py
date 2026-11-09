@@ -116,6 +116,15 @@ def armar_pares(dias, observado):
         si_no = lambda o: None if not o else o.get("categoria") == "SI"
         fila["pp"] = {"pron": der["pp"], "tipo": der["pp_tipo"], "obs": si_no(obs("pp")),
                       "pers": si_no(obs("pp", ayer)), "estacion": obs("pp").get("estacion_id")}
+        # Día 1 publicado esa misma mañana: si la MÍNIMA ocurrió antes de
+        # publicar (lo común: de madrugada), quien pronosticó ya la conocía.
+        # Se muestra ("ya_conocida") pero no cuenta en los errores.
+        if d["plazo_dias"] == 0 and not fila["anticipado"]:
+            t = hora_publicacion(d)
+            for el in ("tmin_urbana", "tmin_suburbana"):
+                ts = ((obs(el).get("detalle") or {}).get("tmin_ts"))
+                if t and ts and fila[el]["obs"] is not None and datetime.fromisoformat(ts) <= t:
+                    fila[el].update(ya_conocida=fila[el]["obs"], obs=None, desde=t.astimezone(HORA_ARG).strftime("%H:%M"))
         # Día 1 publicado esa misma mañana: la lluvia de ANTES de publicar ya
         # se conocía; se verifica solo el resto del día.
         if d["plazo_dias"] == 0 and not fila["anticipado"] and fila["pp"]["obs"]:

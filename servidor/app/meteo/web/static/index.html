@@ -306,6 +306,7 @@ td.nw { white-space: nowrap; }
   .dia-barra [data-dia-volver] { margin-right: auto; }
   .dia-obs .dato { min-width: 0; flex: 1 1 40%; }
 }
+.ya-conocida { font-size: 11px; color: var(--tenue); white-space: nowrap; cursor: help; border: 1px dashed var(--borde); border-radius: 6px; padding: 0 4px; }
 .pp-desde { font-size: 11px; color: var(--tenue); white-space: nowrap; cursor: help; }
 .spark-pron .sp-val { font-size: 9.5px; font-weight: 600; }
 .spark-pron .sp-val.max { fill: #dc2626; } .spark-pron .sp-val.min { fill: #2563eb; }
@@ -4540,6 +4541,8 @@ function maeColor(mae) {
 function claseErr(e) { const a = Math.abs(e); return a <= 2 ? "e-ok" : a <= 4 ? "e-medio" : "e-mal"; }
 function celdaTemp(t) {
   if (!t || t.pron === null || t.pron === undefined) return "–";
+  // Día 1: la mínima ocurrió antes de publicar el pronóstico (ya se conocía): se muestra, no se califica.
+  if (ok(t.ya_conocida)) return `${num(t.pron, 0)} / ${num(t.ya_conocida)} <span class="ya-conocida" title="La mínima ocurrió antes de que se publicara el pronóstico (${esc(t.desde || "")}): ya se conocía. Se muestra pero no cuenta en los errores.">⏱ ya conocida</span>`;
   if (t.obs === null || t.obs === undefined) return `${num(t.pron, 0)} / <span class="tenue">s/d</span>`;
   const e = t.obs - t.pron;
   const flecha = Math.abs(e) <= 0.5 ? "" : e > 0 ? "▲" : "▼";
@@ -6395,7 +6398,9 @@ function sparkPron(it) {
   const dias = it.dias;
   if (dias.length < 2) return "";
   const W = 320, H = 132, iz = 24, de = 6, ar = 22, ab = 30;
-  const vals = dias.flatMap((d) => [d.tmin?.pron, d.tmin?.obs, d.tmax?.pron, d.tmax?.obs, d.gfs?.tmin, d.gfs?.tmax]).filter(ok);
+  // La mínima "ya conocida" (Día 1, antes de publicar) se dibuja como observada pero no se califica.
+  const obsDe = (t) => t ? (ok(t.obs) ? t.obs : t.ya_conocida) : undefined;
+  const vals = dias.flatMap((d) => [d.tmin?.pron, obsDe(d.tmin), d.tmax?.pron, d.tmax?.obs, d.gfs?.tmin, d.gfs?.tmax]).filter(ok);
   if (vals.length < 3) return "";
   const y0 = Math.floor(Math.min(...vals) - 1), y1 = Math.ceil(Math.max(...vals) + 1);
   const ancho = (W - iz - de) / dias.length;
@@ -6409,14 +6414,16 @@ function sparkPron(it) {
   };
   // "26 → 27,2": lo pronosticado (redondeado, como se publica) y lo observado.
   const etiqueta = (t) => !t || !ok(t.pron) ? "" : ok(t.obs)
-    ? `${num(t.pron, 0)}<tspan class="sp-fl"> → </tspan><tspan class="sp-obs">${num(t.obs)}</tspan>` : `${num(t.pron, 0)}`;
+    ? `${num(t.pron, 0)}<tspan class="sp-fl"> → </tspan><tspan class="sp-obs">${num(t.obs)}</tspan>`
+    : ok(t.ya_conocida) ? `${num(t.pron, 0)}<tspan class="sp-fl"> → ${num(t.ya_conocida)} ⏱</tspan>` : `${num(t.pron, 0)}`;
   const valores = dias.map((d, i) => {
-    const sup = [d.tmax?.pron, d.tmax?.obs].filter(ok), inf = [d.tmin?.pron, d.tmin?.obs].filter(ok);
+    const sup = [d.tmax?.pron, d.tmax?.obs].filter(ok), inf = [d.tmin?.pron, obsDe(d.tmin)].filter(ok);
     return (sup.length ? `<text class="sp-val max" x="${X(i)}" y="${Math.max(10, Y(Math.max(...sup)) - 7)}" text-anchor="middle">${etiqueta(d.tmax)}</text>` : "")
       + (inf.length ? `<text class="sp-val min" x="${X(i)}" y="${Math.min(H - ab + 12, Y(Math.min(...inf)) + 14)}" text-anchor="middle">${etiqueta(d.tmin)}</text>` : "");
   }).join("");
   const detalle = (d) => {
-    const t = (n, x) => !x || !ok(x.pron) ? "" : `\n${n}: pronosticada ${num(x.pron, 0)} °C${ok(x.obs) ? `, observada ${num(x.obs)} °C (error ${x.obs - x.pron > 0 ? "+" : ""}${num(x.obs - x.pron)})` : ", todavía sin observar"}`;
+    const t = (n, x) => !x || !ok(x.pron) ? "" : `\n${n}: pronosticada ${num(x.pron, 0)} °C${ok(x.obs) ? `, observada ${num(x.obs)} °C (error ${x.obs - x.pron > 0 ? "+" : ""}${num(x.obs - x.pron)})`
+      : ok(x.ya_conocida) ? `, observada ${num(x.ya_conocida)} °C antes de publicar (ya conocida: no se califica)` : ", sin observación (faltan datos de la estación)"}`;
     const g = d.gfs ? `\nGFS de ese momento: ${num(d.gfs.tmin, 0)} / ${num(d.gfs.tmax, 0)} °C` : "";
     return `Día ${d.plazo + 1} · ${diaCorto(d.fecha)}${t("Máxima", d.tmax)}${t("Mínima", d.tmin)}${g}\n\nTocá para ver el panorama de ese día: todos los pronósticos para esa fecha, lo observado y las cartas`;
   };
@@ -6429,7 +6436,7 @@ function sparkPron(it) {
     ${dias.map((d, i) => `<text x="${X(i)}" y="${H - 4}" text-anchor="middle" class="sp-dia">D${d.plazo + 1} · ${esc(diaCorto(d.fecha).split(" ").pop())}</text>`).join("")}
     ${hayGfs ? linea((d) => d.gfs?.tmax, "#9ca3af", 'stroke-width="1.5" data-gris="1"') + linea((d) => d.gfs?.tmin, "#9ca3af", 'stroke-width="1.5" data-gris="1"') : ""}
     ${linea((d) => d.tmax?.pron, "#dc2626", 'stroke-width="2" stroke-dasharray="5 4"')}${linea((d) => d.tmin?.pron, "#2563eb", 'stroke-width="2" stroke-dasharray="5 4"')}
-    ${linea((d) => d.tmax?.obs, "#dc2626", 'stroke-width="2.2"')}${linea((d) => d.tmin?.obs, "#2563eb", 'stroke-width="2.2"')}
+    ${linea((d) => d.tmax?.obs, "#dc2626", 'stroke-width="2.2"')}${linea((d) => obsDe(d.tmin), "#2563eb", 'stroke-width="2.2"')}
     ${valores}
   </svg><div class="spark-ley"><span>┄ pronosticado</span><span>━● observado</span>${hayGfs ? '<span style="color:#9ca3af">━ GFS</span>' : ""}
     <span style="color:#dc2626">máx</span><span style="color:#2563eb">mín</span><span>· 26 → <b>27,2</b> = pronosticado → observado · tocá un día para ver su panorama</span></div>`;
@@ -6996,8 +7003,8 @@ function dibujarDia() {
     const g = gfsDe[p.plazo];
     return `<tr class="${p.plazo === sel ? "sel" : ""}"><td><b>Día ${p.plazo + 1}</b><br><small class="tenue">${anticipacion(p.plazo)}</small></td>
       <td><a href="#" data-perfil="${esc(perfil)}">${esc(quien)}</a><br><small class="tenue">${esc(diaCorto(p.fecha_emision))}</small></td>
-      <td>${celdaTemp({ pron: p.tmin, obs: o.tmin_urbana })}</td><td>${celdaTemp({ pron: p.tmax, obs: o.tmax_urbana })}</td>
-      ${haySub ? `<td>${celdaTemp({ pron: p.tmin_sub, obs: o.tmin_suburbana })}</td><td>${celdaTemp({ pron: p.tmax_sub, obs: o.tmax_suburbana })}</td>` : ""}
+      <td>${celdaTemp(p.tmin_conocida ? { pron: p.tmin, ya_conocida: o.tmin_urbana, desde: p.tmin_conocida } : { pron: p.tmin, obs: o.tmin_urbana })}</td><td>${celdaTemp({ pron: p.tmax, obs: o.tmax_urbana })}</td>
+      ${haySub ? `<td>${celdaTemp(p.tmin_sub_conocida ? { pron: p.tmin_sub, ya_conocida: o.tmin_suburbana, desde: p.tmin_sub_conocida } : { pron: p.tmin_sub, obs: o.tmin_suburbana })}</td><td>${celdaTemp({ pron: p.tmax_sub, obs: o.tmax_suburbana })}</td>` : ""}
       <td>${ok(p.pp) ? celdaPP({ pron: p.pp, obs: p.pp_obs !== undefined ? p.pp_obs : o.pp, desde: p.pp_desde }) : "–"}</td>
       <td>${g ? `${num(g.tmin, 0)} / ${num(g.tmax, 0)}` : '<span class="tenue">–</span>'}</td>
       <td><button class="boton" data-cartas="${esc(p.fecha_emision)}" title="Las cartas del día en que se hizo este pronóstico: lo que se veía en ese momento">🗺️ ${esc(diaCorto(p.fecha_emision).split(" ").pop())}</button></td></tr>`;
