@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Red Meteorológica</title>
+<title>Meteo UNLP</title>
 <link rel="icon" type="image/png" sizes="32x32" href="/iconos/favicon-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="/iconos/icono-192.png">
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
@@ -244,6 +244,7 @@ td.nw { white-space: nowrap; }
 .grupo-accesos { display: none; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
 @media (max-width: 760px) { .grupo-accesos { display: flex; } }
 .boton.tema { padding: 4px 9px; }
+.logo-h1 { width: 30px; height: 30px; vertical-align: -6px; margin-right: 8px; border-radius: 50%; }
 /* Tamaño de la letra: "Letra  A−  115 %  A+" */
 .letra { display: inline-flex; align-items: center; border: 1px solid var(--borde); border-radius: 10px; overflow: hidden; background: var(--superficie); font-size: 13px; }
 .letra-tit { padding: 0 6px 0 10px; color: var(--tinta-2); }
@@ -1696,7 +1697,7 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
 <!-- Antes de dibujar nada: ¿había dejado prendido el Modo Análisis? (evita un parpadeo) -->
 <script>try { if (localStorage.getItem("modo-pro") === "activo") document.body.classList.add("modo-pro"); } catch (_) {}</script>
 <header>
-  <h1>Red Meteorológica · servidor</h1>
+  <h1><img src="/iconos/icono-192.png" alt="" class="logo-h1" width="30" height="30"><span id="h1-txt">Meteo UNLP</span></h1>
   <!-- Las secciones, según lo que hace un pronosticador en su turno: mirar qué
        pasa, analizar, pronosticar, verificar y conversar con el grupo. -->
   <nav role="tablist" id="nav-principal" aria-label="Secciones">
@@ -8832,8 +8833,8 @@ async function abrirContexto(c) {
   try { MODO_WEB = (await api("/api/modo")).modo; } catch (_) {}
   if (MODO_WEB === "cartas") {
     document.querySelectorAll("#nav-principal button").forEach((b) => (b.hidden = !["analisis", "pronostico"].includes(b.dataset.grupo)));
-    $("header h1").textContent = "Cartas de diagnóstico";
-    document.title = "Cartas de diagnóstico";
+    $("#h1-txt").textContent = "Meteo UNLP · Cartas";
+    document.title = "Meteo UNLP · Cartas";
     abrir("cartas");
     cargarCuenta();
     return;

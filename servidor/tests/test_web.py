@@ -36,7 +36,7 @@ def test_api_es_solo_lectura(cliente):
 
 
 def test_pagina(cliente):
-    assert "Red Meteorológica" in cliente.get("/").text
+    assert "Meteo UNLP" in cliente.get("/").text
 
 
 def test_meteograma_ema(cliente):
