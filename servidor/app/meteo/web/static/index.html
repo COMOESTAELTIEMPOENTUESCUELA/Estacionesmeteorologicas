@@ -373,6 +373,19 @@ img.avatar { object-fit: cover; background: var(--plano); display: inline-block;
 .red-mini h4 { margin: 0 0 6px; font-size: 13.5px; }
 .red-mini .linea { display: flex; gap: 6px; align-items: baseline; padding: 4px 0; border-bottom: 1px dashed var(--borde); flex-wrap: wrap; }
 .red-mini .linea:last-child { border-bottom: 0; }
+/* "Ayer, pronosticado contra observado": una cajita por ciudad, se puede tocar */
+.ayer-c { border: 1px solid var(--borde); border-radius: 10px; padding: 6px 8px; margin-bottom: 8px; cursor: pointer; transition: border-color .15s, background .15s; }
+.ayer-c:last-child { margin-bottom: 0; }
+.ayer-c:hover, .ayer-c:focus-visible { border-color: var(--acento); background: color-mix(in srgb, var(--acento) 5%, transparent); }
+.ayer-cab { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; }
+.ayer-cab .ayer-obs { margin-left: auto; display: inline-flex; gap: 3px; align-items: center; font-size: 12px; }
+.ayer-cab .ayer-ir { color: var(--tenue); font-size: 16px; line-height: 1; }
+.ayer-c:hover .ayer-ir { color: var(--acento); }
+.ayer-t { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.ayer-t th { font-weight: 500; color: var(--tenue); font-size: 11px; text-align: right; padding: 0 2px; }
+.ayer-t td { padding: 2px; white-space: nowrap; text-align: right; }
+.ayer-t td:first-child { text-align: left; white-space: normal; }
+.ayer-t tr:hover td { background: color-mix(in srgb, var(--acento) 8%, transparent); }
 @media (max-width: 1150px) { .red { grid-template-columns: 190px minmax(0, 1fr); } .red-der { display: none; } }
 @media (max-width: 760px) {
   .red { grid-template-columns: 1fr; }
@@ -1896,7 +1909,7 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
 
       <aside class="red-der">
         <div class="tarjeta red-mini icu" data-icu></div>
-        <div class="tarjeta red-mini"><h4>Ayer, pronosticado contra observado</h4><div id="red-ayer"><span class="tenue">Cargando…</span></div></div>
+        <div class="tarjeta red-mini"><h4>Ayer, pronosticado contra observado <small class="tenue" style="font-weight:400">· arriba lo observado (mín, máx)</small></h4><div id="red-ayer"><span class="tenue">Cargando…</span></div></div>
         <div class="tarjeta red-mini"><h4>Para la reunión</h4><div id="red-preg"></div></div>
         <p class="ayuda">Las notas privadas (🔒) las ven su autor y los administradores del grupo; lo demás, todos los que ingresaron.</p>
       </aside>
@@ -6501,17 +6514,36 @@ document.addEventListener("click", (e) => {
 });
 
 // ----- Columna derecha: ayer pronosticado contra observado, y la reunión -----
+// Agrupado por ciudad: arriba lo observado, abajo cada pronóstico (quién y con
+// cuántos días de anticipación) con lo que puso y su error. Tocando una ciudad
+// o una fila se abre el panorama de ese día (todos los pronósticos, cartas, notas).
 function dibujarAyer() {
   const ayer = diaArg(Date.now() - 24 * HORA);
-  const lineas = [];
+  const porCiudad = new Map();
   for (const it of red.inicio.items) {
     if (it.tipo !== "pronostico") continue;
     const d = it.dias.find((x) => x.fecha === ayer);
-    if (!d || ![d.tmin?.obs, d.tmax?.obs].some((x) => x !== null && x !== undefined)) continue;
-    lineas.push(`<div class="linea"><b data-perfil="${esc(it.usuario ? it.usuario.id : "f:" + it.firma)}">${esc(it.usuario ? it.usuario.nombre : it.firma)}</b>
-      <span class="tenue">${esc(it.ciudad)} · día ${d.plazo + 1}</span><span>mín ${celdaTemp(d.tmin)}</span><span>máx ${celdaTemp(d.tmax)}</span></div>`);
+    if (!d || ![d.tmin?.obs, d.tmax?.obs].some(ok)) continue;
+    if (!porCiudad.has(it.ciudad)) porCiudad.set(it.ciudad, []);
+    porCiudad.get(it.ciudad).push({ it, d });
   }
-  $("#red-ayer").innerHTML = lineas.length ? lineas.slice(0, 8).join("") : '<span class="tenue">Sin pronósticos verificados de ayer todavía (la verificación se completa durante la mañana).</span>';
+  const valor = (t) => {
+    if (!t || !ok(t.pron)) return '<span class="tenue">–</span>';
+    if (!ok(t.obs)) return `${num(t.pron, 0)}°`;
+    const e = t.obs - t.pron, fl = Math.abs(e) <= 0.5 ? "" : e > 0 ? "▲" : "▼";
+    return `${num(t.pron, 0)}° <span class="err ${claseErr(e)}" title="error ${e > 0 ? "+" : ""}${num(e)} °C">${fl}${num(Math.abs(e))}</span>`;
+  };
+  const primero = (filas, f) => filas.map(f).find(ok);
+  const ciudades = [...porCiudad.entries()].sort(([a], [b]) => (a === "La Plata" ? -1 : b === "La Plata" ? 1 : a.localeCompare(b)));
+  $("#red-ayer").innerHTML = ciudades.length ? ciudades.map(([ciudad, filas]) => {
+    filas.sort((a, b) => a.d.plazo - b.d.plazo);
+    const tmin = primero(filas, (x) => x.d.tmin?.obs), tmax = primero(filas, (x) => x.d.tmax?.obs), pp = primero(filas, (x) => x.d.pp?.obs);
+    return `<div class="ayer-c" data-ayer="${esc(ciudad)}" role="button" tabindex="0" title="Ver el panorama de ese día en ${esc(ciudad)}: todos los pronósticos, lo observado, las cartas y las notas">
+      <div class="ayer-cab"><b>${esc(ciudad)}</b><span class="ayer-obs">${ok(tmin) ? tempEscala(tmin) : "–"} ${ok(tmax) ? tempEscala(tmax) : "–"}${pp === true ? " ☔" : ""}</span><span class="ayer-ir">›</span></div>
+      <table class="ayer-t"><tr><th></th><th>Mín</th><th>Máx</th></tr>
+        ${filas.map(({ it, d }) => `<tr data-ayer-plazo="${d.plazo}"><td>${esc(it.usuario ? it.usuario.nombre : it.firma)} <small class="tenue">D${d.plazo + 1}</small></td>
+          <td>${valor(d.tmin)}</td><td>${valor(d.tmax)}</td></tr>`).join("")}</table></div>`;
+  }).join("") : '<span class="tenue">Sin pronósticos verificados de ayer todavía (la verificación se completa durante la mañana).</span>';
 }
 async function cargarReunion() {
   let ns;
@@ -7275,6 +7307,13 @@ async function accionRed(e) {
   }
   const ve = e.target.closest("[data-embed]");
   if (ve) { abrirEmbed(ve); return; }
+  const ay = e.target.closest("[data-ayer]");
+  if (ay) {
+    const fila = e.target.closest("[data-ayer-plazo]");
+    red.diaVolver = { vista: red.vista, obj: "", scroll: window.scrollY };
+    abrirDia(ay.dataset.ayer, diaArg(Date.now() - 24 * HORA), fila ? Number(fila.dataset.ayerPlazo) : null);
+    return;
+  }
   const cd = e.target.closest("[data-dia]");
   if (cd) { abrirDia(cd.dataset.ciudad, cd.dataset.dia, Number(cd.dataset.plazo), cd.closest(".postit")); return; }
   const dm = e.target.closest("[data-dia-mover]");
