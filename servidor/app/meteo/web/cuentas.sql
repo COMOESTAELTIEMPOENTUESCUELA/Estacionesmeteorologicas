@@ -144,3 +144,30 @@ CREATE TABLE IF NOT EXISTS ajuste (
     actualizado     timestamptz NOT NULL DEFAULT now(),
     actualizado_por text
 );
+
+-- Mensajes: conversaciones privadas (de a dos), grupales (con nombre) y de
+-- "dudas y sugerencias" (una persona con los administradores).
+CREATE TABLE IF NOT EXISTS conversacion (
+    id         serial PRIMARY KEY,
+    tipo       text NOT NULL DEFAULT 'privada' CHECK (tipo IN ('privada', 'grupo', 'soporte')),
+    nombre     text,
+    creada     timestamptz NOT NULL DEFAULT now(),
+    creada_por int REFERENCES usuario(id) ON DELETE SET NULL
+);
+CREATE TABLE IF NOT EXISTS conversacion_miembro (
+    conversacion_id int NOT NULL REFERENCES conversacion(id) ON DELETE CASCADE,
+    usuario_id      int NOT NULL REFERENCES usuario(id) ON DELETE CASCADE,
+    leido_hasta     int NOT NULL DEFAULT 0,          -- id del último mensaje que vio
+    PRIMARY KEY (conversacion_id, usuario_id)
+);
+CREATE INDEX IF NOT EXISTS conversacion_miembro_usuario ON conversacion_miembro (usuario_id);
+CREATE TABLE IF NOT EXISTS mensaje (
+    id              serial PRIMARY KEY,
+    conversacion_id int NOT NULL REFERENCES conversacion(id) ON DELETE CASCADE,
+    usuario_id      int REFERENCES usuario(id) ON DELETE SET NULL,
+    creado          timestamptz NOT NULL DEFAULT now(),
+    texto           text NOT NULL DEFAULT '',
+    adjunto         text,                             -- un pronóstico publicado: "pron|ciudad|fecha|firma"
+    compartido_nota int REFERENCES nota(id) ON DELETE SET NULL    -- si se pasó al Inicio
+);
+CREATE INDEX IF NOT EXISTS mensaje_conversacion ON mensaje (conversacion_id, id);

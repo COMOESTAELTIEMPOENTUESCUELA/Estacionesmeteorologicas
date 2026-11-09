@@ -52,6 +52,17 @@ La página de Cartas (también la copia pública) sigue igual para todos. Quien
     (el servidor se los baja de verdad, no es una imitación). Una franja
     amarilla lo recuerda; "Volver a mi vista" lo apaga (si no, se apaga solo
     al día siguiente).
+  - **💬 Mensajes** (en el menú y en la barra de abajo del celular, con el
+    número de no leídos): chats **privados** (de a dos) y **grupales** (con
+    nombre). Se puede adjuntar un **pronóstico publicado** (🌡️ en el chat, o
+    "💬 Enviar" en la tarjeta del pronóstico): se ve con su gráfico. Cada uno
+    puede pasar un mensaje **propio** al Inicio con "📢 Compartir con el
+    grupo" (queda como nota, con el pronóstico adjunto); los de otros no, para
+    no publicar lo que alguien escribió en privado. **💡 Dudas y
+    sugerencias** abre una conversación con los administradores. Los
+    mensajes nuevos llegan solos cada 5 s con la conversación abierta. Los
+    administradores pueden ver la base de datos (y con eso, los mensajes): la
+    página lo avisa.
   - **🛠️ Administración** (solo rol admin), en el menú de la izquierda:
     - **Verificación**: los parámetros con que se calcula lo observado
       (umbral de lluvia, completitud del día y del viento, superposición de

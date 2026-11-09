@@ -183,11 +183,13 @@ td.nw { white-space: nowrap; }
 /* Barra de abajo (celular) */
 .barra-abajo { display: none; }
 @media (max-width: 760px) {
-  .barra-abajo:not([hidden]) { display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 800;
+  .barra-abajo:not([hidden]) { display: grid; grid-template-columns: repeat(6, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 800;
     background: var(--superficie); border-top: 1px solid var(--borde); padding: 4px 4px calc(4px + env(safe-area-inset-bottom)); }
   .barra-abajo button { border: 0; background: none; color: var(--tinta-2); font: inherit; font-size: 11px; display: flex; flex-direction: column;
     align-items: center; gap: 1px; padding: 4px 0; cursor: pointer; border-radius: 10px; }
-  .barra-abajo button span { font-size: 21px; line-height: 1.1; }
+  .barra-abajo button span { font-size: 21px; line-height: 1.1; position: relative; }
+  .barra-abajo .ba-n { position: absolute; top: -4px; right: -10px; background: #dc2626; color: #fff; font-size: 10px; font-weight: 700;
+    border-radius: 99px; padding: 0 5px; line-height: 16px; min-width: 16px; text-align: center; }
   .barra-abajo button.activa { color: var(--acento); font-weight: 700; }
   .barra-abajo button.publicar span { background: var(--acento); color: #fff; border-radius: 12px; width: 44px; display: grid; place-items: center; }
   body.con-barra-abajo { padding-bottom: 70px; }
@@ -264,6 +266,49 @@ td.nw { white-space: nowrap; }
 .d-chico .acc { justify-content: flex-end; margin-top: 12px; }
 .d-error { color: #b91c1c; background: color-mix(in srgb, #dc2626 10%, transparent); border-radius: 8px; padding: 6px 10px; font-size: 13.5px; }
 .d-o { text-align: center; color: var(--tenue); margin: 14px 0 8px; position: relative; }
+/* Mensajes */
+.chat { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 12px; min-height: 60vh; }
+.chat-lista, .chat-conv { background: var(--superficie); border: 1px solid var(--borde); border-radius: 12px; min-width: 0; }
+.chat-lista { padding: 8px; display: flex; flex-direction: column; gap: 6px; max-height: 75vh; overflow: auto; }
+.chat-botones { display: flex; flex-direction: column; gap: 6px; }
+.chat-c { display: flex; gap: 8px; align-items: center; padding: 8px; border-radius: 10px; cursor: pointer; border: 0; background: none; font: inherit; text-align: left; width: 100%; color: inherit; }
+.chat-c:hover { background: var(--plano); }
+.chat-c.activa { background: color-mix(in srgb, var(--acento) 12%, transparent); }
+.chat-c .txt { min-width: 0; flex: 1; }
+.chat-c .txt b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-c .txt small { display: block; color: var(--tenue); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-c .n { background: var(--acento); color: #fff; border-radius: 99px; font-size: 11px; padding: 1px 7px; font-weight: 700; }
+.chat-ico { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--plano); flex: none; font-size: 17px; }
+.chat-conv { display: flex; flex-direction: column; max-height: 75vh; }
+.chat-cab { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--borde); }
+.chat-cab small { color: var(--tenue); display: block; }
+.chat-cab .chat-atras { display: none; }
+.chat-msjs { flex: 1; overflow: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; min-height: 200px; }
+.chat-m { max-width: 78%; align-self: flex-start; background: var(--plano); border-radius: 14px 14px 14px 4px; padding: 6px 10px; font-size: 14px; }
+.chat-m.mio { align-self: flex-end; background: color-mix(in srgb, var(--acento) 14%, var(--superficie)); border-radius: 14px 14px 4px 14px; }
+.chat-m .quien { font-size: 11.5px; font-weight: 650; color: var(--tinta-2); }
+.chat-m .t { white-space: pre-wrap; overflow-wrap: anywhere; }
+.chat-m .pie { display: flex; gap: 8px; align-items: center; justify-content: flex-end; font-size: 11px; color: var(--tenue); margin-top: 2px; }
+.chat-m .pie button { border: 0; background: none; font: inherit; color: var(--acento); cursor: pointer; padding: 0; }
+.chat-pron { border: 1px solid var(--borde); border-radius: 10px; padding: 6px 8px; margin: 4px 0; background: var(--superficie); min-width: 230px; }
+.chat-pron .cp-cab { font-size: 12.5px; margin-bottom: 2px; }
+.red-feed .postit:not(.pron) > .chat-pron { margin: 0 14px 10px; }
+.chat-escribir { display: flex; gap: 6px; padding: 8px; border-top: 1px solid var(--borde); align-items: flex-end; flex-wrap: wrap; }
+.chat-escribir textarea { flex: 1 1 200px; resize: none; font: inherit; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--borde); background: var(--superficie); color: inherit; min-height: 38px; max-height: 140px; }
+.chat-escribir .adj { width: 100%; font-size: 12.5px; color: var(--tinta-2); }
+.chat-aviso { color: var(--tenue); font-size: 12.5px; margin: 8px 2px 0; }
+.chat-personas { max-height: 40vh; overflow: auto; margin: 8px 0; display: flex; flex-direction: column; gap: 2px; }
+.chat-personas label { display: flex !important; gap: 8px; align-items: center; margin: 0 !important; padding: 4px; border-radius: 8px; cursor: pointer; }
+.chat-personas label:hover { background: var(--plano); }
+@media (max-width: 760px) {
+  .chat { grid-template-columns: 1fr; }
+  .chat.abierta .chat-lista { display: none; }
+  .chat:not(.abierta) .chat-conv { display: none; }
+  .chat-cab .chat-atras { display: inline-block; }
+  .chat-m { max-width: 90%; }
+  .chat-conv { max-height: calc(100vh - 230px); }
+  body.con-barra-abajo .chat-aviso { margin-bottom: 84px; }
+}
 /* Administración */
 .adm-ayuda { color: var(--tinta-2); font-size: 13px; margin: 0 0 10px; }
 .adm-param input[type=number] { width: 90px; }
@@ -1134,6 +1179,7 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
   <button data-ir="inicio"><span>🏠</span>Inicio</button>
   <button data-ir="cartas"><span>🗺️</span>Cartas</button>
   <button data-ir="publicar" class="publicar"><span>➕</span>Publicar</button>
+  <button data-ir="chat"><span>💬<b class="ba-n" id="chat-n2" hidden></b></span>Mensajes</button>
   <button data-ir="personas"><span>👥</span>Grupo</button>
   <button data-ir="perfil"><span>👤</span>Perfil</button>
 </div>
@@ -1829,6 +1875,7 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
           <button data-rv="inicio" class="activa"><span>🏠</span> Inicio</button>
           <button data-rv="perfil"><span>👤</span> Mi perfil</button>
           <button data-rv="personas"><span>👥</span> El grupo</button>
+          <button data-rv="chat"><span>💬</span> Mensajes <b class="cuenta-n" id="chat-n" hidden></b></button>
           <button data-rv="reunion"><span>❓</span> Reunión sinóptica <b class="cuenta-n" id="rs-n" hidden></b></button>
           <button data-rv="metricas" id="rv-b-metricas" hidden><span>📊</span> Métricas del grupo</button>
           <button data-rv="admin" id="rv-b-admin" hidden><span>🛠️</span> Administración</button>
@@ -1909,6 +1956,20 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
           <div id="rs-lista" class="kanban"></div>
         </div>
 
+        <!-- Mensajes: chats privados, grupales y "dudas y sugerencias" -->
+        <div class="rv" id="rv-chat" hidden>
+          <div class="chat">
+            <aside class="chat-lista">
+              <div class="chat-botones"><button class="boton primario" id="chat-nuevo">✏️ Nueva conversación</button>
+                <button class="boton" id="chat-dudas" title="Mandale una duda o una sugerencia a los administradores">💡 Dudas y sugerencias</button></div>
+              <div id="chat-convs"><p class="tenue">Cargando…</p></div>
+            </aside>
+            <section class="chat-conv" id="chat-conv"><p class="tenue chat-vacio">Elegí una conversación o empezá una nueva.</p></section>
+          </div>
+          <p class="chat-aviso">🔒 Los mensajes los ven solo quienes están en cada conversación (y los administradores, que pueden ver la base de datos).
+            Un mensaje tuyo lo podés pasar al Inicio con 📢.</p>
+        </div>
+
         <!-- Administración (solo rol admin): parámetros de la verificación y la base de datos -->
         <div class="rv" id="rv-admin" hidden>
           <div class="red-subtabs" id="adm-tabs"><button data-adm="verif" class="activa">⚙️ Verificación</button><button data-adm="base">🗄️ Base de datos</button></div>
@@ -1984,6 +2045,29 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
     <label>Repetila <input name="nueva2" type="password" autocomplete="new-password" required></label>
     <p class="d-error" id="clave-error" hidden></p>
     <div class="acc"><button type="button" class="boton" data-cerrar id="clave-cancelar">Cancelar</button><button class="boton primario">Guardar</button></div>
+  </form>
+</dialog>
+
+<!-- Mensajes: empezar una conversación, y mandar un pronóstico a una -->
+<dialog id="d-chat-nuevo" class="d-chico">
+  <form id="f-chat-nuevo">
+    <h2>Nueva conversación</h2>
+    <p class="tenue" style="margin-top:0">Con una persona es privada. Con varias es un grupo: ponele un nombre.</p>
+    <input type="search" id="chat-n-buscar" placeholder="Buscar persona…" style="width:100%;box-sizing:border-box">
+    <div class="chat-personas" id="chat-n-personas"></div>
+    <label>Nombre del grupo <small class="tenue">(opcional con una sola persona)</small><input name="nombre" maxlength="60" placeholder="Ej.: Turno noche"></label>
+    <p class="d-error" id="chat-n-error" hidden></p>
+    <div class="acc"><button type="button" class="boton" data-cerrar>Cancelar</button><button class="boton primario">Empezar</button></div>
+  </form>
+</dialog>
+<dialog id="d-chat-enviar" class="d-chico">
+  <form id="f-chat-enviar">
+    <h2>Enviar el pronóstico</h2>
+    <p class="tenue" id="chat-e-que" style="margin-top:0"></p>
+    <label>A <select name="destino" id="chat-e-destino" required></select></label>
+    <label>Mensaje <small class="tenue">(opcional)</small><textarea name="texto" rows="2" maxlength="4000" placeholder="Ej.: ¿qué te parece la mínima del jueves?"></textarea></label>
+    <p class="d-error" id="chat-e-error" hidden></p>
+    <div class="acc"><button type="button" class="boton" data-cerrar>Cancelar</button><button class="boton primario">Enviar</button></div>
   </form>
 </dialog>
 
@@ -6068,7 +6152,7 @@ function irRed(v) {
 }
 function marcarBarraAbajo() {
   const tab = document.querySelector('main > section:not([hidden])')?.id;
-  const actual = tab === "tab-cartas" ? "cartas" : tab === "tab-perfil" ? (red.vista === "personas" ? "personas" : red.vista === "perfil" ? "perfil" : "inicio") : "";
+  const actual = tab === "tab-cartas" ? "cartas" : tab === "tab-perfil" ? (["personas", "perfil", "chat"].includes(red.vista) ? red.vista : "inicio") : "";
   document.querySelectorAll("#barra-abajo button").forEach((b) => b.classList.toggle("activa", b.dataset.ir === actual));
 }
 $("#barra-abajo").addEventListener("click", (e) => {
@@ -6346,6 +6430,7 @@ function tarjetaNota(nt, reunion = false) {
     ${nt.contexto?.para ? `<div class="para-dia"><span>📅 Para el <b>${esc(diaCorto(nt.contexto.para))}</b> <small>(${relativoDia(nt.contexto.para)})</small></span>
       <button class="boton chico" data-acc="abrir" title="Las cartas del pronóstico GFS que había cuando se escribió, para ese día">🗺️ Cartas del pronóstico</button></div>` : ""}
     ${img}
+    ${nt.contexto?.pron ? `<div class="chat-pron" data-pron-embed="${esc(nt.contexto.pron)}">${embedPron(nt.contexto.pron)}</div>` : ""}
     ${bloqueVideos(nt.texto)}
     ${nt.compartida || acciones ? `<div class="barra-ig">${nt.compartida ? barraReacciones(`nota:${nt.id}`, nt.reacciones, ["util", "acuerdo", "duda"]) : "<span></span>"}
       ${acciones ? `<div class="acc">${acciones}</div>` : ""}</div>` : ""}
@@ -6506,6 +6591,7 @@ function tarjetaPron(it) {
       <button class="boton" data-cartas="${esc(it.fecha_emision)}" title="Las cartas de diagnóstico del día en que se hizo el pronóstico">🗺️ Cartas</button>
       <button class="boton" data-modelo title="El GFS de ese momento contra lo pronosticado y lo medido, en vivo">📈 ${red.modelos[it.objeto]?.abierto ? "Ocultar modelo" : "Modelo"}</button>
       <button class="boton" data-cartas-modelo title="Las cartas y el meteograma del GFS de esa corrida (se guardan 8 días)">🌐 GFS</button>
+      <button class="boton" data-enviar-pron title="Mandar este pronóstico por mensaje (privado o a un grupo)">💬 Enviar</button>
     </div>
     <div class="pron-modelo" ${red.modelos[it.objeto]?.abierto ? "" : "hidden"}>${red.modelos[it.objeto]?.html || ""}</div>
     ${barraReacciones(it.objeto, it.reacciones, ["aplauso", "duda"])}
@@ -7068,6 +7154,191 @@ function dibujarDia() {
     ${notas.length ? `<div class="red-feed">${notas.map((n) => tarjetaNota(n)).join("")}</div>` : '<p class="tenue">Nadie escribió nada sobre este día todavía.</p>'}`;
 }
 
+// ----- Mensajes: chats privados, grupales y "dudas y sugerencias" -----
+// Se consultan cada pocos segundos mientras la conversación está abierta (y el
+// número de no leídos, cada minuto). Un pronóstico adjunto se muestra con su
+// gráfico (se pide una vez y queda guardado en pronEmbeds).
+const chat = { convs: [], abierta: null, mensajes: [], ultimo: 0, adjunto: null, reloj: null };
+const pronEmbeds = new Map();
+function embedPron(obj) {
+  const it = pronEmbeds.get(obj);
+  if (it === undefined) { cargarEmbedPron(obj); return '<span class="tenue">Cargando el pronóstico…</span>'; }
+  if (it === null) return '<span class="tenue">El pronóstico ya no está disponible.</span>';
+  const quien = it.usuario ? it.usuario.nombre : it.firma;
+  return `<div class="cp-cab">🌡️ <b>${esc(quien)}</b> pronosticó <b>${esc(it.ciudad)}</b> · ${esc(diaCorto(it.fecha_emision))}</div>${sparkPron(it)}`;
+}
+async function cargarEmbedPron(obj) {
+  if (pronEmbeds.has(obj)) return;
+  pronEmbeds.set(obj, undefined);
+  let it = null;
+  try { it = await api(`/api/yo/pronostico?objeto=${encodeURIComponent(obj)}`); } catch (_) {}
+  pronEmbeds.set(obj, it);
+  document.querySelectorAll(`[data-pron-embed="${CSS.escape(obj)}"]`).forEach((x) => (x.innerHTML = embedPron(obj)));
+}
+function nombreConv(c) {
+  if (c.nombre) return c.nombre;
+  const otros = c.miembros.filter((m) => m.id !== YO.id);
+  return otros.map((m) => m.nombre).join(", ") || "Solo vos";
+}
+function iconoConv(c) {
+  if (c.tipo === "soporte") return '<span class="chat-ico">💡</span>';
+  if (c.tipo === "grupo") return '<span class="chat-ico">👥</span>';
+  const otro = c.miembros.find((m) => m.id !== YO.id);
+  return otro ? avatar(otro.nombre, "grande", otro.id) : '<span class="chat-ico">💬</span>';
+}
+async function cargarChats() {
+  try { chat.convs = await api("/api/yo/chats"); } catch (_) { return; }
+  const total = chat.convs.reduce((a, c) => a + Number(c.no_leidos || 0), 0);
+  for (const b of ["#chat-n", "#chat-n2"]) { $(b).hidden = !total; $(b).textContent = total > 99 ? "99+" : total; }
+  if (red.vista !== "chat") return;
+  $("#chat-convs").innerHTML = chat.convs.length ? chat.convs.map((c) => {
+    const u = c.ultimo;
+    const prev = u ? `${u.autor && c.tipo !== "privada" ? esc(u.autor.split(" ")[0]) + ": " : ""}${u.adjunto && !u.texto ? "🌡️ pronóstico" : esc(u.texto.slice(0, 60))}` : '<i>sin mensajes</i>';
+    return `<button class="chat-c${chat.abierta === c.id ? " activa" : ""}" data-conv="${c.id}">${iconoConv(c)}
+      <span class="txt"><b>${esc(nombreConv(c))}</b><small>${prev}</small></span>${Number(c.no_leidos) ? `<span class="n">${c.no_leidos}</span>` : ""}</button>`;
+  }).join("") : '<p class="tenue">Todavía no tenés conversaciones.</p>';
+}
+async function abrirConv(id) {
+  chat.abierta = id; chat.mensajes = []; chat.ultimo = 0; chat.adjunto = null;
+  const c = chat.convs.find((x) => x.id === id) || { nombre: "", miembros: [], tipo: "grupo" };
+  $(".chat").classList.add("abierta");
+  $("#chat-conv").innerHTML = `<div class="chat-cab"><button class="boton chico chat-atras" data-chat-atras>←</button>${iconoConv(c)}
+      <div><b>${esc(nombreConv(c))}</b><small>${c.tipo === "soporte" ? "Dudas y sugerencias: la ven los administradores" : esc(c.miembros.map((m) => m.id === YO.id ? "Vos" : m.nombre).join(", "))}</small></div></div>
+    <div class="chat-msjs" id="chat-msjs"><p class="tenue">Cargando…</p></div>
+    <form class="chat-escribir" id="chat-form"><div class="adj" id="chat-adj" hidden></div>
+      <button type="button" class="boton" id="chat-pron" title="Adjuntar un pronóstico publicado">🌡️</button>
+      <textarea id="chat-texto" rows="1" maxlength="4000" placeholder="Escribí un mensaje…" title="Enter manda; Mayús+Enter baja de línea"></textarea>
+      <button class="boton primario">Enviar</button></form>`;
+  $("#chat-msjs").innerHTML = "";
+  await traerMensajes();
+  cargarChats();
+  $("#chat-texto").focus();
+}
+async function traerMensajes() {
+  const id = chat.abierta;
+  if (!id) return;
+  let nuevos;
+  try { nuevos = await api(`/api/yo/chats/${id}/mensajes?desde=${chat.ultimo}`); } catch (_) { return; }
+  if (id !== chat.abierta || !nuevos.length) { if (!chat.mensajes.length) $("#chat-msjs").innerHTML = '<p class="tenue">Todavía no hay mensajes. ¡Escribí el primero!</p>'; return; }
+  const caja = $("#chat-msjs"), abajo = caja.scrollHeight - caja.scrollTop - caja.clientHeight < 60 || !chat.mensajes.length;
+  if (!chat.mensajes.length) caja.innerHTML = "";
+  chat.mensajes.push(...nuevos);
+  chat.ultimo = nuevos[nuevos.length - 1].id;
+  caja.insertAdjacentHTML("beforeend", nuevos.map(mensajeHTML).join(""));
+  if (abajo) caja.scrollTop = caja.scrollHeight;
+}
+function mensajeHTML(m) {
+  const c = chat.convs.find((x) => x.id === chat.abierta);
+  return `<div class="chat-m${m.mio ? " mio" : ""}" data-msj="${m.id}">${!m.mio && c && c.tipo !== "privada" ? `<div class="quien">${esc(m.autor || "?")}</div>` : ""}
+    ${m.adjunto ? `<div class="chat-pron" data-pron-embed="${esc(m.adjunto)}" data-obj="${esc(m.adjunto)}">${embedPron(m.adjunto)}</div>` : ""}
+    ${m.texto ? `<div class="t">${textoConEnlaces(m.texto)}</div>` : ""}
+    <div class="pie">${m.mio ? (m.compartido_nota ? "✓ en el Inicio" : `<button data-compartir-msj="${m.id}" title="Publicarlo en el Inicio para todo el grupo">📢 Compartir con el grupo</button>`) : ""}
+      <span title="${esc(fmtEscrita.format(new Date(m.creado)))}">${esc(hace(m.creado))}</span></div></div>`;
+}
+async function mandarMensaje() {
+  const t = $("#chat-texto").value.trim();
+  if (!t && !chat.adjunto) return;
+  try { await apiEnviar(`/api/yo/chats/${chat.abierta}/mensajes`, "POST", { texto: t, adjunto: chat.adjunto }); }
+  catch (err) { alert(`No se pudo mandar: ${err.message}`); return; }
+  $("#chat-texto").value = ""; chat.adjunto = null; $("#chat-adj").hidden = true;
+  await traerMensajes(); cargarChats();
+}
+// Los pronósticos que se pueden adjuntar: los que están cargados en el Inicio (los últimos días).
+function pronosticosRecientes() {
+  return [...red.inicio.items, ...red.perfil.items].filter((it) => it.tipo === "pronostico")
+    .filter((it, i, a) => a.findIndex((x) => x.objeto === it.objeto) === i);
+}
+function elegirPronostico() {
+  const lista = pronosticosRecientes();
+  if (!lista.length) { alert("No hay pronósticos cargados. Abrí el Inicio o andá a la tarjeta del pronóstico y usá 💬 Enviar."); return; }
+  const op = lista.map((it, k) => `${k + 1}. ${it.usuario ? it.usuario.nombre : it.firma} · ${it.ciudad} · ${diaCorto(it.fecha_emision)}`).join("\n");
+  const r = prompt(`¿Qué pronóstico adjuntás? Escribí el número:\n\n${op}`);
+  const it = lista[Number(r) - 1];
+  if (!it) return;
+  chat.adjunto = it.objeto;
+  $("#chat-adj").hidden = false;
+  $("#chat-adj").innerHTML = `🌡️ Adjunto: ${esc(it.usuario ? it.usuario.nombre : it.firma)} · ${esc(it.ciudad)} · ${esc(diaCorto(it.fecha_emision))} <button type="button" class="boton chico" id="chat-adj-x">✕</button>`;
+  $("#chat-adj-x").addEventListener("click", () => { chat.adjunto = null; $("#chat-adj").hidden = true; });
+}
+async function abrirNuevaConv() {
+  const gente = (await cargarPersonas()).filter((p) => p.id && !p.yo);
+  const f = $("#f-chat-nuevo"); f.reset(); $("#chat-n-error").hidden = true;
+  const dibujar = (q = "") => {
+    $("#chat-n-personas").innerHTML = gente.filter((p) => p.nombre.toLowerCase().includes(q.toLowerCase())).map((p) =>
+      `<label><input type="checkbox" value="${p.id}">${avatar(p.nombre, "", p.id)} ${esc(p.nombre)}</label>`).join("") || '<span class="tenue">Nadie con ese nombre.</span>';
+  };
+  dibujar();
+  $("#chat-n-buscar").oninput = (e) => {
+    const marcados = new Set([...document.querySelectorAll("#chat-n-personas input:checked")].map((x) => x.value));
+    dibujar(e.target.value);
+    document.querySelectorAll("#chat-n-personas input").forEach((x) => (x.checked = marcados.has(x.value)));
+  };
+  $("#d-chat-nuevo").showModal();
+}
+$("#f-chat-nuevo").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const miembros = [...document.querySelectorAll("#chat-n-personas input:checked")].map((x) => Number(x.value));
+  const err = $("#chat-n-error");
+  if (!miembros.length) { err.textContent = "Elegí al menos una persona."; err.hidden = false; return; }
+  try {
+    const r = await apiEnviar("/api/yo/chats", "POST", { miembros, nombre: e.target.nombre.value });
+    $("#d-chat-nuevo").close();
+    await cargarChats(); abrirConv(r.id);
+  } catch (ex) { err.textContent = ex.message; err.hidden = false; }
+});
+// 💬 Enviar desde la tarjeta de un pronóstico
+let enviarObj = null;
+async function abrirEnviarPron(obj) {
+  enviarObj = obj;
+  const it = buscarObjeto(obj)[0];
+  await cargarChats();
+  const gente = (await cargarPersonas()).filter((p) => p.id && !p.yo);
+  const conPrivada = new Set(chat.convs.filter((c) => c.tipo === "privada").map((c) => c.miembros.find((m) => m.id !== YO.id)?.id));
+  $("#chat-e-que").textContent = it ? `${it.usuario ? it.usuario.nombre : it.firma} · ${it.ciudad} · ${diaCorto(it.fecha_emision)}` : "";
+  $("#chat-e-destino").innerHTML = `<optgroup label="Conversaciones">${chat.convs.map((c) => `<option value="c:${c.id}">${esc(nombreConv(c))}</option>`).join("")}</optgroup>
+    <optgroup label="Mensaje privado nuevo">${gente.filter((p) => !conPrivada.has(p.id)).map((p) => `<option value="p:${p.id}">${esc(p.nombre)}</option>`).join("")}</optgroup>`;
+  $("#f-chat-enviar").texto.value = ""; $("#chat-e-error").hidden = true;
+  $("#d-chat-enviar").showModal();
+}
+$("#f-chat-enviar").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const [tipo, id] = e.target.destino.value.split(":");
+  try {
+    const cid = tipo === "c" ? Number(id) : (await apiEnviar("/api/yo/chats", "POST", { miembros: [Number(id)] })).id;
+    await apiEnviar(`/api/yo/chats/${cid}/mensajes`, "POST", { texto: e.target.texto.value.trim(), adjunto: enviarObj });
+    $("#d-chat-enviar").close();
+    cargarChats();
+    alert("Enviado ✓ (lo ves en 💬 Mensajes)");
+  } catch (ex) { $("#chat-e-error").textContent = ex.message; $("#chat-e-error").hidden = false; }
+});
+function iniciarChat() {
+  $("#chat-nuevo").addEventListener("click", abrirNuevaConv);
+  $("#chat-dudas").addEventListener("click", async () => {
+    try { const r = await apiEnviar("/api/yo/chats/soporte", "POST"); await cargarChats(); abrirConv(r.id); }
+    catch (err) { alert(err.message); }
+  });
+  $("#rv-chat").addEventListener("click", async (e) => {
+    const c = e.target.closest("[data-conv]");
+    if (c) { abrirConv(Number(c.dataset.conv)); return; }
+    if (e.target.closest("[data-chat-atras]")) { chat.abierta = null; $(".chat").classList.remove("abierta"); cargarChats(); return; }
+    if (e.target.closest("#chat-pron")) { elegirPronostico(); return; }
+    const sh = e.target.closest("[data-compartir-msj]");
+    if (sh) {
+      if (!confirm("¿Publicar este mensaje en el Inicio? Lo va a ver todo el grupo.")) return;
+      try { await apiEnviar(`/api/yo/chats/mensajes/${sh.dataset.compartirMsj}/compartir`, "POST"); sh.outerHTML = "✓ en el Inicio"; cargarLibreta(); }
+      catch (err) { alert(err.message); }
+    }
+  });
+  $("#rv-chat").addEventListener("submit", (e) => { if (e.target.id === "chat-form") { e.preventDefault(); mandarMensaje(); } });
+  $("#rv-chat").addEventListener("keydown", (e) => {
+    if (e.target.id === "chat-texto" && e.key === "Enter" && !e.shiftKey) { e.preventDefault(); mandarMensaje(); }
+  });
+  // Mientras se mira una conversación: los mensajes nuevos cada 5 s; los no leídos, cada minuto.
+  setInterval(() => { if (red.vista === "chat" && chat.abierta && !document.hidden) traerMensajes(); }, 5000);
+  setInterval(() => { if (!document.hidden) cargarChats(); }, 60000);
+  cargarChats();
+}
+
 // ----- Administración (solo rol admin) -----
 // Verificación: los parámetros (números con límites: el servidor los revisa),
 // las estaciones de cada ciudad y el código, SOLO para leer. Desde la página
@@ -7205,6 +7476,7 @@ function verRed(v, cargar = true) {
   if (v === "reunion") cargarReunion();
   if (v === "metricas") cargarGrupo();
   if (v === "admin") cargarAdmin();
+  if (v === "chat") cargarChats();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 // Vuelve a cargar lo que se está mirando (después de escribir, borrar, etc.).
@@ -7230,6 +7502,7 @@ function redibujar() {
   if (red.vista === "perfil") dibujarFeed("#red-feed-perfil", red.perfil, "Nada publicado en estas semanas");
   if (red.vista === "reunion") cargarReunion();
   if (red.vista === "dia" && red.dia?.datos) dibujarDia();
+  document.querySelectorAll("[data-pron-embed]").forEach((x) => (x.innerHTML = embedPron(x.dataset.pronEmbed)));
 }
 // "Para qué día": la nota de un día que viene queda con esa fecha y con la
 // corrida del GFS de este momento a esa hora (las 15 hs), para abrir esas cartas.
@@ -7268,6 +7541,7 @@ async function iniciarPerfil() {
   $("#red-yo").addEventListener("click", () => verRed("perfil"));
   $("#rv-b-metricas").hidden = !esCoord();
   $("#rv-b-admin").hidden = YO.rol !== "admin";
+  iniciarChat();
   $("#adm-tabs").addEventListener("click", (e) => {
     const b = e.target.closest("[data-adm]"); if (!b) return;
     $("#adm-tabs").querySelectorAll("button").forEach((x) => x.classList.toggle("activa", x === b));
@@ -7551,9 +7825,11 @@ async function accionRed(e) {
   }
   const ve = e.target.closest("[data-embed]");
   if (ve) { abrirEmbed(ve); return; }
+  const ep = e.target.closest("[data-enviar-pron]");
+  if (ep) { abrirEnviarPron(ep.closest(".postit").dataset.obj); return; }
   const sm = e.target.closest("[data-sp-modo]");
   if (sm) {
-    const obj = sm.closest(".postit")?.dataset.obj;
+    const obj = sm.closest(".postit, .chat-pron")?.dataset.obj;
     if (obj) modoSpark.set(obj, sm.dataset.spModo);
     try { localStorage.setItem("spark-modo", sm.dataset.spModo); } catch (_) {}    // la próxima vez, las tarjetas nuevas arrancan así
     redibujar();
@@ -7825,6 +8101,7 @@ function describirContexto(c) {
   if (!c || !Object.keys(c).length) return "Sin carta asociada.";
   const t = c.ts ? new Date(c.ts) : null;
   const cuando = t ? `${fmtCartaTitulo.format(t)}, ${String(t.getUTCHours()).padStart(2, "0")} UTC` : "";
+  if (c.pron && Object.keys(c).length === 1) return `Pronóstico compartido desde los mensajes`;
   if (c.para) return `Pronóstico GFS para el ${diaCorto(c.para)}${c.corrida ? ` · corrida ${c.corrida.slice(6, 8)}/${c.corrida.slice(4, 6)} ${c.corrida.slice(8)} UTC` : ""}`;
   if (c.seccion === "gfs" && c.ciudad) return `Meteograma del pronóstico GFS · ${c.ciudad} · corrida ${c.corrida}`;
   if (c.seccion === "gfs") return `Pronóstico GFS · corrida ${c.corrida}, +${c.plazo} h${c.carta ? " · " + c.carta : ""}`;

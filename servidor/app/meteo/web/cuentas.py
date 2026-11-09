@@ -71,7 +71,8 @@ DURACION = timedelta(days=30)
 TIPOS_NOTA = ("vi", "llamo_atencion", "duda", "pregunta")
 # Del contexto de una nota solo se guardan estas claves (texto o número corto).
 CLAVES_CONTEXTO = ("ts", "producto", "corrida", "plazo", "carta", "vista", "ciudad", "desde", "hasta", "seccion",
-                   "para")          # "para": el día pronosticado del que habla la nota (AAAA-MM-DD)
+                   "para",          # "para": el día pronosticado del que habla la nota (AAAA-MM-DD)
+                   "pron")          # "pron": un pronóstico publicado que la nota trae adjunto (desde un mensaje)          # "para": el día pronosticado del que habla la nota (AAAA-MM-DD)
 # La imagen pegada a una nota ("pizarra"): lo que manda la página (data URL
 # PNG/JPEG/WebP) se abre con Pillow y se vuelve a codificar en WebP, así se
 # guarda siempre una imagen limpia y chica, sin importar lo que llegó.
@@ -908,6 +909,67 @@ def observado_horario(request: Request, ciudad: str, desde: datetime, hasta: dat
     return {"ciudad": ciudad, "smn": [[h.isoformat(), v] for h, v in smn.items()], "ema": [[h.isoformat(), v] for h, v in ema.items()]}
 
 
+def _armar_pronosticos(u, emisiones, desde, hasta):
+    """Las publicaciones de pronóstico (como en el muro): cada emisión con sus
+    días contra lo observado, el GFS de ese momento, reacciones, comentarios
+    e insignias. emisiones: filas con ciudad, fecha_pronostico,
+    publicado_por, capturado, correccion."""
+    items = []
+    pares = _pares(_vigentes(desde, hasta + timedelta(days=6)), desde, hasta + timedelta(days=6))
+    usuarios = {f: x for x in _leer("SELECT id, nombre, firmas FROM usuario WHERE activo") for f in x["firmas"]}
+    por_emision = {}
+    for f in pares:
+        por_emision.setdefault((f["ciudad"], f["fecha_emision"], f["pronosticador"]), []).append(f)
+    objetos = [objeto_pronostico(e["ciudad"], e["fecha_pronostico"], e["publicado_por"]) for e in emisiones]
+    reac = _reacciones(u, objetos)
+    coment = {}
+    for c in _leer("""SELECT c.id, c.objeto, c.usuario_id, us.nombre AS autor, c.creada, c.texto, c.responde_a
+                      FROM comentario_pronostico c JOIN usuario us ON us.id = c.usuario_id
+                      WHERE c.objeto = ANY(%s) ORDER BY c.creada""", (objetos,)):
+        c["mio"] = c.pop("usuario_id") == u["id"]
+        coment.setdefault(c.pop("objeto"), []).append(c)
+    for e, obj in zip(emisiones, objetos):
+        filas = sorted(por_emision.get((e["ciudad"], e["fecha_pronostico"], e["publicado_por"]), []), key=lambda f: f["plazo"])
+        if not filas:
+            continue        # todos sus días los corrigió otro: aparece la corrección
+        us = usuarios.get(e["publicado_por"])
+        modelo, corrida = _gfs_diario(e["ciudad"], e["capturado"])
+        items.append({"tipo": "pronostico", "corrida_gfs": corrida, "ts": e["capturado"], "objeto": obj, "ciudad": e["ciudad"],
+                      "fecha_emision": e["fecha_pronostico"], "firma": e["publicado_por"], "correccion": e["correccion"],
+                      "usuario": {"id": us["id"], "nombre": us["nombre"]} if us else None,
+                      "anticipado": any(f["anticipado"] for f in filas),
+                      "dias": [{"fecha": f["fecha"], "plazo": f["plazo"], "tmin": f["tmin_urbana"], "tmax": f["tmax_urbana"],
+                                "tmin_sub": f["tmin_suburbana"], "tmax_sub": f["tmax_suburbana"],
+                                "pp": {k: f["pp"].get(k) for k in ("pron", "obs", "tipo", "desde", "obs_dia")},
+                                "gfs": modelo.get(f["fecha"])} for f in filas],
+                      "reacciones": reac.get(obj, {"conteo": {}, "mias": [], "quienes": {}}),
+                      "comentarios": coment.get(obj, [])})
+        items[-1]["insignias"] = _insignias_pron(items[-1]["dias"])
+    return items
+
+
+@router.get("/api/yo/pronostico")
+def un_pronostico(request: Request, objeto: str):
+    """Una publicación de pronóstico ("pron|ciudad|fecha|firma"), como en el
+    muro. Para mostrarla adjunta en un mensaje o en una nota compartida."""
+    u = requiere_usuario(request)
+    partes = objeto.split("|")
+    if len(partes) != 4 or partes[0] != "pron":
+        raise HTTPException(400, "objeto inválido")
+    try:
+        fecha = date.fromisoformat(partes[2])
+    except ValueError:
+        raise HTTPException(400, "objeto inválido")
+    emisiones = _leer("""
+        SELECT ciudad, fecha_pronostico, publicado_por, max(capturado) AS capturado, bool_or(es_correccion) AS correccion
+        FROM pronostico_emision WHERE ciudad = %s AND fecha_pronostico = %s AND publicado_por = %s GROUP BY 1, 2, 3""",
+                      (partes[1], fecha, partes[3]))
+    items = _armar_pronosticos(u, emisiones, fecha, fecha) if emisiones else []
+    if not items:
+        raise HTTPException(404, "No existe ese pronóstico")
+    return items[0]
+
+
 @router.get("/api/yo/muro")
 def muro(request: Request, hasta: date | None = None, dias: int = 7, autor_id: int | None = None, firma: str = ""):
     """El inicio de la red: notas compartidas (y las propias) y pronósticos
@@ -944,36 +1006,7 @@ def muro(request: Request, hasta: date | None = None, dias: int = 7, autor_id: i
     if firmas is not None:
         emisiones = [e for e in emisiones if e["publicado_por"] in firmas]
     if emisiones:
-        pares = _pares(_vigentes(desde, hasta + timedelta(days=6)), desde, hasta + timedelta(days=6))
-        usuarios = {f: x for x in _leer("SELECT id, nombre, firmas FROM usuario WHERE activo") for f in x["firmas"]}
-        por_emision = {}
-        for f in pares:
-            por_emision.setdefault((f["ciudad"], f["fecha_emision"], f["pronosticador"]), []).append(f)
-        objetos = [objeto_pronostico(e["ciudad"], e["fecha_pronostico"], e["publicado_por"]) for e in emisiones]
-        reac = _reacciones(u, objetos)
-        coment = {}
-        for c in _leer("""SELECT c.id, c.objeto, c.usuario_id, us.nombre AS autor, c.creada, c.texto, c.responde_a
-                          FROM comentario_pronostico c JOIN usuario us ON us.id = c.usuario_id
-                          WHERE c.objeto = ANY(%s) ORDER BY c.creada""", (objetos,)):
-            c["mio"] = c.pop("usuario_id") == u["id"]
-            coment.setdefault(c.pop("objeto"), []).append(c)
-        for e, obj in zip(emisiones, objetos):
-            filas = sorted(por_emision.get((e["ciudad"], e["fecha_pronostico"], e["publicado_por"]), []), key=lambda f: f["plazo"])
-            if not filas:
-                continue        # todos sus días los corrigió otro: aparece la corrección
-            us = usuarios.get(e["publicado_por"])
-            modelo, corrida = _gfs_diario(e["ciudad"], e["capturado"])
-            items.append({"tipo": "pronostico", "corrida_gfs": corrida, "ts": e["capturado"], "objeto": obj, "ciudad": e["ciudad"],
-                          "fecha_emision": e["fecha_pronostico"], "firma": e["publicado_por"], "correccion": e["correccion"],
-                          "usuario": {"id": us["id"], "nombre": us["nombre"]} if us else None,
-                          "anticipado": any(f["anticipado"] for f in filas),
-                          "dias": [{"fecha": f["fecha"], "plazo": f["plazo"], "tmin": f["tmin_urbana"], "tmax": f["tmax_urbana"],
-                                    "tmin_sub": f["tmin_suburbana"], "tmax_sub": f["tmax_suburbana"],
-                                    "pp": {k: f["pp"].get(k) for k in ("pron", "obs", "tipo", "desde", "obs_dia")},
-                                    "gfs": modelo.get(f["fecha"])} for f in filas],
-                          "reacciones": reac.get(obj, {"conteo": {}, "mias": [], "quienes": {}}),
-                          "comentarios": coment.get(obj, [])})
-            items[-1]["insignias"] = _insignias_pron(items[-1]["dias"])
+        items += _armar_pronosticos(u, emisiones, desde, hasta)
     items.sort(key=lambda x: x["ts"], reverse=True)
     # ¿Hay algo más viejo? (para el botón "Ver más")
     mas_viejo = _leer("""SELECT least((SELECT min(fecha_pronostico) FROM pronostico_emision),
@@ -1163,6 +1196,145 @@ def borrar_nota(nota_id: int, request: Request):
     if not filas:
         raise HTTPException(404, "No existe o no es tuya")
     return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# Mensajes: chats privados, grupales y "dudas y sugerencias" a los admins
+# ---------------------------------------------------------------------------
+MAX_MENSAJE = 4000
+MAX_MIEMBROS = 60
+
+
+def _miembro(u, cid):
+    if not _leer("SELECT 1 FROM conversacion_miembro WHERE conversacion_id = %s AND usuario_id = %s", (cid, u["id"])):
+        raise HTTPException(404, "No existe o no sos parte de esa conversación")
+
+
+@router.get("/api/yo/chats")
+def chats(request: Request):
+    """Mis conversaciones: con quiénes, el último mensaje y cuántos no leí."""
+    u = requiere_usuario(request)
+    convs = _leer("""
+        SELECT c.id, c.tipo, c.nombre, c.creada, m.leido_hasta,
+               (SELECT count(*) FROM mensaje x WHERE x.conversacion_id = c.id AND x.id > m.leido_hasta
+                  AND x.usuario_id IS DISTINCT FROM %s) AS no_leidos,
+               (SELECT row_to_json(y) FROM (SELECT x.id, x.texto, x.adjunto IS NOT NULL AS adjunto, x.creado, us.nombre AS autor
+                  FROM mensaje x LEFT JOIN usuario us ON us.id = x.usuario_id WHERE x.conversacion_id = c.id
+                  ORDER BY x.id DESC LIMIT 1) y) AS ultimo
+        FROM conversacion c JOIN conversacion_miembro m ON m.conversacion_id = c.id AND m.usuario_id = %s""", (u["id"], u["id"]))
+    miembros = {}
+    if convs:
+        for r in _leer("""SELECT cm.conversacion_id, us.id, us.nombre FROM conversacion_miembro cm JOIN usuario us ON us.id = cm.usuario_id
+                          WHERE cm.conversacion_id = ANY(%s) ORDER BY us.nombre""", ([c["id"] for c in convs],)):
+            miembros.setdefault(r["conversacion_id"], []).append({"id": r["id"], "nombre": r["nombre"]})
+    for c in convs:
+        c["miembros"] = miembros.get(c["id"], [])
+    convs.sort(key=lambda c: (c["ultimo"] or {}).get("creado") or c["creada"].isoformat(), reverse=True)
+    return convs
+
+
+@router.post("/api/yo/chats")
+async def nuevo_chat(request: Request):
+    """Una conversación nueva. Con una sola persona y sin nombre es privada (si
+    ya existe una entre los dos, devuelve esa). Con más, o con nombre, grupal."""
+    u = requiere_usuario(request)
+    datos = await request.json()
+    try:
+        otros = sorted({int(x) for x in (datos.get("miembros") or [])} - {u["id"]})
+    except (TypeError, ValueError):
+        raise HTTPException(400, "miembros inválidos")
+    nombre = str(datos.get("nombre") or "").strip()[:60] or None
+    if not otros or len(otros) > MAX_MIEMBROS:
+        raise HTTPException(400, f"Elegí de 1 a {MAX_MIEMBROS} personas")
+    validos = {r["id"] for r in _leer("SELECT id FROM usuario WHERE id = ANY(%s) AND activo AND email NOT LIKE '%%@local'", (otros,))}
+    if validos != set(otros):
+        raise HTTPException(400, "Alguna de esas personas no existe")
+    if len(otros) == 1 and not nombre:
+        ya = _leer("""SELECT c.id FROM conversacion c WHERE c.tipo = 'privada'
+                        AND (SELECT array_agg(usuario_id ORDER BY usuario_id) FROM conversacion_miembro WHERE conversacion_id = c.id) = %s::int[]""",
+                   (sorted([u["id"], otros[0]]),))
+        if ya:
+            return {"id": ya[0]["id"]}
+    tipo = "privada" if len(otros) == 1 and not nombre else "grupo"
+    cid = _escribir("INSERT INTO conversacion (tipo, nombre, creada_por) VALUES (%s, %s, %s) RETURNING id",
+                    (tipo, nombre, u["id"]))[0]["id"]
+    for uid in [u["id"], *otros]:
+        _escribir("INSERT INTO conversacion_miembro (conversacion_id, usuario_id) VALUES (%s, %s)", (cid, uid))
+    return {"id": cid}
+
+
+@router.post("/api/yo/chats/soporte")
+def chat_soporte(request: Request):
+    """"Dudas y sugerencias": la conversación de esta persona con los
+    administradores (una sola por persona; los admins nuevos se suman solos)."""
+    u = requiere_usuario(request)
+    admins = [r["id"] for r in _leer("SELECT id FROM usuario WHERE rol = 'admin' AND activo AND email NOT LIKE '%%@local'")]
+    if not admins:
+        raise HTTPException(400, "Todavía no hay administradores")
+    ya = _leer("SELECT id FROM conversacion WHERE tipo = 'soporte' AND creada_por = %s", (u["id"],))
+    cid = ya[0]["id"] if ya else _escribir(
+        "INSERT INTO conversacion (tipo, nombre, creada_por) VALUES ('soporte', %s, %s) RETURNING id",
+        (f"Dudas y sugerencias · {u['nombre']}", u["id"]))[0]["id"]
+    for uid in {u["id"], *admins}:
+        _escribir("INSERT INTO conversacion_miembro (conversacion_id, usuario_id) VALUES (%s, %s) ON CONFLICT DO NOTHING", (cid, uid))
+    return {"id": cid}
+
+
+@router.get("/api/yo/chats/{cid}/mensajes")
+def mensajes(request: Request, cid: int, desde: int = 0):
+    """Los mensajes (los últimos 300, o los posteriores a `desde`). Los marca como leídos."""
+    u = requiere_usuario(request)
+    _miembro(u, cid)
+    filas = _leer(f"""
+        SELECT * FROM (SELECT m.id, m.usuario_id, us.nombre AS autor, m.creado, m.texto, m.adjunto, m.compartido_nota
+                       FROM mensaje m LEFT JOIN usuario us ON us.id = m.usuario_id
+                       WHERE m.conversacion_id = %s AND m.id > %s ORDER BY m.id DESC LIMIT 300) x ORDER BY id""", (cid, desde))
+    for f in filas:
+        f["mio"] = f["usuario_id"] == u["id"]
+    if filas:
+        _escribir("UPDATE conversacion_miembro SET leido_hasta = greatest(leido_hasta, %s) WHERE conversacion_id = %s AND usuario_id = %s",
+                  (filas[-1]["id"], cid, u["id"]))
+    return filas
+
+
+@router.post("/api/yo/chats/{cid}/mensajes")
+async def mandar_mensaje(request: Request, cid: int):
+    """Un mensaje: texto y/o un pronóstico publicado adjunto."""
+    u = requiere_usuario(request)
+    _miembro(u, cid)
+    datos = await request.json()
+    texto = str(datos.get("texto") or "").strip()
+    adjunto = str(datos.get("adjunto") or "").strip()[:300] or None
+    if len(texto) > MAX_MENSAJE:
+        raise HTTPException(400, f"El mensaje es muy largo (hasta {MAX_MENSAJE} caracteres)")
+    if adjunto and not (adjunto.startswith("pron|") and _existe_objeto(u, adjunto)):
+        raise HTTPException(400, "Ese pronóstico no existe")
+    if not texto and not adjunto:
+        raise HTTPException(400, "Mensaje vacío")
+    mid = _escribir("INSERT INTO mensaje (conversacion_id, usuario_id, texto, adjunto) VALUES (%s, %s, %s, %s) RETURNING id",
+                    (cid, u["id"], texto, adjunto))[0]["id"]
+    _escribir("UPDATE conversacion_miembro SET leido_hasta = %s WHERE conversacion_id = %s AND usuario_id = %s", (mid, cid, u["id"]))
+    return {"id": mid}
+
+
+@router.post("/api/yo/chats/mensajes/{mid}/compartir")
+def compartir_mensaje(request: Request, mid: int):
+    """Pasa un mensaje PROPIO al Inicio, como nota compartida (con el
+    pronóstico adjunto, si tiene). Solo el autor: lo que otro escribió en
+    privado no se publica sin que esa persona lo decida."""
+    u = requiere_usuario(request)
+    filas = _leer("SELECT texto, adjunto, compartido_nota FROM mensaje WHERE id = %s AND usuario_id = %s", (mid, u["id"]))
+    if not filas:
+        raise HTTPException(404, "Solo se pueden compartir los mensajes propios")
+    m = filas[0]
+    if m["compartido_nota"]:
+        return {"nota": m["compartido_nota"]}
+    contexto = {"pron": m["adjunto"]} if m["adjunto"] else {}
+    nid = _escribir("""INSERT INTO nota (usuario_id, tipo, texto, compartida, fecha_evento, contexto)
+                       VALUES (%s, 'vi', %s, true, %s, %s) RETURNING id""",
+                    (u["id"], m["texto"] or "Comparto este pronóstico.", HOY_ARG(), Jsonb(contexto)))[0]["id"]
+    _escribir("UPDATE mensaje SET compartido_nota = %s WHERE id = %s", (nid, mid))
+    return {"nota": nid}
 
 
 # ---------------------------------------------------------------------------

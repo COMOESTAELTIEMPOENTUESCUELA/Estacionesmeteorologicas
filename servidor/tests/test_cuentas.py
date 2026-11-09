@@ -675,3 +675,64 @@ def test_administracion_verificacion_y_base(cliente, cuentas, monkeypatch):
             conn.execute("DELETE FROM ajuste")
             conn.execute("DELETE FROM usuario WHERE email = 'jefa@gmail.com'")
             conn.commit()
+
+
+def test_mensajes_privados_grupales_y_dudas(cliente, cuentas, monkeypatch):
+    """Chats privados y grupales; mandar un pronóstico publicado; pasar un
+    mensaje propio al Inicio; y las dudas y sugerencias a los administradores."""
+    m = cuentas
+    m.main(["agregar", "--email", "jefa@gmail.com", "--nombre", "Jefa", "--rol", "admin"])
+    with m._pools["e"].connection() as conn:
+        eid = conn.execute("""INSERT INTO pronostico_emision (ciudad, fecha_pronostico, publicado_por, contenido, huella, capturado)
+                              VALUES ('Ciudad Chat', '2026-10-20', 'AnaP', '{}', 'chat-1', '2026-10-20 11:00Z') RETURNING id""").fetchone()["id"]
+        conn.execute("INSERT INTO pronostico_dia (emision_id, fecha, plazo_dias, temp_min, temp_max, periodos) VALUES (%s, '2026-10-20', 0, 9, 21, '[]')", (eid,))
+        conn.commit()
+    ids = {r["email"]: r["id"] for r in m._leer("SELECT id, email FROM usuario")}
+    try:
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "ana@gmail.com")
+        priv = cliente.post("/api/yo/chats", json={"miembros": [ids["beto@gmail.com"]]}, headers=X).json()["id"]
+        assert cliente.post("/api/yo/chats", json={"miembros": [ids["beto@gmail.com"]]}, headers=X).json()["id"] == priv   # la misma
+        grupo = cliente.post("/api/yo/chats", json={"miembros": [ids["beto@gmail.com"], ids["coord@gmail.com"]], "nombre": "Turno noche"},
+                             headers=X).json()["id"]
+        obj = "pron|Ciudad Chat|2026-10-20|AnaP"
+        assert cliente.post(f"/api/yo/chats/{priv}/mensajes", json={"texto": "mirá este", "adjunto": obj}, headers=X).status_code == 200
+        assert cliente.post(f"/api/yo/chats/{priv}/mensajes", json={"adjunto": "pron|X|2026-01-01|Nadie"}, headers=X).status_code == 400
+        assert cliente.post(f"/api/yo/chats/{priv}/mensajes", json={"texto": "  "}, headers=X).status_code == 400
+        assert cliente.get(f"/api/yo/pronostico?objeto={obj}").json()["dias"][0]["tmax"]["pron"] == 21
+        # Beto lo ve (con 1 sin leer); Coord no ve el privado.
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "beto@gmail.com")
+        mis = {c["id"]: c for c in cliente.get("/api/yo/chats").json()}
+        assert mis[priv]["no_leidos"] == 1 and mis[grupo]["nombre"] == "Turno noche" and mis[grupo]["tipo"] == "grupo"
+        msjs = cliente.get(f"/api/yo/chats/{priv}/mensajes").json()
+        assert msjs[0]["adjunto"] == obj and not msjs[0]["mio"]
+        assert {c["id"]: c for c in cliente.get("/api/yo/chats").json()}[priv]["no_leidos"] == 0
+        # Beto no puede pasar al Inicio un mensaje de Ana.
+        assert cliente.post(f"/api/yo/chats/mensajes/{msjs[0]['id']}/compartir", headers=X).status_code == 404
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "coord@gmail.com")
+        assert cliente.get(f"/api/yo/chats/{priv}/mensajes").status_code == 404
+        assert cliente.post(f"/api/yo/chats/{priv}/mensajes", json={"texto": "hola"}, headers=X).status_code == 404
+        # Ana sí: queda como nota compartida con el pronóstico adjunto.
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "ana@gmail.com")
+        nid = cliente.post(f"/api/yo/chats/mensajes/{msjs[0]['id']}/compartir", headers=X).json()["nota"]
+        nota = m._leer("SELECT texto, compartida, contexto FROM nota WHERE id = %s", (nid,))[0]
+        assert nota["compartida"] and nota["texto"] == "mirá este" and nota["contexto"] == {"pron": obj}
+        assert cliente.post(f"/api/yo/chats/mensajes/{msjs[0]['id']}/compartir", headers=X).json()["nota"] == nid   # una sola vez
+        # Dudas y sugerencias: llega a la administradora.
+        sop = cliente.post("/api/yo/chats/soporte", headers=X).json()["id"]
+        assert cliente.post("/api/yo/chats/soporte", headers=X).json()["id"] == sop
+        cliente.post(f"/api/yo/chats/{sop}/mensajes", json={"texto": "¿se puede agregar Bolívar?"}, headers=X)
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "jefa@gmail.com")
+        s = {c["id"]: c for c in cliente.get("/api/yo/chats").json()}[sop]
+        assert s["tipo"] == "soporte" and s["no_leidos"] == 1 and "Ana" in s["nombre"]
+    finally:
+        with m._pools["e"].connection() as conn:
+            conn.execute("DELETE FROM conversacion")
+            conn.execute("DELETE FROM nota WHERE contexto ? 'pron'")
+            conn.execute("DELETE FROM pronostico_emision WHERE ciudad = 'Ciudad Chat'")
+            conn.execute("DELETE FROM usuario WHERE email = 'jefa@gmail.com'")
+            conn.commit()
