@@ -1164,6 +1164,164 @@ def borrar_nota(nota_id: int, request: Request):
 
 
 # ---------------------------------------------------------------------------
+# Administración (solo rol admin): parámetros de la verificación y la base
+# ---------------------------------------------------------------------------
+CODIGO_VERIFICACION = ("observado.py", "pronostico.py", "puntajes.py", "etiquetas.py", "ajustes.py")
+# Columnas que no se muestran nunca (huellas de contraseñas y sesiones).
+COLUMNAS_OCULTAS = {("usuario", "clave"), ("sesion", "huella")}
+FILAS_POR_PAGINA = 100
+
+
+def requiere_admin(request):
+    u = requiere_usuario(request)
+    if u["rol"] != "admin":
+        raise HTTPException(403, "Solo administradores")
+    return u
+
+
+@router.get("/api/yo/admin/verificacion")
+def admin_verificacion(request: Request):
+    """Los parámetros (con su valor, el de siempre y los límites), las
+    estaciones de cada ciudad y el código, para leer."""
+    import yaml
+
+    from ..verificacion import ajustes
+    requiere_admin(request)
+    cambios = {r["clave"].removeprefix("verificacion."): r for r in _leer(
+        "SELECT clave, valor, actualizado, actualizado_por FROM ajuste WHERE clave LIKE 'verificacion.%%'")}
+    defecto = ajustes.por_defecto()
+    parametros = [{"clave": c, "nombre": n, "explicacion": e, "min": a, "max": b, "paso": paso, "unidad": unidad,
+                   "defecto": defecto[c], "valor": cambios[c]["valor"] if c in cambios else defecto[c],
+                   "cambiado": ({"cuando": cambios[c]["actualizado"], "quien": cambios[c]["actualizado_por"]}
+                                if c in cambios else None)}
+                  for c, n, e, a, b, paso, unidad in ajustes.PARAMETROS]
+    try:
+        cfg = yaml.safe_load(Path(os.environ.get("ESTACIONES_CONFIG", "/config/estaciones.yaml")).read_text(encoding="utf-8"))
+        ciudades = (cfg.get("verificacion") or {}).get("ciudades") or {}
+    except OSError:
+        ciudades = {}
+    carpeta = Path(__file__).parents[1] / "verificacion"
+    codigo = {n: (carpeta / n).read_text(encoding="utf-8") for n in CODIGO_VERIFICACION if (carpeta / n).exists()}
+    return {"parametros": parametros, "ciudades": ciudades, "codigo": codigo}
+
+
+@router.put("/api/yo/admin/verificacion")
+async def admin_guardar_verificacion(request: Request):
+    """Guarda los parámetros (revisados: solo números entre su mínimo y su
+    máximo). Un valor igual al de siempre borra el cambio."""
+    from ..verificacion import ajustes
+    u = requiere_admin(request)
+    datos = await request.json()
+    try:
+        valores = ajustes.validar(datos.get("valores") or {})
+    except ValueError as ex:
+        raise HTTPException(400, str(ex))
+    defecto = ajustes.por_defecto()
+    for clave, v in valores.items():
+        if abs(v - defecto[clave]) < 1e-3:          # (la página redondea: 0,3333 es 8/24)
+            _escribir("DELETE FROM ajuste WHERE clave = %s", (f"verificacion.{clave}",))
+        else:
+            _escribir("""INSERT INTO ajuste (clave, valor, actualizado, actualizado_por) VALUES (%s, %s, now(), %s)
+                         ON CONFLICT (clave) DO UPDATE SET valor = EXCLUDED.valor, actualizado = now(),
+                             actualizado_por = EXCLUDED.actualizado_por""", (f"verificacion.{clave}", Jsonb(v), u["nombre"]))
+    log.info("ajustes de la verificación cambiados por %s: %s", u["email"], valores)
+    return {"ok": True}
+
+
+@router.post("/api/yo/admin/verificacion/recalcular")
+async def admin_recalcular(request: Request):
+    """Recalcula lo observado de los últimos `dias` días (hasta 31) con los
+    parámetros actuales. La ingesta igual lo hace sola con los últimos 5 días."""
+    import psycopg
+    import yaml
+
+    from ..verificacion import observado
+    u = requiere_admin(request)
+    datos = await request.json()
+    dias = int(datos.get("dias") or 7)
+    if not 1 <= dias <= 31:
+        raise HTTPException(400, "dias: de 1 a 31")
+    cfg = yaml.safe_load(Path(os.environ.get("ESTACIONES_CONFIG", "/config/estaciones.yaml")).read_text(encoding="utf-8"))
+    hoy = HOY_ARG()
+    from .app import DSN
+    # Conexión propia (filas como tuplas, como en la ingesta) y con más tiempo.
+    with psycopg.connect(DSN, options="-c statement_timeout=120000") as conn:
+        filas = observado.calcular(conn, cfg["verificacion"], hoy - timedelta(days=dias), hoy)
+    log.info("verificación recalculada desde la página por %s: %d días, %d valores", u["email"], dias, filas)
+    return {"filas": filas, "dias": dias}
+
+
+def _tablas():
+    return [r["tabla"] for r in _leer("""
+        SELECT c.relname AS tabla FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p', 'v') ORDER BY c.relname""")]
+
+
+@router.get("/api/yo/admin/tablas")
+def admin_tablas(request: Request):
+    """Las tablas de la base, con sus columnas y una cuenta aproximada de filas."""
+    requiere_admin(request)
+    columnas = {}
+    for r in _leer("""SELECT table_name, column_name, data_type FROM information_schema.columns
+                      WHERE table_schema = 'public' ORDER BY table_name, ordinal_position"""):
+        columnas.setdefault(r["table_name"], []).append({"nombre": r["column_name"], "tipo": r["data_type"]})
+    estimadas = {r["relname"]: int(r["n"]) for r in _leer(
+        "SELECT relname, greatest(reltuples, 0) AS n FROM pg_class WHERE relnamespace = 'public'::regnamespace")}
+    return [{"tabla": t, "filas_aprox": estimadas.get(t), "columnas": columnas.get(t, [])} for t in _tablas()]
+
+
+@router.get("/api/yo/admin/tabla/{tabla}")
+def admin_tabla(request: Request, tabla: str, pagina: int = 0, orden: str = "", desc: bool = True,
+                columna: str = "", buscar: str = ""):
+    """Filas de una tabla, de a 100. Solo lectura: va por la conexión de la
+    web que la base tiene en modo SOLO LECTURA, y los nombres de tabla y
+    columna se aceptan solo si existen (no se arma SQL con texto libre)."""
+    from psycopg import sql
+    requiere_admin(request)
+    if tabla not in _tablas():
+        raise HTTPException(404, "tabla desconocida")
+    cols = [r["column_name"] for r in _leer("""SELECT column_name FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = %s ORDER BY ordinal_position""", (tabla,))]
+    tipos = {r["column_name"]: r["data_type"] for r in _leer("""SELECT column_name, data_type FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = %s""", (tabla,))}
+    if orden and orden not in cols:
+        raise HTTPException(400, "columna de orden desconocida")
+    if columna and columna not in cols:
+        raise HTTPException(400, "columna de búsqueda desconocida")
+    orden = orden or next((c for c in ("ts", "creada", "fecha", "id") if c in cols), cols[0])
+    pagina = max(0, min(pagina, 100_000))
+    donde, params = sql.SQL(""), []
+    if columna and buscar:
+        donde = sql.SQL(" WHERE {}::text ILIKE %s").format(sql.Identifier(columna))
+        params.append(f"%{buscar[:100]}%")
+    consulta = sql.SQL("SELECT * FROM {} {} ORDER BY {} {} NULLS LAST LIMIT {} OFFSET {}").format(
+        sql.Identifier(tabla), donde, sql.Identifier(orden), sql.SQL("DESC" if desc else "ASC"),
+        sql.Literal(FILAS_POR_PAGINA + 1), sql.Literal(pagina * FILAS_POR_PAGINA))
+    with _pools["l"].connection() as conn, conn.cursor() as cur:
+        cur.execute(consulta, params)
+        filas = cur.fetchall()
+
+    def mostrar(c, v):
+        if (tabla, c) in COLUMNAS_OCULTAS and v is not None:
+            return "•••• (oculto)"
+        if isinstance(v, (bytes, memoryview)):
+            return f"({len(bytes(v)):,} bytes)".replace(",", ".")
+        if isinstance(v, (dict, list)):
+            import json
+            t = json.dumps(v, ensure_ascii=False, default=str)
+            return t if len(t) <= 400 else t[:400] + "…"
+        if isinstance(v, (datetime, date)):
+            return v.isoformat()
+        if v is None or isinstance(v, (int, float, bool)):
+            return v
+        t = str(v)
+        return t if len(t) <= 400 else t[:400] + "…"
+    return {"tabla": tabla, "columnas": [{"nombre": c, "tipo": tipos.get(c)} for c in cols], "orden": orden, "desc": desc,
+            "pagina": pagina, "hay_mas": len(filas) > FILAS_POR_PAGINA,
+            "filas": [[mostrar(c, f[c]) for c in cols] for f in filas[:FILAS_POR_PAGINA]]}
+
+
+# ---------------------------------------------------------------------------
 # Alta y baja de usuarios (desde la terminal del servidor)
 # ---------------------------------------------------------------------------
 def main(argv=None):

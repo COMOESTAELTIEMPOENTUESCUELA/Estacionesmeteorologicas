@@ -261,6 +261,19 @@ td.nw { white-space: nowrap; }
 .d-chico .acc { justify-content: flex-end; margin-top: 12px; }
 .d-error { color: #b91c1c; background: color-mix(in srgb, #dc2626 10%, transparent); border-radius: 8px; padding: 6px 10px; font-size: 13.5px; }
 .d-o { text-align: center; color: var(--tenue); margin: 14px 0 8px; position: relative; }
+/* Administración */
+.adm-ayuda { color: var(--tinta-2); font-size: 13px; margin: 0 0 10px; }
+.adm-param input[type=number] { width: 90px; }
+.adm-param td:nth-child(2) { white-space: nowrap; }
+.adm-param td { white-space: normal; vertical-align: top; text-align: left; }
+.adm-param tr.cambiado td:nth-child(2) input { border-color: var(--acento); }
+.adm-quien { color: var(--acento); }
+.adm-codigo { background: #0f172a; color: #e2e8f0; border-radius: 8px; padding: 10px; overflow: auto; max-height: 70vh; font: 12px/1.5 "IBM Plex Mono", ui-monospace, monospace; white-space: pre; }
+.adm-codigo .n { display: inline-block; width: 3.2em; color: #64748b; text-align: right; margin-right: 1em; user-select: none; }
+.adm-datos { max-height: 70vh; }
+.adm-datos td { white-space: nowrap; max-width: 320px; overflow: hidden; text-overflow: ellipsis; font-size: 12px; text-align: left; }
+.adm-datos th { cursor: pointer; position: sticky; top: 0; background: var(--superficie); }
+[data-adm-arch].activa { background: var(--acento); color: #fff; }
 /* Panorama de un día */
 .dia-barra { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
 .dia-barra h2 { margin: 0; font-size: 18px; flex: 1 1 200px; text-align: center; }
@@ -1798,6 +1811,7 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
           <button data-rv="personas"><span>👥</span> El grupo</button>
           <button data-rv="reunion"><span>❓</span> Reunión sinóptica <b class="cuenta-n" id="rs-n" hidden></b></button>
           <button data-rv="metricas" id="rv-b-metricas" hidden><span>📊</span> Métricas del grupo</button>
+          <button data-rv="admin" id="rv-b-admin" hidden><span>🛠️</span> Administración</button>
         </div>
       </aside>
 
@@ -1873,6 +1887,13 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
             <button class="boton" id="rs-presentar" hidden title="Pantalla completa con lo que está en discusión (← → para pasar)">🖥️ Presentar</button>
             <button class="boton primario" id="rs-nueva">❓ Nueva pregunta</button></div>
           <div id="rs-lista" class="kanban"></div>
+        </div>
+
+        <!-- Administración (solo rol admin): parámetros de la verificación y la base de datos -->
+        <div class="rv" id="rv-admin" hidden>
+          <div class="red-subtabs" id="adm-tabs"><button data-adm="verif" class="activa">⚙️ Verificación</button><button data-adm="base">🗄️ Base de datos</button></div>
+          <div id="adm-verif"><p class="tenue">Cargando…</p></div>
+          <div id="adm-base" hidden></div>
         </div>
 
         <!-- Panorama de un día: todos los pronósticos para esa fecha, lo observado, el GFS, las cartas y las notas -->
@@ -6956,6 +6977,130 @@ function dibujarDia() {
     ${notas.length ? `<div class="red-feed">${notas.map((n) => tarjetaNota(n)).join("")}</div>` : '<p class="tenue">Nadie escribió nada sobre este día todavía.</p>'}`;
 }
 
+// ----- Administración (solo rol admin) -----
+// Verificación: los parámetros (números con límites: el servidor los revisa),
+// las estaciones de cada ciudad y el código, SOLO para leer. Desde la página
+// no se puede cambiar el código: sería dejar que alguien ejecute cualquier
+// cosa en el servidor. Base de datos: tablas y filas, solo para leer.
+const adm = { verif: null, tablas: null, t: null };
+async function cargarAdmin() {
+  try { adm.verif = await api("/api/yo/admin/verificacion"); }
+  catch (err) { $("#adm-verif").innerHTML = `<p class="tenue">No se pudo cargar: ${esc(err.message)}</p>`; return; }
+  dibujarAdminVerif();
+}
+function dibujarAdminVerif() {
+  const d = adm.verif, archivos = Object.keys(d.codigo);
+  const fmt = (v) => typeof v === "number" ? String(Math.round(v * 1000) / 1000).replace(".", ",") : v;
+  const roles = { urbana: "Ciudad (urbana)", suburbana: "Afueras (suburbana)", lluvia: "Lluvia", viento: "Viento" };
+  $("#adm-verif").innerHTML = `
+    <div class="tarjeta">
+      <h3 style="margin:0 0 4px">Parámetros de la verificación</h3>
+      <p class="adm-ayuda">Los números con que se decide lo observado (si llovió, si el día está completo, la categoría del viento).
+        Al guardar se usan desde el próximo cálculo; con "Recalcular" se aplican a los días ya calculados.</p>
+      <form id="adm-form"><div class="tabla-scroll" style="max-height:none"><table class="pron-tabla adm-param">
+        <tr><th>Parámetro</th><th>Valor</th></tr>
+        ${d.parametros.map((p) => `<tr class="${p.cambiado ? "cambiado" : ""}"><td><b>${esc(p.nombre)}</b><br><small class="tenue">${esc(p.explicacion)}</small>
+            ${p.cambiado ? `<br><small class="adm-quien">Cambiado por ${esc(p.cambiado.quien || "?")} el ${esc(fmtEscrita.format(new Date(p.cambiado.cuando)))}</small>` : ""}</td>
+          <td><input type="number" name="${esc(p.clave)}" value="${Math.round(p.valor * 10000) / 10000}" min="${p.min}" max="${p.max}" step="any" required> ${esc(p.unidad)}
+            <br><small class="tenue">de siempre: ${fmt(p.defecto)} ${esc(p.unidad)}</small></td></tr>`).join("")}
+      </table></div>
+      <div class="acc" style="margin-top:8px"><button class="boton primario">Guardar</button>
+        <button type="button" class="boton" id="adm-defecto">Volver todo a lo de siempre</button>
+        <span class="tenue" id="adm-msg"></span></div></form>
+    </div>
+    <div class="tarjeta">
+      <h3 style="margin:0 0 4px">Recalcular lo observado</h3>
+      <p class="adm-ayuda">Vuelve a calcular lo observado de los últimos días con los parámetros de arriba (la ingesta igual lo hace sola cada 3 h con los últimos 5 días).</p>
+      <div class="acc"><select id="adm-dias"><option value="3">3 días</option><option value="7" selected>7 días</option><option value="14">14 días</option><option value="31">31 días</option></select>
+        <button class="boton" id="adm-recalc">🔄 Recalcular</button><span class="tenue" id="adm-recalc-msg"></span></div>
+    </div>
+    <div class="tarjeta">
+      <h3 style="margin:0 0 4px">Estaciones de cada ciudad</h3>
+      <p class="adm-ayuda">Se usa la primera de cada lista que tenga el día completo. Se cambian en <code>config/estaciones.yaml</code> (sección <code>verificacion</code>) en el servidor.</p>
+      <div class="tabla-scroll" style="max-height:none"><table class="pron-tabla"><tr><th>Ciudad</th>${Object.values(roles).map((r) => `<th>${r}</th>`).join("")}</tr>
+        ${Object.entries(d.ciudades).map(([c, defs]) => `<tr><td><b>${esc(c)}</b></td>${Object.keys(roles).map((k) => `<td>${(defs[k] || (k !== "urbana" && k !== "suburbana" ? defs.urbana : null) || []).map(esc).join("<br>") || "–"}</td>`).join("")}</tr>`).join("")}
+      </table></div>
+    </div>
+    <div class="tarjeta">
+      <h3 style="margin:0 0 4px">El código (solo para leer)</h3>
+      <p class="adm-ayuda">Cómo se calcula todo. Para cambiar la lógica hay que editar estos archivos en el repositorio (con sus tests) y actualizar el servidor.</p>
+      <div class="acc">${archivos.map((a, k) => `<button class="boton chico${k ? "" : " activa"}" data-adm-arch="${esc(a)}">${esc(a)}</button>`).join("")}</div>
+      <pre class="adm-codigo" id="adm-codigo"></pre>
+    </div>`;
+  const verArchivo = (a) => {
+    $("#adm-codigo").innerHTML = d.codigo[a].split("\n").map((l, i) => `<span class="n">${i + 1}</span>${esc(l)}`).join("\n");
+    document.querySelectorAll("[data-adm-arch]").forEach((b) => b.classList.toggle("activa", b.dataset.admArch === a));
+  };
+  if (archivos.length) verArchivo(archivos[0]);
+  document.querySelectorAll("[data-adm-arch]").forEach((b) => b.addEventListener("click", () => verArchivo(b.dataset.admArch)));
+  const guardar = async (valores) => {
+    try { await apiEnviar("/api/yo/admin/verificacion", "PUT", { valores }); }
+    catch (err) { $("#adm-msg").textContent = "⚠️ " + err.message; return; }
+    await cargarAdmin();
+    $("#adm-msg").textContent = "✓ Guardado. Recalculá para aplicarlo a los días anteriores.";
+  };
+  $("#adm-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    guardar(Object.fromEntries(d.parametros.map((p) => [p.clave, Number(e.target[p.clave].value)])));
+  });
+  $("#adm-defecto").addEventListener("click", () => {
+    if (confirm("¿Volver todos los parámetros a los valores de siempre?")) guardar(Object.fromEntries(d.parametros.map((p) => [p.clave, p.defecto])));
+  });
+  $("#adm-recalc").addEventListener("click", async () => {
+    const b = $("#adm-recalc"), m = $("#adm-recalc-msg");
+    b.disabled = true; m.textContent = "Calculando… (puede tardar un minuto)";
+    try { const r = await apiEnviar("/api/yo/admin/verificacion/recalcular", "POST", { dias: Number($("#adm-dias").value) }); m.textContent = `✓ Listo: ${r.filas} valores observados de los últimos ${r.dias} días.`; }
+    catch (err) { m.textContent = "⚠️ " + err.message; }
+    finally { b.disabled = false; }
+  });
+}
+// Base de datos: solo para mirar (el servidor la consulta en modo solo lectura).
+async function cargarTablas() {
+  try { adm.tablas = await api("/api/yo/admin/tablas"); }
+  catch (err) { $("#adm-base").innerHTML = `<p class="tenue">No se pudo cargar: ${esc(err.message)}</p>`; return; }
+  const n = (x) => x === null || x === undefined || x < 0 ? "?" : x.toLocaleString("es-AR");
+  $("#adm-base").innerHTML = `<div class="tarjeta">
+      <p class="adm-ayuda">Para mirar, no para cambiar: la base se consulta en modo <b>solo lectura</b>. Las huellas de contraseñas y sesiones no se muestran.
+        Tocá el título de una columna para ordenar por ella.</p>
+      <div class="filtros"><label>Tabla <select id="adm-tabla">${adm.tablas.map((t) => `<option value="${esc(t.tabla)}">${esc(t.tabla)} (~${n(t.filas_aprox)})</option>`).join("")}</select></label>
+        <label>Buscar en <select id="adm-col"></select></label><input type="search" id="adm-buscar" placeholder="texto…" style="flex:1 1 140px">
+        <button class="boton" id="adm-ant">‹</button><span class="tenue" id="adm-pag"></span><button class="boton" id="adm-sig">›</button></div>
+      <div class="tabla-scroll adm-datos" id="adm-datos"></div></div>`;
+  const elegir = () => {
+    const t = adm.tablas.find((x) => x.tabla === $("#adm-tabla").value);
+    $("#adm-col").innerHTML = t.columnas.map((c) => `<option>${esc(c.nombre)}</option>`).join("");
+    $("#adm-buscar").value = "";
+    adm.t = { tabla: t.tabla, pagina: 0, orden: "", desc: true };
+    cargarFilas();
+  };
+  $("#adm-tabla").value = adm.tablas.some((t) => t.tabla === "observacion") ? "observacion" : adm.tablas[0]?.tabla;
+  $("#adm-tabla").addEventListener("change", elegir);
+  let espera;
+  $("#adm-buscar").addEventListener("input", () => { clearTimeout(espera); espera = setTimeout(() => { adm.t.pagina = 0; cargarFilas(); }, 400); });
+  $("#adm-col").addEventListener("change", () => { if ($("#adm-buscar").value) { adm.t.pagina = 0; cargarFilas(); } });
+  $("#adm-ant").addEventListener("click", () => { if (adm.t.pagina > 0) { adm.t.pagina--; cargarFilas(); } });
+  $("#adm-sig").addEventListener("click", () => { if (adm.t.hay_mas) { adm.t.pagina++; cargarFilas(); } });
+  elegir();
+}
+async function cargarFilas() {
+  const t = adm.t, q = new URLSearchParams({ pagina: t.pagina, desc: t.desc });
+  if (t.orden) q.set("orden", t.orden);
+  if ($("#adm-buscar").value.trim()) { q.set("columna", $("#adm-col").value); q.set("buscar", $("#adm-buscar").value.trim()); }
+  $("#adm-datos").innerHTML = '<p class="tenue">Cargando…</p>';
+  let r;
+  try { r = await api(`/api/yo/admin/tabla/${encodeURIComponent(t.tabla)}?${q}`); }
+  catch (err) { $("#adm-datos").innerHTML = `<p class="tenue">⚠️ ${esc(err.message)}</p>`; return; }
+  Object.assign(t, { orden: r.orden, desc: r.desc, hay_mas: r.hay_mas });
+  $("#adm-pag").textContent = `filas ${r.pagina * 100 + 1}–${r.pagina * 100 + r.filas.length}`;
+  $("#adm-ant").disabled = r.pagina === 0; $("#adm-sig").disabled = !r.hay_mas;
+  $("#adm-datos").innerHTML = r.filas.length ? `<table class="pron-tabla"><tr>${r.columnas.map((c) => `<th data-adm-orden="${esc(c.nombre)}" title="${esc(c.tipo || "")} · tocá para ordenar">${esc(c.nombre)}${c.nombre === r.orden ? (r.desc ? " ▼" : " ▲") : ""}</th>`).join("")}</tr>
+      ${r.filas.map((f) => `<tr>${f.map((v) => `<td>${v === null ? '<span class="tenue">null</span>' : esc(String(v))}</td>`).join("")}</tr>`).join("")}</table>`
+    : '<p class="tenue">Sin filas.</p>';
+  document.querySelectorAll("[data-adm-orden]").forEach((th) => th.addEventListener("click", () => {
+    t.desc = t.orden === th.dataset.admOrden ? !t.desc : true; t.orden = th.dataset.admOrden; t.pagina = 0; cargarFilas();
+  }));
+}
+
 // ----- Navegación entre secciones -----
 function verRed(v, cargar = true) {
   red.vista = v;
@@ -6968,6 +7113,7 @@ function verRed(v, cargar = true) {
   if (v === "personas") dibujarPersonas();
   if (v === "reunion") cargarReunion();
   if (v === "metricas") cargarGrupo();
+  if (v === "admin") cargarAdmin();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 // Vuelve a cargar lo que se está mirando (después de escribir, borrar, etc.).
@@ -7030,6 +7176,13 @@ async function iniciarPerfil() {
   $("#red-nav").addEventListener("click", (e) => { const b = e.target.closest("[data-rv]"); if (b) verRed(b.dataset.rv); });
   $("#red-yo").addEventListener("click", () => verRed("perfil"));
   $("#rv-b-metricas").hidden = !esCoord();
+  $("#rv-b-admin").hidden = YO.rol !== "admin";
+  $("#adm-tabs").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-adm]"); if (!b) return;
+    $("#adm-tabs").querySelectorAll("button").forEach((x) => x.classList.toggle("activa", x === b));
+    $("#adm-verif").hidden = b.dataset.adm !== "verif"; $("#adm-base").hidden = b.dataset.adm !== "base";
+    if (b.dataset.adm === "base" && !adm.tablas) cargarTablas();
+  });
   $("#lb-l-todas").hidden = YO.rol !== "admin";
   $("#lb-todas").addEventListener("change", () => cargarInicio());
   $("#pf-dias").addEventListener("change", () => { cargarMisPronosticos(); if (red.vista === "metricas") cargarGrupo(); });

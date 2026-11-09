@@ -26,11 +26,11 @@ from . import etiquetas as et
 log = logging.getLogger(__name__)
 
 # Un día cuenta como completo si hay datos en al menos 18 de sus 24 horas.
-COMPLETITUD_MINIMA = 0.75
+COMPLETITUD_MINIMA = COMPLETITUD_MINIMA_DEFECTO = 0.75
 # Para el viento alcanza con 8 horas: varias estaciones del SMN (Bolívar,
 # Tandil, Dolores) solo reportan de 09 a 21 hs, a veces con huecos, y lo que
 # se pronostica es sobre todo el viento del día.
-COMPLETITUD_VIENTO = 8 / 24
+COMPLETITUD_VIENTO = COMPLETITUD_VIENTO_DEFECTO = 8 / 24
 
 PERIODOS = (("madrugada", 0, 6), ("mañana", 6, 12), ("tarde", 12, 18), ("noche", 18, 24))
 
@@ -46,11 +46,16 @@ WW_PRECIPITACION = set(range(20, 28)) | set(range(50, 98)) | {99}
 # Umbrales del equipo de Pronóstico UNLP (km/h), los mismos que usan sus
 # importadores (viento_a_categoria / vientoACategoria). Se aplican al viento
 # MEDIO horario más alto del día, no a las ráfagas.
-CATEGORIAS_VIENTO = (("LEVES", 22), ("MODERADOS", 29), ("REGULARES", 39), ("FUERTES", math.inf))
+CATEGORIAS_VIENTO = CATEGORIAS_VIENTO_DEFECTO = (("LEVES", 22), ("MODERADOS", 29), ("REGULARES", 39), ("FUERTES", math.inf))
 SECTORES = ("N", "NE", "E", "SE", "S", "SW", "W", "NW")
 CALMA_MS = 0.5
 
-UMBRAL_PP_MM = 0.1
+UMBRAL_PP_MM = UMBRAL_PP_MM_DEFECTO = 0.1
+# Una cantidad del SYNOP (ej. 24 h de 9 a 9) cuenta para el día si su período
+# cae al menos en esta fracción dentro del día.
+SUPERPOSICION_LLUVIA = SUPERPOSICION_LLUVIA_DEFECTO = 0.75
+# Los valores de arriba se pueden cambiar desde la página (Administración):
+# ver ajustes.py. Los *_DEFECTO son los de siempre.
 INTERVALO_EMA = timedelta(minutes=10)      # lo que suele abarcar cada lectura de lluvia de una EMA
 
 
@@ -254,7 +259,7 @@ def lluvia_synop(cantidades, ww, reportes, dia):
     for t, horas, mm in cantidades:
         desde = t - timedelta(hours=horas)
         dentro = (min(t, fin) - max(desde, inicio)) / timedelta(hours=horas)
-        if dentro >= 0.75 and mm and mm > 0:
+        if dentro >= SUPERPOSICION_LLUVIA and mm and mm > 0:
             evidencias.append(f"{mm:g} mm en {horas} h hasta las {hora_local(t):02d} hs")
             lluvias.append([desde.isoformat(), t.isoformat(), mm, "cantidad"])
         if mm == 0:
@@ -290,7 +295,7 @@ def lluvia_despues(detalle, desde):
         a, b = datetime.fromisoformat(a), datetime.fromisoformat(b)
         if b <= desde or b <= a:
             continue
-        if (b - max(a, desde)) / (b - a) >= (0.75 if tipo == "cantidad" else 0.5):
+        if (b - max(a, desde)) / (b - a) >= (SUPERPOSICION_LLUVIA if tipo == "cantidad" else 0.5):
             if tipo == "ema":
                 mm += cant or 0
             else:
@@ -466,6 +471,9 @@ DIAS_POR_TRAMO = 31
 def calcular(conn, cfg, desde, hasta):
     """Recalcula verif_observado para los días civiles [desde, hasta].
     Solo días ya terminados. Devuelve cuántas filas se guardaron."""
+    from . import ajustes
+    ajustes.aplicar(ajustes.leer(conn))          # los parámetros que cambió un administrador
+    conn.commit()
     ayer = (datetime.now(HORA_ARG) - timedelta(days=1)).date()
     hasta = min(hasta, ayer)
     total = 0

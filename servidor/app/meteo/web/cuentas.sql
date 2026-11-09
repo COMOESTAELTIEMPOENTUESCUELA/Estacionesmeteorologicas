@@ -135,3 +135,12 @@ ALTER TABLE nota_imagen ADD COLUMN IF NOT EXISTS capa jsonb;
 -- Reunión sinóptica como tablero: propuesta -> en discusión -> tratada (con conclusión).
 ALTER TABLE nota ADD COLUMN IF NOT EXISTS estado text NOT NULL DEFAULT 'propuesta';
 UPDATE nota SET estado = 'tratada' WHERE tratada AND estado = 'propuesta';
+
+-- Ajustes que un administrador cambia desde la página (ej. los parámetros de
+-- la verificación: "verificacion.umbral_pp_mm"). Solo números revisados.
+CREATE TABLE IF NOT EXISTS ajuste (
+    clave           text PRIMARY KEY,
+    valor           jsonb NOT NULL,
+    actualizado     timestamptz NOT NULL DEFAULT now(),
+    actualizado_por text
+);

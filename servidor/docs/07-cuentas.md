@@ -52,6 +52,21 @@ La página de Cartas (también la copia pública) sigue igual para todos. Quien
     (el servidor se los baja de verdad, no es una imitación). Una franja
     amarilla lo recuerda; "Volver a mi vista" lo apaga (si no, se apaga solo
     al día siguiente).
+  - **🛠️ Administración** (solo rol admin), en el menú de la izquierda:
+    - **Verificación**: los parámetros con que se calcula lo observado
+      (umbral de lluvia, completitud del día y del viento, superposición de
+      la lluvia de 24 h, topes de las categorías de viento) se cambian ahí:
+      solo números entre su mínimo y su máximo (el servidor los revisa), con
+      quién y cuándo los cambió. Se guardan en la tabla `ajuste` y se usan
+      desde el próximo cálculo; "Recalcular" los aplica a los últimos días.
+      También se ven las estaciones de cada ciudad y el código de la
+      verificación, **solo para leer**: el código no se cambia desde la
+      página (sería dejar que alguien ejecute cualquier cosa en el
+      servidor); se cambia en el repositorio, con sus tests.
+    - **Base de datos**: todas las tablas, de a 100 filas, ordenando por
+      cualquier columna y buscando texto. **Solo lectura** (la consulta va
+      por la conexión que la base tiene en modo solo lectura) y sin las
+      huellas de contraseñas y sesiones.
   - **Modo Análisis 🤓** (interruptor arriba): sin él, la página muestra lo
     esencial (sin la tabla de cada pronóstico, el gráfico del modelo, los
     textos de ayuda fijos ni los atajos de teclado). Se recuerda en cada

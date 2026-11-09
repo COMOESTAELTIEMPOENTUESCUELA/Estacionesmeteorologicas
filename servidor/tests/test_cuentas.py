@@ -616,3 +616,62 @@ def test_nota_para_un_dia_que_viene(cliente, cuentas, monkeypatch):
         assert [x["id"] for x in d["notas"]] == [nid]
     finally:
         cliente.delete(f"/api/yo/notas/{nid}", headers=X)
+
+
+def test_administracion_verificacion_y_base(cliente, cuentas, monkeypatch):
+    """Solo los administradores: ven y cambian los parámetros de la
+    verificación (solo números con límites; el código, solo para leer) y
+    miran la base (solo lectura, sin las huellas de contraseñas)."""
+    from pathlib import Path
+
+    from meteo.verificacion import ajustes, observado
+    m = cuentas
+    monkeypatch.setenv("ESTACIONES_CONFIG", str(Path(__file__).parents[1] / "config/estaciones.yaml"))
+    m.main(["agregar", "--email", "jefa@gmail.com", "--nombre", "Jefa", "--rol", "admin"])
+    try:
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "coord@gmail.com")
+        assert cliente.get("/api/yo/admin/verificacion").status_code == 403          # coordinador: no
+        assert cliente.get("/api/yo/admin/tablas").status_code == 403
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "jefa@gmail.com")
+        d = cliente.get("/api/yo/admin/verificacion").json()
+        p = {x["clave"]: x for x in d["parametros"]}
+        assert p["umbral_pp_mm"]["valor"] == 0.1 and p["umbral_pp_mm"]["cambiado"] is None
+        assert "La Plata" in d["ciudades"] and "def lluvia_ema" in d["codigo"]["observado.py"]
+        # Fuera de rango, texto o desordenado: no.
+        for malo in ({"umbral_pp_mm": 99}, {"umbral_pp_mm": "import os"}, {"viento_leves": 40},
+                     {"otra_cosa": 1}):
+            assert cliente.put("/api/yo/admin/verificacion", json={"valores": malo}, headers=X).status_code == 400, malo
+        assert cliente.put("/api/yo/admin/verificacion", json={"valores": {"umbral_pp_mm": 0.5}}, headers=X).status_code == 200
+        p = {x["clave"]: x for x in cliente.get("/api/yo/admin/verificacion").json()["parametros"]}
+        assert p["umbral_pp_mm"]["valor"] == 0.5 and p["umbral_pp_mm"]["cambiado"]["quien"] == "Jefa"
+        # El cálculo los usa.
+        with m._pools["e"].connection() as conn:
+            ajustes.aplicar(ajustes.leer(conn))
+        assert observado.UMBRAL_PP_MM == 0.5
+        r = cliente.post("/api/yo/admin/verificacion/recalcular", json={"dias": 2}, headers=X)
+        assert r.status_code == 200 and "filas" in r.json()
+        assert cliente.post("/api/yo/admin/verificacion/recalcular", json={"dias": 400}, headers=X).status_code == 400
+        # Volver al de siempre borra el cambio.
+        cliente.put("/api/yo/admin/verificacion", json={"valores": {"umbral_pp_mm": 0.1}}, headers=X)
+        assert m._leer("SELECT count(*) AS n FROM ajuste")[0]["n"] == 0
+        # La base: tablas, filas, búsqueda; la huella de la contraseña no se ve.
+        m.main(["clave", "--email", "jefa@gmail.com"])           # (cierra sus sesiones: vuelve a ingresar)
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "jefa@gmail.com")
+        tablas = {t["tabla"]: t for t in cliente.get("/api/yo/admin/tablas").json()}
+        assert {"usuario", "observacion", "nota"} <= set(tablas)
+        u = cliente.get("/api/yo/admin/tabla/usuario?columna=email&buscar=jefa").json()
+        cols = [c["nombre"] for c in u["columnas"]]
+        fila = dict(zip(cols, u["filas"][0]))
+        assert fila["email"] == "jefa@gmail.com" and fila["clave"] == "•••• (oculto)"
+        assert cliente.get("/api/yo/admin/tabla/pg_shadow").status_code == 404
+        assert cliente.get("/api/yo/admin/tabla/usuario?orden=email;DROP TABLE usuario").status_code == 400
+        assert cliente.get("/api/yo/admin/tabla/usuario?columna=x').status_code").status_code == 400
+    finally:
+        ajustes.aplicar({})
+        with m._pools["e"].connection() as conn:
+            conn.execute("DELETE FROM ajuste")
+            conn.execute("DELETE FROM usuario WHERE email = 'jefa@gmail.com'")
+            conn.commit()
