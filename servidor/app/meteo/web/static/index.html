@@ -8,7 +8,9 @@
 <link rel="icon" type="image/png" sizes="192x192" href="/iconos/icono-192.png">
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap">
-<script>try { const t = localStorage.getItem("tema"); if (t === "dark" || t === "light") document.documentElement.dataset.theme = t; } catch (_) {}</script>
+<script>try { const t = localStorage.getItem("tema"); if (t === "dark" || t === "light") document.documentElement.dataset.theme = t; } catch (_) {}
+// Tamaño de letra elegido (antes de dibujar, para que no "salte").
+try { const z = Number(localStorage.getItem("letra")); if (z > 1 && z <= 1.6) document.documentElement.style.zoom = z; } catch (_) {}</script>
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#2a78d6">
 <link rel="apple-touch-icon" href="/iconos/apple-touch-icon.png">
@@ -227,6 +229,7 @@ td.nw { white-space: nowrap; }
 .grupo-accesos { display: none; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
 @media (max-width: 760px) { .grupo-accesos { display: flex; } }
 .boton.tema { padding: 4px 9px; }
+#letra.activo { border-color: var(--acento); color: var(--acento); }
 /* Tarjetas del feed: la nota, limpia (tipo tweet); el pronóstico, más densa y estructurada */
 .red-feed .postit:not(.pron) { border-top: 1px solid var(--borde); box-shadow: none; }
 .red-feed .postit:not(.pron) .lb-tipo { background: none !important; color: var(--c); padding: 0; font-size: 12px; }
@@ -1105,6 +1108,7 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
   <label class="switch-modo" title="Mostrar las herramientas de análisis completo: tablas, modelo, ayudas y atajos">
     <input type="checkbox" id="toggle-modo"> <span>Modo Análisis 🤓</span>
   </label>
+  <button class="boton tema" id="letra" title="Tamaño de la letra: normal (tocá para agrandar)" aria-label="Tamaño de la letra"><span style="font-size:.85em">A</span><span style="font-size:1.15em;font-weight:700">a</span></button>
   <button class="boton tema" id="tema" title="Tema: automático (el del sistema)">🌓</button>
   <div class="cuenta" id="cuenta"></div>
 </header>
@@ -5979,6 +5983,30 @@ function usarCompartido() {
   const poner = () => { verRed("inicio", false); agregarAlComposer("\n\n" + t); $("#mc-texto").setSelectionRange(0, 0); $("#mc-texto").scrollIntoView({ block: "center" }); };
   setTimeout(poner, 400);
 }
+// ----- Tamaño de la letra: normal → grande → más grande → enorme -----
+// Con "zoom" de CSS se agranda TODO de forma pareja (letras, botones, gráficos),
+// como el zoom del navegador pero solo en esta página. Se guarda en este
+// navegador (cada uno elige el suyo en su celular o compu).
+(function iniciarLetra() {
+  const TAMANOS = [[1, "normal"], [1.15, "grande"], [1.3, "más grande"], [1.5, "enorme"]];
+  const poner = (z) => {
+    document.documentElement.style.zoom = z === 1 ? "" : z;
+    const k = TAMANOS.findIndex(([x]) => x === z);
+    $("#letra").title = `Tamaño de la letra: ${TAMANOS[k][1]} (tocá para ${k < TAMANOS.length - 1 ? "agrandar" : "volver a normal"})`;
+    $("#letra").classList.toggle("activo", z !== 1);
+    try { z === 1 ? localStorage.removeItem("letra") : localStorage.setItem("letra", String(z)); } catch (_) {}
+    if (typeof medirMapa === "function") setTimeout(() => { try { medirMapa(); } catch (_) {} }, 50);
+    window.dispatchEvent(new Event("resize"));        // mapas y gráficos se acomodan al tamaño nuevo
+  };
+  let actual = Number(document.documentElement.style.zoom) || 1;
+  if (!TAMANOS.some(([x]) => x === actual)) actual = 1;
+  poner(actual);
+  $("#letra").addEventListener("click", () => {
+    const k = TAMANOS.findIndex(([x]) => x === actual);
+    actual = TAMANOS[(k + 1) % TAMANOS.length][0];
+    poner(actual);
+  });
+})();
 // ----- Tema: automático (el del sistema) → oscuro → claro -----
 (function iniciarTema() {
   const NOMBRES = { "": "automático (el del sistema)", dark: "oscuro", light: "claro" };
