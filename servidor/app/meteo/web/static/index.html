@@ -1794,6 +1794,40 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
     border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
 }
 
+/* ===== Visor con fondo negro difuminado (como el visor de fotos de Windows) =====
+   Detrás de la carta va la misma carta, muy desenfocada y oscurecida: el fondo toma
+   sus colores. Es una capa quieta (no se mueve con el zoom ni el arrastre), así que
+   el desenfoque se calcula una vez y no hace lento el visor. */
+#c-dialogo { background: rgba(10, 11, 14, 0.9) !important; border: 1px solid rgba(255, 255, 255, 0.08) !important; }
+#c-dialogo::backdrop { background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+#c-dialogo .barra { background: rgba(255, 255, 255, 0.045) !important; border: 1px solid rgba(255, 255, 255, 0.07) !important; box-shadow: none !important; }
+#c-vista { isolation: isolate; background: #050608 !important; box-shadow: none !important; border-color: rgba(255, 255, 255, 0.06) !important; }
+#c-vista::before { content: ""; position: absolute; inset: -80px; z-index: -1; pointer-events: none;
+  background: var(--fondo-carta, none) center / cover no-repeat; filter: blur(50px) brightness(0.35) saturate(1.25); }
+#c-vista::after { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 35%, rgba(0, 0, 0, 0.6) 100%); }
+
+/* En el celular: "Cerrar" flota arriba a la derecha de la ventana y la barra de arriba
+   le deja ese lugar. Sin efecto cristal en las barras: con él, lo "flotante" se ubica
+   respecto de la barra y no de la ventana (y en el celular no hay nada detrás para ver). */
+@media (max-width: 760px) {
+  #c-dialogo .barra { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+  #c-dialogo .barra:first-child { margin-right: 84px; }
+}
+
+/* ===== Botones de la hora: selector segmentado sobrio (en vez de los LED ámbar) =====
+   "12 UTC" arriba y la hora argentina abajo; la elegida, una pastilla clara. */
+#c-analisis > .filtros .horas-c { background: rgba(255, 255, 255, 0.06) !important; border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 12px; padding: 3px; gap: 2px; box-shadow: none !important; }
+#c-analisis > .filtros .horas-c button { border: 0 !important; border-radius: 9px; padding: 5px 14px; background: transparent; box-shadow: none !important;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif !important; color: #cbd5e1; line-height: 1.15; min-width: 62px; }
+#c-analisis > .filtros .horas-c button b { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+#c-analisis > .filtros .horas-c button b small { font-size: 10px; font-weight: 600; opacity: 0.65; margin-left: 1px; }
+#c-analisis > .filtros .horas-c button span { font-size: 11px; color: #94a3b8; font-weight: 400; }
+#c-analisis > .filtros .horas-c button:hover { background: rgba(255, 255, 255, 0.08); }
+#c-analisis > .filtros .horas-c button[aria-pressed="true"] { background: #f1f5f9 !important; color: #0b1017 !important; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35) !important; }
+#c-analisis > .filtros .horas-c button[aria-pressed="true"] span, #c-analisis > .filtros .horas-c button[aria-pressed="true"] small { color: #475569 !important; }
+
 /* ===== Para quien pide "reducir movimiento" en su sistema (accesibilidad) ===== */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
@@ -2295,10 +2329,10 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
         <!-- La hora: cuatro botones fijos. El <select> queda escondido: es el que
              lee y escribe el resto del código (los botones solo lo manejan). -->
         <div class="horas-c" role="group" aria-label="Hora de las cartas" id="f-c-horas">
-          <button type="button" data-h="0" title="21 hs del día anterior (hora argentina)">00 <small>UTC</small><span>21 hs ant.</span></button>
-          <button type="button" data-h="6" title="03 hs (hora argentina)">06 <small>UTC</small><span>03 hs</span></button>
-          <button type="button" data-h="12" title="09 hs (hora argentina)">12 <small>UTC</small><span>09 hs</span></button>
-          <button type="button" data-h="18" title="15 hs (hora argentina)">18 <small>UTC</small><span>15 hs</span></button>
+          <button type="button" data-h="0" title="21 hs del día anterior (hora argentina)"><b>00 <small>UTC</small></b><span>21 hs ant.</span></button>
+          <button type="button" data-h="6" title="03 hs (hora argentina)"><b>06 <small>UTC</small></b><span>03 hs</span></button>
+          <button type="button" data-h="12" title="09 hs (hora argentina)"><b>12 <small>UTC</small></b><span>09 hs</span></button>
+          <button type="button" data-h="18" title="15 hs (hora argentina)"><b>18 <small>UTC</small></b><span>15 hs</span></button>
         </div>
         <select id="f-c-hora" hidden aria-hidden="true" tabindex="-1">
           <option value="0">00 UTC</option><option value="6">06 UTC</option>
@@ -5522,6 +5556,8 @@ function mostrarEnVisor() {
   img.hidden = !p;
   if (!p) return;
   img.src = p.url;
+  // Fondo "tipo visor de fotos de Windows": la misma carta, muy desenfocada y oscura (ver #c-vista::before).
+  $("#c-vista").style.setProperty("--fondo-carta", p.fondo ? `url("${p.url}"), url("${p.fondo}")` : `url("${p.url}")`);
   img.className = p.fondo ? "con-fondo" : "";
   img.style.backgroundImage = p.fondo ? `url('${p.fondo}')` : "";
   aplicarZoom();          // al cambiar de hora se mantiene el zoom: se compara el mismo lugar
