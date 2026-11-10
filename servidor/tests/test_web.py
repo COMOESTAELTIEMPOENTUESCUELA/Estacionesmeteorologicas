@@ -208,11 +208,11 @@ def test_modo_cartas_solo_expone_las_cartas(cliente, monkeypatch):
     assert cliente.get("/api/modo").json() == {"modo": "cartas"}
     for ruta in ("/", "/api/cartas/disponibles", "/api/cartas?ts=2026-10-12T12:00Z",
                  "/api/verificacion/dia?fecha=2026-10-10", "/vendor/chart-4.4.1.umd.js",
-                 "/api/cartas/estaciones-omm"):
+                 "/api/cartas/estaciones-omm", "/placa.html", "/placa/Tmax.png"):
         assert cliente.get(ruta).status_code == 200, ruta
     for ruta in ("/api/estaciones", "/api/emas/resumen", "/api/verificacion?ciudad=La%20Plata",
                  "/api/sinoptica/omm_87593/observaciones", "/api/estado", "/vendor/../api/estaciones",
-                 "/api/cartasXX", "/docs", "/openapi.json"):
+                 "/api/cartasXX", "/docs", "/openapi.json", "/placaXX", "/placa/../api/estaciones"):
         assert cliente.get(ruta).status_code == 404, ruta
     dia = cliente.get("/api/verificacion/dia", params={"fecha": "2026-10-10"}).json()
     assert any("pronosticador" in (c["pronostico"] or {}) for c in dia["ciudades"])   # el grupo decidió mostrarlo

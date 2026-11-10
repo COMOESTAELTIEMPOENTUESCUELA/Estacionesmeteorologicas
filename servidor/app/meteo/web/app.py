@@ -141,7 +141,10 @@ def credenciales_validas(cabecera):
 WEB_MODO = os.environ.get("WEB_MODO", "completo")
 PERMITIDO_EN_CARTAS = ("/api/modo", "/api/cartas", "/api/verificacion/dia", "/cartas-img/", "/vendor/",
                        # para instalarla en el celular y compartirle links (menú Compartir)
-                       "/manifest.webmanifest", "/sw.js", "/iconos/")
+                       "/manifest.webmanifest", "/sw.js", "/iconos/",
+                       # la placa del pronóstico: la página y sus imágenes son fijas; los
+                       # datos los da /api/yo/pronostico/placa, que pide haber entrado
+                       "/placa/")
 # Lo único que se puede MODIFICAR en la copia pública: el ingreso y lo
 # personal de cada pronosticador (con sesión; ver cuentas.py).
 CUENTAS = ("/auth/", "/api/yo")
@@ -150,7 +153,7 @@ CUENTAS = ("/auth/", "/api/yo")
 def permitido(ruta):
     if WEB_MODO != "cartas":
         return True
-    return ruta in ("/", "/index.html") or ruta.startswith(PERMITIDO_EN_CARTAS + CUENTAS)
+    return ruta in ("/", "/index.html", "/placa.html") or ruta.startswith(PERMITIDO_EN_CARTAS + CUENTAS)
 
 
 @app.middleware("http")
