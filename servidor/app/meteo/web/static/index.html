@@ -698,6 +698,13 @@ img.con-fondo { background-color: #fff !important; background-size: 100% 100%; b
 .ci-tarj svg text { font: 9px system-ui, sans-serif; fill: var(--tenue); }
 .ci-tarj .spark { cursor: zoom-in; border-radius: 6px; }
 .ci-tarj .spark:hover { background: var(--plano); }
+#d-placa { width: calc(min(760px, 100vw) / var(--zoom, 1) - 16px); height: calc(100dvh / var(--zoom, 1) - 16px); padding: 0; border: 0; border-radius: 12px; background: #2d2d2d; overflow: hidden; }
+#d-placa[open] { display: flex; flex-direction: column; }
+#d-placa::backdrop { background: rgba(0, 0, 0, .7); backdrop-filter: blur(6px); }
+#d-placa .placa-cab { display: flex; gap: 8px; align-items: center; padding: 8px 10px; color: #eee; background: #1d1d1d; }
+#d-placa .placa-cab b { flex: 1; }
+.chat-pron .cp-placa { border: 0; background: none; color: var(--acento, #1a6fb3); cursor: pointer; font: inherit; font-size: 12px; padding: 0 0 0 6px; text-decoration: underline; }
+#d-placa iframe { flex: 1; width: 100%; border: 0; background: #2d2d2d; }
 #d-ci { width: min(1000px, 96vw); border: 1px solid var(--borde); border-radius: 12px; background: var(--superficie); color: var(--tinta); padding: 16px; }
 #d-ci::backdrop { background: rgba(0,0,0,.45); }
 #d-ci h2 { margin: 0; font-size: 18px; flex: 1 1 auto; }
@@ -2759,6 +2766,14 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
     <p class="d-error" id="chat-e-error" hidden></p>
     <div class="acc"><button type="button" class="boton" data-cerrar>Cancelar</button><button class="boton primario">Enviar</button></div>
   </form>
+</dialog>
+
+<!-- La placa del pronóstico: placa.html la dibuja con el diseño del formulario de Pronóstico-UNLP -->
+<dialog id="d-placa">
+  <div class="placa-cab"><b>🖼️ Placa del pronóstico</b>
+    <a class="boton chico" id="placa-pestana" target="_blank" rel="noopener" title="Abrirla sola, en otra pestaña">↗ Pestaña</a>
+    <button type="button" class="boton chico" data-cerrar-placa>Cerrar</button></div>
+  <iframe id="placa-marco" title="Placa del pronóstico"></iframe>
 </dialog>
 
 <dialog id="d-ci">
@@ -7380,6 +7395,7 @@ function tarjetaPron(it) {
       <button class="boton" data-modelo title="El GFS de ese momento contra lo pronosticado y lo medido, en vivo">📈 ${red.modelos[it.objeto]?.abierto ? "Ocultar modelo" : "Modelo"}</button>
       <button class="boton" data-cartas-modelo title="Las cartas y el meteograma del GFS de esa corrida (se guardan 8 días)">🌐 GFS</button>
       <button class="boton" data-enviar-pron title="Mandar este pronóstico por mensaje (privado o a un grupo)">💬 Enviar</button>
+      <button class="boton" data-placa="${esc(it.objeto)}" title="La placa para redes, tal cual la arma el formulario de Pronóstico-UNLP">🖼️ Placa</button>
     </div>
     <div class="pron-modelo" ${red.modelos[it.objeto]?.abierto ? "" : "hidden"}>${red.modelos[it.objeto]?.html || ""}</div>
     ${barraReacciones(it.objeto, it.reacciones, ["aplauso", "duda"])}
@@ -7948,12 +7964,23 @@ function dibujarDia() {
 // gráfico (se pide una vez y queda guardado en pronEmbeds).
 const chat = { convs: [], abierta: null, mensajes: [], ultimo: 0, adjunto: null, reloj: null };
 const pronEmbeds = new Map();
+// La placa (imagen para redes) de un pronóstico publicado, en un diálogo.
+function abrirPlaca(obj) {
+  const url = `/placa.html?objeto=${encodeURIComponent(obj)}`;
+  $("#placa-marco").src = url;
+  $("#placa-pestana").href = url;
+  $("#d-placa").showModal();
+}
+document.querySelector("[data-cerrar-placa]").addEventListener("click", () => $("#d-placa").close());
+$("#d-placa").addEventListener("close", () => { $("#placa-marco").src = "about:blank"; });
+
 function embedPron(obj) {
   const it = pronEmbeds.get(obj);
   if (it === undefined) { cargarEmbedPron(obj); return '<span class="tenue">Cargando el pronóstico…</span>'; }
   if (it === null) return '<span class="tenue">El pronóstico ya no está disponible.</span>';
   const quien = it.usuario ? it.usuario.nombre : it.firma;
-  return `<div class="cp-cab">🌡️ <b>${esc(quien)}</b> pronosticó <b>${esc(it.ciudad)}</b> · ${esc(diaCorto(it.fecha_emision))}</div>${sparkPron(it)}`;
+  return `<div class="cp-cab">🌡️ <b>${esc(quien)}</b> pronosticó <b>${esc(it.ciudad)}</b> · ${esc(diaCorto(it.fecha_emision))}
+    <button type="button" class="cp-placa" data-placa="${esc(obj)}" title="Ver la placa del pronóstico">🖼️ placa</button></div>${sparkPron(it)}`;
 }
 async function cargarEmbedPron(obj) {
   if (pronEmbeds.has(obj)) return;
@@ -8613,6 +8640,8 @@ async function accionRed(e) {
   }
   const ve = e.target.closest("[data-embed]");
   if (ve) { abrirEmbed(ve); return; }
+  const pl = e.target.closest("[data-placa]");
+  if (pl) { abrirPlaca(pl.dataset.placa); return; }
   const ep = e.target.closest("[data-enviar-pron]");
   if (ep) { abrirEnviarPron(ep.closest(".postit").dataset.obj); return; }
   const sm = e.target.closest("[data-sp-modo]");

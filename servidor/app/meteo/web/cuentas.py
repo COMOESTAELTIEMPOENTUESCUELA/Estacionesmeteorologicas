@@ -948,6 +948,29 @@ def _armar_pronosticos(u, emisiones, desde, hasta):
     return items
 
 
+@router.get("/api/yo/pronostico/placa")
+def placa_pronostico(request: Request, objeto: str):
+    """El JSON completo de una publicación ("pron|ciudad|fecha|firma"), tal
+    cual lo armó el formulario de Pronóstico-UNLP, para redibujar su placa.
+    Si hubo correcciones, la última versión."""
+    requiere_usuario(request)
+    partes = objeto.split("|")
+    if len(partes) != 4 or partes[0] != "pron":
+        raise HTTPException(400, "objeto inválido")
+    try:
+        fecha = date.fromisoformat(partes[2])
+    except ValueError:
+        raise HTTPException(400, "objeto inválido")
+    filas = _leer("""SELECT contenido FROM pronostico_emision
+                     WHERE ciudad = %s AND fecha_pronostico = %s AND publicado_por = %s
+                     ORDER BY capturado DESC LIMIT 1""", (partes[1], fecha, partes[3]))
+    if not filas:
+        raise HTTPException(404, "No existe ese pronóstico")
+    c = dict(filas[0]["contenido"])
+    c.pop("team_password", None)
+    return c
+
+
 @router.get("/api/yo/pronostico")
 def un_pronostico(request: Request, objeto: str):
     """Una publicación de pronóstico ("pron|ciudad|fecha|firma"), como en el

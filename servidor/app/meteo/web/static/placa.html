@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Placa del pronóstico · Meteo UNLP</title>
+<!-- GENERADO por servidor/scripts/copiar_placa.py: no editar a mano el CSS/HTML de la placa. -->
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
+<!-- html2canvas 1.4.1 (MIT), la misma versión que usa el formulario, servida desde acá -->
+<script src="/placa/html2canvas.min.js"></script>
+<style>
+* { box-sizing: border-box; }
+:root {
+            --unlp-blue: #003f6b; --unlp-accent-blue: #6ba4d6; --unlp-bg-pill: #c9e1f0;
+            --unlp-row-wind: #d9e9f2; --unlp-row-time: #003c60; --unlp-light: #6ba4d6;
+            --unlp-green: #00796b; --bg-canvas: #efefef;
+        }
+body { font-family: 'Montserrat', sans-serif; margin: 0; background: #2d2d2d; color: #333; -webkit-font-smoothing: antialiased; }
+#barra { position: sticky; top: 0; z-index: 10; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center;
+  padding: 10px 12px; background: rgba(20,20,20,.92); backdrop-filter: blur(8px); color: #eee; font-size: 14px; }
+#barra button { font: inherit; font-weight: 700; border: 0; border-radius: 8px; padding: 8px 14px; cursor: pointer; color: #fff; background: #003f6b; }
+#barra button.sec { background: #45505a; }
+#barra button:disabled { opacity: .5; cursor: wait; }
+#estado { width: 100%; text-align: center; opacity: .8; font-size: 13px; }
+#viewer { padding: 16px 0 40px; display: flex; flex-direction: column; align-items: center; gap: 40px; }
+#aviso { color: #eee; text-align: center; padding: 60px 20px; font-size: 16px; }
+        .placa-preview { width: fit-content; }
+        .placa-box { width: 1080px; height: 1350px; background: var(--bg-canvas); position: relative; overflow: hidden; display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; }
+        
+        .header-container { width: 100%; height: 130px; position: relative; margin-top: 15px; margin-bottom: 20px; flex-shrink: 0; }
+        .header-capsule { border: 4px solid var(--unlp-blue); border-radius: 100px; display: flex; justify-content: space-between; align-items: center; padding: 8px 35px; background: white; height: 120px; position: relative; box-shadow: 0 2px 6px rgba(0,0,0,.06); }
+        .header-left-logos { display: flex; align-items: center; gap: 20px; z-index: 2; transform: translateY(8px); }
+        .exporting .header-left-logos { transform: translateY(-2px); }
+        .logo-fcag { height: 65px; width: 191px; object-fit: contain; flex-shrink: 0; }
+        
+        /* MODIFICADO: Logo de Pronóstico ajustado a 95px y con desplazamiento hacia abajo en ambas vistas */
+        .logo-prono { height: 90px; width: 95px; object-fit: contain; border-radius: 50%; flex-shrink: 0; margin: 0 10px; transform: translateY(2px); }
+        .exporting .logo-prono { transform: translateY(10px); }
+        
+        .logo-unlp { height: 75px; width: 156px; object-fit: contain; flex-shrink: 0; z-index: 2; transform: translateY(2px); }
+        .header-capsule h1 { font-size: 58px; font-weight: 900; margin: 0; color: var(--unlp-blue); text-transform: uppercase; letter-spacing: -2px; line-height: 1; z-index: 1; }
+        .city-label { transform: translateY(-2px); }
+        .exporting .header-capsule h1 { margin: -8px 0 0 0; }
+        .title-pill { background: var(--unlp-blue); color: white; padding: 8px 60px; border-radius: 40px; font-weight: 800; font-size: 20px; position: absolute; top: 0; left: 50%; transform: translate(-50%, -50%); text-transform: uppercase; z-index: 100; white-space: nowrap; border: 3px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
+        .exporting .title-pill { padding-top: 4px; padding-bottom: 12px; }
+        
+        .date-emission-pill { background: var(--unlp-bg-pill); border-radius: 50px; padding: 8px 50px; display: inline-flex; align-items: center; gap: 50px; color: var(--unlp-blue); border: 3px solid white; margin: 0 auto -20px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); position: relative; z-index: 10; }
+        .exporting .date-emission-pill { padding: 4px 50px 12px; }
+        .date-val { font-size: 32px; font-weight: 900; }
+        .issuance-block { display: flex; align-items: center; gap: 12px; text-transform: uppercase; border-left: 2px solid rgba(0,63,107,0.25); padding-left: 25px; }
+        
+        /* MODIFICADO: Etiqueta "Hora de emisión" más grande (de 15px a 19px) y ancho maximo ampliado */
+        .issuance-label { font-size: 19px; font-weight: 800; max-width: 170px; line-height: 1.15; }
+        .issuance-time { font-size: 28px; font-weight: 900; }
+        
+        .day-block { border-radius: 40px; margin-bottom: 6px; position: relative; width: 100%; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); justify-content: space-between; padding-bottom: 0px; }
+        .day-1 { background: #003c60; padding-top: 35px; height: 630px; }
+        .day-2 { background: #3981bfde; padding-top: 35px; margin-bottom: 0; height: 630px; }
+        .day-header { display: flex; align-items: flex-start; padding: 0px 15px 0px; color: white; gap: 0; margin-bottom: -5px; }
+        .day-header h2 { font-size: 44px; font-weight: 900; margin: -5px 0 0 0; text-transform: uppercase; width: 250px; letter-spacing: -2px; flex-shrink: 0; line-height: 1.05; white-space: nowrap; }
+        /* La cápsula de tramos usa la MISMA grilla de columnas que day-main-grid/stripe-wind/
+           stripe-time (3 o 4 columnas iguales, sin el primer carril de 250px que ya puso el h2),
+           así "MAÑANA/TARDE/NOCHE" queda exactamente arriba de su columna de datos. */
+        .periods-pill { background: rgba(255,255,255,0.2); border-radius: 20px; display: grid; grid-template-columns: 1fr 1fr 1fr; text-align: center; flex-grow: 1; padding: 4px 0; font-weight: 400; font-size: 26px; }
+        .periods-pill-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; text-align: center; gap: 0; padding: 4px 0; flex-grow: 1; background: rgba(255,255,255,0.2); border-radius: 20px; font-size: 24px; }
+        .day-1 .periods-pill { background: #245687; }
+        .day-2 .periods-pill { background: #d4e2eb; color: var(--unlp-blue); }
+        .exporting .periods-pill { padding: 0px 0 8px; }
+        .exporting .periods-pill-4 { padding: 0px 0 8px; }
+        .periods-pill span, .periods-pill-4 span { display: inline-block; margin-top: 0; }
+        .exporting .periods-pill span, .exporting .periods-pill-4 span { margin-top: -3px; }
+        
+        .day-main-grid { display: grid; grid-template-columns: 250px 1fr 1fr 1fr; color: white; align-items: flex-start; padding: 0px 15px 0px 15px; position: relative; flex: 1; min-height: 0; }
+        .day-main-grid-4 { grid-template-columns: 250px 1fr 1fr 1fr 1fr; }
+        .temp-side-col { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-end; align-self: stretch; border-right: none; padding-right: 15px; }
+        .temp-v-box { border-radius: 0 40px 0 0; padding: 22px 20px 20px 20px; margin-left: -15px; width: calc(100% + 15px); height: 175px; min-height: 175px; display: flex; flex-direction: column; justify-content: center; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.15); }
+        .day-1 .temp-v-box { background: var(--unlp-accent-blue); }
+        .day-2 .temp-v-box { background: #003c60; }
+        .temp-v-box h4 { font-size: 24px; margin: 0 0 10px; letter-spacing: 0; text-transform: uppercase; color: rgba(255,255,255,0.9); border: none; font-weight: 900; font-style: italic; text-align: center; }
+        .temp-v-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; padding: 0 5px; width: 100%; }
+        .temp-v-col { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+        .temp-v-col .label { font-size: 26px; font-weight: 800; font-style: italic; color: rgba(255,255,255,0.6); text-transform: uppercase; margin-bottom: 5px; }
+        .temp-v-item { display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .temp-v-item svg, .temp-v-item img { transform: translateY(5px); }
+        .temp-v-vals { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; }
+        .card-temps-row svg, .card-temps-row img { transform: translateY(3px); }
+
+        .exporting .temp-v-item svg, .exporting .temp-v-item img { transform: translateY(1px); }
+        .exporting .temp-v-vals { transform: translateY(-6px); }
+        .exporting .card-temps-row svg, .exporting .card-temps-row img { transform: translateY(9px); }
+        .temp-v-urb { font-size: 31px; font-weight: 500; line-height: 1.2; color: white; }
+        .temp-v-sub { font-size: 31px; font-weight: 500; line-height: 1.2; color: rgba(255,255,255,0.9); }
+        .unit-c { font-size: 0.7em; font-weight: 400; }
+        
+        .forecast-item { text-align: center; padding: 0 0 5px; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; min-height: 0; flex-shrink: 0; padding-top: 10px; }
+        .forecast-item img { width: 156px; height: 195px; object-fit: contain; flex-shrink: 0; image-rendering: -webkit-optimize-contrast; }
+        .forecast-temp { font-size: 40px; font-weight: 600; text-shadow: 0 2px 4px rgba(0,0,0,0.2); margin-top: -12px; line-height: 1; }
+        .forecast-temp .unit-c { font-size: 0.95em; }
+        
+        .stripe { display: grid; align-items: stretch; width: 100%; height: 108px; position: relative; }
+        .stripe-wind { background: var(--unlp-row-wind); color: var(--unlp-blue); grid-template-columns: 250px 1fr 1fr 1fr; }
+        .stripe-wind-4 { grid-template-columns: 250px 1fr 1fr 1fr 1fr; }
+        .stripe-time { background: var(--unlp-row-time); color: white; grid-template-columns: 250px 1fr 1fr 1fr; }
+        .stripe-time-4 { grid-template-columns: 250px 1fr 1fr 1fr 1fr; }
+        .stripe-label { font-size: 44px; font-weight: 900; padding-left: 25px; letter-spacing: 0; text-transform: none; display: flex; align-items: center; transform: translateY(-6px); }
+        /* La columna de la etiqueta ya mide 250px en Día 1 y 2 por igual (ver day-main-grid/
+           stripe-wind-4/stripe-time-4), así que "Vientos"/"Tiempo" pueden ser del mismo
+           tamaño en ambos días sin superponerse con las celdas de datos. */
+        .stripe-wind-4 .stripe-label, .stripe-time-4 .stripe-label { font-size: 44px; padding-left: 12px; }
+        .stripe-data { font-size: 34px; font-weight: 800; letter-spacing: -0.7px; text-align: center; display: flex; align-items: center; justify-content: center; padding: 10px 3px; line-height: 1.1; min-width: 0; min-height: 0; overflow: hidden; cursor: text; outline: none; transform: translateY(-6px); position: relative; }
+        /* Marca visible cuando una celda de Vientos/Tiempo quedó "trabada" en modo
+           manual (se editó a mano en algún momento) y por eso el desplegable de
+           arriba dejó de actualizarla sola. Doble clic la limpia y la vuelve a
+           poner en automático (ver dblclick en .stripe-data más abajo en el JS). */
+        .stripe-data.is-manual { box-shadow: inset 0 0 0 3px #f39c12; border-radius: 6px; cursor: pointer; }
+        .stripe-data.is-manual::after { content: '✎ manual — doble clic para volver a automático'; position: absolute; bottom: -2px; left: 50%; transform: translateX(-50%) translateY(100%); font-size: 12px; font-weight: 700; letter-spacing: 0; color: #f39c12; background: rgba(0,0,0,0.75); padding: 2px 6px; border-radius: 4px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.15s; z-index: 20; }
+        .stripe-data.is-manual:hover::after { opacity: 1; }
+        .exporting .stripe-data.is-manual { box-shadow: none; }
+        .exporting .stripe-data.is-manual::after { display: none; }
+        .stripe-data:hover { box-shadow: inset 0 0 0 2px rgba(255,255,255,0.35); }
+        .stripe-data:focus { box-shadow: inset 0 0 0 2px rgba(255,255,255,0.8); }
+        .exporting .stripe-data:hover, .exporting .stripe-data:focus { box-shadow: none; }
+        
+        .cards-container { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 35px; margin-top: 20px; padding: 0 40px; box-sizing: border-box; }
+        .v-card { height: 1010px; border-radius: 80px; padding: 25px 35px; color: white; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; text-align: center; position: relative; overflow: hidden; box-sizing: border-box; }
+        .v-card.celeste { background: var(--unlp-light); }
+        .v-card.oscuro { background: #003c60; }
+        .v-card h2 { font-size: 72px; font-weight: 900; margin-bottom: 5px; text-transform: uppercase; letter-spacing: -2px; }
+        .v-card .date { font-size: 46px; font-weight: 300; margin-bottom: 25px; opacity: 0.85; }
+        .card-split { display: grid; grid-template-columns: 1fr 1fr; padding-top: 20px; width: 100%; }
+        .card-split-col:nth-child(2) { transform: translateX(30px); }
+        .card-split-col { display: flex; flex-direction: column; align-items: center; gap: 5px; min-width: 0; }
+        .card-split-pill { border-radius: 20px; height: 26px; margin-bottom: 4px; width: 165px; box-sizing: border-box; text-align: center; }
+        .card-split-pill.wide { width: 240px; margin-left: -8px; }
+        .v-card.celeste .card-split-pill { background: #d4e2eb; }
+        .v-card.oscuro .card-split-pill { background: #245687; }
+        .card-split img:not(.card-split-pill) { width: 176px; height: 220px; object-fit: contain; flex-shrink: 0; }
+        .card-temps-row { display: flex; justify-content: center; gap: 40px; width: 100%; padding-top: 20px; margin-top: 15px; transform: translateX(-12px); }
+        .card-temps-row.temp-row-lg { padding-top: 10px; gap: 70px; }
+        .card-temp-item { display: flex; align-items: center; gap: 8px; }
+        .card-temp-numbers { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; }
+        .card-temp-col { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+        .card-temp-label { font-size: 26px; font-weight: 800; font-style: italic; color: rgba(255,255,255,0.6); text-transform: uppercase; }
+        .card-temp-urb { font-size: 28px; font-weight: 500; line-height: 1.2; color: white; }
+        .card-temp-sub { font-size: 28px; font-weight: 500; line-height: 1.2; color: rgba(255,255,255,0.9); }
+        .card-temp-urb.temp-lg { font-size: 32px; }
+        .card-temp-sub.temp-lg { font-size: 32px; }
+        .weather-desc { height: 140px; width: 100%; margin-top: 15px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        .weather-desc span { font-size: 28px; line-height: 1.2; font-weight: 800; text-align: center; padding: 0 10px; display: inline-block; width: 100%; }
+        .wind-section { position: absolute; bottom: 65px; left: 0; width: 100%; display: flex; flex-direction: column; align-items: center; }
+        .v-card .wind-arrows { margin: 0 0 6px; display: flex; justify-content: center; align-items: center; gap: 22px; min-height: 60px; }
+        /* max-width ampliado (era 90%) para que el texto use más ancho antes de saltar a una
+           línea extra: eso le da más margen real al botón A+ de "Viento" antes de que el
+           achicado automático (por falta de alto disponible) lo vuelva a bajar. */
+        .wind-legend { font-size: 28px; line-height: 1.15; font-weight: 700; text-align: center; max-width: 98%; color: rgba(255,255,255,0.95); max-height: 85px; overflow: hidden; display: flex; align-items: center; justify-content: center; padding-bottom: 3px; }
+        
+        .footer-note { position: absolute; bottom: 70px; left: 0; width: 100%; text-align: center; font-size: 24px; font-weight: 400; color: var(--unlp-blue); text-transform: uppercase; }
+        .bottom-bar { position: absolute; bottom: 0; left: 0; width: 100%; height: 45px; background-color: var(--unlp-blue); }
+        
+        img { display: block; position: relative; background: transparent; min-width: 40px; min-height: 40px; object-fit: contain; image-rendering: auto; }
+        .temp-v-item img, .card-temp-item img, img.card-split-pill { min-width: 0; min-height: 0; }
+</style>
+</head>
+<body>
+<div id="barra">
+  <button type="button" data-bajar="placa-1">⬇ Placa 1 (días 1-2)</button>
+  <button type="button" data-bajar="placa-2">⬇ Placa 2 (días 3-4)</button>
+  <span id="estado"></span>
+</div>
+<div id="viewer" hidden>
+    <div class="placa-preview">
+        <div id="placa-1" class="placa-box">
+            <div class="header-container">
+                <div class="title-pill">PRONÓSTICO METEOROLÓGICO</div>
+                <div class="header-capsule">
+                    <div class="header-left-logos">
+                        <img src="/placa/logo_fcag.png" class="logo-fcag">
+                        <img src="/placa/logo_prono.jpg" class="logo-prono">
+                        <h1 class="city-label">LA PLATA</h1>
+                    </div>
+                    <img src="/placa/logo_unlp.png" class="logo-unlp">
+                </div>
+            </div>
+            <div class="date-emission-pill">
+                <span class="date-val f0">18/MAY/26</span>
+                <div class="issuance-block">
+                    <span class="issuance-label">Hora de emisión</span>
+                    <span class="issuance-time" id="out-hora">07:50 hs</span>
+                </div>
+            </div>
+            <div class="day-block day-1">
+                <div class="day-header">
+                    <h2 class="n0">LUNES</h2>
+                    <div class="periods-pill"><span>MAÑANA</span><span>TARDE</span><span>NOCHE</span></div>
+                </div>
+                <div class="day-main-grid">
+                    <div class="temp-side-col">
+                        <div class="temp-v-box">
+                            <h4>TEMPERATURA</h4>
+                            <div class="temp-v-grid">
+                                <div class="temp-v-col">
+                                    <span class="label">MIN</span>
+                                    <div class="temp-v-item">
+                                        <img src="/placa/Tmin.png" width="19" height="57" alt="Mín">
+                                        <div class="temp-v-vals"><span class="temp-v-urb" id="h-min">--</span><span class="temp-v-sub" id="h-min-sub">--*</span></div>
+                                    </div>
+                                </div>
+                                <div class="temp-v-col">
+                                    <span class="label">MAX</span>
+                                    <div class="temp-v-item">
+                                        <img src="/placa/Tmax.png" width="19" height="57" alt="Máx">
+                                        <div class="temp-v-vals"><span class="temp-v-urb" id="h-max">--</span><span class="temp-v-sub" id="h-max-sub">--*</span></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="forecast-item"><img id="h-icon-1" src="/placa/default.png"><div class="forecast-temp" id="h-t1">--</div></div>
+                    <div class="forecast-item"><img id="h-icon-2" src="/placa/default.png"><div class="forecast-temp" id="h-t2">--</div></div>
+                    <div class="forecast-item"><img id="h-icon-3" src="/placa/default.png"><div class="forecast-temp" id="h-t3">--</div></div>
+                </div>
+                <div class="stripe stripe-wind"><div class="stripe-label">Vientos</div><div class="stripe-data" id="h-v1">--</div><div class="stripe-data" id="h-v2">--</div><div class="stripe-data" id="h-v3">--</div></div>
+                <div class="stripe stripe-time"><div class="stripe-label">Tiempo</div><div class="stripe-data" id="h-w1">--</div><div class="stripe-data" id="h-w2">--</div><div class="stripe-data" id="h-w3">--</div></div>
+            </div>
+            
+            <div class="day-block day-2">
+                <div class="day-header">
+                    <h2 class="n1">MARTES</h2>
+                    <div class="periods-pill periods-pill-4"><span>MADRUGADA</span><span>MAÑANA</span><span>TARDE</span><span>NOCHE</span></div>
+                </div>
+                <div class="day-main-grid day-main-grid-4">
+                    <div class="temp-side-col">
+                        <div class="temp-v-box">
+                            <h4>TEMPERATURA</h4>
+                            <div class="temp-v-grid">
+                                <div class="temp-v-col">
+                                    <span class="label">MIN</span>
+                                    <div class="temp-v-item">
+                                        <img src="/placa/Tmin.png" width="19" height="57" alt="Mín">
+                                        <div class="temp-v-vals"><span class="temp-v-urb" id="m-min">--</span><span class="temp-v-sub" id="m-min-sub">--*</span></div>
+                                    </div>
+                                </div>
+                                <div class="temp-v-col">
+                                    <span class="label">MAX</span>
+                                    <div class="temp-v-item">
+                                        <img src="/placa/Tmax.png" width="19" height="57" alt="Máx">
+                                        <div class="temp-v-vals"><span class="temp-v-urb" id="m-max">--</span><span class="temp-v-sub" id="m-max-sub">--*</span></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="forecast-item"><img id="m-icon-1" src="/placa/default.png"><div class="forecast-temp" id="m-t1">--</div></div>
+                    <div class="forecast-item"><img id="m-icon-2" src="/placa/default.png"><div class="forecast-temp" id="m-t2">--</div></div>
+                    <div class="forecast-item"><img id="m-icon-3" src="/placa/default.png"><div class="forecast-temp" id="m-t3">--</div></div>
+                    <div class="forecast-item"><img id="m-icon-4" src="/placa/default.png"><div class="forecast-temp" id="m-t4">--</div></div>
+                </div>
+                <div class="stripe stripe-wind stripe-wind-4" style="background: #245687; color: white;"><div class="stripe-label">Vientos</div><div class="stripe-data" id="m-v1">--</div><div class="stripe-data" id="m-v2">--</div><div class="stripe-data" id="m-v3">--</div><div class="stripe-data" id="m-v4">--</div></div>
+                <div class="stripe stripe-time stripe-time-4" style="background: var(--unlp-row-wind); color: var(--unlp-blue);"><div class="stripe-label">Tiempo</div><div class="stripe-data" id="m-w1">--</div><div class="stripe-data" id="m-w2">--</div><div class="stripe-data" id="m-w3">--</div><div class="stripe-data" id="m-w4">--</div></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="placa-preview">
+        <div id="placa-2" class="placa-box">
+            <div class="header-container">
+                <div class="title-pill">PRONÓSTICO EXTENDIDO</div>
+                <div class="header-capsule">
+                    <div class="header-left-logos">
+                        <img src="/placa/logo_fcag.png" class="logo-fcag">
+                        <img src="/placa/logo_prono.jpg" class="logo-prono">
+                        <h1 class="city-label">LA PLATA</h1>
+                    </div>
+                    <img src="/placa/logo_unlp.png" class="logo-unlp">
+                </div>
+            </div>
+            <div class="cards-container">
+                <div class="v-card celeste">
+                    <h2 class="n2">--</h2>
+                    <div class="date f2">--</div>
+                    <div class="card-split">
+                        <div class="card-split-col"><img class="card-split-pill wide" src="/placa/periodo_madrugada_manana_claro.png" alt="Madrugada/Mañana"><img id="d3-icon-1" src="/placa/default.png"></div>
+                        <div class="card-split-col"><img class="card-split-pill" src="/placa/periodo_tarde_noche_claro.png" alt="Tarde/Noche"><img id="d3-icon-2" src="/placa/default.png"></div>
+                    </div>
+                    <div class="card-temps-row temp-row-lg">
+                        <div class="card-temp-col">
+                            <span class="card-temp-label">MIN</span>
+                            <div class="card-temp-item">
+                                <img src="/placa/Tmin.png" width="20" height="60" alt="Mín">
+                                <div class="card-temp-numbers"><span class="card-temp-urb temp-lg" id="d3-min">--</span><span class="card-temp-sub temp-lg" id="d3-min-sub">--*</span></div>
+                            </div>
+                        </div>
+                        <div class="card-temp-col">
+                            <span class="card-temp-label">MAX</span>
+                            <div class="card-temp-item">
+                                <img src="/placa/Tmax.png" width="20" height="60" alt="Máx">
+                                <div class="card-temp-numbers"><span class="card-temp-urb temp-lg" id="d3-max">--</span><span class="card-temp-sub temp-lg" id="d3-max-sub">--*</span></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="weather-desc" id="d3-desc-container"><span id="d3-w1">--</span></div>
+                    <div class="wind-section">
+                        <div class="wind-arrows" id="d3-arrows-container"></div>
+                        <div class="wind-legend" id="d3-wind-legend"><span id="d3-wind-text">--</span></div>
+                    </div>
+                </div>
+                <div class="v-card oscuro">
+                    <h2 class="n3">--</h2>
+                    <div class="date f3">--</div>
+                    <div class="card-split">
+                        <div class="card-split-col"><img class="card-split-pill wide" src="/placa/periodo_madrugada_manana_oscuro.png" alt="Madrugada/Mañana"><img id="d4-icon-1" src="/placa/default.png"></div>
+                        <div class="card-split-col"><img class="card-split-pill" src="/placa/periodo_tarde_noche_oscuro.png" alt="Tarde/Noche"><img id="d4-icon-2" src="/placa/default.png"></div>
+                    </div>
+                    <div class="card-temps-row temp-row-lg">
+                        <div class="card-temp-col">
+                            <span class="card-temp-label">MIN</span>
+                            <div class="card-temp-item">
+                                <img src="/placa/Tmin.png" width="20" height="60" alt="Mín">
+                                <div class="card-temp-numbers"><span class="card-temp-urb temp-lg" id="d4-min">--</span><span class="card-temp-sub temp-lg" id="d4-min-sub">--*</span></div>
+                            </div>
+                        </div>
+                        <div class="card-temp-col">
+                            <span class="card-temp-label">MAX</span>
+                            <div class="card-temp-item">
+                                <img src="/placa/Tmax.png" width="20" height="60" alt="Máx">
+                                <div class="card-temp-numbers"><span class="card-temp-urb temp-lg" id="d4-max">--</span><span class="card-temp-sub temp-lg" id="d4-max-sub">--*</span></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="weather-desc" id="d4-desc-container"><span id="d4-w1">--</span></div>
+                    <div class="wind-section">
+                        <div class="wind-arrows" id="d4-arrows-container"></div>
+                        <div class="wind-legend" id="d4-wind-legend"><span id="d4-wind-text">--</span></div>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-note">* TEMPERATURA EN ZONA SUBURBANA</div>
+            <div class="bottom-bar"></div>
+        </div>
+    </div>
+
+</div>
+<div id="aviso">Cargando el pronóstico…</div>
+<script>
+// Llena la placa (copiada del formulario de Pronóstico-UNLP) con el JSON
+// publicado: /api/yo/pronostico/placa?objeto=pron|ciudad|fecha|firma.
+// Imita las reglas del formulario (admin.html): updateSky, updateWind,
+// updateWindLegendAndArrows, up, updateCity, recalculateDates,
+// updateDayTitleSize, syncRowFontSize y fitDayDescription.
+"use strict";
+const $ = (id) => document.getElementById(id);
+const DIAS = ["DOMINGO", "LUNES", "MARTES", "MIÉRCOLES", "JUEVES", "VIERNES", "SÁBADO"];
+const MESES = ["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"];
+const ICONOS = {
+  "despejado": { dia: "soleado.png", noche: "Despejado_noche.png" },
+  "ligeramente nublado": { dia: "Ligeramente_nublado_dia.png", noche: "Ligeramente_nublado_noche.png" },
+  "algo nublado": { dia: "Algo_nublado_dia.png", noche: "Algo_nublado_noche.png" },
+  "parcialmente nublado": { dia: "Parcialmente_nublado_dia.png", noche: "Parcialmente_nublado_noche.png" },
+  "cubierto": { dia: "Cubierto_dia.png", noche: "Cubierto_noche.png" },
+  "neblinas": { dia: "Neblina.png", noche: "Neblina.png" },
+  "nieblas": { dia: "Nieblas_dia.png", noche: "Nieblas_dia.png" },
+  "lluvias": { dia: "Lluvia_dia.png", noche: "Lluvia_noche.png" },
+  "lluvias aisladas": { dia: "Lluvia_dia.png", noche: "Lluvia_noche.png" },
+  "lloviznas": { dia: "Lloviznas_dia.png", noche: "Lloviznas_noche.png" },
+  "lluvias y tormentas": { dia: "Tormentas_dia.png", noche: "Tormentas_noche.png" },
+  "lluvias y tormentas aisladas": { dia: "Tormentas_dia.png", noche: "Tormentas_noche.png" },
+  "tormentas aisladas": { dia: "Tormentas_dia.png", noche: "Tormentas_noche.png" },
+};
+const ANGULOS = { norte: 180, noreste: 225, este: 270, sudeste: 315, sur: 0, sudoeste: 45, oeste: 90, noroeste: 135 };
+// Día 1 (h) tiene 3 tramos, Día 2 (m) 4, Días 3 y 4 dos (madrugada/mañana y tarde/noche).
+const CONF = [{ id: "h", n: 3 }, { id: "m", n: 4 }, { id: "d3", n: 2 }, { id: "d4", n: 2 }];
+
+const may1 = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : "");
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const conKmh = (r) => { r = r == null ? "" : String(r).trim(); return !r ? "" : /km\/h/i.test(r) ? r : `${r} km/h`; };
+const momento = (dia, t) => dia === "h" ? (t === 3 ? "noche" : "dia") : dia === "m" ? (t === 1 || t === 4 ? "noche" : "dia") : (t === 2 ? "noche" : "dia");
+
+// up(): temperatura con "°C" chiquito, y "*" en la suburbana.
+function up(id, v) {
+  const el = $(id); if (!el) return;
+  const val = v === null || v === undefined || v === "" ? "--" : String(v).trim();
+  const esTemp = /min|max/.test(id) || /-t[1-4]$/.test(id);
+  if (esTemp && val !== "--") el.innerHTML = `${esc(val)}<span class="unit-c">°C</span>${id.includes("sub") ? "*" : ""}`;
+  else el.innerText = val;
+}
+
+// Achica la letra de a 1 px hasta que el texto entre en su casillero.
+function achicar(el, max, min) {
+  if (!el) return;
+  let t = max; el.style.fontSize = t + "px";
+  while ((el.scrollHeight > el.clientHeight || el.scrollWidth > el.clientWidth) && t > min) el.style.fontSize = --t + "px";
+}
+
+function flecha(dir) {
+  const a = ANGULOS[dir] ?? 0;
+  return `<div style="width:72px;height:72px;margin:0 8px;flex-shrink:0"><svg viewBox="0 0 100 100" width="72" height="72" style="display:block"><g transform="rotate(${a} 50 50)"><path d="M 35 75 L 65 75 L 65 40 L 85 40 L 50 10 L 15 40 L 35 40 Z" fill="#ffffff"/></g></svg></div>`;
+}
+
+function icono(dia, t, p, cielo) {
+  const img = $(`${dia}-icon-${t}`); if (!img) return;
+  const calculado = ICONOS[cielo] ? ICONOS[cielo][momento(dia, t)] : "default.png";
+  // El formulario guarda el nombre del ícono que se vio (con o sin viento): ese manda.
+  const cod = p.weather_icon_code && /^[\w-]+$/.test(p.weather_icon_code) ? `${p.weather_icon_code}.png` : calculado;
+  img.onerror = () => { img.onerror = null; img.src = `/placa/${calculado}`; };
+  img.src = `/placa/${cod}`;
+}
+
+function vientoTarjeta(dia, p1, p2) {     // Días 3 y 4: flechas + una frase
+  const i1 = p1.wind_intensity, d1 = p1.wind_direction, i2 = p2.wind_intensity, d2 = p2.wind_direction;
+  const r1 = conKmh(p1.wind_gusts), r2 = conKmh(p2.wind_gusts);
+  const tw = $(`${dia}-wind-text`), ac = $(`${dia}-arrows-container`);
+  ac.innerHTML = (i1 && d1 ? flecha(d1) : "") + (i2 && d2 ? flecha(d2) : "");
+  let base = "";
+  if (i1 && d1 && i2 && d2) {
+    if (i1 === i2 && d1 === d2) base = `Vientos ${i1} del ${d1}.`;
+    else if (i1 === i2) base = `Vientos ${i1} del ${d1} rotando al ${d2}.`;
+    else base = `Vientos ${i1} del ${d1} rotando a ${i2} del ${d2}.`;
+  } else if (i1 && d1) base = `Vientos ${i1} del ${d1}.`;
+  else if (i2 && d2) base = `Vientos ${i2} del ${d2}.`;
+  const raf = [...new Set([r1, r2].filter(Boolean))];
+  const r = raf.length === 1 ? ` <u>Ráfagas de ${esc(raf[0])}.</u>` : raf.length === 2 ? ` <u>Ráfagas de ${esc(raf[0])} y de ${esc(raf[1])}.</u>` : "";
+  tw.innerHTML = (esc(base) + r).trim() || "--";
+  const lc = $(`${dia}-wind-legend`);
+  let t = 28; tw.style.fontSize = t + "px";
+  while (lc.scrollHeight > lc.clientHeight && t > 14) tw.style.fontSize = --t + "px";
+}
+
+function descripcionTarjeta(dia, texto) {  // Días 3 y 4: la descripción extendida, sin pisar al viento
+  const el = $(`${dia}-w1`), caja = $(`${dia}-desc-container`);
+  el.innerText = texto && texto.trim() ? texto : "--";
+  const viento = caja.closest(".v-card").querySelector(".wind-section");
+  const hueco = viento.getBoundingClientRect().top - caja.getBoundingClientRect().top;
+  caja.style.height = (hueco > 0 ? Math.min(140, Math.max(40, hueco - 10)) : 140) + "px";
+  let t = 28; el.style.fontSize = t + "px";
+  while (el.scrollHeight > caja.clientHeight && t > 12) el.style.fontSize = --t + "px";
+}
+
+function ciudad(nombre) {
+  document.body.classList.toggle("single-station", nombre !== "La Plata");
+  const N = nombre.toUpperCase();
+  document.querySelectorAll(".city-label").forEach((el) => {
+    el.innerText = N;
+    const [t, l, m] = N === "MAR DEL PLATA" || N === "BAHÍA BLANCA" ? [54, -1.5, -20] : N === "JUNÍN" ? [72, -2, 50] : [72, -2, -10];
+    el.style.fontSize = t + "px"; el.style.letterSpacing = l + "px"; el.style.marginLeft = m + "px";
+  });
+}
+
+function llenar(p) {
+  ciudad(p.city || "");
+  const hm = String(p.emission_time || "").match(/(\d{1,2}):(\d{2})/);
+  $("out-hora").innerText = hm ? `${hm[1].padStart(2, "0")}:${hm[2]} hs` : "--";
+  const base = new Date(`${p.forecast_date}T12:00:00`);
+  const fecha = (d) => `${String(d.getDate()).padStart(2, "0")}/${MESES[d.getMonth()]}/${String(d.getFullYear()).slice(-2)}`;
+  const dias = p.daily_forecasts || [];
+  CONF.forEach((c, i) => {
+    const d = new Date(base); d.setDate(base.getDate() + i);
+    const nombre = DIAS[d.getDay()];
+    document.querySelectorAll(`.n${i}`).forEach((el) => {
+      el.innerText = nombre;
+      el.style.fontSize = (i >= 2 ? 72 : nombre === "MIÉRCOLES" ? 34 : 44) + "px";
+    });
+    document.querySelectorAll(`.f${i}`).forEach((el) => (el.innerText = fecha(d)));
+    const dd = dias[i] || {};
+    up(`${c.id}-min`, dd.temp_min); up(`${c.id}-max`, dd.temp_max);
+    up(`${c.id}-min-sub`, dd.temp_min_suburban); up(`${c.id}-max-sub`, dd.temp_max_suburban);
+    const per = dd.period_forecasts || [];
+    for (let t = 1; t <= c.n; t++) {
+      const q = per[t - 1] || {};
+      const cielo = String(q.precipitation_description || q.sky_condition || "").toLowerCase();
+      const pop = q.probability_of_precipitation || "";
+      icono(c.id, t, q, cielo);
+      if (c.id === "h" || c.id === "m") {
+        up(`${c.id}-t${t}`, q.temperature);
+        const w = $(`${c.id}-w${t}`);
+        w.innerText = cielo ? (pop ? may1(`${pop} prob. de ${cielo}`) : may1(cielo)) : (pop ? `${pop} prob. precipitaciones` : "--");
+        achicar(w, 34, 20);
+        const r = conKmh(q.wind_gusts), v = $(`${c.id}-v${t}`);
+        v.innerText = r ? `Ráfagas: ${r}` : (q.wind_intensity && q.wind_direction ? may1(`${q.wind_intensity} del ${q.wind_direction}`) : "--");
+        achicar(v, 34, 20);
+      }
+    }
+    if (c.id === "d3" || c.id === "d4") {
+      vientoTarjeta(c.id, per[0] || {}, per[1] || {});
+      descripcionTarjeta(c.id, dd.custom_description);
+    }
+  });
+}
+
+// La placa mide 1080 × 1350: en pantalla se ve achicada (zoom), pero se
+// llena y se exporta a tamaño real, para que las medidas den igual que allá.
+function ajustarVista() {
+  const v = $("viewer");
+  v.style.zoom = Math.min(1, (window.innerWidth - 24) / 1080);
+}
+
+async function bajar(id, boton) {
+  const v = $("viewer"), antes = v.style.zoom, el = $(id);
+  boton.disabled = true; $("estado").textContent = "Armando la imagen…";
+  try {
+    await document.fonts.ready;
+    v.style.zoom = 1; el.classList.add("exporting");
+    await new Promise((r) => setTimeout(r, 50));
+    await Promise.all([...el.querySelectorAll("img")].map((i) => i.complete ? 0 : new Promise((r) => { i.onload = i.onerror = r; })));
+    const lienzo = await html2canvas(el, { scale: 2, useCORS: true, logging: false, backgroundColor: null });
+    const a = document.createElement("a");
+    a.download = `Pronostico_${(window.PLACA?.city || "").replace(/\s+/g, "_")}_${window.PLACA?.forecast_date || ""}_${id === "placa-1" ? "dias1-2" : "dias3-4"}.png`;
+    a.href = lienzo.toDataURL("image/png"); a.click();
+    $("estado").textContent = "Imagen descargada.";
+  } catch (e) {
+    $("estado").textContent = "No se pudo armar la imagen: " + e.message;
+  } finally {
+    el.classList.remove("exporting"); v.style.zoom = antes; boton.disabled = false;
+  }
+}
+
+async function iniciar() {
+  const objeto = new URLSearchParams(location.search).get("objeto");
+  const aviso = $("aviso");
+  if (!objeto) { aviso.textContent = "Falta indicar qué pronóstico mostrar."; return; }
+  let p;
+  try {
+    const r = await fetch(`/api/yo/pronostico/placa?objeto=${encodeURIComponent(objeto)}`, { credentials: "same-origin" });
+    if (!r.ok) throw new Error(r.status === 401 ? "Hay que entrar con tu usuario." : r.status === 404 ? "Ese pronóstico ya no existe." : `Error ${r.status}`);
+    p = await r.json();
+  } catch (e) { aviso.textContent = e.message; return; }
+  window.PLACA = p;
+  await document.fonts.ready;
+  $("viewer").hidden = false; aviso.hidden = true;
+  llenar(p);
+  if (!(p.daily_forecasts || []).some((d) => (d.period_forecasts || []).length))
+    $("estado").textContent = "Esta publicación se guardó resumida (sin tramos): la placa sale solo con temperaturas.";
+  ajustarVista();
+  window.addEventListener("resize", ajustarVista);
+  document.querySelectorAll("[data-bajar]").forEach((b) => b.addEventListener("click", () => bajar(b.dataset.bajar, b)));
+}
+iniciar();
+
+</script>
+</body>
+</html>

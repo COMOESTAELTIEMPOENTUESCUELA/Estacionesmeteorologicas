@@ -174,6 +174,42 @@ La página de Cartas (también la copia pública) sigue igual para todos. Quien
 
 Código: `app/meteo/web/cuentas.py` (y `cuentas.sql`, que la web crea sola).
 
+## La placa del pronóstico (🖼️ Placa)
+
+Cada pronóstico del muro (y los que se mandan por mensaje) tiene el botón
+**🖼️ Placa**: muestra las dos placas para redes (días 1-2 y días 3-4)
+**tal cual las arma el formulario de Pronóstico-UNLP** (el que reemplazó a
+Canva), y se pueden bajar como PNG del mismo tamaño (2160 × 2700).
+
+Cómo funciona:
+
+- El servidor ya guardaba cada publicación completa (el mismo JSON que arma
+  el formulario: tramos, cielo, probabilidad, viento, ráfagas, el nombre del
+  ícono y la descripción extendida). `GET /api/yo/pronostico/placa?objeto=`
+  devuelve ese JSON (la última versión, si hubo correcciones; sin la clave
+  del equipo). Hace falta haber entrado.
+- `static/placa.html` tiene el **diseño copiado** del formulario (su CSS y
+  su HTML) y una lógica propia que lo llena con el JSON, con las mismas
+  reglas: "Leves del norte", "10 a 40 % prob. de lluvias", "Ráfagas: 50 km/h",
+  "MIÉRCOLES" más chico, flechas de viento, letra que se achica si no entra.
+- Las imágenes (íconos, logos, termómetros) están copiadas en `static/placa/`.
+  html2canvas (el que usa el formulario para exportar) también, así no depende
+  de internet.
+
+**Si en Pronóstico-UNLP cambian el diseño de la placa**, se vuelve a copiar con:
+
+```
+python servidor/scripts/copiar_placa.py ../Pronostico-unlp/admin.html
+```
+
+(la lógica que la llena está en `servidor/scripts/placa_logica.js`; si se
+agrega un ícono nuevo, copiarlo a `static/placa/`).
+
+Lo que no se puede reproducir: si alguien editó a mano un casillero de la
+placa (el borde naranja "manual" del formulario), ese texto no se publica,
+así que acá sale el texto automático. Las publicaciones viejas que se
+guardaron resumidas (sin tramos) salen solo con temperaturas.
+
 ## Seguridad
 
 - **Quién entra**: Google dice quién es (mail verificado); la tabla `usuario`

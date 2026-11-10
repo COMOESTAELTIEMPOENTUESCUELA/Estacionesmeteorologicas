@@ -1,6 +1,7 @@
 """Cuentas de los pronosticadores: ingreso con Google, sesiones, permisos,
 libreta y "Mis pronósticos". Contra una base real (sin TEST_DATABASE_URL se
 saltean). Google se reemplaza por respuestas de prueba."""
+import json
 import os
 from datetime import date, datetime, timedelta, timezone
 from urllib.parse import parse_qs, urlparse
@@ -736,3 +737,29 @@ def test_mensajes_privados_grupales_y_dudas(cliente, cuentas, monkeypatch):
             conn.execute("DELETE FROM pronostico_emision WHERE ciudad = 'Ciudad Chat'")
             conn.execute("DELETE FROM usuario WHERE email = 'jefa@gmail.com'")
             conn.commit()
+
+
+def test_placa_del_pronostico(cliente, cuentas, monkeypatch):
+    """La placa se redibuja con el JSON publicado (la última versión), sin la
+    clave del equipo, y solo para quien entró."""
+    m = cuentas
+    publicado = {"city": "Ciudad Placa", "forecast_date": "2026-10-21", "emission_time": "07:50:00",
+                 "team_password": "no-debe-salir", "daily_forecasts": [{"date": "2026-10-21", "temp_max": 20}]}
+    with m._pools["e"].connection() as conn:
+        for i, (cont, cuando) in enumerate([({**publicado, "emission_time": "07:10:00"}, "10:00Z"), (publicado, "11:00Z")]):
+            conn.execute("""INSERT INTO pronostico_emision (ciudad, fecha_pronostico, publicado_por, contenido, huella, capturado)
+                            VALUES ('Ciudad Placa', '2026-10-21', 'AnaP', %s, %s, %s)""",
+                         (json.dumps(cont), f"placa-{i}", f"2026-10-21 {cuando}"))
+        conn.commit()
+    obj = "pron|Ciudad Placa|2026-10-21|AnaP"
+    cliente.cookies.clear()
+    assert cliente.get(f"/api/yo/pronostico/placa?objeto={obj}").status_code == 401
+    ingresar(cliente, cuentas, monkeypatch, "ana@gmail.com")
+    p = cliente.get(f"/api/yo/pronostico/placa?objeto={obj}").json()
+    assert p["emission_time"] == "07:50:00" and "team_password" not in p      # la corrección, sin la clave
+    assert cliente.get("/api/yo/pronostico/placa?objeto=pron|X|2026-01-01|Nadie").status_code == 404
+    assert cliente.get("/api/yo/pronostico/placa?objeto=nota:1").status_code == 400
+    # La página de la placa: el diseño copiado del formulario, sin nada editable.
+    html = cliente.get("/placa.html").text
+    assert 'id="placa-1"' in html and 'id="placa-2"' in html and "contenteditable" not in html
+    assert "/api/yo/pronostico/placa" in html
