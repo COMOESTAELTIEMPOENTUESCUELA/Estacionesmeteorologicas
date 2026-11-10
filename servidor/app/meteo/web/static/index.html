@@ -2390,7 +2390,7 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
         <button class="boton" id="c-menos" title="6 horas antes (flecha izquierda)">‹ −6 h</button>
         <button class="boton" id="c-mas" title="6 horas después (flecha derecha)">+6 h ›</button>
         <button class="boton" id="c-mas-dia" title="Un día después">+1 día »</button>
-        <button class="boton" id="c-ultima">Última</button>
+        <button class="boton" id="c-ultima" title="La última hora con cartas del GFS">Última</button>
         <button class="boton anotar" id="c-anotar" hidden title="Anotar en tu libreta algo de las cartas de esta hora">📝 Anotar</button>
       </div>
     </div>
@@ -4639,6 +4639,17 @@ function verSeccionCartas(v) {
   if (cargadas.cartas) actualizarIndices();
   if (v === "grupo" && cpMapa) setTimeout(() => cpMapa.invalidateSize(), 50);
 }
+// La última hora que tiene carta de análisis del GFS (las propias, gfs_ana_*,
+// o las de antes, gfs_*; no las de pronóstico gfs_pro_*). Diagnóstico abre ahí:
+// el satélite y Ogimet llegan antes, y abrir en esa hora mostraba el GFS vacío.
+// Si todavía no hay ninguna, la última hora con cualquier carta.
+function ultimaHoraGFS(disp) {
+  const claves = Object.keys(disp || {});
+  const esGFS = (p) => p.startsWith("gfs_") && !p.startsWith("gfs_pro_");
+  for (let i = claves.length - 1; i >= 0; i--) if ((disp[claves[i]] || []).some(esGFS)) return new Date(claves[i]);
+  return claves.length ? new Date(claves[claves.length - 1]) : null;
+}
+
 async function iniciarCartas() {
   let sec = "pron";
   try { sec = localStorage.getItem("cartas-seccion") || "pron"; } catch (_) {}
@@ -4651,8 +4662,7 @@ async function iniciarCartas() {
   iniciarIndices();
   iniciarPronosticoGFS();
   cartasDisp = await api("/api/cartas/disponibles");
-  const claves = Object.keys(cartasDisp);
-  ponerTsCarta(claves.length ? new Date(claves[claves.length - 1]) : new Date(Math.floor(Date.now() / 21600e3) * 21600e3));
+  ponerTsCarta(ultimaHoraGFS(cartasDisp) || new Date(Math.floor(Date.now() / 21600e3) * 21600e3));
   $("#f-c-fecha").addEventListener("change", cargarCartas);
   $("#f-c-hora").addEventListener("change", cargarCartas);
   $("#f-c-horas").addEventListener("click", (e) => {
@@ -4665,8 +4675,8 @@ async function iniciarCartas() {
   $("#c-mas-dia").addEventListener("click", () => moverCarta(24));
   $("#c-ultima").addEventListener("click", async () => {
     cartasDisp = await api("/api/cartas/disponibles");
-    const k = Object.keys(cartasDisp);
-    if (k.length) { ponerTsCarta(new Date(k[k.length - 1])); cargarCartas(); }
+    const t = ultimaHoraGFS(cartasDisp);
+    if (t) { ponerTsCarta(t); cargarCartas(); }
   });
   $("#c-cerrar").addEventListener("click", () => $("#c-dialogo").close());
   try { $("#f-c-vista").value = localStorage.getItem("cartas-vista") || "placa"; } catch (_) {}
