@@ -36,6 +36,7 @@ from contextlib import asynccontextmanager
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
+import yaml
 from fastapi import Body, FastAPI, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -649,6 +650,63 @@ def synop_del_dia(estacion: str, fecha: date):
         f.pop("mensaje", None)
     return {"estacion": estacion, "desde": _iso(desde), "hasta": _iso(desde + timedelta(days=1)),
             "filas": list(reversed(filas))}
+
+
+def _estaciones_de_ciudad(ciudad):
+    """Las estaciones que representan a una ciudad: la SYNOP del aeropuerto y
+    las de la verificación (config/estaciones.yaml), sin repetir y en orden."""
+    try:
+        cfg = yaml.safe_load(Path(os.environ.get("ESTACIONES_CONFIG", "/config/estaciones.yaml")).read_text(encoding="utf-8"))
+        listas = (((cfg or {}).get("verificacion") or {}).get("ciudades") or {}).get(ciudad) or {}
+    except OSError:
+        listas = {}
+    ids = [CIUDADES_SYNOP.get(ciudad)] + [e for clave in ("urbana", "suburbana", "lluvia", "viento") for e in listas.get(clave) or []]
+    return list(dict.fromkeys(e for e in ids if e))
+
+
+@app.get("/api/cartas/observaciones-dia")
+def observaciones_del_dia(request: Request, ciudad: str, fecha: date):
+    """TODAS las observaciones de un día argentino (00 a 24 hs) de cada
+    estación de la ciudad, para el panel de Diagnóstico. Las sinópticas, una
+    fila por mensaje SYNOP (como el parte del SMN); las EMAs, una fila por
+    hora de medición con todas sus variables.
+    Las EMAs (datos propios, no públicos) solo van si se pide desde el
+    visualizador privado o con la sesión de alguien del grupo: un visitante
+    de la copia pública ve solo los SYNOP del SMN."""
+    if ciudad not in CIUDADES_COORD:
+        raise HTTPException(404, "ciudad desconocida")
+    con_emas = WEB_MODO != "cartas" or cuentas.usuario_actual(request) is not None
+    ids = _estaciones_de_ciudad(ciudad)
+    info = {r["id"]: r for r in consultar("SELECT id, nombre, tipo FROM estacion WHERE id = ANY(%s)", (ids,))}
+    desde = datetime(fecha.year, fecha.month, fecha.day, 3, tzinfo=timezone.utc)   # 00 hs argentina
+    hasta = desde + timedelta(days=1)
+    nombres = {r["id"]: r for r in consultar("SELECT id, nombre, unidad FROM variable")}
+    salida, ocultas = [], 0
+    for e in ids:
+        est = info.get(e)
+        if not est:
+            continue
+        if est["tipo"] == "sinoptica":
+            filas = list(reversed(observaciones_sinoptica(e, desde=desde - timedelta(seconds=1), hasta=hasta)))
+            salida.append({"id": e, "nombre": est["nombre"], "tipo": "sinoptica", "filas": filas})
+            continue
+        if not con_emas:
+            ocultas += 1
+            continue
+        crudas = consultar("""SELECT ts, variable, valor FROM observacion
+                              WHERE estacion_id = %s AND ts >= %s AND ts <= %s AND qc <> 4
+                              ORDER BY ts, variable""", (e, desde, hasta))
+        por_ts, vars_ = {}, []
+        for r in crudas:
+            por_ts.setdefault(r["ts"], {"ts": r["ts"]})[r["variable"]] = r["valor"]
+            if r["variable"] not in vars_:
+                vars_.append(r["variable"])
+        columnas = [{"id": v, "nombre": (nombres.get(v) or {}).get("nombre", v), "unidad": (nombres.get(v) or {}).get("unidad", "")}
+                    for v in vars_]
+        salida.append({"id": e, "nombre": est["nombre"], "tipo": est["tipo"], "columnas": columnas,
+                       "filas": _json(list(por_ts.values()))})
+    return {"ciudad": ciudad, "fecha": fecha, "desde": _iso(desde), "hasta": _iso(hasta),
+            "estaciones": salida, "emas_ocultas": ocultas}
 
 
 @app.get("/api/modo")

@@ -382,6 +382,22 @@ análisis (los niveles del perfil). Para fechas viejas:
 `historico cartas --desde ... --hasta ...` (si las cartas ya están, baja solo
 lo de los puntos). API: `/api/cartas/punto?ciudad=&desde=&hasta=[&perfiles=true]`.
 
+## Observaciones del día (todas)
+
+En **Diagnóstico**, la tarjeta **Observaciones del día → 📋 Ver todas** muestra
+cada medición del día de la carta (00 a 24 hs, hora argentina) de cada
+estación de la ciudad elegida: la SYNOP del aeropuerto (una fila por mensaje,
+como el parte del SMN; con el mouse sobre la hora se ve el mensaje original)
+y las estaciones que usa la verificación (config/estaciones.yaml), por
+ejemplo el Campbell y la Davis del Observatorio en La Plata (una fila por
+medición, una columna por variable). Se pide recién al abrirla, una ciudad
+por vez: `GET /api/cartas/observaciones-dia?ciudad=&fecha=`.
+
+En la copia pública, las estaciones propias solo aparecen para quien entró
+con su usuario; un visitante ve solo los SYNOP del SMN (datos públicos).
+También se llega desde "Lo que pronosticamos": en el detalle de cada ciudad,
+**📋 Todas sus observaciones del día**.
+
 ## Sondeo (sacado de la página)
 
 El 02/11/2026 se sacó la tarjeta "Sondeo" (Skew-T del GFS y radiosondeo real

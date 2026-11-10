@@ -591,3 +591,39 @@ def test_calibracion_automatica_de_ogimet_y_compartida(cliente, tmp_path, monkey
             conn.execute("DELETE FROM carta_calibracion")
             conn.execute("DELETE FROM usuario WHERE email = 'cal@gmail.com'")
             conn.commit()
+
+
+def test_todas_las_observaciones_del_dia(cliente, monkeypatch):
+    """Diagnóstico: cada observación del día de cada estación de la ciudad. Las
+    EMAs (datos propios) no salen en la copia pública para quien no entró."""
+    from datetime import datetime, timedelta, timezone
+    from pathlib import Path
+
+    from meteo.ingesta import db
+    from meteo.ingesta.base import Obs
+    from meteo.web import app as web
+    monkeypatch.setenv("ESTACIONES_CONFIG", str(Path(__file__).parents[1] / "config/estaciones.yaml"))
+    t0 = datetime(2026, 9, 6, 3, tzinfo=timezone.utc)                        # 00 hs del 6/9 en Argentina
+    conn = db.conectar(DSN)
+    db.guardar_observaciones(conn, [Obs(t0 + timedelta(hours=h), "omm_87593", "temp", 10.0 + h) for h in range(0, 24, 3)]
+                             + [Obs(t0 + timedelta(minutes=m), "observatorio_campbell", v, 12.0) for m in (0, 10) for v in ("temp", "hum")]
+                             + [Obs(t0 + timedelta(days=1, hours=1), "observatorio_campbell", "temp", 99.0)], "test")   # otro día
+    conn.close()
+    try:
+        d = cliente.get("/api/cartas/observaciones-dia", params={"ciudad": "La Plata", "fecha": "2026-09-06"}).json()
+        est = {e["id"]: e for e in d["estaciones"]}
+        assert [f["temp"] for f in est["omm_87593"]["filas"]] == [10.0 + h for h in range(0, 24, 3)]
+        camp = est["observatorio_campbell"]
+        assert len(camp["filas"]) == 2 and {c["id"] for c in camp["columnas"]} == {"temp", "hum"}
+        assert d["emas_ocultas"] == 0
+        assert cliente.get("/api/cartas/observaciones-dia", params={"ciudad": "Atlántida", "fecha": "2026-09-06"}).status_code == 404
+        # Copia pública, sin sesión: solo los SYNOP del SMN.
+        monkeypatch.setattr(web, "WEB_MODO", "cartas")
+        cliente.cookies.clear()
+        d = cliente.get("/api/cartas/observaciones-dia", params={"ciudad": "La Plata", "fecha": "2026-09-06"}).json()
+        assert all(e["tipo"] == "sinoptica" for e in d["estaciones"]) and d["emas_ocultas"] >= 1
+    finally:
+        monkeypatch.setattr(web, "WEB_MODO", "completo")
+        with web.pool_escritura.connection() as conn:
+            conn.execute("DELETE FROM observacion WHERE estacion_id IN ('omm_87593', 'observatorio_campbell') AND ts BETWEEN %s AND %s",
+                         (t0 - timedelta(hours=2), t0 + timedelta(days=2)))

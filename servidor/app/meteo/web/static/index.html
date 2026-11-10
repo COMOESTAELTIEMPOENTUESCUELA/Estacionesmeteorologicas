@@ -377,6 +377,7 @@ dialog { max-height: calc(100dvh / var(--zoom, 1) - 16px); max-width: calc(100vw
   .dia-obs .dato { min-width: 0; flex: 1 1 40%; }
 }
 .ya-conocida { font-size: 11px; color: var(--tenue); white-space: nowrap; cursor: help; border: 1px dashed var(--borde); border-radius: 6px; padding: 0 4px; }
+.err.e-nc { background: none; color: var(--tenue); border: 1px dashed var(--borde); cursor: help; }
 .pp-desde { font-size: 11px; color: var(--tenue); white-space: nowrap; cursor: help; }
 .spark-pron .sp-val { font-size: 9.5px; font-weight: 600; }
 .spark-pron .sp-val.max { fill: #dc2626; } .spark-pron .sp-val.min { fill: #2563eb; }
@@ -872,9 +873,23 @@ img.con-fondo { background-color: #fff !important; background-size: 100% 100%; b
 .err.e-mal { background: color-mix(in srgb, var(--caida) 30%, transparent); }
 #cp-tabla td, #cp-tabla th { white-space: nowrap; }
 #cp-tabla .detalle td { white-space: normal; background: var(--plano); font-size: 13px; }
-.cp-graf { margin-top: 10px; min-width: 260px; }
+/* El gráfico NO decide el ancho de la tabla: width 0 + min-width 100 % lo ata al
+   ancho de la celda. Sin esto, con la letra agrandada (zoom de la página),
+   Chart.js medía de más, agrandaba la celda, volvía a medir... y crecía hasta
+   miles de píxeles: se veía solo la primera hora del día. */
+.cp-graf { margin-top: 10px; width: 0; min-width: 100%; }
 .cp-graf-tit { font-weight: 600; margin: 4px 0 0; }
 .cp-panel { height: 130px; }
+.cp-obs-cab { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+#cp-obs { margin-top: 10px; }
+#cp-obs-ciudades { flex-wrap: wrap; max-width: 100%; }
+#cp-obs-ciudades button { padding: 6px 12px; }
+#cp-obs-ciudades button[aria-pressed="true"] { background: var(--acento); color: #fff; }
+.cp-obs-est { margin-top: 14px; }
+.cp-obs-est h3 { font-size: 15px; margin: 0 0 4px; }
+.cp-obs-est .tabla-scroll { max-height: 460px; }
+.cp-obs-est td, .cp-obs-est th { white-space: nowrap; }
+.cp-obs-est td.ww { white-space: normal; min-width: 170px; }
 #c-dialogo::backdrop { background: rgba(0, 0, 0, .6); }
 .ogimet { font-size: 11px; white-space: nowrap; color: var(--acento); }
 .nivel { font-size: 11px; white-space: nowrap; color: var(--tinta-2); }
@@ -2440,6 +2455,15 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
       <div class="panel-titulo">Estaciones del SMN <span class="tenue">(el SYNOP de esa hora)</span></div>
       <div class="tabla-scroll" style="max-height:none"><table id="co-smn"></table></div>
     </div>
+    <!-- Todas las observaciones del día, estación por estación (se abre si se quiere) -->
+    <div class="tarjeta" id="cp-obs-tarjeta" data-cvista="diag">
+      <div class="cp-obs-cab"><h2 style="margin:0; font-size:18px; flex:1 1 280px">Observaciones del día <span class="tenue" style="font-weight:400">(todas, de cada estación de la ciudad, de 00 a 24 hs)</span></h2>
+        <button type="button" class="boton" id="cp-obs-ver" aria-expanded="false">📋 Ver todas</button></div>
+      <div id="cp-obs" hidden>
+        <div class="horas-c" role="group" aria-label="Ciudad" id="cp-obs-ciudades"></div>
+        <div id="cp-obs-cont"></div>
+      </div>
+    </div>
     <dialog id="c-dialogo">
       <div class="barra">
         <p id="c-dialogo-titulo"></p>
@@ -3881,17 +3905,23 @@ async function cargarSmn() {
   const dsPres = [serieLinea("Presión", serie("pnm"), 7)];
   panel($("#smn-pres"), dsPres, { unidad: "hPa", rango: rangoAjustado(dsPres), ...x });
 
+  const pares = obs.filter((o) => o.viento_vel !== null).map((o) => ({ dir: o.viento_dir, kmh: o.viento_vel * 3.6 }));
+  $("#smn-rosa-cont").hidden = pares.length < 6;
+  if (pares.length >= 6) rosaVientos($("#smn-rosa"), pares);
+
+  $("#tabla-obs").innerHTML = tablaSynop(obs);
+}
+
+// La tabla de observaciones SYNOP (una fila por mensaje), como el parte del
+// SMN. La usan la pestaña SMN y "Todas las observaciones del día" de Diagnóstico.
+function tablaSynop(obs) {
   const lluvia = (o) => {
     const partes = [["1h", o.precip_1h], ["3h", o.precip_3h], ["6h", o.precip_6h], ["12h", o.precip_12h], ["24h", o.precip_24h]]
       .filter(([, v]) => v !== null).map(([p, v]) => `${num(v)} <span class="tenue">(${p})</span>`);
     return partes.join("<br>") || "";
   };
   const extremos = (o) => [o.tmax !== null ? `máx ${num(o.tmax)}` : "", o.tmin !== null ? `mín ${num(o.tmin)}` : ""].filter(Boolean).join(" · ");
-  const pares = obs.filter((o) => o.viento_vel !== null).map((o) => ({ dir: o.viento_dir, kmh: o.viento_vel * 3.6 }));
-  $("#smn-rosa-cont").hidden = pares.length < 6;
-  if (pares.length >= 6) rosaVientos($("#smn-rosa"), pares);
-
-  $("#tabla-obs").innerHTML = `<tr><th title="Hora argentina (UTC−3). Debajo, la hora UTC con la que figura en Ogimet">Hora arg.<br><span class="tenue">UTC</span></th><th>Tiempo presente</th><th class="num">Nubes</th><th class="num">Temp. °C</th>
+  return `<tr><th title="Hora argentina (UTC−3). Debajo, la hora UTC con la que figura en Ogimet">Hora arg.<br><span class="tenue">UTC</span></th><th>Tiempo presente</th><th class="num">Nubes</th><th class="num">Temp. °C</th>
     <th class="num">Rocío °C</th><th class="num">HR %</th><th title="Barba: el palo apunta de dónde viene el viento; media pluma = 5 nudos, pluma = 10, triángulo = 50">Viento</th><th class="num">Presión hPa</th><th class="num">Visib. km</th>
     <th class="num">Lluvia mm</th><th>Extremos °C</th></tr>` +
     (obs.length ? obs.map((o) => {
@@ -5399,7 +5429,12 @@ function claseErr(e) { const a = Math.abs(e); return a <= 2 ? "e-ok" : a <= 4 ? 
 function celdaTemp(t) {
   if (!t || t.pron === null || t.pron === undefined) return "–";
   // Día 1: la mínima ocurrió antes de publicar el pronóstico (ya se conocía): se muestra, no se califica.
-  if (ok(t.ya_conocida)) return `${num(t.pron, 0)} / ${num(t.ya_conocida)} <span class="ya-conocida" title="La mínima ocurrió antes de que se publicara el pronóstico (${esc(t.desde || "")}): ya se conocía. Se muestra pero no cuenta en los errores.">⏱ ya conocida</span>`;
+  if (ok(t.ya_conocida)) {
+    // La diferencia se muestra igual (en gris, punteada): no cuenta en los errores, pero se ve.
+    const d = t.ya_conocida - t.pron, fl = Math.abs(d) <= 0.5 ? "" : d > 0 ? "▲" : "▼";
+    return `${num(t.pron, 0)} / ${num(t.ya_conocida)} <span class="err e-nc" title="diferencia ${d > 0 ? "+" : ""}${num(d)} °C (no cuenta: la mínima ya se conocía)">${fl}${num(Math.abs(d))}</span>
+      <span class="ya-conocida" title="La mínima ocurrió antes de que se publicara el pronóstico (${esc(t.desde || "")}): ya se conocía. Se muestra la diferencia, pero no cuenta en los errores.">⏱ ya conocida</span>`;
+  }
   if (t.obs === null || t.obs === undefined) return `${num(t.pron, 0)} / <span class="tenue">s/d</span>`;
   const e = t.obs - t.pron;
   const flecha = Math.abs(e) <= 0.5 ? "" : e > 0 ? "▲" : "▼";
@@ -5478,6 +5513,63 @@ async function graficoSynopCiudad(filaDetalle, dia) {
   paneles.forEach(([, , dibujar], j) => dibujar(cont.querySelector(`canvas[data-j="${j}"]`)));
 }
 
+// ---------- Todas las observaciones del día (Diagnóstico) ----------
+// Se piden recién cuando alguien las quiere ver: una ciudad por vez.
+const cpObs = { dia: null, ciudad: null };
+function tablaEstacionDia(e) {
+  if (!e.filas.length) return '<p class="tenue">Sin observaciones ese día.</p>';
+  if (e.tipo === "sinoptica") return `<div class="tabla-scroll"><table>${tablaSynop(e.filas)}</table></div>`;
+  // EMA: una columna por variable que haya medido ese día.
+  const dir = (c) => /dir/.test(c.id);
+  return `<div class="tabla-scroll"><table><tr><th>Hora arg.</th>${e.columnas.map((c) =>
+      `<th class="num" title="${esc(c.id)}">${esc(c.nombre)}${c.unidad ? `<br><span class="tenue">${esc(c.unidad)}</span>` : ""}</th>`).join("")}</tr>` +
+    e.filas.map((o) => `<tr><td>${fmtHora.format(new Date(o.ts))}</td>${e.columnas.map((c) => {
+      const v = o[c.id];
+      return `<td class="num">${v === undefined || v === null ? '<span class="tenue">–</span>' : dir(c) ? `${num(v, 0)} <span class="tenue">${rumbo(v)}</span>` : num(v)}</td>`;
+    }).join("")}</tr>`).join("") + "</table></div>";
+}
+async function verObsCiudad(ciudad) {
+  if (!ciudad || !cpObs.dia) return;
+  cpObs.ciudad = ciudad;
+  const dia = cpObs.dia;
+  document.querySelectorAll("#cp-obs-ciudades button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.c === ciudad)));
+  const cont = $("#cp-obs-cont");
+  cont.innerHTML = '<p class="tenue">Cargando las observaciones…</p>';
+  let r;
+  try { r = await api(`/api/cartas/observaciones-dia?ciudad=${encodeURIComponent(ciudad)}&fecha=${dia}`); }
+  catch (err) { cont.innerHTML = `<p class="tenue">No se pudieron cargar: ${esc(err.message)}</p>`; return; }
+  if (cpObs.ciudad !== ciudad || cpObs.dia !== dia) return;     // ya se pidió otra
+  const total = r.estaciones.reduce((n, e) => n + e.filas.length, 0);
+  cont.innerHTML = `<p class="tenue" style="margin:8px 0 0">${esc(ciudad)}, ${esc(fmtDiaSemana.format(new Date(`${dia}T12:00:00Z`)))} ${Number(dia.slice(8))}/${Number(dia.slice(5, 7))}:
+      ${total} observaciones de ${r.estaciones.length} ${r.estaciones.length === 1 ? "estación" : "estaciones"} (hora argentina).
+      ${r.emas_ocultas ? `Hay ${r.emas_ocultas} estación(es) propia(s) más: se ven entrando con tu usuario.` : ""}</p>` +
+    r.estaciones.map((e) => `<div class="cp-obs-est"><h3>${esc(e.nombre)} <span class="tenue" style="font-weight:400">· ${e.tipo === "sinoptica" ? `SYNOP del SMN ${esc(e.id.replace("omm_", ""))} · pasá el mouse por la hora para ver el mensaje` : "estación propia"} · ${e.filas.length} ${e.filas.length === 1 ? "fila" : "filas"}</span></h3>
+      ${tablaEstacionDia(e)}</div>`).join("");
+}
+function abrirObsDia(ciudad) {
+  $("#cp-obs").hidden = false;
+  $("#cp-obs-ver").setAttribute("aria-expanded", "true");
+  $("#cp-obs-ver").textContent = "Ocultar";
+  verObsCiudad(ciudad || cpObs.ciudad || $("#cp-obs-ciudades button")?.dataset.c);
+}
+$("#cp-obs-ver").addEventListener("click", () => {
+  if (!$("#cp-obs").hidden) {
+    $("#cp-obs").hidden = true; $("#cp-obs-ver").setAttribute("aria-expanded", "false");
+    $("#cp-obs-ver").textContent = "📋 Ver todas";
+    return;
+  }
+  abrirObsDia();
+});
+$("#cp-obs-ciudades").addEventListener("click", (e) => { const b = e.target.closest("button[data-c]"); if (b) verObsCiudad(b.dataset.c); });
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-obs-ciudad]");
+  if (!b) return;
+  e.stopPropagation();
+  verSeccionCartas("diag");          // la tabla vive en Diagnóstico
+  abrirObsDia(b.dataset.obsCiudad);
+  setTimeout(() => $("#cp-obs-tarjeta").scrollIntoView({ block: "start", behavior: "smooth" }), 50);
+});
+
 async function cargarPronoDia() {
   const t = tsCarta();
   const dia = new Date(t.getTime() - 3 * 3600e3).toISOString().slice(0, 10);   // día argentino
@@ -5502,13 +5594,17 @@ async function cargarPronoDia() {
       // midió su estación del SMN ese día (de los SYNOP).
       const est = (c.synop || [])[0] || "";
       const graf = est ? `<div class="cp-graf" data-est="${esc(est)}" data-i="${i}"></div>` : "";
+      const todas = `<p><button type="button" class="boton chico" data-obs-ciudad="${esc(c.ciudad)}">📋 Todas sus observaciones del día</button></p>`;
       if (!f) return `<tr class="fila-click" data-i="${i}"><th>${esc(c.ciudad)}${og}</th><td colspan="4" class="tenue">sin pronóstico</td></tr>
-        <tr class="detalle" data-de="${i}" hidden><td colspan="5">${graf || '<span class="tenue">Sin estación sinóptica asociada.</span>'}</td></tr>`;
+        <tr class="detalle" data-de="${i}" hidden><td colspan="5">${graf || '<span class="tenue">Sin estación sinóptica asociada.</span>'}${todas}</td></tr>`;
       return `<tr class="fila-click" data-i="${i}"><th>${esc(c.ciudad)}${og}</th><td>${celdaTemp(f.tmin_urbana)}</td><td>${celdaTemp(f.tmax_urbana)}</td>
         <td>${celdaPP(f.pp)}</td><td>${celdaViento(f)}</td></tr>
-        <tr class="detalle" data-de="${i}" hidden><td colspan="5">${detallePeriodos(f)}${graf}</td></tr>`;
+        <tr class="detalle" data-de="${i}" hidden><td colspan="5">${detallePeriodos(f)}${graf}${todas}</td></tr>`;
     }).join("");
   cpDatos = r.ciudades;
+  cpObs.dia = dia;
+  $("#cp-obs-ciudades").innerHTML = r.ciudades.map((c) => `<button type="button" data-c="${esc(c.ciudad)}">${esc(c.ciudad)}</button>`).join("");
+  if (!$("#cp-obs").hidden) verObsCiudad(cpObs.ciudad || r.ciudades[0]?.ciudad);
   document.querySelectorAll("#cp-tabla .fila-click").forEach((tr) => tr.addEventListener("click", (e) => {
     if (e.target.closest("a")) return;          // el link a Ogimet no abre ni cierra el detalle
     const d = $(`#cp-tabla tr[data-de="${tr.dataset.i}"]`); d.hidden = !d.hidden;
