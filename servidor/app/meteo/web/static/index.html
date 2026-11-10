@@ -618,7 +618,7 @@ img.avatar { object-fit: cover; background: var(--plano); display: inline-block;
 /* Cartas de análisis en filas por origen, con la leyenda a la izquierda. */
 .c-filas { display: flex; flex-direction: column; gap: 12px; }
 .c-fila { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 10px; align-items: start; }
-.c-fila-etq { position: sticky; top: 8px; padding: 10px 12px; border-radius: 8px; font-size: 12.5px; line-height: 1.35;
+.c-fila-etq { position: sticky; top: calc(var(--alto-cab, 0px) + 52px); padding: 10px 12px; border-radius: 8px; font-size: 12.5px; line-height: 1.35;
   background: var(--ins-tarjeta, var(--superficie)); border-left: 4px solid var(--s3); color: var(--ins-tinta, var(--tinta)); }
 .c-fila-etq b { display: block; font-size: 13.5px; margin-bottom: 2px; }
 .c-fila-etq.propia { border-left-color: var(--s7); }
@@ -731,6 +731,30 @@ img.con-fondo { background-color: #fff !important; background-size: 100% 100%; b
 .cartas-nav button.grupo[aria-selected="true"] { border-color: var(--s2); background: color-mix(in srgb, var(--s2) 14%, var(--superficie)); }
 .cartas-nav button:not([aria-selected="true"]):hover { border-color: var(--eje); }
 .cv-oculta { display: none !important; }
+.ds-oculta { display: none !important; }
+/* Pestañas de Diagnóstico: pegadas arriba mientras se baja, para cambiar sin volver a subir */
+.diag-nav { display: flex; position: sticky; top: var(--alto-cab, 0px); z-index: 30; margin: 0 0 12px; max-width: 100%; overflow-x: auto; scrollbar-width: none;
+  background: var(--ins-panel, var(--superficie)); box-shadow: 0 6px 14px rgba(0, 0, 0, .35); }
+.diag-nav button { flex: 1 1 0; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 8px 12px; min-width: 0; white-space: nowrap; }
+.diag-nav button b { font-size: 14px; }
+.diag-nav button[aria-selected="true"] { background: var(--acento); color: #fff; }
+.diag-nav button[aria-selected="true"] span { color: rgba(255, 255, 255, .85); }
+#diag-nav.diag-nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); width: 100%; box-sizing: border-box; }
+@media (max-width: 640px) {
+  #diag-nav.diag-nav { grid-template-columns: 1fr 1fr; }          /* en el celular: 2 × 2, que se lea */
+  #diag-nav.diag-nav button { padding: 9px 6px; border-bottom: 1px solid var(--borde); }
+  #diag-nav.diag-nav button span { display: none; }
+  #diag-nav.diag-nav button b { font-size: 13px; }
+  /* Cartas de a dos por fila: la mitad de alto (tocándola se abre grande) */
+  #c-grid .cartas-grid.placa { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  #c-grid .cartas-grid.placa .carta { min-width: 0; }
+  #c-grid .cartas-grid.placa .carta figcaption { font-size: 11px; }
+  /* La barra de fecha más compacta */
+  #c-fecha-barra { padding: 8px; }
+  #c-fecha-barra .filtros > label:first-child { flex: 1 1 100%; }
+}
+/* Meteograma por ciudad: de a dos columnas en pantallas anchas (la mitad de alto) */
+@media (min-width: 1000px) { #cmd-paneles { display: grid; grid-template-columns: 1fr 1fr; column-gap: 18px; } #cmd-paneles > div { min-width: 0; } }
 .cartas-seccion.grupo { background: color-mix(in srgb, var(--s2) 12%, transparent); border: 1px solid color-mix(in srgb, var(--s2) 40%, transparent); }
 .cartas-seccion.grupo .etq { background: var(--s2); }
 .cartas-seccion { display: flex; align-items: center; gap: 14px; margin: 18px 0 10px; padding: 10px 14px; border-radius: 10px; }
@@ -744,7 +768,7 @@ img.con-fondo { background-color: #fff !important; background-size: 100% 100%; b
 .cartas-seccion.diag { background: color-mix(in srgb, var(--s3) 12%, transparent); border: 1px solid color-mix(in srgb, var(--s3) 40%, transparent); }
 .cartas-seccion.diag .etq { background: var(--s3); }
 #cpr, #cpm { border-left: 5px solid var(--s7); }
-#c-analisis, #cmd, #co { border-left: 5px solid var(--s3); }
+#c-fecha-barra, #c-analisis, #cmd, #co, #cp-obs-tarjeta { border-left: 5px solid var(--s3); }
 #cp { border-left: 5px solid var(--s2); }
 #tab-cartas > .tarjeta + .tarjeta { margin-top: 16px; }
 .c-grupos { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; margin: 8px 0 2px; font-size: 13px; }
@@ -824,22 +848,22 @@ img.con-fondo { background-color: #fff !important; background-size: 100% 100%; b
 
 #tab-cartas > .tarjeta { background: var(--ins-fondo); border-color: var(--ins-sombra); }
 /* Panel de mando: la barra de controles */
-#c-analisis > .filtros, #c-dialogo .barra:not(:first-child) {
+:is(#c-analisis, #c-fecha-barra) > .filtros, #c-dialogo .barra:not(:first-child) {
   background: var(--ins-panel); color: var(--ins-panel-texto); border-radius: 8px; padding: 10px 12px; color-scheme: dark; }
-#c-analisis > .filtros label, #c-dialogo .barra label { color: var(--ins-panel-texto); font-family: var(--ins-mono);
+:is(#c-analisis, #c-fecha-barra) > .filtros label, #c-dialogo .barra label { color: var(--ins-panel-texto); font-family: var(--ins-mono);
   font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; }
-#c-analisis > .filtros .boton, #c-dialogo .barra:not(:first-child) .boton {
+:is(#c-analisis, #c-fecha-barra) > .filtros .boton, #c-dialogo .barra:not(:first-child) .boton {
   background: var(--ins-panel-2); color: #e6ecf1; border: 1px solid transparent; border-radius: 6px; }
-#c-analisis > .filtros .boton:hover, #c-dialogo .barra:not(:first-child) .boton:hover { border-color: var(--ins-amarillo); }
-#c-analisis > .filtros select, #c-analisis > .filtros input[type="text"],
+:is(#c-analisis, #c-fecha-barra) > .filtros .boton:hover, #c-dialogo .barra:not(:first-child) .boton:hover { border-color: var(--ins-amarillo); }
+:is(#c-analisis, #c-fecha-barra) > .filtros select, :is(#c-analisis, #c-fecha-barra) > .filtros input[type="text"],
 #c-dialogo .barra select { background: var(--ins-panel-2); color: #e6ecf1; border: 1px solid #33414e; border-radius: 6px; font-family: var(--ins-mono); }
 /* Los botones de la hora, con el estilo del panel: la elegida en ámbar, como un display */
-#c-analisis > .filtros .horas-c { background: var(--ins-panel-2); border-color: #33414e; border-radius: 6px; }
-#c-analisis > .filtros .horas-c button { color: #e6ecf1; border-right-color: #33414e; font-family: var(--ins-mono); }
-#c-analisis > .filtros .horas-c button small, #c-analisis > .filtros .horas-c button span { color: var(--ins-panel-texto); }
-#c-analisis > .filtros .horas-c button:hover { background: #2b3845; }
-#c-analisis > .filtros .horas-c button[aria-pressed="true"] { background: var(--ins-amarillo); color: #17212b; }
-#c-analisis > .filtros .horas-c button[aria-pressed="true"] small, #c-analisis > .filtros .horas-c button[aria-pressed="true"] span { color: #3d3418; }
+:is(#c-analisis, #c-fecha-barra) > .filtros .horas-c { background: var(--ins-panel-2); border-color: #33414e; border-radius: 6px; }
+:is(#c-analisis, #c-fecha-barra) > .filtros .horas-c button { color: #e6ecf1; border-right-color: #33414e; font-family: var(--ins-mono); }
+:is(#c-analisis, #c-fecha-barra) > .filtros .horas-c button small, :is(#c-analisis, #c-fecha-barra) > .filtros .horas-c button span { color: var(--ins-panel-texto); }
+:is(#c-analisis, #c-fecha-barra) > .filtros .horas-c button:hover { background: #2b3845; }
+:is(#c-analisis, #c-fecha-barra) > .filtros .horas-c button[aria-pressed="true"] { background: var(--ins-amarillo); color: #17212b; }
+:is(#c-analisis, #c-fecha-barra) > .filtros .horas-c button[aria-pressed="true"] small, :is(#c-analisis, #c-fecha-barra) > .filtros .horas-c button[aria-pressed="true"] span { color: #3d3418; }
 #c-ultima, #c-anim, #c-herr .herr.activa { background: var(--ins-amarillo) !important; color: #17212b !important; font-weight: 600; outline: none !important; }
 #c-dialogo .barra .tenue { color: var(--ins-panel-texto); }
 /* Título de la hora */
@@ -1734,23 +1758,23 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
   transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
 /* Panel de mando tipo instrumento */
-#c-analisis > .filtros, #c-dialogo .barra:not(:first-child) {
+:is(#c-analisis, #c-fecha-barra) > .filtros, #c-dialogo .barra:not(:first-child) {
   background: linear-gradient(135deg, var(--ins-panel) 0%, var(--ins-panel-2) 100%);
   border: 1px solid var(--ins-borde); border-radius: 12px; padding: 12px 16px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25); gap: 10px;
 }
-#c-analisis > .filtros select, #c-analisis > .filtros input[type="text"], #c-analisis > .filtros input[type="date"], #c-dialogo .barra select {
+:is(#c-analisis, #c-fecha-barra) > .filtros select, :is(#c-analisis, #c-fecha-barra) > .filtros input[type="text"], :is(#c-analisis, #c-fecha-barra) > .filtros input[type="date"], #c-dialogo .barra select {
   background: rgba(0, 0, 0, 0.3); color: var(--ins-tinta); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 8px;
   font-family: var(--ins-mono); padding: 6px 10px; box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
 }
-#c-analisis > .filtros select:focus, #c-analisis > .filtros input:focus {
+:is(#c-analisis, #c-fecha-barra) > .filtros select:focus, :is(#c-analisis, #c-fecha-barra) > .filtros input:focus {
   border-color: var(--ins-amarillo); outline: none;
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3), 0 0 0 2px color-mix(in srgb, var(--ins-amarillo) 30%, transparent);
 }
 /* Botones de hora como indicadores LED */
-#c-analisis > .filtros .horas-c { background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 9px; padding: 2px; }
-#c-analisis > .filtros .horas-c button { color: var(--ins-panel-texto); border-right: 1px solid rgba(255, 255, 255, 0.06); font-family: var(--ins-mono); padding: 6px 14px; border-radius: 7px; }
-#c-analisis > .filtros .horas-c button[aria-pressed="true"] { background: var(--ins-amarillo); color: #0b1017; font-weight: 700;
+:is(#c-analisis, #c-fecha-barra) > .filtros .horas-c { background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 9px; padding: 2px; }
+:is(#c-analisis, #c-fecha-barra) > .filtros .horas-c button { color: var(--ins-panel-texto); border-right: 1px solid rgba(255, 255, 255, 0.06); font-family: var(--ins-mono); padding: 6px 14px; border-radius: 7px; }
+:is(#c-analisis, #c-fecha-barra) > .filtros .horas-c button[aria-pressed="true"] { background: var(--ins-amarillo); color: #0b1017; font-weight: 700;
   box-shadow: 0 0 14px color-mix(in srgb, var(--ins-amarillo) 50%, transparent); }
 /* Cartas como pantallas de monitoreo */
 #c-grid .carta { background: var(--ins-tarjeta); border: 1px solid var(--ins-borde); border-radius: 12px; padding: 10px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2); }
@@ -1782,7 +1806,7 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
 .c-m-desp { background: color-mix(in srgb, #db2777 12%, transparent); border-left: 4px solid #db2777; border-radius: 8px; padding: 8px 12px; }
 @media (max-width: 760px) {
   #c-dialogo { border-radius: 0; padding: 8px; }
-  #c-analisis > .filtros { gap: 8px; padding: 10px; }
+  :is(#c-analisis, #c-fecha-barra) > .filtros { gap: 8px; padding: 10px; }
   #c-dialogo .barra button { padding: 8px 14px; font-size: 13.5px; border-radius: 10px; }
 }
 
@@ -1821,13 +1845,14 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
    sus colores. Es una capa quieta (no se mueve con el zoom ni el arrastre), así que
    el desenfoque se calcula una vez y no hace lento el visor. */
 #c-dialogo { background: rgba(10, 11, 14, 0.9) !important; border: 1px solid rgba(255, 255, 255, 0.08) !important; }
-#c-dialogo::backdrop { background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+#c-dialogo::backdrop { background: rgba(3, 4, 6, 0.92); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 #c-dialogo .barra { background: rgba(255, 255, 255, 0.045) !important; border: 1px solid rgba(255, 255, 255, 0.07) !important; box-shadow: none !important; }
 #c-vista { isolation: isolate; background: #050608 !important; box-shadow: none !important; border-color: rgba(255, 255, 255, 0.06) !important; }
-#c-vista::before { content: ""; position: absolute; inset: -80px; z-index: -1; pointer-events: none;
-  background: var(--fondo-carta, none) center / cover no-repeat; filter: blur(50px) brightness(0.35) saturate(1.25); }
-#c-vista::after { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
-  background: radial-gradient(ellipse at center, transparent 35%, rgba(0, 0, 0, 0.6) 100%); }
+/* Fondo liso y oscuro: el difuminado de la carta quedaba gris con las cartas
+   claras (Bentley, Ogimet), así que se usa un negro parejo. */
+#c-dialogo { background: #0a0c10 !important; }
+#c-vista { background: #050608 !important; }
+#c-vista::before, #c-vista::after { content: none; }
 
 /* En el celular: "Cerrar" flota arriba a la derecha de la ventana y la barra de arriba
    le deja ese lugar. Sin efecto cristal en las barras: con él, lo "flotante" se ubica
@@ -1839,16 +1864,16 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
 
 /* ===== Botones de la hora: selector segmentado sobrio (en vez de los LED ámbar) =====
    "12 UTC" arriba y la hora argentina abajo; la elegida, una pastilla clara. */
-#c-analisis > .filtros .horas-c { background: rgba(255, 255, 255, 0.06) !important; border: 1px solid rgba(255, 255, 255, 0.08) !important;
+:is(#c-analisis, #c-fecha-barra) > .filtros .horas-c { background: rgba(255, 255, 255, 0.06) !important; border: 1px solid rgba(255, 255, 255, 0.08) !important;
   border-radius: 12px; padding: 3px; gap: 2px; box-shadow: none !important; }
-#c-analisis > .filtros .horas-c button { border: 0 !important; border-radius: 9px; padding: 5px 14px; background: transparent; box-shadow: none !important;
+:is(#c-analisis, #c-fecha-barra) > .filtros .horas-c button { border: 0 !important; border-radius: 9px; padding: 5px 14px; background: transparent; box-shadow: none !important;
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif !important; color: #cbd5e1; line-height: 1.15; min-width: 62px; }
-#c-analisis > .filtros .horas-c button b { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
-#c-analisis > .filtros .horas-c button b small { font-size: 10px; font-weight: 600; opacity: 0.65; margin-left: 1px; }
-#c-analisis > .filtros .horas-c button span { font-size: 11px; color: #94a3b8; font-weight: 400; }
-#c-analisis > .filtros .horas-c button:hover { background: rgba(255, 255, 255, 0.08); }
-#c-analisis > .filtros .horas-c button[aria-pressed="true"] { background: #f1f5f9 !important; color: #0b1017 !important; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35) !important; }
-#c-analisis > .filtros .horas-c button[aria-pressed="true"] span, #c-analisis > .filtros .horas-c button[aria-pressed="true"] small { color: #475569 !important; }
+:is(#c-analisis, #c-fecha-barra) > .filtros .horas-c button b { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+:is(#c-analisis, #c-fecha-barra) > .filtros .horas-c button b small { font-size: 10px; font-weight: 600; opacity: 0.65; margin-left: 1px; }
+:is(#c-analisis, #c-fecha-barra) > .filtros .horas-c button span { font-size: 11px; color: #94a3b8; font-weight: 400; }
+:is(#c-analisis, #c-fecha-barra) > .filtros .horas-c button:hover { background: rgba(255, 255, 255, 0.08); }
+:is(#c-analisis, #c-fecha-barra) > .filtros .horas-c button[aria-pressed="true"] { background: #f1f5f9 !important; color: #0b1017 !important; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35) !important; }
+:is(#c-analisis, #c-fecha-barra) > .filtros .horas-c button[aria-pressed="true"] span, :is(#c-analisis, #c-fecha-barra) > .filtros .horas-c button[aria-pressed="true"] small { color: #475569 !important; }
 
 /* ===== Para quien pide "reducir movimiento" en su sistema (accesibilidad) ===== */
 @media (prefers-reduced-motion: reduce) {
@@ -2345,8 +2370,9 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
       <span class="etq">Análisis</span>
       <div><p>Análisis de cada hora (cartas archivadas, satélite, observaciones), el meteograma y el corte tiempo-altura de la fecha elegida.</p></div>
     </div>
-    <div class="tarjeta" id="c-analisis" data-cvista="diag">
-      <div class="filtros">
+    <!-- Fecha y hora: valen para todas las pestañas de Diagnóstico -->
+    <div class="tarjeta c-fecha-barra" id="c-fecha-barra" data-cvista="diag">
+      <div class="filtros" style="margin:0">
         <label>Fecha <input type="date" id="f-c-fecha"></label>
         <!-- La hora: cuatro botones fijos. El <select> queda escondido: es el que
              lee y escribe el resto del código (los botones solo lo manejan). -->
@@ -2366,6 +2392,17 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
         <button class="boton" id="c-mas-dia" title="Un día después">+1 día »</button>
         <button class="boton" id="c-ultima">Última</button>
         <button class="boton anotar" id="c-anotar" hidden title="Anotar en tu libreta algo de las cartas de esta hora">📝 Anotar</button>
+      </div>
+    </div>
+    <!-- Diagnóstico en pestañas: una sección por vez, sin deslizar por todo -->
+    <nav class="diag-nav horas-c" id="diag-nav" data-cvista="diag" role="tablist" aria-label="Secciones de Diagnóstico">
+      <button type="button" role="tab" data-dsec="cartas"><b>🗺️ Cartas</b><span>análisis y satélite</span></button>
+      <button type="button" role="tab" data-dsec="ciudad"><b>📈 Por ciudad</b><span>meteograma y corte</span></button>
+      <button type="button" role="tab" data-dsec="hora"><b>🕐 Obs. de la hora</b><span>SYNOP de esa hora</span></button>
+      <button type="button" role="tab" data-dsec="dia"><b>📋 Obs. del día</b><span>todas, por estación</span></button>
+    </nav>
+    <div class="tarjeta" id="c-analisis" data-cvista="diag" data-dsec="cartas">
+      <div class="filtros">
         <label class="en-linea" title="Al pasar el mouse por una carta, una cruz marca el mismo punto en las cartas de la misma proyección">
           <input type="checkbox" id="f-c-cursor" checked> Cursor sincronizado</label>
         <label>Vista
@@ -2421,7 +2458,7 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
         <span class="err e-ok">≤2</span> <span class="err e-medio">≤4</span> <span class="err e-mal">&gt;4 °C</span>;
         ▲ hizo más calor de lo pronosticado, ▼ más frío. Tocá una ciudad para ver el pronóstico por período; "Ogimet ↗" abre los SYNOP de su aeropuerto para ese día (horas en UTC: el día civil va de las 03 UTC a las 03 UTC del día siguiente; la lluvia de 24 h y los extremos están en el parte de las 12 UTC del día siguiente).</p>
     </div>
-    <div class="tarjeta" id="cmd" data-cvista="diag">
+    <div class="tarjeta" id="cmd" data-cvista="diag" data-dsec="ciudad">
       <div class="filtros">
         <h2 style="margin:0; font-size:18px; flex:1 1 280px">Diagnóstico por ciudad <span class="tenue" style="font-weight:400">(lo que pasó: superficie medida y GFS en altura)</span></h2>
         <label class="en-linea">Ciudad <select id="cmd-ciudad"><option>La Plata</option></select></label>
@@ -2449,14 +2486,14 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
         </ul>
       </details>
     </div>
-    <div class="tarjeta" id="co" data-cvista="diag">
+    <div class="tarjeta" id="co" data-cvista="diag" data-dsec="hora">
       <h2 style="margin:0 0 4px; font-size:18px" id="co-titulo">Observaciones de la hora</h2>
       <p class="ayuda" id="co-nota"></p>
       <div class="panel-titulo">Estaciones del SMN <span class="tenue">(el SYNOP de esa hora)</span></div>
       <div class="tabla-scroll" style="max-height:none"><table id="co-smn"></table></div>
     </div>
     <!-- Todas las observaciones del día, estación por estación (se abre si se quiere) -->
-    <div class="tarjeta" id="cp-obs-tarjeta" data-cvista="diag">
+    <div class="tarjeta" id="cp-obs-tarjeta" data-cvista="diag" data-dsec="dia">
       <div class="cp-obs-cab"><h2 style="margin:0; font-size:18px; flex:1 1 280px">Observaciones del día <span class="tenue" style="font-weight:400">(todas, de cada estación de la ciudad, de 00 a 24 hs)</span></h2>
         <button type="button" class="boton" id="cp-obs-ver" aria-expanded="false">📋 Ver todas</button></div>
       <div id="cp-obs" hidden>
@@ -4564,6 +4601,34 @@ function iniciarPronosticoGFS() {
 }
 
 // Botonera de arriba: muestra solo las tarjetas de la sección elegida.
+// Diagnóstico en pestañas: se ve una sección por vez (se recuerda la última).
+function verDiag(sec) {
+  if (!["cartas", "ciudad", "hora", "dia"].includes(sec)) sec = "cartas";
+  document.querySelectorAll("#tab-cartas [data-dsec]").forEach((el) => {
+    if (el.closest("#diag-nav")) el.setAttribute("aria-selected", String(el.dataset.dsec === sec));
+    else el.classList.toggle("ds-oculta", el.dataset.dsec !== sec);
+  });
+  try { localStorage.setItem("diag-seccion", sec); } catch (_) {}
+  // Los gráficos dibujados mientras estaban ocultos se reacomodan al aparecer.
+  setTimeout(() => window.dispatchEvent(new Event("resize")), 0);
+}
+$("#diag-nav").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-dsec]");
+  if (!b) return;
+  verDiag(b.dataset.dsec);
+  const nav = $("#diag-nav");      // si se había bajado, vuelve al comienzo de la sección
+  if (nav.getBoundingClientRect().top < 0 || window.scrollY > nav.offsetTop) nav.scrollIntoView({ block: "start" });
+});
+{ let s = "cartas"; try { s = localStorage.getItem("diag-seccion") || "cartas"; } catch (_) {} verDiag(s); }
+// Las pestañas se pegan justo debajo del encabezado si este queda fijo (en la
+// compu); en el celular el encabezado se va al bajar y se pegan al borde.
+function medirCabecera() {
+  const h = document.querySelector("header"), pos = h ? getComputedStyle(h).position : "";
+  document.documentElement.style.setProperty("--alto-cab", (pos === "sticky" || pos === "fixed") ? h.offsetHeight + "px" : "0px");
+}
+medirCabecera();
+window.addEventListener("resize", medirCabecera);
+
 function verSeccionCartas(v) {
   document.querySelectorAll("#tab-cartas [data-cvista]").forEach((el) => {
     if (el.closest("#cartas-nav")) el.setAttribute("aria-selected", String(el.dataset.cvista === v));
@@ -5281,8 +5346,8 @@ async function cargarDiagnostico() {
     [{ label: lluvia[1], data: ptsO(lluvia[0]).map(([ts, v]) => ({ x: Date.parse(ts), y: v })), backgroundColor: css("--s1"), borderRadius: 2, barThickness: 6 }],
     { unidad: "mm", tipo: "bar", min: 0, ...x })]);
   dibujarCorte(G, desde, hasta, +t);
-  $("#cmd-paneles").innerHTML = paneles.map(([tit, u], j) => `<div class="panel-titulo">${esc(tit)}${u ? ` <span class="tenue">(${esc(u)})</span>` : ""}</div>
-    <div class="panel cp-panel"><canvas data-j="${j}"></canvas></div>`).join("");
+  $("#cmd-paneles").innerHTML = paneles.map(([tit, u], j) => `<div><div class="panel-titulo">${esc(tit)}${u ? ` <span class="tenue">(${esc(u)})</span>` : ""}</div>
+    <div class="panel cp-panel"><canvas data-j="${j}"></canvas></div></div>`).join("");
   paneles.forEach(([, , dibujar], j) => dibujar($(`#cmd-paneles canvas[data-j="${j}"]`)));
 }
 
@@ -5566,6 +5631,7 @@ document.addEventListener("click", (e) => {
   if (!b) return;
   e.stopPropagation();
   verSeccionCartas("diag");          // la tabla vive en Diagnóstico
+  verDiag("dia");
   abrirObsDia(b.dataset.obsCiudad);
   setTimeout(() => $("#cp-obs-tarjeta").scrollIntoView({ block: "start", behavior: "smooth" }), 50);
 });
@@ -5667,8 +5733,6 @@ function mostrarEnVisor() {
   img.hidden = !p;
   if (!p) return;
   img.src = p.url;
-  // Fondo "tipo visor de fotos de Windows": la misma carta, muy desenfocada y oscura (ver #c-vista::before).
-  $("#c-vista").style.setProperty("--fondo-carta", p.fondo ? `url("${p.url}"), url("${p.fondo}")` : `url("${p.url}")`);
   img.className = p.fondo ? "con-fondo" : "";
   img.style.backgroundImage = p.fondo ? `url('${p.fondo}')` : "";
   aplicarZoom();          // al cambiar de hora se mantiene el zoom: se compara el mismo lugar
@@ -9119,9 +9183,9 @@ async function abrirContexto(c) {
   setTimeout(() => {
     if (c.seccion === "meteograma" && c.ciudad) {
       $("#cmd-ciudad").innerHTML = $("#cmd-ciudad").options.length > 1 ? $("#cmd-ciudad").innerHTML : `<option>${esc(c.ciudad)}</option>`;
-      $("#cmd-ciudad").value = c.ciudad; cmdClave = null; cargarDiagnostico();
+      $("#cmd-ciudad").value = c.ciudad; cmdClave = null; verDiag("ciudad"); cargarDiagnostico();
       $("#cmd").scrollIntoView({ behavior: "smooth" });
-    } else if (c.producto) abrirCarta(c.producto);
+    } else if (c.producto) { verDiag("cartas"); abrirCarta(c.producto); }
   }, 1200);
 }
 

@@ -382,6 +382,15 @@ análisis (los niveles del perfil). Para fechas viejas:
 `historico cartas --desde ... --hasta ...` (si las cartas ya están, baja solo
 lo de los puntos). API: `/api/cartas/punto?ciudad=&desde=&hasta=[&perfiles=true]`.
 
+## Diagnóstico en pestañas
+
+Para no tener que bajar por toda la página, Diagnóstico muestra una sección
+por vez: **🗺️ Cartas**, **📈 Por ciudad** (meteograma y corte), **🕐 Obs. de
+la hora** y **📋 Obs. del día**. La barra de fecha y hora queda arriba y vale
+para todas. Las pestañas se quedan pegadas arriba al bajar y se recuerda la
+última que se usó. En el celular las cartas van de a dos por fila (tocándola
+se abre grande) y en la compu el meteograma va en dos columnas.
+
 ## Observaciones del día (todas)
 
 En **Diagnóstico**, la tarjeta **Observaciones del día → 📋 Ver todas** muestra
