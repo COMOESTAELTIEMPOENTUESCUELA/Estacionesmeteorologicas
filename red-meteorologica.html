@@ -496,10 +496,17 @@
             </div>
 
             <div>
-                <h4 class="text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Período</h4>
-                <div class="flex items-center gap-1.5 bg-slate-100 p-1.5 rounded-2xl w-fit">
-                    <button id="comparador-btn-hoy" class="comparador-periodo-btn px-4 py-2 rounded-xl font-black text-xs transition">Últimas 24 hs</button>
-                    <button id="comparador-btn-semana" class="comparador-periodo-btn px-4 py-2 rounded-xl font-black text-xs transition">Última semana</button>
+                <h4 class="text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Período (fecha y hora, a elección)</h4>
+                <div class="flex flex-col sm:flex-row items-stretch sm:items-end gap-2">
+                    <div class="flex-1">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Desde</label>
+                        <input id="comparador-fecha-desde" type="datetime-local" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:border-blue-400">
+                    </div>
+                    <div class="flex-1">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Hasta</label>
+                        <input id="comparador-fecha-hasta" type="datetime-local" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:border-blue-400">
+                    </div>
+                    <button id="btn-comparador-aplicar" class="bg-blue-600 hover:bg-blue-700 text-white font-black text-xs px-4 py-2.5 rounded-xl transition shrink-0">Aplicar</button>
                 </div>
             </div>
 
@@ -2474,7 +2481,6 @@
         const CLAVE_COMPARADOR = 'Maraton';
         let comparadorAutenticado = false;
         let variableComparadorActual = 'temp';
-        let periodoComparadorActual = 'hoy';
         let chartComparador = null;
         const estacionesComparadorSeleccionadas = new Set();
         const comparadorChipsEstacion = new Map(); // p -> chip, para no buscar por texto
@@ -2544,6 +2550,16 @@
                 // Arranca con las dos primeras estaciones ya tildadas, para que el
                 // gráfico no quede vacío la primera vez que se abre.
                 puntos.filter(p => p.live).slice(0, 2).forEach(p => estacionesComparadorSeleccionadas.add(p));
+
+                // Rango por defecto: últimas 24hs. Se usa <input type="datetime-local">
+                // para que se pueda elegir cualquier fecha/hora a gusto, no solo "hoy"
+                // o "la semana".
+                const pad = (n) => n.toString().padStart(2, '0');
+                const aDatetimeLocal = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+                const ahora = new Date();
+                const hace24hs = new Date(ahora.getTime() - 24 * 60 * 60 * 1000);
+                document.getElementById('comparador-fecha-hasta').value = aDatetimeLocal(ahora);
+                document.getElementById('comparador-fecha-desde').value = aDatetimeLocal(hace24hs);
             }
 
             actualizarBotonesComparador();
@@ -2556,39 +2572,111 @@
                 chip.className = `comparador-chip-variable px-3 py-1.5 rounded-xl font-bold text-xs transition border-2 ${activo ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-500 border-slate-200 hover:border-blue-300'}`;
             });
 
-            const activoPeriodo = 'bg-blue-600 text-white';
-            const inactivoPeriodo = 'text-slate-500 hover:bg-white';
-            document.getElementById('comparador-btn-hoy').className = `comparador-periodo-btn px-4 py-2 rounded-xl font-black text-xs transition ${periodoComparadorActual === 'hoy' ? activoPeriodo : inactivoPeriodo}`;
-            document.getElementById('comparador-btn-semana').className = `comparador-periodo-btn px-4 py-2 rounded-xl font-black text-xs transition ${periodoComparadorActual === 'semana' ? activoPeriodo : inactivoPeriodo}`;
-
             comparadorChipsEstacion.forEach((el, p) => {
                 const activo = estacionesComparadorSeleccionadas.has(p);
                 el.className = `comparador-chip-estacion px-3 py-1.5 rounded-xl font-bold text-xs transition border-2 flex items-center gap-1.5 ${activo ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'}`;
             });
         }
 
-        // Reconstruye una fecha real a partir de la etiqueta ya formateada que usan
-        // los gráficos normales ("HH:MM" para hoy, "DD/MM HH:MM" para la semana), para
-        // poder ubicar cada estación en el eje X por su hora real y no por posición
-        // dentro de su propio arreglo (las estaciones no reportan exactamente en los
-        // mismos minutos entre sí).
-        function parsearEtiquetaAFecha(etiqueta, periodo) {
-            const ahora = new Date();
-            if (periodo === 'semana') {
-                const [fechaParte, horaParte] = etiqueta.split(' ');
-                const [dd, mm] = fechaParte.split('/').map(Number);
-                const [hh, min] = horaParte.split(':').map(Number);
-                let fecha = new Date(ahora.getFullYear(), mm - 1, dd, hh, min);
-                if (fecha > ahora) fecha.setFullYear(fecha.getFullYear() - 1);
-                return fecha;
+        // Igual que fetchHistoricoRangoTS (usada por la descarga CSV del admin), pero
+        // devolviendo directamente puntos {x,y} de UNA variable en vez de filas de
+        // CSV con todas — así se puede elegir cualquier fecha/hora (no solo día
+        // completo) sin tocar la función que ya usa el admin.
+        async function fetchSerieComparadorTS(estacion, desde, hasta, variableId) {
+            const pad = (n) => n.toString().padStart(2, '0');
+            const aParam = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}%20${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
+
+            const canales = estacion.channels || [{ id: estacion.id, key: estacion.key }];
+            const respuestas = await Promise.all(canales.map(ch => fetchFeedsCanal(ch, `&start=${aParam(desde)}&end=${aParam(hasta)}`)));
+            let feeds = respuestas.flatMap(d => d.feeds || []);
+            feeds.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+            if (canales.length > 1) {
+                const timestampsVistos = new Set();
+                feeds = feeds.filter(f => {
+                    if (timestampsVistos.has(f.created_at)) return false;
+                    timestampsVistos.add(f.created_at);
+                    return true;
+                });
             }
-            const [hh, min] = etiqueta.split(':').map(Number);
-            const fecha = new Date(ahora);
-            fecha.setHours(hh, min, 0, 0);
-            return fecha;
+
+            const channelId = estacion.id || canales[0].id;
+            const isObservatorio = channelId === '2823820';
+            const isEmaVerde = !!estacion.isEmaVerde;
+
+            let lluviaAcumulada = 0;
+            const serie = [];
+            feeds.forEach(f => {
+                const x = new Date(f.created_at).getTime();
+                let y = null;
+                if (variableId === 'temp') {
+                    y = parseFloat(f.field1);
+                } else if (variableId === 'hum') {
+                    y = parseFloat(f[isObservatorio ? 'field4' : 'field2']);
+                } else if (variableId === 'pres') {
+                    y = parseFloat(f.field6);
+                } else if (variableId === 'wind') {
+                    y = isObservatorio ? parseFloat(f.field7) : null;
+                } else if (variableId === 'rain') {
+                    const rainField = isEmaVerde ? 'field4' : 'field5';
+                    let v = parseFloat(f[rainField]);
+                    if (!isNaN(v) && v >= 0) {
+                        if (estacion.rainMult) v = v > 0 ? estacion.rainMult : 0;
+                        lluviaAcumulada += v;
+                    }
+                    y = lluviaAcumulada;
+                }
+                if (y !== null && !isNaN(y)) serie.push({ x, y: +y.toFixed(2) });
+            });
+            return serie;
         }
 
-        const CAMPO_POR_VARIABLE_COMPARADOR = { temp: 'temps', hum: 'hums', pres: 'press', rain: 'rains', wind: 'winds' };
+        // Igual idea que fetchSerieComparadorTS, para estaciones de Wunderground.
+        // La API de WU solo entrega historial por día completo, así que se pide cada
+        // día que toca el rango y después se recorta a la hora exacta elegida.
+        async function fetchSerieComparadorWU(estacion, desde, hasta, variableId) {
+            const dias = [];
+            const cursor = new Date(desde);
+            cursor.setHours(0, 0, 0, 0);
+            while (cursor <= hasta) {
+                dias.push(new Date(cursor));
+                cursor.setDate(cursor.getDate() + 1);
+            }
+            const porDia = await Promise.all(dias.map(d => fetchWUHistorialDia(estacion.wuId, estacion.wuKey, d)));
+
+            let lluviaAcumulada = 0;
+            return porDia.flat()
+                .map(o => ({ o, fecha: new Date((o.obsTimeLocal || o.obsTimeUtc).replace(' ', 'T')) }))
+                .filter(({ fecha }) => fecha >= desde && fecha <= hasta)
+                .sort((a, b) => a.fecha - b.fecha)
+                .map(({ o, fecha }) => {
+                    const m = o.imperial || {};
+                    let y = null;
+                    if (variableId === 'temp') {
+                        const t = m.tempAvg != null ? m.tempAvg : m.temp;
+                        if (t != null) y = fAcC(parseFloat(t));
+                    } else if (variableId === 'hum') {
+                        const h = o.humidityAvg != null ? o.humidityAvg : o.humidity;
+                        if (h != null) y = parseFloat(h);
+                    } else if (variableId === 'pres') {
+                        const p = m.pressureMax != null ? m.pressureMax : m.pressure;
+                        if (p != null) y = inHgAHpa(parseFloat(p));
+                    } else if (variableId === 'wind') {
+                        const ws = m.windspeedAvg != null ? m.windspeedAvg : m.windSpeed;
+                        if (ws != null) y = mphAKmh(parseFloat(ws));
+                    } else if (variableId === 'rain') {
+                        if (m.precipTotal != null) lluviaAcumulada = inAMm(parseFloat(m.precipTotal));
+                        y = lluviaAcumulada;
+                    }
+                    return y !== null && !isNaN(y) ? { x: fecha.getTime(), y: +y.toFixed(2) } : null;
+                })
+                .filter(Boolean);
+        }
+
+        async function fetchSerieComparador(estacion, desde, hasta, variableId) {
+            if (estacion.source === 'wunderground') return await fetchSerieComparadorWU(estacion, desde, hasta, variableId);
+            return await fetchSerieComparadorTS(estacion, desde, hasta, variableId);
+        }
 
         async function actualizarComparador() {
             const estado = document.getElementById('comparador-estado');
@@ -2600,31 +2688,36 @@
                 return;
             }
 
+            const desde = new Date(document.getElementById('comparador-fecha-desde').value);
+            const hasta = new Date(document.getElementById('comparador-fecha-hasta').value);
+            if (isNaN(desde) || isNaN(hasta) || desde >= hasta) {
+                estado.textContent = 'Revisá el rango de fecha/hora elegido.';
+                return;
+            }
+
             estado.textContent = 'Cargando...';
             const v = VARIABLES_MAPA.find(v => v.id === variableComparadorActual);
-            const campo = CAMPO_POR_VARIABLE_COMPARADOR[variableComparadorActual];
 
             const resultados = await Promise.all(seleccionadas.map(async (p) => {
-                const hist = await fetchHistorialCanal(p, periodoComparadorActual);
-                const etiquetas = variableComparadorActual === 'rain' ? (hist.horasLluvia || hist.horas) : hist.horas;
-                const valores = hist[campo] || [];
-                const serie = etiquetas.map((etq, i) => {
-                    const val = parseFloat(valores[i]);
-                    if (isNaN(val)) return null;
-                    return { x: parsearEtiquetaAFecha(etq, periodoComparadorActual).getTime(), y: val };
-                }).filter(Boolean);
-                return { p, serie };
+                try {
+                    const serie = await fetchSerieComparador(p, desde, hasta, variableComparadorActual);
+                    return { p, serie };
+                } catch (e) {
+                    console.error('Error trayendo datos de', p.n, 'para el comparador:', e);
+                    return { p, serie: [] };
+                }
             }));
 
             renderizarGraficoComparador(resultados, v);
-            estado.textContent = `${seleccionadas.length} estación${seleccionadas.length > 1 ? 'es' : ''} · ${periodoComparadorActual === 'semana' ? 'última semana' : 'últimas 24 hs'}`;
+            const fmt = (d) => `${d.toLocaleDateString('es-AR')} ${d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`;
+            estado.textContent = `${seleccionadas.length} estación${seleccionadas.length > 1 ? 'es' : ''} · ${fmt(desde)} a ${fmt(hasta)}`;
         }
 
         function renderizarGraficoComparador(resultados, v) {
             const ctx = document.getElementById('chartComparador').getContext('2d');
             if (chartComparador) chartComparador.destroy();
 
-            const incluirFecha = periodoComparadorActual === 'semana';
+            const incluirFecha = true; // rango arbitrario: siempre conviene ver la fecha, no solo la hora
             const datasets = resultados.map(({ p, serie }) => ({
                 label: p.n,
                 data: serie,
@@ -2688,18 +2781,7 @@
         document.getElementById('comparador-input-clave').addEventListener('keydown', (e) => {
             if (e.key === 'Enter') intentarLoginComparador();
         });
-        document.getElementById('comparador-btn-hoy').addEventListener('click', () => {
-            if (periodoComparadorActual === 'hoy') return;
-            periodoComparadorActual = 'hoy';
-            actualizarBotonesComparador();
-            actualizarComparador();
-        });
-        document.getElementById('comparador-btn-semana').addEventListener('click', () => {
-            if (periodoComparadorActual === 'semana') return;
-            periodoComparadorActual = 'semana';
-            actualizarBotonesComparador();
-            actualizarComparador();
-        });
+        document.getElementById('btn-comparador-aplicar').addEventListener('click', actualizarComparador);
 
         // ─── SOLAPA DE ESCUELAS (desliza sobre el mapa) ──────────────────────────
         function abrirSolapaEscuelas() {
