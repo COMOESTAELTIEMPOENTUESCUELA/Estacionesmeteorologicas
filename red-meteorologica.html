@@ -469,6 +469,52 @@
     </div>
 </div>
 
+<!-- Acceso oculto al comparador de estaciones por variable -->
+<button id="btn-comparador-trigger" class="fixed bottom-4 left-3 w-6 h-6 rounded-full bg-slate-400 opacity-20 hover:opacity-70 active:opacity-70 transition z-[9000]" title="⚙"></button>
+
+<div id="comparador-overlay" class="fixed inset-0 z-[10001] bg-slate-900/70 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-white rounded-[1.5rem] shadow-2xl w-full max-w-4xl max-h-[92vh] overflow-y-auto border-4 border-white">
+        <div class="flex items-center justify-between gap-3 p-4 border-b-2 border-slate-100 sticky top-0 bg-white z-10">
+            <h3 class="text-base font-black text-slate-800">Comparador de estaciones</h3>
+            <button id="btn-cerrar-comparador" class="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition" title="Cerrar">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <div id="comparador-paso-clave" class="p-5 space-y-3">
+            <p class="text-xs font-bold text-slate-500">Ingresá la clave para acceder al comparador.</p>
+            <input id="comparador-input-clave" type="password" placeholder="Clave" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:border-blue-400">
+            <p id="comparador-clave-error" class="text-xs font-bold text-red-500 hidden">Clave incorrecta.</p>
+            <button id="btn-comparador-entrar" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black text-sm py-2.5 rounded-xl transition">Entrar</button>
+        </div>
+
+        <div id="comparador-paso-panel" class="p-5 space-y-5 hidden">
+            <div>
+                <h4 class="text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Variable</h4>
+                <div id="comparador-selector-variable" class="flex flex-wrap gap-2"></div>
+            </div>
+
+            <div>
+                <h4 class="text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Período</h4>
+                <div class="flex items-center gap-1.5 bg-slate-100 p-1.5 rounded-2xl w-fit">
+                    <button id="comparador-btn-hoy" class="comparador-periodo-btn px-4 py-2 rounded-xl font-black text-xs transition">Últimas 24 hs</button>
+                    <button id="comparador-btn-semana" class="comparador-periodo-btn px-4 py-2 rounded-xl font-black text-xs transition">Última semana</button>
+                </div>
+            </div>
+
+            <div>
+                <h4 class="text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Estaciones a comparar</h4>
+                <div id="comparador-selector-estaciones" class="flex flex-wrap gap-2"></div>
+            </div>
+
+            <div class="h-[320px] lg:h-[400px] w-full bg-slate-50 rounded-2xl p-3 border-2 border-slate-100">
+                <canvas id="chartComparador"></canvas>
+            </div>
+            <p id="comparador-estado" class="text-xs font-bold text-slate-400"></p>
+        </div>
+    </div>
+</div>
+
     <script>
         lucide.createIcons();
 
@@ -2421,6 +2467,237 @@
             } finally {
                 btn.disabled = false;
             }
+        });
+
+        // ─── COMPARADOR DE ESTACIONES POR VARIABLE (acceso oculto) ──────────────
+        const CLAVE_COMPARADOR = 'Maraton';
+        let comparadorAutenticado = false;
+        let variableComparadorActual = 'temp';
+        let periodoComparadorActual = 'hoy';
+        let chartComparador = null;
+        const estacionesComparadorSeleccionadas = new Set();
+        const comparadorChipsEstacion = new Map(); // p -> chip, para no buscar por texto
+
+        function abrirComparador() {
+            document.getElementById('comparador-overlay').classList.remove('hidden');
+            document.getElementById('comparador-overlay').classList.add('flex');
+            if (comparadorAutenticado) {
+                mostrarPanelComparador();
+            }
+        }
+
+        function cerrarComparador() {
+            document.getElementById('comparador-overlay').classList.add('hidden');
+            document.getElementById('comparador-overlay').classList.remove('flex');
+        }
+
+        function intentarLoginComparador() {
+            const valor = document.getElementById('comparador-input-clave').value;
+            if (valor === CLAVE_COMPARADOR) {
+                comparadorAutenticado = true;
+                document.getElementById('comparador-clave-error').classList.add('hidden');
+                mostrarPanelComparador();
+            } else {
+                document.getElementById('comparador-clave-error').classList.remove('hidden');
+            }
+        }
+
+        function mostrarPanelComparador() {
+            document.getElementById('comparador-paso-clave').classList.add('hidden');
+            document.getElementById('comparador-paso-panel').classList.remove('hidden');
+
+            const selVariable = document.getElementById('comparador-selector-variable');
+            if (!selVariable.dataset.poblado) {
+                VARIABLES_MAPA.forEach(v => {
+                    const chip = document.createElement('button');
+                    chip.className = 'comparador-chip-variable px-3 py-1.5 rounded-xl font-bold text-xs transition border-2';
+                    chip.textContent = v.label;
+                    chip.dataset.variable = v.id;
+                    chip.addEventListener('click', () => {
+                        variableComparadorActual = v.id;
+                        actualizarBotonesComparador();
+                        actualizarComparador();
+                    });
+                    selVariable.appendChild(chip);
+                });
+                selVariable.dataset.poblado = '1';
+
+                const selEstaciones = document.getElementById('comparador-selector-estaciones');
+                puntos.filter(p => p.live).forEach(p => {
+                    const chip = document.createElement('button');
+                    chip.className = 'comparador-chip-estacion px-3 py-1.5 rounded-xl font-bold text-xs transition border-2 flex items-center gap-1.5';
+                    chip.innerHTML = `<span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:${p.clr}"></span> ${p.n}`;
+                    chip.addEventListener('click', () => {
+                        if (estacionesComparadorSeleccionadas.has(p)) {
+                            estacionesComparadorSeleccionadas.delete(p);
+                        } else {
+                            estacionesComparadorSeleccionadas.add(p);
+                        }
+                        actualizarBotonesComparador();
+                        actualizarComparador();
+                    });
+                    selEstaciones.appendChild(chip);
+                    comparadorChipsEstacion.set(p, chip);
+                });
+
+                // Arranca con las dos primeras estaciones ya tildadas, para que el
+                // gráfico no quede vacío la primera vez que se abre.
+                puntos.filter(p => p.live).slice(0, 2).forEach(p => estacionesComparadorSeleccionadas.add(p));
+            }
+
+            actualizarBotonesComparador();
+            actualizarComparador();
+        }
+
+        function actualizarBotonesComparador() {
+            document.querySelectorAll('#comparador-selector-variable .comparador-chip-variable').forEach(chip => {
+                const activo = chip.dataset.variable === variableComparadorActual;
+                chip.className = `comparador-chip-variable px-3 py-1.5 rounded-xl font-bold text-xs transition border-2 ${activo ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-500 border-slate-200 hover:border-blue-300'}`;
+            });
+
+            const activoPeriodo = 'bg-blue-600 text-white';
+            const inactivoPeriodo = 'text-slate-500 hover:bg-white';
+            document.getElementById('comparador-btn-hoy').className = `comparador-periodo-btn px-4 py-2 rounded-xl font-black text-xs transition ${periodoComparadorActual === 'hoy' ? activoPeriodo : inactivoPeriodo}`;
+            document.getElementById('comparador-btn-semana').className = `comparador-periodo-btn px-4 py-2 rounded-xl font-black text-xs transition ${periodoComparadorActual === 'semana' ? activoPeriodo : inactivoPeriodo}`;
+
+            comparadorChipsEstacion.forEach((el, p) => {
+                const activo = estacionesComparadorSeleccionadas.has(p);
+                el.className = `comparador-chip-estacion px-3 py-1.5 rounded-xl font-bold text-xs transition border-2 flex items-center gap-1.5 ${activo ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'}`;
+            });
+        }
+
+        // Reconstruye una fecha real a partir de la etiqueta ya formateada que usan
+        // los gráficos normales ("HH:MM" para hoy, "DD/MM HH:MM" para la semana), para
+        // poder ubicar cada estación en el eje X por su hora real y no por posición
+        // dentro de su propio arreglo (las estaciones no reportan exactamente en los
+        // mismos minutos entre sí).
+        function parsearEtiquetaAFecha(etiqueta, periodo) {
+            const ahora = new Date();
+            if (periodo === 'semana') {
+                const [fechaParte, horaParte] = etiqueta.split(' ');
+                const [dd, mm] = fechaParte.split('/').map(Number);
+                const [hh, min] = horaParte.split(':').map(Number);
+                let fecha = new Date(ahora.getFullYear(), mm - 1, dd, hh, min);
+                if (fecha > ahora) fecha.setFullYear(fecha.getFullYear() - 1);
+                return fecha;
+            }
+            const [hh, min] = etiqueta.split(':').map(Number);
+            const fecha = new Date(ahora);
+            fecha.setHours(hh, min, 0, 0);
+            return fecha;
+        }
+
+        const CAMPO_POR_VARIABLE_COMPARADOR = { temp: 'temps', hum: 'hums', pres: 'press', rain: 'rains', wind: 'winds' };
+
+        async function actualizarComparador() {
+            const estado = document.getElementById('comparador-estado');
+            const seleccionadas = puntos.filter(p => estacionesComparadorSeleccionadas.has(p));
+
+            if (!seleccionadas.length) {
+                estado.textContent = 'Elegí al menos una estación para comparar.';
+                if (chartComparador) { chartComparador.destroy(); chartComparador = null; }
+                return;
+            }
+
+            estado.textContent = 'Cargando...';
+            const v = VARIABLES_MAPA.find(v => v.id === variableComparadorActual);
+            const campo = CAMPO_POR_VARIABLE_COMPARADOR[variableComparadorActual];
+
+            const resultados = await Promise.all(seleccionadas.map(async (p) => {
+                const hist = await fetchHistorialCanal(p, periodoComparadorActual);
+                const etiquetas = variableComparadorActual === 'rain' ? (hist.horasLluvia || hist.horas) : hist.horas;
+                const valores = hist[campo] || [];
+                const serie = etiquetas.map((etq, i) => {
+                    const val = parseFloat(valores[i]);
+                    if (isNaN(val)) return null;
+                    return { x: parsearEtiquetaAFecha(etq, periodoComparadorActual).getTime(), y: val };
+                }).filter(Boolean);
+                return { p, serie };
+            }));
+
+            renderizarGraficoComparador(resultados, v);
+            estado.textContent = `${seleccionadas.length} estación${seleccionadas.length > 1 ? 'es' : ''} · ${periodoComparadorActual === 'semana' ? 'última semana' : 'últimas 24 hs'}`;
+        }
+
+        function renderizarGraficoComparador(resultados, v) {
+            const ctx = document.getElementById('chartComparador').getContext('2d');
+            if (chartComparador) chartComparador.destroy();
+
+            const incluirFecha = periodoComparadorActual === 'semana';
+            const datasets = resultados.map(({ p, serie }) => ({
+                label: p.n,
+                data: serie,
+                borderColor: p.clr,
+                backgroundColor: p.clr + '20',
+                borderWidth: 2.5,
+                pointRadius: 2,
+                pointHoverRadius: 6,
+                tension: 0.3,
+                spanGaps: true
+            }));
+
+            chartComparador = new Chart(ctx, {
+                type: 'line',
+                data: { datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    parsing: false,
+                    plugins: {
+                        legend: {
+                            display: true, position: 'top',
+                            labels: { boxWidth: 12, font: { family: "'Plus Jakarta Sans', sans-serif", weight: '700', size: 11 } }
+                        },
+                        tooltip: {
+                            padding: 10, cornerRadius: 10,
+                            titleFont: { size: 12, family: "'Plus Jakarta Sans', sans-serif" },
+                            bodyFont: { size: 13, weight: '700', family: "'Plus Jakarta Sans', sans-serif" },
+                            callbacks: {
+                                title: (items) => formatearEtiquetaFecha(new Date(items[0].parsed.x), incluirFecha),
+                                label: (item) => `${item.dataset.label}: ${item.parsed.y} ${v.unidad}`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            grid: { display: false },
+                            ticks: {
+                                callback: (val) => formatearEtiquetaFecha(new Date(val), incluirFecha),
+                                maxTicksLimit: 8,
+                                font: { family: "'Plus Jakarta Sans', sans-serif", size: 10 }, color: '#94a3b8'
+                            }
+                        },
+                        y: {
+                            title: { display: true, text: v.unidad, font: { family: "'Plus Jakarta Sans', sans-serif", weight: '700' } },
+                            grid: { color: '#f1f5f9', borderDash: [6, 6], lineWidth: 2 },
+                            ticks: { font: { weight: '800', family: "'Plus Jakarta Sans', sans-serif", size: 11 }, color: '#94a3b8' }
+                        }
+                    }
+                }
+            });
+        }
+
+        document.getElementById('btn-comparador-trigger').addEventListener('click', abrirComparador);
+        document.getElementById('btn-cerrar-comparador').addEventListener('click', cerrarComparador);
+        document.getElementById('comparador-overlay').addEventListener('click', (e) => {
+            if (e.target.id === 'comparador-overlay') cerrarComparador();
+        });
+        document.getElementById('btn-comparador-entrar').addEventListener('click', intentarLoginComparador);
+        document.getElementById('comparador-input-clave').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') intentarLoginComparador();
+        });
+        document.getElementById('comparador-btn-hoy').addEventListener('click', () => {
+            if (periodoComparadorActual === 'hoy') return;
+            periodoComparadorActual = 'hoy';
+            actualizarBotonesComparador();
+            actualizarComparador();
+        });
+        document.getElementById('comparador-btn-semana').addEventListener('click', () => {
+            if (periodoComparadorActual === 'semana') return;
+            periodoComparadorActual = 'semana';
+            actualizarBotonesComparador();
+            actualizarComparador();
         });
 
         // ─── SOLAPA DE ESCUELAS (desliza sobre el mapa) ──────────────────────────
