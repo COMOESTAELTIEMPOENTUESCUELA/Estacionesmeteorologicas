@@ -2453,6 +2453,9 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
         <div id="cp-mapa"></div>
         <div style="overflow-x:auto"><table id="cp-tabla"></table></div>
       </div>
+      <!-- El gráfico de lo observado en la ciudad que se tocó: a todo el ancho
+           (adentro de la tabla, que ocupa media pantalla, quedaba cortado) -->
+      <div id="cp-graf-ancho" class="cp-graf" hidden></div>
       <p class="ayuda" style="margin-top:8px">Pronosticado / observado en cada ciudad para el día de la carta (la máxima, de 00 a 24 hs; la mínima, de 21 hs del día anterior a 21 hs, como la verifica el equipo).
         Temperaturas: urbana (en La Plata, el Observatorio; en las demás, el aeropuerto). El color es el error:
         <span class="err e-ok">≤2</span> <span class="err e-medio">≤4</span> <span class="err e-mal">&gt;4 °C</span>;
@@ -5548,10 +5551,13 @@ function detallePeriodos(f) {
 // día del pronóstico (00 a 24 hs), con la mínima y máxima pronosticadas.
 let cpDatos = [];
 async function graficoSynopCiudad(filaDetalle, dia) {
-  const cont = filaDetalle.querySelector(".cp-graf");
-  if (!cont || cont.dataset.cargado === dia) return;
-  cont.dataset.cargado = dia;
-  const est = cont.dataset.est, c = cpDatos[Number(cont.dataset.i)] || {}, f = c.pronostico;
+  const ref = filaDetalle.querySelector(".cp-graf-ref"), cont = $("#cp-graf-ancho");
+  if (!ref) return;
+  const clave = `${ref.dataset.est}|${dia}`;
+  cont.hidden = false;
+  if (cont.dataset.cargado === clave) return;
+  cont.dataset.cargado = clave;
+  const est = ref.dataset.est, c = cpDatos[Number(ref.dataset.i)] || {}, f = c.pronostico;
   cont.innerHTML = '<p class="tenue">Cargando lo observado…</p>';
   let d;
   try { d = await api(`/api/cartas/synop?estacion=${encodeURIComponent(est)}&fecha=${dia}`); }
@@ -5637,6 +5643,7 @@ $("#cp-obs-ver").addEventListener("click", () => {
 });
 $("#cp-obs-ciudades").addEventListener("click", (e) => { const b = e.target.closest("button[data-c]"); if (b) verObsCiudad(b.dataset.c); });
 document.addEventListener("click", (e) => {
+  if (e.target.closest("[data-ir-graf]")) { $("#cp-graf-ancho").scrollIntoView({ block: "start", behavior: "smooth" }); return; }
   const b = e.target.closest("[data-obs-ciudad]");
   if (!b) return;
   e.stopPropagation();
@@ -5669,7 +5676,7 @@ async function cargarPronoDia() {
       // Al tocar la ciudad: el detalle por períodos y el gráfico de lo que
       // midió su estación del SMN ese día (de los SYNOP).
       const est = (c.synop || [])[0] || "";
-      const graf = est ? `<div class="cp-graf" data-est="${esc(est)}" data-i="${i}"></div>` : "";
+      const graf = est ? `<div class="cp-graf-ref" data-est="${esc(est)}" data-i="${i}"><button type="button" class="boton chico" data-ir-graf>📈 Ver el gráfico de lo observado ↓</button></div>` : "";
       const todas = `<p><button type="button" class="boton chico" data-obs-ciudad="${esc(c.ciudad)}">📋 Todas sus observaciones del día</button></p>`;
       if (!f) return `<tr class="fila-click" data-i="${i}"><th>${esc(c.ciudad)}${og}</th><td colspan="4" class="tenue">sin pronóstico</td></tr>
         <tr class="detalle" data-de="${i}" hidden><td colspan="5">${graf || '<span class="tenue">Sin estación sinóptica asociada.</span>'}${todas}</td></tr>`;
@@ -5679,6 +5686,7 @@ async function cargarPronoDia() {
     }).join("");
   cpDatos = r.ciudades;
   cpObs.dia = dia;
+  $("#cp-graf-ancho").hidden = true; $("#cp-graf-ancho").innerHTML = ""; delete $("#cp-graf-ancho").dataset.cargado;
   $("#cp-obs-ciudades").innerHTML = r.ciudades.map((c) => `<button type="button" data-c="${esc(c.ciudad)}">${esc(c.ciudad)}</button>`).join("");
   if (!$("#cp-obs").hidden) verObsCiudad(cpObs.ciudad || r.ciudades[0]?.ciudad);
   document.querySelectorAll("#cp-tabla .fila-click").forEach((tr) => tr.addEventListener("click", (e) => {
@@ -8348,8 +8356,11 @@ function dibujarAdminVerif() {
         <tr><th>Parámetro</th><th>Valor</th></tr>
         ${d.parametros.map((p) => `<tr class="${p.cambiado ? "cambiado" : ""}"><td><b>${esc(p.nombre)}</b><br><small class="tenue">${esc(p.explicacion)}</small>
             ${p.cambiado ? `<br><small class="adm-quien">Cambiado por ${esc(p.cambiado.quien || "?")} el ${esc(fmtEscrita.format(new Date(p.cambiado.cuando)))}</small>` : ""}</td>
-          <td><input type="number" name="${esc(p.clave)}" value="${Math.round(p.valor * 10000) / 10000}" min="${p.min}" max="${p.max}" step="any" required> ${esc(p.unidad)}
-            <br><small class="tenue">de siempre: ${fmt(p.defecto)} ${esc(p.unidad)}</small></td></tr>`).join("")}
+          <td>${p.unidad === "sí/no"
+            ? `<label class="en-linea"><input type="checkbox" name="${esc(p.clave)}"${p.valor ? " checked" : ""}> Sí, cuenta</label>
+               <br><small class="tenue">de siempre: ${p.defecto ? "sí" : "no"}</small>`
+            : `<input type="number" name="${esc(p.clave)}" value="${Math.round(p.valor * 10000) / 10000}" min="${p.min}" max="${p.max}" step="any" required> ${esc(p.unidad)}
+               <br><small class="tenue">de siempre: ${fmt(p.defecto)} ${esc(p.unidad)}</small>`}</td></tr>`).join("")}
       </table></div>
       <div class="acc" style="margin-top:8px"><button class="boton primario">Guardar</button>
         <button type="button" class="boton" id="adm-defecto">Volver todo a lo de siempre</button>
@@ -8388,7 +8399,7 @@ function dibujarAdminVerif() {
   };
   $("#adm-form").addEventListener("submit", (e) => {
     e.preventDefault();
-    guardar(Object.fromEntries(d.parametros.map((p) => [p.clave, Number(e.target[p.clave].value)])));
+    guardar(Object.fromEntries(d.parametros.map((p) => [p.clave, p.unidad === "sí/no" ? (e.target[p.clave].checked ? 1 : 0) : Number(e.target[p.clave].value)])));
   });
   $("#adm-defecto").addEventListener("click", () => {
     if (confirm("¿Volver todos los parámetros a los valores de siempre?")) guardar(Object.fromEntries(d.parametros.map((p) => [p.clave, p.defecto])));

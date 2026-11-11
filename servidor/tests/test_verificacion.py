@@ -456,3 +456,45 @@ def test_minima_ya_conocida_en_el_dia_1():
     # Filas viejas sin la hora: se califica como siempre (hasta recalcular).
     observado[("La Plata", DIA, "tmin_urbana")]["detalle"] = {}
     assert puntajes.armar_pares([dia1], observado)[0]["tmin_urbana"]["obs"] == 8.5
+
+
+def test_lluvia_solo_a_la_noche_no_dice_que_llovio_antes_de_publicar():
+    """Junín, 10/11/2026: pronóstico publicado a las 7:30, llovizna recién de
+    21 a 24 hs. Es lluvia del Día 1 (cuenta), pero sin el aviso "⏱ desde"
+    que dice que llovió antes de publicar."""
+    reportes = [local(h) for h in range(24)]
+    syn = ob.lluvia_synop([(local(21), 6, 0.0)], [(local(22), 51), (local(23), 51)], reportes, DIA)
+    assert ob.lluvia_antes(syn, local(7, m=30)) is False
+    assert ob.lluvia_antes(ob.lluvia_synop([], [(local(5), 61)], reportes, DIA), local(7, m=30)) is True
+    base = {"ciudad": "Junín", "publicado_por": "A", "es_correccion": False, "temp_min": 5, "temp_max": 12,
+            "temp_min_suburbana": None, "temp_max_suburbana": None,
+            "periodos": [{"period": "tarde", "precipitation_description": None}], "fecha": DIA,
+            "fecha_pronostico": DIA, "plazo_dias": 0, "publicado_el": DIA, "hora_emision": "07:30:00",
+            "capturado": local(7, m=40).astimezone(timezone.utc)}
+    observado = {("Junín", DIA, "pp"): {"valor": 0.0, "categoria": "SI", "estacion_id": "omm_87548",
+                                        "detalle": json.loads(json.dumps(syn))}}
+    f = puntajes.armar_pares([base], observado)[0]
+    assert f["pp"]["obs"] is True and "desde" not in f["pp"]
+
+
+def test_la_traza_cuenta_o_no_segun_el_ajuste():
+    """Llovizna informada (ww 51) pero el pluviómetro marcó traza (0 mm): con
+    el ajuste en "sí" es día con precipitación; en "no", día seco. Una lluvia
+    medida (0,4 mm) cuenta siempre."""
+    from meteo.verificacion import ajustes
+    reportes = [local(h) for h in range(24)]
+    ww = [(local(22), 51), (local(23), 51)]
+    try:
+        assert ob.lluvia_synop([(local(23, m=59), 6, 0.0)], ww, reportes, DIA)["pp"] is True       # de siempre
+        ajustes.aplicar({"traza_cuenta": 0})
+        assert ob.lluvia_synop([(local(23, m=59), 6, 0.0)], ww, reportes, DIA)["pp"] is False
+        assert ob.lluvia_synop([(local(23, m=59), 6, 0.4)], ww, reportes, DIA)["pp"] is True
+        assert ob.lluvia_synop([], ww, reportes, DIA)["pp"] is True      # sin cantidad que lo desmienta: el ww manda
+        assert ajustes.validar({"traza_cuenta": 1}) == {"traza_cuenta": 1.0}
+        try:
+            ajustes.validar({"traza_cuenta": 0.5}); assert False
+        except ValueError:
+            pass
+    finally:
+        ajustes.aplicar({})
+    assert ob.TRAZA_CUENTA is True

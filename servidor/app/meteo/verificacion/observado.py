@@ -51,6 +51,11 @@ SECTORES = ("N", "NE", "E", "SE", "S", "SW", "W", "NW")
 CALMA_MS = 0.5
 
 UMBRAL_PP_MM = UMBRAL_PP_MM_DEFECTO = 0.1
+# ¿La traza (precipitación inapreciable, menos de 0,1 mm) cuenta como día con
+# precipitación? Sí: alcanza con que el SYNOP informe lluvia o llovizna (ww).
+# No: además el pluviómetro tiene que haber medido algo (0,1 mm o más); una
+# llovizna que dejó solo traza cuenta como día sin precipitación.
+TRAZA_CUENTA = TRAZA_CUENTA_DEFECTO = True
 # Una cantidad del SYNOP (ej. 24 h de 9 a 9) cuenta para el día si su período
 # cae al menos en esta fracción dentro del día.
 SUPERPOSICION_LLUVIA = SUPERPOSICION_LLUVIA_DEFECTO = 0.75
@@ -246,14 +251,20 @@ def lluvia_synop(cantidades, ww, reportes, dia):
     18 horas del día (las estaciones que no reportan de noche igual informan
     la lluvia acumulada de 12 y 24 horas).
     La "traza" (inapreciable) se guarda como 0 mm: cuenta solo si el ww dice
-    que hubo llovizna o lluvia.
+    que hubo llovizna o lluvia, y solo si TRAZA_CUENTA. Si no, un ww de lluvia
+    no alcanza cuando el pluviómetro midió 0 o traza en el período que lo
+    incluye.
     """
     inicio, fin = limites(dia)
     completitud = _completitud(reportes, inicio, fin)
     if not completitud and not cantidades:
         return None
     evidencias, lluvias = [], []
+    # Períodos en que el pluviómetro midió 0 o traza (para TRAZA_CUENTA = False).
+    secos = [(t - timedelta(hours=horas), t) for t, horas, mm in cantidades if mm == 0]
     for t, codigo in ww:
+        if not TRAZA_CUENTA and any(a < t <= b for a, b in secos):
+            continue          # llovió, pero dejó solo traza: no cuenta
         if inicio < t <= fin and codigo in WW_PRECIPITACION:
             evidencias.append(f"ww {codigo} a las {hora_local(t):02d} hs")
             lluvias.append([(t - timedelta(hours=1)).isoformat(), t.isoformat(), None, "ww"])   # la última hora
@@ -278,6 +289,24 @@ def lluvia_synop(cantidades, ww, reportes, dia):
         pp = None
     cubiertas = {hora_local(t - timedelta(seconds=1)) for t in reportes if inicio < t <= fin} | {hora_local(h) for h in horas_secas}
     return {"pp": pp, "completitud": completitud, "evidencias": evidencias[:8], "lluvias": lluvias, "horas": sorted(cubiertas)}
+
+
+def lluvia_antes(detalle, hasta):
+    """¿Alguna de las lluvias del día fue (al menos en parte) ANTES de `hasta`?
+    Para avisar en el Día 1 que la lluvia de la madrugada ya se conocía. Una
+    lluvia que empezó después de publicar no cuenta."""
+    if not detalle or "lluvias" not in detalle:
+        return False
+    for a, b, _, tipo in detalle["lluvias"]:
+        a, b = datetime.fromisoformat(a), datetime.fromisoformat(b)
+        if tipo == "cantidad":
+            # Una cantidad abarca varias horas (6, 12, 24): no se sabe en qué
+            # momento cayó; cuenta como "antes" si su período es mayormente antes.
+            if b > a and (min(b, hasta) - a) / (b - a) >= 0.5:
+                return True
+        elif a < hasta:
+            return True
+    return False
 
 
 def lluvia_despues(detalle, desde):

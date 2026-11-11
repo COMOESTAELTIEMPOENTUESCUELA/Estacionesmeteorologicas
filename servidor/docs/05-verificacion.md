@@ -123,6 +123,18 @@ máxima y la mínima de las **12 horas anteriores** al reporte:
 (inapreciable, que se guarda como 0 mm) igual cuenta como día con
 precipitación, igual que un pronóstico de "lloviznas".
 
+**¿La traza cuenta? (a elegir).** En Administración → Parámetros de la
+verificación, **"¿La traza cuenta como lluvia?"**. Sí (lo de siempre): alcanza
+con que el SYNOP informe lluvia o llovizna. No: si el pluviómetro marcó 0 o
+traza ("Ip" en Ogimet) en el período que incluye ese reporte, el ww no cuenta;
+la llovizna que dejó solo traza es un día sin precipitación (como la
+climatología del SMN, desde 0,1 mm). Después de cambiarlo, "Recalcular".
+
+**El aviso "⏱ desde HH:MM" del Día 1** aparece solo si llovió ANTES de
+publicar el pronóstico (esa lluvia ya se conocía y no se verifica). Si llovió
+recién después (ej. a la noche), cuenta como siempre y no hay aviso. Antes
+el aviso salía en cualquier día de lluvia del Día 1, y confundía.
+
 ### Parámetros
 
 | Parámetro | Valor | Para qué |

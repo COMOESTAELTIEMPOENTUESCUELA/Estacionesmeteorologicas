@@ -32,7 +32,7 @@ from datetime import datetime, timedelta
 import numpy as np
 
 from ..ingesta.base import HORA_ARG
-from .observado import lluvia_despues
+from .observado import lluvia_antes, lluvia_despues
 from .pronostico import INTENSIDADES, derivar
 
 TEMPERATURAS = {
@@ -131,7 +131,11 @@ def armar_pares(dias, observado):
             t = hora_publicacion(d)
             despues = lluvia_despues((obs("pp").get("detalle") or {}), t) if t else None
             if t and "lluvias" in (obs("pp").get("detalle") or {}):
-                fila["pp"].update(obs=despues, obs_dia=True, desde=t.astimezone(HORA_ARG).strftime("%H:%M"))
+                fila["pp"].update(obs=despues, obs_dia=True)
+                # El aviso "⏱ desde HH:MM" solo si de verdad llovió antes de
+                # publicar (si llovió recién a la noche, no hay nada que aclarar).
+                if lluvia_antes(obs("pp").get("detalle"), t):
+                    fila["pp"]["desde"] = t.astimezone(HORA_ARG).strftime("%H:%M")
         pers_dir = obs("viento_dir", ayer).get("categoria")
         fila["viento_dir"] = {"pron": der["viento_dirs"], "obs": obs("viento_dir").get("categoria"),
                               "pers": [pers_dir] if pers_dir else None,

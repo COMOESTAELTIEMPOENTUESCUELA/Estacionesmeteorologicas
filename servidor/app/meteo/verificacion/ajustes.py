@@ -26,6 +26,10 @@ PARAMETROS = [
     ("superposicion_lluvia", "Superposición de una cantidad de lluvia con el día",
      "Qué fracción del período de una cantidad del SYNOP (ej. 24 h de 9 a 9) tiene que caer dentro del día para contarla.",
      0.5, 1.0, 0.05, ""),
+    ("traza_cuenta", "¿La traza cuenta como lluvia?",
+     "Sí: alcanza con que el SYNOP informe lluvia o llovizna, aunque el pluviómetro marque solo traza (\"Ip\", menos de 0,1 mm). "
+     "No: una llovizna que dejó solo traza cuenta como día sin precipitación (como la climatología del SMN, desde 0,1 mm).",
+     0, 1, 1, "sí/no"),
     ("viento_leves", "Viento: tope de LEVES", "Viento medio horario máximo (km/h) hasta el que el día es LEVES.", 5, 60, 1, "km/h"),
     ("viento_moderados", "Viento: tope de MODERADOS", "Hasta acá, MODERADOS.", 5, 80, 1, "km/h"),
     ("viento_regulares", "Viento: tope de REGULARES", "Hasta acá, REGULARES; más, FUERTES.", 5, 120, 1, "km/h"),
@@ -38,13 +42,14 @@ def por_defecto():
     return {"umbral_pp_mm": observado.UMBRAL_PP_MM_DEFECTO, "completitud_minima": observado.COMPLETITUD_MINIMA_DEFECTO,
             "completitud_viento": observado.COMPLETITUD_VIENTO_DEFECTO,
             "superposicion_lluvia": observado.SUPERPOSICION_LLUVIA_DEFECTO,
+            "traza_cuenta": 1.0 if observado.TRAZA_CUENTA_DEFECTO else 0.0,
             "viento_leves": v["LEVES"], "viento_moderados": v["MODERADOS"], "viento_regulares": v["REGULARES"]}
 
 
 def validar(valores):
     """{clave: número} -> los mismos, revisados. ValueError con el motivo."""
     limpio = {}
-    for clave, nombre, _, minimo, maximo, _, _ in PARAMETROS:
+    for clave, nombre, _, minimo, maximo, _, unidad in PARAMETROS:
         if clave not in valores or valores[clave] is None:
             continue
         try:
@@ -53,6 +58,8 @@ def validar(valores):
             raise ValueError(f"{nombre}: tiene que ser un número")
         if not (minimo <= x <= maximo) or math.isnan(x):
             raise ValueError(f"{nombre}: entre {minimo:g} y {maximo:g}")
+        if unidad == "sí/no" and x not in (0, 1):
+            raise ValueError(f"{nombre}: sí (1) o no (0)")
         limpio[clave] = x
     desconocidas = set(valores) - CLAVES
     if desconocidas:
@@ -88,6 +95,7 @@ def aplicar(cambiados):
     observado.COMPLETITUD_MINIMA = v["completitud_minima"]
     observado.COMPLETITUD_VIENTO = v["completitud_viento"]
     observado.SUPERPOSICION_LLUVIA = v["superposicion_lluvia"]
+    observado.TRAZA_CUENTA = bool(v["traza_cuenta"])
     observado.CATEGORIAS_VIENTO = (("LEVES", v["viento_leves"]), ("MODERADOS", v["viento_moderados"]),
                                    ("REGULARES", v["viento_regulares"]), ("FUERTES", math.inf))
     return v
