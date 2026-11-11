@@ -496,6 +496,11 @@
             </div>
 
             <div>
+                <h4 class="text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Superponer con (opcional, eje derecho)</h4>
+                <div id="comparador-selector-variable2" class="flex flex-wrap gap-2"></div>
+            </div>
+
+            <div>
                 <h4 class="text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Período (fecha y hora, a elección)</h4>
                 <div class="flex flex-col sm:flex-row items-stretch sm:items-end gap-2">
                     <div class="flex-1">
@@ -2481,6 +2486,7 @@
         const CLAVE_COMPARADOR = 'Maraton';
         let comparadorAutenticado = false;
         let variableComparadorActual = 'temp';
+        let variableComparador2Actual = null; // variable opcional a superponer (eje derecho)
         let chartComparador = null;
         const estacionesComparadorSeleccionadas = new Set();
         const comparadorChipsEstacion = new Map(); // p -> chip, para no buscar por texto
@@ -2529,6 +2535,30 @@
                 });
                 selVariable.dataset.poblado = '1';
 
+                const selVariable2 = document.getElementById('comparador-selector-variable2');
+                const chipNinguna = document.createElement('button');
+                chipNinguna.className = 'comparador-chip-variable2 px-3 py-1.5 rounded-xl font-bold text-xs transition border-2';
+                chipNinguna.textContent = 'Ninguna';
+                chipNinguna.dataset.variable = '';
+                chipNinguna.addEventListener('click', () => {
+                    variableComparador2Actual = null;
+                    actualizarBotonesComparador();
+                    actualizarComparador();
+                });
+                selVariable2.appendChild(chipNinguna);
+                VARIABLES_MAPA.forEach(v => {
+                    const chip = document.createElement('button');
+                    chip.className = 'comparador-chip-variable2 px-3 py-1.5 rounded-xl font-bold text-xs transition border-2';
+                    chip.textContent = v.label;
+                    chip.dataset.variable = v.id;
+                    chip.addEventListener('click', () => {
+                        variableComparador2Actual = v.id === variableComparador2Actual ? null : v.id;
+                        actualizarBotonesComparador();
+                        actualizarComparador();
+                    });
+                    selVariable2.appendChild(chip);
+                });
+
                 const selEstaciones = document.getElementById('comparador-selector-estaciones');
                 puntos.filter(p => p.live).forEach(p => {
                     const chip = document.createElement('button');
@@ -2570,6 +2600,12 @@
             document.querySelectorAll('#comparador-selector-variable .comparador-chip-variable').forEach(chip => {
                 const activo = chip.dataset.variable === variableComparadorActual;
                 chip.className = `comparador-chip-variable px-3 py-1.5 rounded-xl font-bold text-xs transition border-2 ${activo ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-500 border-slate-200 hover:border-blue-300'}`;
+            });
+
+            document.querySelectorAll('#comparador-selector-variable2 .comparador-chip-variable2').forEach(chip => {
+                const esNinguna = chip.dataset.variable === '';
+                const activo = esNinguna ? !variableComparador2Actual : chip.dataset.variable === variableComparador2Actual;
+                chip.className = `comparador-chip-variable2 px-3 py-1.5 rounded-xl font-bold text-xs transition border-2 ${activo ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-slate-500 border-slate-200 hover:border-violet-300'}`;
             });
 
             comparadorChipsEstacion.forEach((el, p) => {
@@ -2697,29 +2733,32 @@
 
             estado.textContent = 'Cargando...';
             const v = VARIABLES_MAPA.find(v => v.id === variableComparadorActual);
+            const v2 = variableComparador2Actual ? VARIABLES_MAPA.find(v => v.id === variableComparador2Actual) : null;
 
             const resultados = await Promise.all(seleccionadas.map(async (p) => {
                 try {
                     const serie = await fetchSerieComparador(p, desde, hasta, variableComparadorActual);
-                    return { p, serie };
+                    const serie2 = v2 ? await fetchSerieComparador(p, desde, hasta, variableComparador2Actual) : null;
+                    return { p, serie, serie2 };
                 } catch (e) {
                     console.error('Error trayendo datos de', p.n, 'para el comparador:', e);
-                    return { p, serie: [] };
+                    return { p, serie: [], serie2: null };
                 }
             }));
 
-            renderizarGraficoComparador(resultados, v);
+            renderizarGraficoComparador(resultados, v, v2);
             const fmt = (d) => `${d.toLocaleDateString('es-AR')} ${d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`;
             estado.textContent = `${seleccionadas.length} estación${seleccionadas.length > 1 ? 'es' : ''} · ${fmt(desde)} a ${fmt(hasta)}`;
         }
 
-        function renderizarGraficoComparador(resultados, v) {
+        function renderizarGraficoComparador(resultados, v, v2) {
             const ctx = document.getElementById('chartComparador').getContext('2d');
             if (chartComparador) chartComparador.destroy();
 
             const incluirFecha = true; // rango arbitrario: siempre conviene ver la fecha, no solo la hora
+
             const datasets = resultados.map(({ p, serie }) => ({
-                label: p.n,
+                label: v2 ? `${p.n} — ${v.label.replace(/^\S+\s*/, '')}` : p.n,
                 data: serie,
                 borderColor: p.clr,
                 backgroundColor: p.clr + '20',
@@ -2727,8 +2766,57 @@
                 pointRadius: 2,
                 pointHoverRadius: 6,
                 tension: 0.3,
-                spanGaps: true
+                spanGaps: true,
+                yAxisID: 'y'
             }));
+
+            // Variable 2 (opcional): mismo color por estación, pero línea punteada y
+            // en el eje derecho, para poder ver si coincide en fase con la primera
+            // (ej. presión vs. temperatura, para detectar un efecto térmico diurno).
+            if (v2) {
+                resultados.forEach(({ p, serie2 }) => {
+                    if (!serie2) return;
+                    datasets.push({
+                        label: `${p.n} — ${v2.label.replace(/^\S+\s*/, '')}`,
+                        data: serie2,
+                        borderColor: p.clr,
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        borderDash: [6, 4],
+                        pointRadius: 0,
+                        pointHoverRadius: 5,
+                        tension: 0.3,
+                        spanGaps: true,
+                        yAxisID: 'y1'
+                    });
+                });
+            }
+
+            const scales = {
+                x: {
+                    type: 'linear',
+                    grid: { display: false },
+                    ticks: {
+                        callback: (val) => formatearEtiquetaFecha(new Date(val), incluirFecha),
+                        maxTicksLimit: 8,
+                        font: { family: "'Plus Jakarta Sans', sans-serif", size: 10 }, color: '#94a3b8'
+                    }
+                },
+                y: {
+                    position: 'left',
+                    title: { display: true, text: v.unidad, font: { family: "'Plus Jakarta Sans', sans-serif", weight: '700' } },
+                    grid: { color: '#f1f5f9', borderDash: [6, 6], lineWidth: 2 },
+                    ticks: { font: { weight: '800', family: "'Plus Jakarta Sans', sans-serif", size: 11 }, color: '#94a3b8' }
+                }
+            };
+            if (v2) {
+                scales.y1 = {
+                    position: 'right',
+                    title: { display: true, text: v2.unidad, font: { family: "'Plus Jakarta Sans', sans-serif", weight: '700' } },
+                    grid: { display: false },
+                    ticks: { font: { weight: '800', family: "'Plus Jakarta Sans', sans-serif", size: 11 }, color: '#a78bfa' }
+                };
+            }
 
             chartComparador = new Chart(ctx, {
                 type: 'line',
@@ -2740,7 +2828,7 @@
                     plugins: {
                         legend: {
                             display: true, position: 'top',
-                            labels: { boxWidth: 12, font: { family: "'Plus Jakarta Sans', sans-serif", weight: '700', size: 11 } }
+                            labels: { boxWidth: 12, font: { family: "'Plus Jakarta Sans', sans-serif", weight: '700', size: 10 } }
                         },
                         tooltip: {
                             padding: 10, cornerRadius: 10,
@@ -2748,26 +2836,11 @@
                             bodyFont: { size: 13, weight: '700', family: "'Plus Jakarta Sans', sans-serif" },
                             callbacks: {
                                 title: (items) => formatearEtiquetaFecha(new Date(items[0].parsed.x), incluirFecha),
-                                label: (item) => `${item.dataset.label}: ${item.parsed.y} ${v.unidad}`
+                                label: (item) => `${item.dataset.label}: ${item.parsed.y} ${item.dataset.yAxisID === 'y1' ? v2.unidad : v.unidad}`
                             }
                         }
                     },
-                    scales: {
-                        x: {
-                            type: 'linear',
-                            grid: { display: false },
-                            ticks: {
-                                callback: (val) => formatearEtiquetaFecha(new Date(val), incluirFecha),
-                                maxTicksLimit: 8,
-                                font: { family: "'Plus Jakarta Sans', sans-serif", size: 10 }, color: '#94a3b8'
-                            }
-                        },
-                        y: {
-                            title: { display: true, text: v.unidad, font: { family: "'Plus Jakarta Sans', sans-serif", weight: '700' } },
-                            grid: { color: '#f1f5f9', borderDash: [6, 6], lineWidth: 2 },
-                            ticks: { font: { weight: '800', family: "'Plus Jakarta Sans', sans-serif", size: 11 }, color: '#94a3b8' }
-                        }
-                    }
+                    scales
                 }
             });
         }
