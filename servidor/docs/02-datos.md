@@ -226,3 +226,17 @@ Están marcadas con `VERIFICAR` en `config/estaciones.yaml`:
   nivel del mar (se asumió que sí).
 - **Sinópticas:** coordenadas aproximadas; conviene tomarlas del listado
   oficial del SMN/OMM.
+
+## Revisar cómo anda una EMA (por ejemplo, una recién instalada)
+
+```
+docker compose exec ingesta python -m meteo.herramientas.revisar_ema ema_verde --dias 8
+```
+
+Informe de texto con los datos de la base (no cambia nada): cada cuánto envía
+y sus huecos; valores trabados, saltos bruscos y humedad clavada en 100 %; cómo
+vienen los datos de lluvia (mm, pulsos o un contador que se acumula); y la
+comparación hora a hora con La Plata Aero y la EMA Violeta (sesgo, error medio,
+correlación, el sesgo de la temperatura según la hora del día y las máximas y
+mínimas diarias). Opciones: `--desde 2026-11-04` (desde la instalación) y
+`--refs omm_87593,bavio` (contra qué estaciones comparar).

@@ -627,3 +627,42 @@ def test_todas_las_observaciones_del_dia(cliente, monkeypatch):
         with web.pool_escritura.connection() as conn:
             conn.execute("DELETE FROM observacion WHERE estacion_id IN ('omm_87593', 'observatorio_campbell') AND ts BETWEEN %s AND %s",
                          (t0 - timedelta(hours=2), t0 + timedelta(days=2)))
+
+
+def test_revisar_ema(cliente, capsys):
+    """El informe de una EMA detecta huecos, valores trabados, saltos, lluvia
+    en pulsos y el sesgo de la tarde (abrigo calentado por el sol)."""
+    import math
+    from datetime import datetime, timedelta, timezone
+
+    from meteo.herramientas import revisar_ema
+    from meteo.ingesta import db
+    from meteo.ingesta.base import Obs
+    from meteo.web import app as web
+    ahora = datetime.now(timezone.utc).replace(second=0, microsecond=0)
+    ahora = ahora.replace(minute=ahora.minute // 10 * 10)
+    t0, o, t = ahora - timedelta(days=3), [], ahora - timedelta(days=3)
+    while t < ahora:
+        h = (t.hour - 3) % 24
+        base = 18 + 7 * math.sin((h - 9) / 24 * 2 * math.pi)
+        if not t0 + timedelta(days=1) < t < t0 + timedelta(days=1, hours=4):           # hueco de 4 h
+            trabada = t0 + timedelta(days=2) < t < t0 + timedelta(days=2, hours=3)
+            o += [Obs(t, "ema_verde", "temp", 21.3 if trabada else round(base + (2 if 12 <= h < 18 else 0), 1)),
+                  Obs(t, "ema_verde", "precip", 1.0 if t0 + timedelta(hours=5) < t < t0 + timedelta(hours=6) else 0.0)]
+        if t.minute == 0:
+            o.append(Obs(t, "omm_87593", "temp", round(base, 1)))
+        t += timedelta(minutes=10)
+    conn = db.conectar(DSN)
+    db.guardar_observaciones(conn, o, "test")
+    conn.close()
+    try:
+        revisar_ema.main(["ema_verde", "--dias", "4", "--refs", "omm_87593"])
+        sal = capsys.readouterr().out
+        assert "Huecos de más de 30 min: 1" in sal and "trabada en 21.3" in sal
+        assert "parece que manda PULSOS" in sal
+        import re
+        tramos = dict(re.findall(r"(\w+) \([\d-]+\)\s+(-?[\d.]+)", [l for l in sal.splitlines() if "sesgo por hora del día" in l][0]))
+        assert float(tramos["tarde"]) > 1.5 and abs(float(tramos["madrugada"])) < 0.3
+    finally:
+        with web.pool_escritura.connection() as c:
+            c.execute("DELETE FROM observacion WHERE estacion_id IN ('ema_verde', 'omm_87593') AND ts > %s", (t0 - timedelta(hours=1),))
