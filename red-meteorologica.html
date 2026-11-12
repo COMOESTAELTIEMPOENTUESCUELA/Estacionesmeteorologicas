@@ -12,6 +12,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@0.475.0/dist/umd/lucide.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.2.0/dist/chartjs-plugin-zoom.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800;900&display=swap" rel="stylesheet">
 
     <style>
@@ -516,6 +518,18 @@
             </div>
 
             <div>
+                <h4 class="text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Suavizado (promediar puntos cercanos)</h4>
+                <select id="comparador-select-suavizado" class="border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:border-blue-400">
+                    <option value="0" selected>Sin suavizar (todos los puntos)</option>
+                    <option value="60000">Promediar cada 1 minuto</option>
+                    <option value="300000">Promediar cada 5 minutos</option>
+                    <option value="900000">Promediar cada 15 minutos</option>
+                    <option value="1800000">Promediar cada 30 minutos</option>
+                    <option value="3600000">Promediar cada 1 hora</option>
+                </select>
+            </div>
+
+            <div>
                 <h4 class="text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Estaciones a comparar</h4>
                 <div id="comparador-selector-estaciones" class="flex flex-wrap gap-2"></div>
             </div>
@@ -523,6 +537,13 @@
             <div class="h-[320px] lg:h-[400px] w-full bg-slate-50 rounded-2xl p-3 border-2 border-slate-100">
                 <canvas id="chartComparador"></canvas>
             </div>
+            <div class="flex items-center gap-2 mt-2">
+                <button id="btn-comparador-reset-zoom" class="shrink-0 p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-lg transition" title="Restablecer zoom">
+                    <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                </button>
+                <input id="comparador-slider-pan" type="range" min="0" max="1000" value="0" disabled class="flex-1 h-1.5 accent-blue-600 disabled:opacity-30">
+            </div>
+            <p class="text-[10px] font-bold text-slate-400 mt-1">Ctrl/⌘ + rueda del mouse para hacer zoom · arrastrá para mover · pellizcá con dos dedos en el celular</p>
             <p id="comparador-estado" class="text-xs font-bold text-slate-400"></p>
         </div>
     </div>
@@ -2488,8 +2509,19 @@
         let variableComparadorActual = 'temp';
         let variableComparador2Actual = null; // variable opcional a superponer (eje derecho)
         let chartComparador = null;
+        let comparadorResultadosActuales = []; // última tanda de datos ya traída, para no re-pedir al cambiar el suavizado
+        let comparadorBucketMs = 0; // suavizado: 0 = sin suavizar, si no la cantidad de ms de cada "balde" a promediar
+        let comparadorVentana = null; // {min, max} rango de fechas visible actualmente (null = todo el rango)
+        let comparadorRangoTotal = null; // {min, max} de todos los datos cargados, para la barra deslizadora
         const estacionesComparadorSeleccionadas = new Set();
         const comparadorChipsEstacion = new Map(); // p -> chip, para no buscar por texto
+
+        // El plugin de zoom/paneo se auto-registra al cargarse por <script> (detecta
+        // el Chart global), pero lo reforzamos por si el build cambia el nombre de
+        // la variable global expuesta.
+        if (window.Chart && (window.ChartZoom || window['chartjs-plugin-zoom'])) {
+            Chart.register(window.ChartZoom || window['chartjs-plugin-zoom']);
+        }
 
         function abrirComparador() {
             document.getElementById('comparador-overlay').classList.remove('hidden');
@@ -2714,6 +2746,33 @@
             return await fetchSerieComparadorTS(estacion, desde, hasta, variableId);
         }
 
+        // Junta puntos consecutivos en "baldes" de bucketMs y promedia, para poder
+        // ver menos puntos cuando hay mucho detalle (ej. EMA Verde, que reporta cada
+        // 60s: una semana entera son miles de puntos por estación).
+        function suavizarSerieComparador(serie, bucketMs) {
+            if (!bucketMs || !serie || serie.length === 0) return serie;
+            const salida = [];
+            let inicioBalde = Math.floor(serie[0].x / bucketMs) * bucketMs;
+            let acumulado = [];
+            const cerrarBalde = () => {
+                if (acumulado.length) {
+                    const promedio = acumulado.reduce((a, b) => a + b, 0) / acumulado.length;
+                    salida.push({ x: inicioBalde + bucketMs / 2, y: +promedio.toFixed(2) });
+                }
+            };
+            serie.forEach(pt => {
+                const balde = Math.floor(pt.x / bucketMs) * bucketMs;
+                if (balde !== inicioBalde) {
+                    cerrarBalde();
+                    inicioBalde = balde;
+                    acumulado = [];
+                }
+                acumulado.push(pt.y);
+            });
+            cerrarBalde();
+            return salida;
+        }
+
         async function actualizarComparador() {
             const estado = document.getElementById('comparador-estado');
             const seleccionadas = puntos.filter(p => estacionesComparadorSeleccionadas.has(p));
@@ -2721,6 +2780,10 @@
             if (!seleccionadas.length) {
                 estado.textContent = 'Elegí al menos una estación para comparar.';
                 if (chartComparador) { chartComparador.destroy(); chartComparador = null; }
+                comparadorResultadosActuales = [];
+                comparadorVentana = null;
+                comparadorRangoTotal = null;
+                actualizarSliderComparador();
                 return;
             }
 
@@ -2746,12 +2809,18 @@
                 }
             }));
 
-            renderizarGraficoComparador(resultados, v, v2);
+            comparadorResultadosActuales = resultados;
+            comparadorVentana = null; // rango nuevo: arrancamos mostrando todo
+            renderizarGraficoComparador();
             const fmt = (d) => `${d.toLocaleDateString('es-AR')} ${d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`;
             estado.textContent = `${seleccionadas.length} estación${seleccionadas.length > 1 ? 'es' : ''} · ${fmt(desde)} a ${fmt(hasta)}`;
         }
 
-        function renderizarGraficoComparador(resultados, v, v2) {
+        function renderizarGraficoComparador() {
+            const resultados = comparadorResultadosActuales;
+            const v = VARIABLES_MAPA.find(v => v.id === variableComparadorActual);
+            const v2 = variableComparador2Actual ? VARIABLES_MAPA.find(v => v.id === variableComparador2Actual) : null;
+
             const ctx = document.getElementById('chartComparador').getContext('2d');
             if (chartComparador) chartComparador.destroy();
 
@@ -2759,7 +2828,7 @@
 
             const datasets = resultados.map(({ p, serie }) => ({
                 label: v2 ? `${p.n} — ${v.label.replace(/^\S+\s*/, '')}` : p.n,
-                data: serie,
+                data: suavizarSerieComparador(serie, comparadorBucketMs),
                 borderColor: p.clr,
                 backgroundColor: p.clr + '20',
                 borderWidth: 2.5,
@@ -2778,7 +2847,7 @@
                     if (!serie2) return;
                     datasets.push({
                         label: `${p.n} — ${v2.label.replace(/^\S+\s*/, '')}`,
-                        data: serie2,
+                        data: suavizarSerieComparador(serie2, comparadorBucketMs),
                         borderColor: p.clr,
                         backgroundColor: 'transparent',
                         borderWidth: 2,
@@ -2791,6 +2860,11 @@
                     });
                 });
             }
+
+            // Rango total de fechas de todo lo cargado (sin suavizar ni recortar), para
+            // que la barra deslizadora sepa cuánto hay "para los costados".
+            const todosX = datasets.flatMap(d => d.data.map(pt => pt.x));
+            comparadorRangoTotal = todosX.length ? { min: Math.min(...todosX), max: Math.max(...todosX) } : null;
 
             const scales = {
                 x: {
@@ -2838,11 +2912,58 @@
                                 title: (items) => formatearEtiquetaFecha(new Date(items[0].parsed.x), incluirFecha),
                                 label: (item) => `${item.dataset.label}: ${item.parsed.y} ${item.dataset.yAxisID === 'y1' ? v2.unidad : v.unidad}`
                             }
+                        },
+                        zoom: {
+                            limits: { x: { min: 'original', max: 'original' } },
+                            pan: {
+                                enabled: true,
+                                mode: 'x',
+                                onPanComplete: ({ chart }) => sincronizarVentanaComparador(chart)
+                            },
+                            zoom: {
+                                wheel: { enabled: false }, // la rueda la manejamos nosotros (requiere Ctrl/⌘, igual que el mapa)
+                                pinch: { enabled: true },
+                                mode: 'x',
+                                onZoomComplete: ({ chart }) => sincronizarVentanaComparador(chart)
+                            }
                         }
                     },
                     scales
                 }
             });
+
+            // Si venía de un zoom/paneo previo (ej. solo cambió el suavizado), lo
+            // reaplicamos después de crear el gráfico, así resetZoom() sigue sabiendo
+            // cuál es el rango "original" completo.
+            if (comparadorVentana) {
+                chartComparador.zoomScale('x', comparadorVentana, 'none');
+            }
+            actualizarSliderComparador();
+        }
+
+        function sincronizarVentanaComparador(chart) {
+            comparadorVentana = { min: chart.scales.x.min, max: chart.scales.x.max };
+            actualizarSliderComparador();
+        }
+
+        function actualizarSliderComparador() {
+            const slider = document.getElementById('comparador-slider-pan');
+            if (!comparadorRangoTotal || !comparadorVentana) {
+                slider.disabled = true;
+                slider.value = 0;
+                return;
+            }
+            const total = comparadorRangoTotal.max - comparadorRangoTotal.min;
+            const ancho = comparadorVentana.max - comparadorVentana.min;
+            const maxInicio = total - ancho;
+            if (total <= 0 || maxInicio <= 0) { // zoom completo: no hay a donde mover
+                slider.disabled = true;
+                slider.value = 0;
+                return;
+            }
+            slider.disabled = false;
+            const pct = (comparadorVentana.min - comparadorRangoTotal.min) / maxInicio;
+            slider.value = Math.round(Math.min(1, Math.max(0, pct)) * 1000);
         }
 
         document.getElementById('btn-comparador-trigger').addEventListener('click', abrirComparador);
@@ -2855,6 +2976,58 @@
             if (e.key === 'Enter') intentarLoginComparador();
         });
         document.getElementById('btn-comparador-aplicar').addEventListener('click', actualizarComparador);
+
+        document.getElementById('comparador-select-suavizado').addEventListener('change', (e) => {
+            comparadorBucketMs = +e.target.value;
+            if (comparadorResultadosActuales.length) renderizarGraficoComparador(); // sin re-pedir datos
+        });
+
+        document.getElementById('btn-comparador-reset-zoom').addEventListener('click', () => {
+            if (!chartComparador) return;
+            chartComparador.resetZoom();
+            comparadorVentana = null;
+            actualizarSliderComparador();
+        });
+
+        document.getElementById('comparador-slider-pan').addEventListener('input', (e) => {
+            if (!chartComparador || !comparadorRangoTotal || !comparadorVentana) return;
+            const total = comparadorRangoTotal.max - comparadorRangoTotal.min;
+            const ancho = comparadorVentana.max - comparadorVentana.min;
+            const maxInicio = total - ancho;
+            const pct = +e.target.value / 1000;
+            const nuevoMin = comparadorRangoTotal.min + pct * maxInicio;
+            const nuevoMax = nuevoMin + ancho;
+            chartComparador.zoomScale('x', { min: nuevoMin, max: nuevoMax }, 'none');
+            comparadorVentana = { min: nuevoMin, max: nuevoMax };
+        });
+
+        // Zoom con la rueda del mouse, pero solo con Ctrl/⌘ apretado (mismo criterio
+        // que el zoom del mapa grande), así no se come el scroll normal de la página
+        // cuando el cursor pasa sobre el gráfico.
+        document.getElementById('chartComparador').addEventListener('wheel', (e) => {
+            if (!chartComparador || !(e.ctrlKey || e.metaKey)) return;
+            e.preventDefault();
+            const xScale = chartComparador.scales.x;
+            const rect = chartComparador.canvas.getBoundingClientRect();
+            const valorCursor = xScale.getValueForPixel(e.clientX - rect.left);
+            const factor = e.deltaY < 0 ? 0.8 : 1.25; // <1 acerca (zoom in), >1 aleja
+            let nuevoMin = valorCursor - (valorCursor - xScale.min) * factor;
+            let nuevoMax = valorCursor + (xScale.max - valorCursor) * factor;
+            if (comparadorRangoTotal) {
+                nuevoMin = Math.max(nuevoMin, comparadorRangoTotal.min);
+                nuevoMax = Math.min(nuevoMax, comparadorRangoTotal.max);
+            }
+            chartComparador.zoomScale('x', { min: nuevoMin, max: nuevoMax }, 'none');
+            comparadorVentana = { min: nuevoMin, max: nuevoMax };
+            actualizarSliderComparador();
+        }, { passive: false });
+
+        document.getElementById('chartComparador').addEventListener('dblclick', () => {
+            if (!chartComparador) return;
+            chartComparador.resetZoom();
+            comparadorVentana = null;
+            actualizarSliderComparador();
+        });
 
         // ─── SOLAPA DE ESCUELAS (desliza sobre el mapa) ──────────────────────────
         function abrirSolapaEscuelas() {
