@@ -56,6 +56,7 @@ INSERT INTO variable (id, nombre, unidad, descripcion, min_fisico, max_fisico) V
  ('precip_12h',    'Precipitación 12 h',            'mm',   'SYNOP', 0, 400),
  ('precip_24h',    'Precipitación 24 h',            'mm',   'SYNOP', 0, 500),
  ('intens_precip', 'Intensidad de precipitación',   'mm/h', NULL, 0, 500),
+ ('precip_acum',   'Precipitación acumulada (contador)', 'mm', 'Contador de la estación: la lluvia de cada intervalo (precip) es la diferencia', 0, 10000),
  ('viento_vel',    'Velocidad del viento',          'm/s',  'Media del intervalo / 10 min', 0, 75),
  ('viento_dir',    'Dirección del viento',          '°',    'De dónde viene; 0 = calma', 0, 360),
  ('racha',         'Ráfaga',                        'm/s',  NULL, 0, 90),

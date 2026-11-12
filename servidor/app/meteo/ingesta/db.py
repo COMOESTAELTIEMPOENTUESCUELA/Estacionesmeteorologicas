@@ -120,9 +120,20 @@ def guardar_synop_crudo(conn, mensajes):
     conn.commit()
 
 
+# Variables agregadas después de crear la base (01-esquema.sql solo corre la
+# primera vez): se agregan solas al arrancar, si faltan.
+VARIABLES_NUEVAS = [
+    ("precip_acum", "Precipitación acumulada (contador)", "mm",
+     "Contador de la estación: la lluvia de cada intervalo (precip) es la diferencia", 0, 10000),
+]
+
+
 def sincronizar_estaciones(conn, estaciones):
     """Copia los metadatos de estaciones.yaml a la tabla estacion."""
     with conn.cursor() as cur:
+        for v in VARIABLES_NUEVAS:
+            cur.execute("""INSERT INTO variable (id, nombre, unidad, descripcion, min_fisico, max_fisico)
+                           VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT (id) DO NOTHING""", v)
         for e in estaciones:
             cur.execute(
                 """INSERT INTO estacion (id, nombre, tipo, red, fuente, institucion, localidad,

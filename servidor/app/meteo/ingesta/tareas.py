@@ -17,7 +17,7 @@ import yaml
 from . import db
 from ..verificacion import observado
 from .base import HORA_ARG, sesion_http
-from .fuentes import comunidad, davis, ogimet, pronosticos, thingspeak, wunderground
+from .fuentes import comunidad, davis, municipio_lp, ogimet, pronosticos, thingspeak, wunderground
 
 log = logging.getLogger(__name__)
 
@@ -26,6 +26,7 @@ RECOLECTORES = {
     "wunderground": wunderground,
     "davis": davis,
     "ogimet": ogimet,
+    "municipio_lp": municipio_lp,
 }
 
 # Cuánto hacia atrás pide cada fuente en el funcionamiento normal.
@@ -34,6 +35,7 @@ VENTANA = {
     "wunderground": timedelta(hours=26),  # se piden días completos (hoy y ayer)
     "davis": timedelta(hours=12),
     "ogimet": timedelta(hours=30),        # los SYNOP a veces llegan tarde
+    "municipio_lp": timedelta(hours=1),   # la API da solo el último valor
 }
 
 
@@ -76,6 +78,9 @@ class Ingesta:
                     ignorar = set((e.get("config") or {}).get("ignorar_variables", []))
                     if ignorar:
                         obs = [o for o in obs if o.variable not in ignorar]
+                    # Lo que se calcula con lo ya guardado (ej. la lluvia a partir de un contador).
+                    if hasattr(mod, "postproceso"):
+                        obs = mod.postproceso(self.conn, e, obs)
                     reemplazar = wunderground.dias_a_reemplazar(e["id"], obs) if fuente == "wunderground" else None
                     reg["filas"] = db.guardar_observaciones(self.conn, obs, fuente, reemplazar)
                     total += reg["filas"]

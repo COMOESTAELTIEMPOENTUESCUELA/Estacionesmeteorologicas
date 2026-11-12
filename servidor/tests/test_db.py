@@ -315,3 +315,18 @@ def test_correccion_prefiere_la_version_completa(conn):
         with conn.cursor() as cur:
             cur.execute("DELETE FROM pronostico_emision WHERE ciudad = 'Ciudad Test'")
         conn.commit()
+
+
+def test_municipio_lp_lluvia_con_lo_ya_guardado(conn):
+    """La lluvia de cada intervalo sale del contador, comparando con el último
+    contador guardado (aunque el servidor se haya reiniciado en el medio)."""
+    from meteo.ingesta.fuentes import municipio_lp
+    t = datetime(2026, 11, 12, 21, tzinfo=timezone.utc)
+    est = {"id": "mlp_tolosa"}
+    db.guardar_observaciones(conn, [Obs(t, "mlp_tolosa", "precip_acum", 4.0)], "municipio_lp")
+    nuevas = municipio_lp.postproceso(conn, est, [Obs(t + timedelta(minutes=5), "mlp_tolosa", "precip_acum", 5.2)])
+    assert [(o.variable, o.valor) for o in nuevas] == [("precip_acum", 5.2), ("precip", 1.2)]
+    # La primera lectura de una estación (sin contador anterior) no inventa lluvia.
+    primera = municipio_lp.postproceso(conn, {"id": "mlp_arana"}, [Obs(t, "mlp_arana", "precip_acum", 80.0)])
+    assert [o.variable for o in primera] == ["precip_acum"]
+    assert consulta(conn, "SELECT unidad FROM variable WHERE id = 'precip_acum'") == [("mm",)]

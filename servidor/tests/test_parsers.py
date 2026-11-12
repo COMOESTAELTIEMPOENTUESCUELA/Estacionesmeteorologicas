@@ -7,7 +7,7 @@ import pytest
 
 from meteo.ingesta import synop
 from meteo.ingesta.base import HORA_ARG
-from meteo.ingesta.fuentes import comunidad, davis, pronosticos, thingspeak, wunderground
+from meteo.ingesta.fuentes import comunidad, davis, municipio_lp, pronosticos, thingspeak, wunderground
 
 DATOS = Path(__file__).parent / "datos"
 T = datetime(2026, 10, 10, 12, tzinfo=timezone.utc)
@@ -370,3 +370,49 @@ def test_correr_fechas_de_una_emision():
     assert q["correccion_manual"]["fecha_original"] == "2026-10-10" and q["publicado_el"] == ["2026-10-09"]
     assert [f["plazo_dias"] for f in pronosticos.desarmar(q)] == [0, 1]
     assert pronosticos.huella(q) != pronosticos.huella(p)
+
+
+# --------------------------------------------------------------- Municipalidad de La Plata
+def test_municipio_lp_parsea_y_convierte_unidades():
+    datos = json.loads((DATOS / "municipio_lp_stations.json").read_text(encoding="utf-8"))
+    obs = municipio_lp.parsear(datos, "mlp_plaza_moreno", "EMA-104")
+    d = como_dict(obs)
+    assert d["temp"] == 27.05 and d["hum"] == 52.96 and d["pres_est"] == 1012.12
+    assert d["viento_vel"] == round(24.948 / 3.6, 4)          # km/h -> m/s
+    assert d["viento_dir"] == round(114.32000000000001, 4) and d["precip_acum"] == 0.0 and d["intens_precip"] == 0.0
+    assert {o.ts for o in obs} == {datetime(2026, 11, 12, 20, 35, tzinfo=timezone.utc)}
+    # City Bell: sospechoso -> qc 3; faltante y variable desconocida -> no se guardan.
+    cb = municipio_lp.parsear(datos, "mlp_city_bell", "EMA-108")
+    assert [(o.variable, o.qc) for o in cb] == [("temp", 3)]
+    assert municipio_lp.parsear(datos, "mlp_poblet_ep_n_20", "EMA-178") == []     # fuera de servicio
+
+
+def test_municipio_lp_lluvia_desde_el_contador():
+    t = [T + timedelta(minutes=5 * i) for i in range(5)]
+    # Primera lectura sin anterior: no se sabe cuánto llovió antes -> nada.
+    assert municipio_lp.lluvia_de_contador(None, [(t[0], 3.0)]) == []
+    lect = [(t[0], 3.0), (t[1], 3.2), (t[2], 3.2), (t[3], 0.4), (t[4], 0.6)]   # en t[3] se reinició
+    assert municipio_lp.lluvia_de_contador(2.5, lect) == [(t[0], 0.5), (t[1], 0.2), (t[2], 0.0), (t[3], 0.4), (t[4], 0.2)]
+
+
+def test_municipio_lp_un_solo_pedido_para_todas():
+    datos = json.loads((DATOS / "municipio_lp_stations.json").read_text(encoding="utf-8"))
+
+    class Sesion:
+        pedidos = 0
+
+        def get(self, url, timeout):
+            Sesion.pedidos += 1
+            assert url == municipio_lp.URL
+
+            class R:
+                def raise_for_status(self): pass
+                def json(self): return datos
+            return R()
+
+    municipio_lp._cache.update(t=0.0, datos=None)
+    s, desde, hasta = Sesion(), datetime(2026, 11, 12, 20, tzinfo=timezone.utc), datetime(2026, 11, 12, 21, tzinfo=timezone.utc)
+    a = municipio_lp.traer({"id": "mlp_plaza_moreno", "config": {"codigo": "EMA-104"}}, desde, hasta, s)
+    b = municipio_lp.traer({"id": "mlp_city_bell", "config": {"codigo": "EMA-108"}}, desde, hasta, s)
+    assert len(a) == 7 and len(b) == 1 and Sesion.pedidos == 1
+    municipio_lp._cache.update(t=0.0, datos=None)

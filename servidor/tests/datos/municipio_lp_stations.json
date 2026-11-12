@@ -1,0 +1,18 @@
+{"at":"2026-11-12T20:37:25.969245Z","delayed":false,"stations":[
+ {"id":6,"code":"EMA-104","name":"Plaza Moreno (Municipalidad)","station_type":"weather","latitude":-34.920253,"longitude":-57.95331,"operational":true,
+  "values":[{"variable":"temperature","value":27.05,"at":"2026-11-12T20:35:00Z","suspect":false,"missing":null},
+            {"variable":"relative_humidity","value":52.96,"at":"2026-11-12T20:35:00Z","suspect":false,"missing":null},
+            {"variable":"pressure","value":1012.12,"at":"2026-11-12T20:35:00Z","suspect":false,"missing":null},
+            {"variable":"wind_speed","value":24.948,"at":"2026-11-12T20:35:00Z","suspect":false,"missing":null},
+            {"variable":"wind_direction","value":114.32000000000001,"at":"2026-11-12T20:35:00Z","suspect":false,"missing":null},
+            {"variable":"rain_accumulated","value":0.0,"at":"2026-11-12T20:35:00Z","suspect":false,"missing":null},
+            {"variable":"rain_rate","value":0.0,"at":"2026-11-12T20:35:00Z","suspect":false,"missing":null}],
+  "address":"C. 12 S/N, B1900 La Plata","commissioned_on":null,"expected_interval_seconds":300,"zones":[]},
+ {"id":10,"code":"EMA-108","name":"City Bell","station_type":"weather","latitude":-34.878137,"longitude":-58.051105,"operational":true,
+  "values":[{"variable":"temperature","value":28.18,"at":"2026-11-12T20:37:00Z","suspect":true,"missing":null},
+            {"variable":"relative_humidity","value":null,"at":"2026-11-12T20:35:00Z","suspect":false,"missing":"sensor"},
+            {"variable":"soil_moisture","value":12.0,"at":"2026-11-12T20:35:00Z","suspect":false,"missing":null}],
+  "address":"C. Cantilo 1337, B1900 La Plata","commissioned_on":null,"expected_interval_seconds":300,"zones":[]},
+ {"id":17,"code":"EMA-178","name":"Poblet EP N°20","station_type":"weather","latitude":-35.060499,"longitude":-57.954486,"operational":false,"values":[],
+  "address":null,"commissioned_on":null,"expected_interval_seconds":300,"zones":[]}
+]}

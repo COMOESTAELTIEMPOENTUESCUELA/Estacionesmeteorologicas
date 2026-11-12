@@ -26,6 +26,7 @@ frecuencias_min:
   cartas: 60
   indices: 720        # índices climáticos (ENSO, SAM, MJO...): cambian despacio
   bot: 15             # bot observador: avisa en la red si algo cambió de golpe
+  municipio_lp: 5     # EMAs de la Municipalidad: la API da solo el último valor (miden cada 5 min)
 
 estaciones:
 
@@ -192,6 +193,28 @@ estaciones:
       ignorar_variables: [viento_vel, racha, viento_dir]
       unidad_viento: km/h
       presion_es: pnm             # "Bar" de WeatherLink suele estar reducida al nivel del mar
+
+  # ------------- EMAs de la Municipalidad de La Plata ---------------
+  # https://clima.laplata.gob.ar/pub (API pública, solo el último valor: ver
+  # app/meteo/ingesta/fuentes/municipio_lp.py). `codigo` es el de la API.
+  # Poblet EP N°20 figura fuera de servicio (12/11/2026).
+  - {id: mlp_abasto, nombre: "Abasto (Municipalidad)", tipo: ema, red: municipio, fuente: municipio_lp, institucion: Municipalidad de La Plata, localidad: La Plata, lat: -34.984315, lon: -58.092661, config: {codigo: "EMA-165"}}
+  - {id: mlp_arana, nombre: "Arana (Municipalidad)", tipo: ema, red: municipio, fuente: municipio_lp, institucion: Municipalidad de La Plata, localidad: La Plata, lat: -34.996391, lon: -57.892215, config: {codigo: "EMA-168"}}
+  - {id: mlp_arturo_segui, nombre: "Arturo Seguí (Municipalidad)", tipo: ema, red: municipio, fuente: municipio_lp, institucion: Municipalidad de La Plata, localidad: La Plata, lat: -34.887718, lon: -58.124932, config: {codigo: "EMA-177"}}
+  - {id: mlp_city_bell, nombre: "City Bell (Municipalidad)", tipo: ema, red: municipio, fuente: municipio_lp, institucion: Municipalidad de La Plata, localidad: La Plata, lat: -34.878137, lon: -58.051105, config: {codigo: "EMA-108"}}
+  - {id: mlp_el_peligro, nombre: "El Peligro (Municipalidad)", tipo: ema, red: municipio, fuente: municipio_lp, institucion: Municipalidad de La Plata, localidad: La Plata, lat: -34.934892, lon: -58.170529, config: {codigo: "EMA-164"}}
+  - {id: mlp_etcheverry, nombre: "Etcheverry (Municipalidad)", tipo: ema, red: municipio, fuente: municipio_lp, institucion: Municipalidad de La Plata, localidad: La Plata, lat: -35.028125, lon: -58.070108, config: {codigo: "EMA-167"}}
+  - {id: mlp_los_hornos, nombre: "Los Hornos (Municipalidad)", tipo: ema, red: municipio, fuente: municipio_lp, institucion: Municipalidad de La Plata, localidad: La Plata, lat: -34.95978, lon: -57.972169, config: {codigo: "EMA-163"}}
+  - {id: mlp_los_portenos, nombre: "Los Porteños (Municipalidad)", tipo: ema, red: municipio, fuente: municipio_lp, institucion: Municipalidad de La Plata, localidad: La Plata, lat: -34.88024, lon: -58.080491, config: {codigo: "EMA-176"}}
+  - {id: mlp_melchor_romero, nombre: "Melchor Romero (Municipalidad)", tipo: ema, red: municipio, fuente: municipio_lp, institucion: Municipalidad de La Plata, localidad: La Plata, lat: -34.947874, lon: -58.048895, config: {codigo: "EMA-159"}}
+  - {id: mlp_olmos, nombre: "Olmos (Municipalidad)", tipo: ema, red: municipio, fuente: municipio_lp, institucion: Municipalidad de La Plata, localidad: La Plata, lat: -34.994351, lon: -58.047231, config: {codigo: "EMA-166"}}
+  - {id: mlp_plaza_moreno, nombre: "Plaza Moreno (Municipalidad)", tipo: ema, red: municipio, fuente: municipio_lp, institucion: Municipalidad de La Plata, localidad: La Plata, lat: -34.920253, lon: -57.95331, config: {codigo: "EMA-104"}}
+  - {id: mlp_poblet_ep_n20, nombre: "Poblet EP N°20 (Municipalidad)", tipo: ema, red: municipio, fuente: municipio_lp, institucion: Municipalidad de La Plata, localidad: La Plata, lat: -35.060499, lon: -57.954486, config: {codigo: "EMA-178"}}
+  - {id: mlp_san_carlos, nombre: "San Carlos (Municipalidad)", tipo: ema, red: municipio, fuente: municipio_lp, institucion: Municipalidad de La Plata, localidad: La Plata, lat: -34.929094, lon: -58.000138, config: {codigo: "EMA-107"}}
+  - {id: mlp_san_lorenzo, nombre: "San Lorenzo (Municipalidad)", tipo: ema, red: municipio, fuente: municipio_lp, institucion: Municipalidad de La Plata, localidad: La Plata, lat: -34.950433, lon: -57.943316, config: {codigo: "EMA-106"}}
+  - {id: mlp_tolosa, nombre: "Tolosa (Municipalidad)", tipo: ema, red: municipio, fuente: municipio_lp, institucion: Municipalidad de La Plata, localidad: La Plata, lat: -34.893368, lon: -57.968978, config: {codigo: "EMA-105"}}
+  - {id: mlp_villa_elisa, nombre: "Villa Elisa (Municipalidad)", tipo: ema, red: municipio, fuente: municipio_lp, institucion: Municipalidad de La Plata, localidad: La Plata, lat: -34.853225, lon: -58.080536, config: {codigo: "EMA-155"}}
+  - {id: mlp_villa_elvira, nombre: "Villa Elvira (Municipalidad)", tipo: ema, red: municipio, fuente: municipio_lp, institucion: Municipalidad de La Plata, localidad: La Plata, lat: -34.939464, lon: -57.917903, config: {codigo: "EMA-156"}}
 
   # ----------------------- Sinópticas (SMN, vía Ogimet) -------------
   # Coordenadas aproximadas: VERIFICAR contra el listado oficial del SMN/OMM.

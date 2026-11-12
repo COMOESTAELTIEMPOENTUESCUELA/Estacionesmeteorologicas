@@ -8,11 +8,28 @@
 | Wunderground | ES7/EP20, Los Talas, Monte Veloz (y Daza, de baja) | 15 min | `fuentes/wunderground.py` | Varios años, día por día |
 | Davis FCAG | Observatorio (archivo `downld08.txt`) | 15 min | `fuentes/davis.py` | Solo los últimos días: **por eso importa archivarla** |
 | Ogimet | SYNOP de 10 estaciones del SMN | 1 h | `fuentes/ogimet.py` + `synop.py` | Años |
+| Municipalidad de La Plata | 17 EMAs de la red municipal (clima.laplata.gob.ar) | 5 min | `fuentes/municipio_lp.py` | **Ninguna**: la API da solo el último valor; la serie se arma desde que corre el servidor |
 | Google Sheet | Reportes de la comunidad (pestaña "Reportes") | 30 min | `fuentes/comunidad.py` | Todo |
 | Apps Script Pronóstico UNLP | Emisión vigente de cada ciudad | 1 h | `fuentes/pronosticos.py` | Solo desde que corre el servidor |
 
 Todo se configura en `config/estaciones.yaml`. **Las Google Sheets siguen
 siendo la fuente original**: el servidor solo lee y copia, no les escribe.
+
+### Red de la Municipalidad de La Plata
+
+API pública, sin usuario: `https://clima.laplata.gob.ar/api/v1/public/stations`.
+Un pedido trae las 17 estaciones con el último valor de cada variable. Por eso
+se consulta cada 5 min (lo que miden) y no hay historial para rellenar.
+- Viento: viene en km/h y se guarda en m/s, como todo el servidor.
+- Presión: se guarda como presión de **estación** (entre estaciones de la
+  ciudad difiere 2-3 hPa, como esperable por la altura). A confirmar con la
+  Municipalidad.
+- Lluvia: la API da un **contador** (`rain_accumulated`), que se guarda como
+  `precip_acum`. La lluvia de cada intervalo (`precip`) es la diferencia con
+  el contador anterior. Si el contador baja, se reinició, y cuenta lo que
+  marca desde el reinicio.
+- Valores marcados `suspect` por la Municipalidad: se guardan con qc = 3
+  (sospechoso).
 
 ### Rellenar el pasado
 
