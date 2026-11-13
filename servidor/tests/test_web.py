@@ -49,7 +49,7 @@ def test_meteograma_ema(cliente):
 def test_resumen_emas_solo_emas(cliente):
     filas = cliente.get("/api/emas/resumen").json()
     ids = {f["id"] for f in filas}
-    assert "bavio" in ids and not any(i.startswith("omm_") for i in ids)
+    assert "ema_blanca" in ids and not any(i.startswith("omm_") for i in ids)
 
 
 def test_observaciones_sinoptica_calcula_humedad(cliente):
@@ -296,13 +296,13 @@ def test_bitacora_y_disponibilidad(cliente, monkeypatch):
     from meteo.ingesta.base import Obs
     from meteo.web import app as web
     t0 = datetime(2026, 8, 1, 3, tzinfo=timezone.utc)          # 00 hora argentina
-    obs = [Obs(t0 + timedelta(minutes=10 * i), "bavio", "temp", 15.0) for i in range(-6, 6 * 48)
+    obs = [Obs(t0 + timedelta(minutes=10 * i), "ema_blanca", "temp", 15.0) for i in range(-6, 6 * 48)
            if not 60 <= i < 96]                                  # hueco: de 12:50 a 19:00 UTC
     conn = db.conectar(DSN)
     db.guardar_observaciones(conn, obs, "test")
     conn.close()
     rango = {"desde": "2026-08-01T03:00:00Z", "hasta": "2026-08-03T03:00:00Z"}
-    nuevo = {"estacion_id": "bavio", "causa": "internet", "desde": "2026-08-01T10:00:00-03:00",
+    nuevo = {"estacion_id": "ema_blanca", "causa": "internet", "desde": "2026-08-01T10:00:00-03:00",
              "hasta": "2026-08-01T14:00:00-03:00", "descripcion": "Se cortó el WiFi de la escuela"}
     ids = []
     try:
@@ -311,7 +311,7 @@ def test_bitacora_y_disponibilidad(cliente, monkeypatch):
         r = cliente.post("/api/incidentes", json=nuevo).json()
         ids.append(r["id"])
         d = cliente.get("/api/estaciones/disponibilidad", params=rango).json()
-        [b] = [e for e in d["estaciones"] if e["id"] == "bavio"]
+        [b] = [e for e in d["estaciones"] if e["id"] == "ema_blanca"]
         assert b["cortes"] == 1 and b["horas_sin_datos"] == 6.2           # de 12:50 a 19:00 UTC
         assert b["por_causa"] == {"internet": 4.0} and b["horas_sin_explicar"] == 2.2
         assert 85 < b["disponibilidad"] < 88
@@ -321,7 +321,7 @@ def test_bitacora_y_disponibilidad(cliente, monkeypatch):
         assert cliente.put(f"/api/incidentes/{r['id']}", json={**nuevo, "desde": "2026-08-01T10:00:00-03:00",
                                                                  "hasta": "2026-08-01T16:00:00-03:00"}).json()["ok"]
         d = cliente.get("/api/estaciones/disponibilidad", params=rango).json()
-        [b] = [e for e in d["estaciones"] if e["id"] == "bavio"]
+        [b] = [e for e in d["estaciones"] if e["id"] == "ema_blanca"]
         assert b["horas_sin_explicar"] == 0 and b["por_causa"] == {"internet": 6.2}
         lista = cliente.get("/api/incidentes", params=rango).json()
         assert [i["descripcion"] for i in lista] == ["Se cortó el WiFi de la escuela"]
@@ -336,7 +336,7 @@ def test_bitacora_y_disponibilidad(cliente, monkeypatch):
         with web.pool_escritura.connection() as conn:
             for i in ids:
                 conn.execute("DELETE FROM estacion_incidente WHERE id = %s", (i,))
-            conn.execute("DELETE FROM observacion WHERE estacion_id = 'bavio' AND ts BETWEEN %s AND %s",
+            conn.execute("DELETE FROM observacion WHERE estacion_id = 'ema_blanca' AND ts BETWEEN %s AND %s",
                          (t0 - timedelta(hours=2), t0 + timedelta(days=2)))
 
 
