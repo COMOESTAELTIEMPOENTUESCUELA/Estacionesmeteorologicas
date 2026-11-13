@@ -19,12 +19,13 @@ Variables (ejemplo del 12/11/2026):
 - rain_accumulated es un contador (no se sabe todavía cuándo vuelve a cero):
   se guarda tal cual (precip_acum) y la lluvia de cada intervalo (precip) sale
   de la diferencia con el valor anterior. Si baja, se reinició: lo que marca
-  es lo llovido desde el reinicio. Ver postproceso().
+  es lo llovido desde el reinicio. Después de un corte de más de una hora, ese
+  intervalo no se cuenta (no se sabe cuándo llovió). Ver postproceso().
 - Valores con "suspect": true se guardan marcados como sospechosos (qc = 3);
   los que vienen con "missing" no se guardan.
 """
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from ..base import Obs, num
 
@@ -41,6 +42,10 @@ MAPEO = {
     "rain_accumulated": ("precip_acum", 1.0),
 }
 CACHE_SEG = 60
+# Si entre dos lecturas del contador pasó más que esto (servidor apagado, API
+# caída), la diferencia NO se convierte en lluvia: no se sabe cuándo cayó, y
+# ponerla toda en un intervalo de 5 min inventaría un chaparrón.
+HUECO_MAXIMO = timedelta(hours=1)
 _cache = {"t": 0.0, "datos": None}
 
 
@@ -76,14 +81,16 @@ def traer(estacion, desde, hasta, sesion):
 
 
 def lluvia_de_contador(anterior, lecturas):
-    """lecturas: [(ts, contador)] en orden. anterior: el último contador ya
-    guardado (o None). -> [(ts, mm caídos desde la lectura anterior)].
-    Si el contador baja, se reinició: lo llovido es lo que marca ahora."""
+    """lecturas: [(ts, contador)] en orden. anterior: (ts, contador) del último
+    ya guardado, o None. -> [(ts, mm caídos desde la lectura anterior)].
+    Si el contador baja, se reinició: lo llovido es lo que marca ahora. Si la
+    lectura anterior es de hace más de HUECO_MAXIMO, ese intervalo se saltea."""
     salida = []
     for ts, acum in lecturas:
-        if anterior is not None:
-            salida.append((ts, round(acum - anterior if acum >= anterior else acum, 2)))
-        anterior = acum
+        if anterior is not None and ts - anterior[0] <= HUECO_MAXIMO:
+            previo = anterior[1]
+            salida.append((ts, round(acum - previo if acum >= previo else acum, 2)))
+        anterior = (ts, acum)
     return salida
 
 
@@ -94,8 +101,8 @@ def postproceso(conn, estacion, obs):
     if not lecturas:
         return obs
     with conn.cursor() as cur:
-        cur.execute("""SELECT valor FROM observacion WHERE estacion_id = %s AND variable = 'precip_acum'
+        cur.execute("""SELECT ts, valor FROM observacion WHERE estacion_id = %s AND variable = 'precip_acum'
                        AND ts < %s ORDER BY ts DESC LIMIT 1""", (estacion["id"], lecturas[0][0]))
         fila = cur.fetchone()
-    anterior = None if not fila else (fila[0] if isinstance(fila, tuple) else fila["valor"])
+    anterior = None if not fila else (tuple(fila) if isinstance(fila, tuple) else (fila["ts"], fila["valor"]))
     return obs + [Obs(ts, estacion["id"], "precip", mm) for ts, mm in lluvia_de_contador(anterior, lecturas)]

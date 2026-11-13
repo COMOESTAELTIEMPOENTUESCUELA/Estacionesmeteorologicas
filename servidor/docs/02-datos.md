@@ -30,6 +30,11 @@ se consulta cada 5 min (lo que miden) y no hay historial para rellenar.
   marca desde el reinicio.
 - Valores marcados `suspect` por la Municipalidad: se guardan con qc = 3
   (sospechoso).
+- **En la página se identifican como "Red municipal"**: en el mapa con un
+  rombo (◆) y su propia casilla para mostrarla u ocultarla, su sección en la
+  lista, un grupo aparte en el selector de EMAs, en la tabla de EMAs y en la
+  lluvia diaria, y la etiqueta "Red municipal" en el selector de series. En
+  la base: `estacion.red = 'municipio'` (ids `mlp_...`).
 
 ### Rellenar el pasado
 

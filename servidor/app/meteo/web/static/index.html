@@ -591,13 +591,18 @@ img.avatar { object-fit: cover; background: var(--plano); display: inline-block;
 .cifra b { display: block; font-size: 26px; font-weight: 650; }
 .cifra span { color: var(--tinta-2); font-size: 12px; }
 
-/* Mapa: símbolo según la red (● EMA, ■ SMN); color según el estado */
+/* Mapa: símbolo según la red (● EMA, ◆ red municipal, ■ SMN); color según el estado */
 .mk { width: 16px; height: 16px; border: 2px solid var(--superficie); box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
 .mk-ema { border-radius: 50%; }
 .mk-smn { border-radius: 2px; width: 14px; height: 14px; }
+.mk-mun { border-radius: 2px; width: 13px; height: 13px; transform: rotate(45deg); }      /* ◆ red municipal */
 .mk.ok { background: var(--ok); } .mk.demora { background: var(--demora); } .mk.caida { background: var(--caida); }
 .simbolo { display: inline-block; width: 11px; height: 11px; background: var(--tinta-2); margin-right: 4px; vertical-align: -1px; }
 .simbolo.ema { border-radius: 50%; } .simbolo.smn { border-radius: 1px; }
+.simbolo.mun { border-radius: 1px; width: 9px; height: 9px; transform: rotate(45deg); margin: 0 6px 0 2px; }
+.chip.mun { background: color-mix(in srgb, var(--s7) 18%, transparent); color: var(--s7); }
+.tag-mun { font-size: 10.5px; padding: 0 5px; border-radius: 6px; color: var(--s7); border: 1px solid color-mix(in srgb, var(--s7) 45%, transparent); white-space: nowrap; }
+tr.sep-red td { background: var(--plano); font-weight: 600; font-size: 12px; color: var(--tinta-2); }
 .filtro-red { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
 #lista .tirador { display: none; }
 #lista h3 { font-size: 13px; margin: 8px 0 2px; color: var(--tinta-2); text-transform: uppercase; letter-spacing: .04em; }
@@ -1926,6 +1931,7 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
   <section id="tab-mapa">
     <div class="leyenda-estado">
       <label class="filtro-red"><input type="checkbox" id="ver-emas" checked><span class="simbolo ema"></span>EMAs (automáticas)</label>
+      <label class="filtro-red"><input type="checkbox" id="ver-mun" checked><span class="simbolo mun"></span>Red municipal</label>
       <label class="filtro-red"><input type="checkbox" id="ver-smn" checked><span class="simbolo smn"></span>Estaciones SMN (superficie)</label>
       <span class="tenue">·</span>
       <span class="estado ok"><i>✓</i>Al día</span>
@@ -2936,6 +2942,11 @@ async function api(url) {
 }
 
 const TIPOS = { ema: "EMA", sinoptica: "Sinóptica SMN", convencional: "Convencional", pluviometro: "Pluviómetro", otra: "Otra" };
+// Las redes que se distinguen en la página: la del grupo y las escuelas (ema),
+// la de la Municipalidad de La Plata (mun) y el SMN.
+const RED_MUNICIPAL = "Red municipal";
+const esMunicipal = (e) => (e || {}).red === "municipio";
+const redDe = (e) => e.tipo === "sinoptica" ? "smn" : esMunicipal(e) ? "mun" : "ema";
 
 // Estado según el tiempo desde el último dato. Las sinópticas reportan cada
 // 1-3 h, las EMAs cada 5-15 min: por eso umbrales distintos.
@@ -3113,7 +3124,7 @@ async function cargarMapa() {
       maxZoom: 18, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     }).addTo(mapa);
   }
-  for (const red of ["ema", "smn"]) {
+  for (const red of ["ema", "mun", "smn"]) {
     if (!capas[red]) capas[red] = L.layerGroup().addTo(mapa);
     capas[red].clearLayers();
   }
@@ -3122,8 +3133,10 @@ async function cargarMapa() {
   lista.innerHTML = '<div class="tirador" title="Tocá o arrastrá para subir o bajar la lista" aria-label="Subir o bajar la lista"></div>';
   const secciones = {
     ema: Object.assign(document.createElement("div"), { innerHTML: '<h3><span class="simbolo ema"></span>EMAs · estaciones automáticas</h3>' }),
+    mun: Object.assign(document.createElement("div"), { innerHTML: '<h3><span class="simbolo mun"></span>Red municipal · Municipalidad de La Plata</h3>' }),
     smn: Object.assign(document.createElement("div"), { innerHTML: '<h3><span class="simbolo smn"></span>Estaciones de superficie · SMN</h3>' }),
   };
+  for (const [k, sec] of Object.entries(secciones)) sec.dataset.red = k;
   for (const sec of Object.values(secciones)) { sec.style.cssText = "display:flex;flex-direction:column;gap:8px"; lista.appendChild(sec); }
   const orden = { ema: 0, convencional: 1, pluviometro: 2, sinoptica: 3, otra: 4 };
   const activas = ESTACIONES.filter((e) => e.activa).sort((a, b) => (orden[a.tipo] - orden[b.tipo]) || a.nombre.localeCompare(b.nombre));
@@ -3148,16 +3161,16 @@ async function cargarMapa() {
     div.innerHTML = `
       <div class="fila1"><span class="nombre">${esc(e.nombre)}</span>
         <span class="estado ${st.clase}"><i>${st.icono}</i>${esc(st.texto)}</span></div>
-      <div><span class="chip">${TIPOS[e.tipo] || e.tipo}</span> <span class="tenue">${esc(e.localidad || "")}</span></div>
+      <div>${esMunicipal(e) ? `<span class="chip mun">${RED_MUNICIPAL}</span>` : `<span class="chip">${TIPOS[e.tipo] || e.tipo}</span>`} <span class="tenue">${esc(e.localidad || "")}</span></div>
       <div class="valores">${partes || '<span class="tenue">Sin datos recientes</span>'}</div>`;
-    const red = e.tipo === "sinoptica" ? "smn" : "ema";
+    const red = redDe(e);
     div.dataset.red = red;
     div.addEventListener("click", () => verDetalleDe(e));
     secciones[red].appendChild(div);
 
     if (e.lat && e.lon) {
       const icono = L.divIcon({ className: "", html: `<div class="mk mk-${red} ${st.clase}"></div>`, iconSize: [16, 16], iconAnchor: [8, 8] });
-      const m = L.marker([e.lat, e.lon], { icon: icono, title: e.nombre }).bindTooltip(e.nombre);
+      const m = L.marker([e.lat, e.lon], { icon: icono, title: e.nombre }).bindTooltip(esMunicipal(e) ? `${esc(e.nombre)} · ${RED_MUNICIPAL}` : esc(e.nombre));
       m.on("click", () => verDetalleDe(e));
       capas[red].addLayer(m);
     }
@@ -3205,14 +3218,15 @@ new ResizeObserver(medirMapa).observe(document.querySelector("header"));
 })();
 
 function aplicarFiltrosRed() {
-  const ver = { ema: $("#ver-emas").checked, smn: $("#ver-smn").checked };
-  for (const red of ["ema", "smn"]) {
+  const ver = { ema: $("#ver-emas").checked, mun: $("#ver-mun").checked, smn: $("#ver-smn").checked };
+  for (const red of ["ema", "mun", "smn"]) {
     if (!capas[red]) continue;
     if (ver[red]) capas[red].addTo(mapa); else mapa.removeLayer(capas[red]);
   }
-  document.querySelectorAll("#lista > div").forEach((sec, i) => { sec.hidden = !ver[i === 0 ? "ema" : "smn"]; });
+  document.querySelectorAll("#lista > div[data-red]").forEach((sec) => { sec.hidden = !ver[sec.dataset.red]; });
 }
 $("#ver-emas").addEventListener("change", aplicarFiltrosRed);
+$("#ver-mun").addEventListener("change", aplicarFiltrosRed);
 $("#ver-smn").addEventListener("change", aplicarFiltrosRed);
 
 // Tocar una estación lleva a la vista propia de su red.
@@ -3268,7 +3282,7 @@ function dibujarSelector() {
     const lab = document.createElement("label");
     lab.className = activa ? "activa" : "";
     const color = activa ? `var(--s${colorDe.get(e.id)})` : "transparent";
-    lab.innerHTML = `<input type="checkbox" ${activa ? "checked" : ""}><span class="punto" style="background:${color}"></span>${esc(e.nombre)}`;
+    lab.innerHTML = `<input type="checkbox" ${activa ? "checked" : ""}><span class="punto" style="background:${color}"></span>${esc(e.nombre)}${esMunicipal(e) ? ` <span class="tag-mun">${RED_MUNICIPAL}</span>` : ""}`;
     lab.querySelector("input").addEventListener("change", (ev) => {
       if (ev.target.checked) {
         if (seleccion.size >= 8) { ev.target.checked = false; alert("Máximo 8 estaciones a la vez (para que los colores se puedan distinguir)."); return; }
@@ -3758,7 +3772,13 @@ async function iniciarEmas() {
   const emas = ESTACIONES.filter((e) => e.activa && e.tipo !== "sinoptica");
   const sel = $("#f-ema");
   sel.innerHTML = "";
-  for (const e of emas) sel.add(new Option(e.nombre, e.id));
+  for (const [titulo, grupo] of [["Grupo, FCAG y escuelas", emas.filter((e) => !esMunicipal(e))], [RED_MUNICIPAL, emas.filter(esMunicipal)]]) {
+    if (!grupo.length) continue;
+    const og = document.createElement("optgroup");
+    og.label = titulo;
+    for (const e of grupo) og.appendChild(new Option(e.nombre, e.id));
+    sel.appendChild(og);
+  }
   emaElegida = emaElegida || (emas.find((e) => e.id === "observatorio_campbell") || emas[0] || {}).id;
   sel.value = emaElegida;
   sel.addEventListener("change", () => { emaElegida = sel.value; cargarMeteograma(); cargarResumenEmas(); });
@@ -3773,10 +3793,14 @@ async function cargarResumenEmas() {
   await causasInc().catch(() => {});
   $("#tabla-emas").innerHTML = `<tr><th>Estación</th><th>Estado</th><th class="num">Temp. (°C)</th><th class="num">Máx. hoy</th>
     <th class="num">Mín. hoy</th><th class="num">Humedad (%)</th><th class="num">Lluvia desde las 9 (mm)</th></tr>` +
-    filas.map((f) => {
+    [...filas].sort((a, b) => esMunicipal(ESTACIONES.find((e) => e.id === a.id)) - esMunicipal(ESTACIONES.find((e) => e.id === b.id)))
+    .map((f, i, todas) => {
+      const mun = esMunicipal(ESTACIONES.find((e) => e.id === f.id));
+      const sep = mun && (i === 0 || !esMunicipal(ESTACIONES.find((e) => e.id === todas[i - 1].id)))
+        ? `<tr class="sep-red"><td colspan="7"><span class="simbolo mun"></span>${RED_MUNICIPAL} · Municipalidad de La Plata</td></tr>` : "";
       const st = estadoDe({ ultimo: f.ultimo, tipo: "ema" });
       const inc = f.incidente ? ` ${chipCausa(f.incidente.causa)}` : "";
-      return `<tr class="fila-click ${f.id === emaElegida ? "fila-activa" : ""}" data-id="${esc(f.id)}"
+      return sep + `<tr class="fila-click ${f.id === emaElegida ? "fila-activa" : ""}" data-id="${esc(f.id)}"
           title="${esc(f.incidente?.descripcion || "")}">
         <td>${esc(f.nombre)}</td><td><span class="estado ${st.clase}"><i>${st.icono}</i>${esc(st.texto)}</span>${inc}</td>
         <td class="num"><b>${num(f.temp)}</b></td><td class="num">${num(f.tmax_hoy)}</td><td class="num">${num(f.tmin_hoy)}</td>
@@ -6747,11 +6771,14 @@ function nivel(mm) { let n = 0; for (const [lim, l] of NIVELES) if (mm >= lim) n
 // distingue el tipo (no la estación): así se ven juntas sin confundirse.
 const GRUPOS_LLUVIA = [
   { id: "ema", nombre: "EMAs (automáticas)", color: "var(--s1)", tipos: ["ema"] },
+  { id: "mun", nombre: "Red municipal (Municipalidad de La Plata)", color: "var(--s7)", tipos: [] },
   { id: "smn", nombre: "SMN (sinópticas, pluviómetro de 9 a 9)", color: "var(--s3)", tipos: ["sinoptica"] },
   { id: "conv", nombre: "Convencionales y pluviómetros", color: "var(--s4)", tipos: ["convencional", "pluviometro", "otra"] },
   { id: "com", nombre: "Comunidad (reportes)", color: "var(--s7)", tipos: ["comunidad"] },
 ];
-const grupoLluvia = (tipo) => GRUPOS_LLUVIA.find((g) => g.tipos.includes(tipo)) || GRUPOS_LLUVIA[2];
+// o: un origen de lluvia ({tipo, red}). La red municipal va aparte de las otras EMAs.
+const grupoLluvia = (o) => o.red === "municipio" ? GRUPOS_LLUVIA[1]
+  : GRUPOS_LLUVIA.find((g) => g.tipos.includes(o.tipo)) || GRUPOS_LLUVIA[3];
 let periodoLluvia = null;
 let ocultasLluvia = new Set();       // lo que el usuario apagó (se recuerda en este navegador)
 try { ocultasLluvia = new Set(JSON.parse(localStorage.getItem("lluvia-ocultas") || "[]")); } catch (_) {}
@@ -6779,6 +6806,7 @@ async function cargarLluvia() {
     q = `desde=${d1}&hasta=${d2}`;
   }
   $("#f-lluvia-csv").href = `/api/lluvia?${q}&formato=csv`;
+  if (!ESTACIONES.length) ESTACIONES = await api("/api/estaciones");   // para saber qué origen es de la red municipal
   const filas = await api(`/api/lluvia?${q}`);
   diasLluvia = [];
   for (let d = d1; d <= d2; d = sumarDias(d, 1)) diasLluvia.push(d);
@@ -6789,7 +6817,8 @@ async function cargarLluvia() {
     const esCom = f.tipo_origen === "comunidad";
     const clave = esCom ? `${f.origen}|${f.nombre}` : f.origen;
     const nombre = esCom ? `${f.origen.replace("comunidad:", "")}${f.nombre ? " (" + f.nombre + ")" : ""}` : f.nombre;
-    if (!origenesLluvia.has(clave)) origenesLluvia.set(clave, { clave, nombre, tipo: f.tipo_origen, instrumento: f.instrumento, dias: {}, sosp: {} });
+    if (!origenesLluvia.has(clave)) origenesLluvia.set(clave, { clave, nombre, tipo: f.tipo_origen, instrumento: f.instrumento, dias: {}, sosp: {},
+      red: esCom ? null : (ESTACIONES.find((e) => e.id === f.origen) || {}).red });
     const o = origenesLluvia.get(clave);
     o.dias[f.dia] = (o.dias[f.dia] || 0) + f.lluvia_mm;
     o.sosp[f.dia] = (o.sosp[f.dia] || 0) + (f.mm_sospechosos || 0);
@@ -6803,7 +6832,7 @@ async function cargarLluvia() {
 function dibujarSelectorLluvia() {
   const todos = [...origenesLluvia.values()].sort((a, b) => a.nombre.localeCompare(b.nombre));
   $("#sel-lluvia").innerHTML = GRUPOS_LLUVIA.map((g) => {
-    const de = todos.filter((o) => grupoLluvia(o.tipo) === g);
+    const de = todos.filter((o) => grupoLluvia(o) === g);
     if (!de.length) return "";
     const prendidas = de.filter((o) => !ocultasLluvia.has(o.clave)).length;
     return `<div class="grupo-ll" style="--gcol:${g.color}" data-g="${g.id}">
@@ -6819,7 +6848,7 @@ function dibujarSelectorLluvia() {
   }));
   document.querySelectorAll("#sel-lluvia [data-todas]").forEach((b) => b.addEventListener("click", () => {
     const g = GRUPOS_LLUVIA.find((x) => x.id === b.dataset.todas);
-    const de = todos.filter((o) => grupoLluvia(o.tipo) === g);
+    const de = todos.filter((o) => grupoLluvia(o) === g);
     const apagar = b.textContent === "Ninguna";
     de.forEach((o) => apagar ? ocultasLluvia.add(o.clave) : ocultasLluvia.delete(o.clave));
     guardarOcultas(); dibujarSelectorLluvia(); dibujarLluvia();
@@ -6841,7 +6870,7 @@ function dibujarLluvia() {
     ? `<td class="v n0" title="sin datos">–</td>`
     : `<td class="v l${nivel(v)} ${v === 0 ? "n0" : ""}" title="${esc(titulo)}: ${v.toFixed(1)} mm${s > 0 ? ` (${s.toFixed(1)} mm sospechosos: pulsos que la estación borró enseguida)` : ""}">${v === 0 ? "0" : v.toFixed(1)}${s > 0 ? " ⚠" : ""}</td>`;
   const fila = (o, conTipo) => {
-    const g = grupoLluvia(o.tipo);
+    const g = grupoLluvia(o);
     let total = 0, hay = false;
     const celdas = lista.map((d) => { const v = o.dias[d]; if (v !== undefined) { total += v; hay = true; } return celda(v, `${o.nombre} · ${fmtD(d)}`, o.sosp[d] || 0); }).join("");
     return `<tr><td class="franja" style="--gcol:${g.color}">${esc(o.nombre)}${conTipo ? ` <span class="tipo-ll" style="--gcol:${g.color}">${esc(g.nombre.split(" ")[0])}</span>` : ""}</td>
@@ -6853,7 +6882,7 @@ function dibujarLluvia() {
     cuerpo = visibles.sort(porNombre).map((o) => fila(o, true)).join("");
   } else {
     cuerpo = GRUPOS_LLUVIA.map((g) => {
-      const de = visibles.filter((o) => grupoLluvia(o.tipo) === g).sort(porNombre);
+      const de = visibles.filter((o) => grupoLluvia(o) === g).sort(porNombre);
       if (!de.length) return "";
       return `<tr class="g-cab" style="--gcol:${g.color}"><td colspan="${lista.length + 3}">${esc(g.nombre)}</td></tr>` +
         de.map((o) => fila(o, false)).join("");

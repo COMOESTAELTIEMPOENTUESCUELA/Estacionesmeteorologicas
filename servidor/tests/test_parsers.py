@@ -392,7 +392,10 @@ def test_municipio_lp_lluvia_desde_el_contador():
     # Primera lectura sin anterior: no se sabe cuánto llovió antes -> nada.
     assert municipio_lp.lluvia_de_contador(None, [(t[0], 3.0)]) == []
     lect = [(t[0], 3.0), (t[1], 3.2), (t[2], 3.2), (t[3], 0.4), (t[4], 0.6)]   # en t[3] se reinició
-    assert municipio_lp.lluvia_de_contador(2.5, lect) == [(t[0], 0.5), (t[1], 0.2), (t[2], 0.0), (t[3], 0.4), (t[4], 0.2)]
+    previo = (t[0] - timedelta(minutes=5), 2.5)
+    assert municipio_lp.lluvia_de_contador(previo, lect) == [(t[0], 0.5), (t[1], 0.2), (t[2], 0.0), (t[3], 0.4), (t[4], 0.2)]
+    # Después de un corte largo (la anterior es de ayer): ese intervalo no se cuenta.
+    assert municipio_lp.lluvia_de_contador((t[0] - timedelta(days=1), 9.0), lect[:2]) == [(t[1], 0.2)]
 
 
 def test_municipio_lp_un_solo_pedido_para_todas():

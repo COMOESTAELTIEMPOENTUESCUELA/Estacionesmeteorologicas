@@ -639,8 +639,9 @@ def test_revisar_ema(cliente, capsys):
     from meteo.ingesta import db
     from meteo.ingesta.base import Obs
     from meteo.web import app as web
-    ahora = datetime.now(timezone.utc).replace(second=0, microsecond=0)
-    ahora = ahora.replace(minute=ahora.minute // 10 * 10)
+    # Anclado a la medianoche UTC (no a "ahora"): así la temperatura trabada y
+    # el hueco caen siempre de noche (21 a 24 hs) y no tocan la franja de la tarde.
+    ahora = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
     t0, o, t = ahora - timedelta(days=3), [], ahora - timedelta(days=3)
     while t < ahora:
         h = (t.hour - 3) % 24
