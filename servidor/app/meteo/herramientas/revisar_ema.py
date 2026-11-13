@@ -170,14 +170,23 @@ def lluvia(series):
         return
     vals = [x for _, x, _ in s]
     no_cero = [x for x in vals if x > 0]
-    sube = sum(1 for a, b in zip(vals, vals[1:]) if b >= a)
+    # Un contador sube y casi nunca baja. Se cuentan solo los CAMBIOS (si no,
+    # una serie casi toda en 0 -- 0, 0, 0 -- parece "que nunca baja").
+    cambios = [(a, b) for a, b in zip(vals, vals[1:]) if b != a]
+    bajadas = sum(1 for a, b in cambios if b < a)
     print(f"   {len(vals)} lecturas · {len(no_cero)} con valor > 0 · suma de todas: {f(sum(vals))} mm")
     if no_cero:
         frec = defaultdict(int)
         for x in no_cero:
             frec[round(x, 2)] += 1
         print("   Valores más comunes (> 0): " + ", ".join(f"{k:g} ({n})" for k, n in sorted(frec.items(), key=lambda kv: -kv[1])[:6]))
-    if len(vals) > 20 and sube / (len(vals) - 1) > 0.97 and max(vals) > 0 and len(set(vals)) > 3:
+    # ¿Las lecturas son múltiplos de un mismo valor? (los vuelcos de la cazoleta)
+    if len(no_cero) >= 3:
+        paso = min(no_cero)
+        if all(abs(x / paso - round(x / paso)) < 0.03 * round(x / paso) for x in no_cero) and len(set(round(x, 2) for x in no_cero)) > 1:
+            print(f"   Todas las lecturas > 0 son múltiplos de {paso:g} mm: parece un pluviómetro de cazoleta de {paso:g} mm")
+            print("   por vuelco que manda los mm de cada intervalo (varios vuelcos juntos = varias veces ese valor).")
+    if len(cambios) > 3 and bajadas <= 0.02 * len(cambios) and len(set(vals)) > 3:
         print("   ⚠️ los valores casi nunca bajan: parece un CONTADOR que se acumula (no mm por intervalo).")
         print("      Si es así, la suma de arriba está mal: hay que usar las diferencias entre lecturas.")
     elif no_cero and len(set(round(x, 2) for x in no_cero)) == 1 and len(no_cero) > 2:
