@@ -38,7 +38,8 @@ estaciones:
   # acumulado), así que va directo a la variable `precip`.
 
   - id: bavio
-    nombre: EP N°23 Bavío (EMA Violeta)
+    nombre: EP N°23 Bavío (EMA Violeta, retirada)
+    activa: false          # reemplazada por la EMA Verde el 06/11/2026 (el historial queda)
     tipo: ema
     red: escuelas
     fuente: thingspeak
@@ -46,7 +47,7 @@ estaciones:
     localidad: Bavío
     lat: -35.0254
     lon: -57.7529
-    notas: ESP32. Pluviómetro y sensor de T/HR fallan por separado. Migró de canal (1778165 -> 2626952).
+    notas: ESP32. Pluviómetro y sensor de T/HR fallan por separado. Migró de canal (1778165 -> 2626952). Último dato el 20/10/2026; el 06/11/2026 la reemplazó la EMA Verde (ema_verde) en el mismo lugar.
     config:
       canales:
         - {id: "2626952", key: "4XYH56YSV64HE17H"}
@@ -110,15 +111,23 @@ estaciones:
         field7: {variable: viento_vel, factor: 0.277778}
         field8: viento_dir
 
+  # Estuvo en prueba en la Facultad; desde el 06/11/2026 (~15 hs) está en la EP 23
+  # de Bavío (Magdalena), en el lugar de la EMA Violeta. Los datos de antes de
+  # esa hora son de la Facultad.
   - id: ema_verde
-    nombre: EMA Verde (Facultad, en prueba)
+    nombre: EP N°23 Bavío (EMA Verde)
     tipo: ema
-    red: fcag
+    red: escuelas
     fuente: thingspeak
-    institucion: FCAG-UNLP
-    localidad: La Plata
-    lat: -34.9086
-    lon: -57.9328
+    institucion: Escuela Primaria N°23
+    localidad: Bavío (Magdalena)
+    lat: -35.0254
+    lon: -57.7529
+    notas: >-
+      ESP32. Instalada el 06/11/2026 en el lugar de la EMA Violeta. Pluviómetro de
+      cazoleta de ~0,816 mm por vuelco (manda los mm de cada intervalo). Presión
+      NO confiable (difiere del Aero hasta 9 hPa y de forma variable: revisión del
+      13/11/2026). El 06/11 (instalación) marcó ~99 mm de lluvia que hay que revisar.
     config:
       canales: [{id: "2218686", key: "O85A0DJ31L8MQZ6F"}]
       campos: {field1: temp, field2: hum, field4: precip, field6: pres_est}
@@ -239,7 +248,7 @@ comunidad:
   # Qué estación corresponde a cada escuela/zona del formulario (para
   # comparar el pluviómetro de la escuela con la EMA más cercana).
   escuela_a_estacion:
-    "EP 23 Bavio": bavio
+    "EP 23 Bavio": ema_verde      # antes bavio (EMA Violeta, retirada el 06/11/2026)
     "San Vicente": san_vicente
     "EP 23 Los Talas": ep23_los_talas
     "EP 20 / ES 7": es7_ep20
