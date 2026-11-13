@@ -35,7 +35,7 @@ VENTANA = {
     "wunderground": timedelta(hours=26),  # se piden días completos (hoy y ayer)
     "davis": timedelta(hours=12),
     "ogimet": timedelta(hours=30),        # los SYNOP a veces llegan tarde
-    "municipio_lp": timedelta(hours=1),   # la API da solo el último valor
+    "municipio_lp": timedelta(hours=2),   # la API da solo el último valor (se pide cada 1 h)
 }
 
 

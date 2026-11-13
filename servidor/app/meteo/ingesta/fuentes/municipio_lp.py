@@ -3,8 +3,8 @@ Red de EMAs de la Municipalidad de La Plata: https://clima.laplata.gob.ar/pub
 
 API pública (sin usuario): https://clima.laplata.gob.ar/api/v1/public/stations
 devuelve TODAS las estaciones con su ÚLTIMO valor de cada variable (no hay
-historial): por eso se consulta seguido (cada 5 min, lo mismo que miden) y el
-servidor va armando la serie. Un solo pedido trae las 17 estaciones: se guarda
+historial): el servidor la consulta cada 1 h (frecuencias_min en
+estaciones.yaml) y va armando la serie, con un dato por hora. Un solo pedido trae las 17 estaciones: se guarda
 la respuesta unos segundos para no pedirla una vez por estación.
 
 Variables (ejemplo del 12/11/2026):
@@ -19,7 +19,7 @@ Variables (ejemplo del 12/11/2026):
 - rain_accumulated es un contador (no se sabe todavía cuándo vuelve a cero):
   se guarda tal cual (precip_acum) y la lluvia de cada intervalo (precip) sale
   de la diferencia con el valor anterior. Si baja, se reinició: lo que marca
-  es lo llovido desde el reinicio. Después de un corte de más de una hora, ese
+  es lo llovido desde el reinicio. Después de un corte de más de 3 horas, ese
   intervalo no se cuenta (no se sabe cuándo llovió). Ver postproceso().
 - Valores con "suspect": true se guardan marcados como sospechosos (qc = 3);
   los que vienen con "missing" no se guardan.
@@ -44,8 +44,10 @@ MAPEO = {
 CACHE_SEG = 60
 # Si entre dos lecturas del contador pasó más que esto (servidor apagado, API
 # caída), la diferencia NO se convierte en lluvia: no se sabe cuándo cayó, y
-# ponerla toda en un intervalo de 5 min inventaría un chaparrón.
-HUECO_MAXIMO = timedelta(hours=1)
+# ponerla toda en un solo intervalo inventaría un chaparrón. Con la consulta
+# cada 1 h, entre lecturas normales hay ~1 h: el margen deja pasar alguna
+# demora de la ingesta.
+HUECO_MAXIMO = timedelta(hours=3)
 _cache = {"t": 0.0, "datos": None}
 
 

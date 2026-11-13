@@ -26,7 +26,7 @@ frecuencias_min:
   cartas: 60
   indices: 720        # índices climáticos (ENSO, SAM, MJO...): cambian despacio
   bot: 15             # bot observador: avisa en la red si algo cambió de golpe
-  municipio_lp: 5     # EMAs de la Municipalidad: la API da solo el último valor (miden cada 5 min)
+  municipio_lp: 60    # EMAs de la Municipalidad: un pedido por hora (la API da solo el último valor: queda un dato por hora)
 
 estaciones:
 

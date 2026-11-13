@@ -394,7 +394,8 @@ def test_municipio_lp_lluvia_desde_el_contador():
     lect = [(t[0], 3.0), (t[1], 3.2), (t[2], 3.2), (t[3], 0.4), (t[4], 0.6)]   # en t[3] se reinició
     previo = (t[0] - timedelta(minutes=5), 2.5)
     assert municipio_lp.lluvia_de_contador(previo, lect) == [(t[0], 0.5), (t[1], 0.2), (t[2], 0.0), (t[3], 0.4), (t[4], 0.2)]
-    # Después de un corte largo (la anterior es de ayer): ese intervalo no se cuenta.
+    # Lecturas cada 1 h (lo normal): cuenta. Después de un corte largo (la anterior es de ayer): no.
+    assert municipio_lp.lluvia_de_contador((t[0] - timedelta(hours=1, minutes=5), 2.0), lect[:1]) == [(t[0], 1.0)]
     assert municipio_lp.lluvia_de_contador((t[0] - timedelta(days=1), 9.0), lect[:2]) == [(t[1], 0.2)]
 
 
