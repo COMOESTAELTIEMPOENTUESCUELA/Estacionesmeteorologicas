@@ -968,11 +968,18 @@ img.con-fondo { background-color: #fff !important; background-size: 100% 100%; b
 .ag-ficha h3 { margin: 0 0 8px; font-size: 18px; }
 .ag-ficha h4 { margin: 14px 0 6px; font-size: 14px; color: var(--tinta-2); }
 .ag-acc { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-.ag-cab { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.ag-cab { flex-wrap: nowrap; }
-.ag-cab h3 { margin: 0; min-width: 0; }
+.ag-sit { font-size: 13.5px; }
+.ag-obs { align-items: flex-start; }
+.ag-obs .boton { margin-left: auto; }
+.ag-sitc { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.ag-etq { display: inline-flex; flex-direction: column; padding: 3px 9px; border-radius: 8px; font-size: 13px; font-weight: 600;
+  background: color-mix(in srgb, var(--s4) 16%, transparent); border: 1px solid color-mix(in srgb, var(--s4) 45%, transparent); }
+.ag-etq small { font-weight: 400; font-size: 11.5px; color: var(--tinta-2); }
+.ag-fuente { flex-basis: 100%; font-size: 12px; }
+.ag-fcab { display: flex; gap: 8px; align-items: center; flex-wrap: nowrap; }
+.ag-fcab h3 { margin: 0; min-width: 0; }
 .ag-volver { margin-bottom: 8px; }
-@media (max-width: 600px) { .ag-cab h3 { font-size: 17px; } }
+@media (max-width: 600px) { .ag-fcab h3 { font-size: 17px; } }
 .ag-analizar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 10px 0 4px; padding: 8px 10px; border: 1px solid var(--borde); border-radius: 10px; background: var(--superficie); }
 .ag-horas { display: inline-flex; gap: 4px; align-items: center; flex-wrap: wrap; }
 .ag-aviso { font-size: 12.5px; margin: 6px 0; }
@@ -993,6 +1000,9 @@ img.con-fondo { background-color: #fff !important; background-size: 100% 100%; b
 .ay-texto h3 { font-size: 18px; margin: 22px 0 6px; } .ay-texto h4 { font-size: 15.5px; margin: 14px 0 4px; }
 .ay-texto ul { padding-left: 20px; } .ay-texto li { margin: 3px 0; }
 .ay-tip { padding: 8px 12px; border-radius: 8px; background: color-mix(in srgb, var(--acento) 10%, transparent); }
+.ay-tabla { border-collapse: collapse; width: 100%; font-size: 14px; }
+.ay-tabla td, .ay-tabla th { border-bottom: 1px solid var(--borde); padding: 6px 8px; text-align: left; vertical-align: top; }
+.ay-tabla td:first-child { font-weight: 600; white-space: nowrap; }
 .ay-glos dt { font-weight: 650; margin-top: 8px; } .ay-glos dd { margin: 0 0 0 14px; }
 .ay-texto mark { background: #fde68a; color: inherit; border-radius: 2px; }
 .ay-texto .ay-oculta { display: none; }
@@ -2893,6 +2903,9 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
             <h2 id="ag-mes"></h2>
             <button class="boton" id="ag-sig" title="Mes siguiente">›</button>
             <button class="boton" id="ag-hoy" title="Volver al mes actual y abrir el día de hoy">Hoy</button>
+            <label class="en-linea ag-sit" title="Las etiquetas de lo que pasó (sudestada, frente frío, tormenta…) son automáticas y de cada ciudad: salen de los SYNOP de su estación del SMN">Lo que pasó en
+              <select id="ag-ciudad"><option value="">todas las ciudades</option><option>La Plata</option><option>Junín</option><option>Mar del Plata</option><option>Tandil</option><option>Bahía Blanca</option></select></label>
+            <button type="button" class="boton chico" id="ag-sit-ayuda" title="De dónde salen esas etiquetas y con qué criterios">ℹ️</button>
             <span class="ag-ley tenue"><span>📝 mis notas</span><span>👥 del grupo</span><span>✏️ dibujos</span><span>📍 marcas en series</span><span>🌡️ pronósticos</span><span>🌧 llovió</span></span>
           </div>
           <div class="ag-cal" id="ag-cal"></div>
@@ -3177,6 +3190,30 @@ lugar (📝 Anotar) y guarda <b>dónde</b> se escribió (la carta, la hora, la c
 <b>«para el día…»</b> (lo que esperás que pase), y queda en su día de la Agenda.</p>
 <p><b>Privacidad</b>: lo privado (notas, capas, marcas) lo ven vos y los <b>administradores</b>; los administradores también
 pueden leer los mensajes. Lo compartido lo ve todo el grupo.</p>
+</section>
+
+<section id="ay-situacion" data-tit="Lo que pasó: situaciones" data-completa>
+<h3>Lo que pasó: las situaciones de cada día</h3>
+<p>Las etiquetas como <b>sudestada</b>, <b>paso de frente frío</b> o <b>tormenta</b> que se ven en la Agenda <b>no las escribe
+nadie: las calcula el servidor solo</b>, cada 3 horas, junto con la verificación.</p>
+<ul>
+<li><b>Son de cada ciudad.</b> Cada una sale de los <b>SYNOP horarios</b> de la estación sinóptica del SMN de esa ciudad (la que
+informa cada hora viento, presión, nubes y tiempo presente). Una «sudestada» en Mar del Plata no dice nada de La Plata.</li>
+<li>En el calendario se elige de qué ciudad verlas («Lo que pasó en…»); con «todas», cada etiqueta lleva la sigla de sus
+ciudades (LP, Jun, MdP, Tan, BB).</li>
+<li>En la ficha de un día, cada etiqueta muestra <b>por qué se puso</b> (por ejemplo, «presión +4,1 hPa y temperatura −6,0 °C
+entre las 15 y las 21 hs; el viento pasa a SW») y hay un enlace a esos SYNOP en <b>Ogimet</b> para controlarla.</li>
+<li><b>Son automáticas: pueden equivocarse.</b> Dependen de una sola estación y de umbrales fijos: un frente débil puede no
+marcarse, y una ráfaga aislada no es «viento fuerte» (se usa el viento medio).</li>
+<li>Si faltan datos, la etiqueta queda <b>sin evaluar</b>: no es lo mismo que «no pasó» (por ejemplo, la noche radiativa en una
+estación que no informa de noche).</li>
+<li>También se usan en <b>Verificación</b> (filtro «Situación»), para preguntar, por ejemplo, si se falla más la mínima en las
+noches radiativas.</li>
+</ul>
+<h4>Criterios</h4>
+<div class="tabla-scroll" style="max-height:none"><table class="ay-tabla" id="ay-criterios"><tr><td class="tenue">Cargando…</td></tr></table></div>
+<h4>De qué estación sale cada ciudad</h4>
+<p id="ay-sit-est" class="tenue">Cargando…</p>
 </section>
 
 <section id="ay-glosario" data-tit="Glosario">
@@ -9252,7 +9289,10 @@ function cargarLibreta() {
   cargarReunion();
 }
 // ---------- Agenda ----------
-const agenda = { mes: null, dias: {}, dia: null, datos: null };
+const agenda = { mes: null, dias: {}, dia: null, datos: null, ciudad: "" };
+try { agenda.ciudad = localStorage.getItem("agenda-ciudad") || ""; } catch (_) {}
+const SIGLAS = { "La Plata": "LP", "Junín": "Jun", "Mar del Plata": "MdP", "Tandil": "Tan", "Bahía Blanca": "BB", "Bolívar": "Bol" };
+const siglaCiudad = (c) => SIGLAS[c] || c;
 // "frente_frio" -> "frente frío" (las etiquetas de lo que pasó, como texto).
 const ETQ_TEXTO = { frio: "frío", calido: "cálido", granizo: "granizo", niebla: "niebla" };
 const textoEtiqueta = (e) => String(e).split("_").map((w) => ETQ_TEXTO[w] || w).join(" ");
@@ -9285,9 +9325,14 @@ function dibujarCalendario() {
       x.marcas ? `<span title="Marcas en las series observadas">📍${x.marcas}</span>` : "",
       x.pronosticos ? `<span title="Pronósticos publicados">🌡️${x.pronosticos}</span>` : "",
       x.lluvia?.length ? `<span title="Llovió en: ${esc(x.lluvia.join(", "))}">🌧</span>` : ""].join("");
-    const ev = (x.etiquetas || []).map(textoEtiqueta).join(", ");
+    // Lo que pasó: de la ciudad elegida o, con «todas», cada etiqueta con sus ciudades.
+    const sit = x.situacion || {}, cAg = agenda.ciudad;
+    const porEtq = new Map();
+    for (const [c, es] of Object.entries(sit)) if (!cAg || c === cAg) for (const e of es) porEtq.set(e, [...(porEtq.get(e) || []), c]);
+    const ev = [...porEtq].map(([e, cs]) => textoEtiqueta(e) + (cAg ? "" : ` (${cs.map(siglaCiudad).join(", ")})`)).join(", ");
+    const evTitulo = [...porEtq].map(([e, cs]) => `${textoEtiqueta(e)}: ${cs.join(", ")}`).join("\n");
     html += `<button type="button" class="ag-dia${f.slice(0, 7) !== agenda.mes ? " otro" : ""}${f === hoy ? " hoy" : ""}${f === agenda.dia ? " elegido" : ""}"
-      data-ag-dia="${f}"><span class="n">${d.getUTCDate()}</span><span class="m">${marcas}</span>${ev ? `<span class="ev" title="${esc(ev)}">${esc(ev)}</span>` : ""}</button>`;
+      data-ag-dia="${f}"><span class="n">${d.getUTCDate()}</span><span class="m">${marcas}</span>${ev ? `<span class="ev" title="${esc(evTitulo)}">${esc(ev)}</span>` : ""}</button>`;
   }
   $("#ag-cal").innerHTML = html;
 }
@@ -9324,11 +9369,11 @@ async function abrirDiaAgenda(fecha) {
   const ciudades = [...new Set([...Object.keys(d.observado), ...d.pronosticos.map((p) => p.ciudad)])];
   const ciudad0 = ciudades.includes("La Plata") ? "La Plata" : ciudades[0] || "La Plata";
   const quien = (x) => x.mia ? "Vos" : esc(x.autor);
-  const obs = Object.entries(d.observado).map(([c, o]) => `<div class="ag-item"><b>${esc(c)}</b>
+  const obs = Object.entries(d.observado).map(([c, o]) => `<div class="ag-item ag-obs"><b>${esc(c)}</b>
       <span>máx ${num(o.tmax_urbana)} · mín ${num(o.tmin_urbana)} °C</span>
       <span>${o.pp === "SI" ? "🌧 llovió" : o.pp === "NO" ? "sin lluvia" : ""}</span>
-      ${o.etiquetas ? `<span class="tenue">${esc(o.etiquetas.split(",").map(textoEtiqueta).join(", "))}</span>` : ""}
-      <button class="boton chico" data-ag-panorama="${esc(c)}" title="Pronosticado contra observado ese día">📊 Panorama</button></div>`).join("");
+      <button class="boton chico" data-ag-panorama="${esc(c)}" title="Pronosticado contra observado ese día">📊 Panorama</button>
+      ${situacionCiudad(o, fecha)}</div>`).join("");
   const capas = d.capas.map((c) => `<div class="ag-item"><b>${String(new Date(c.ts).getUTCHours()).padStart(2, "0")} UTC</b>
       <span>${esc(c.nivel ? c.nivel + " · " : "")}${esc(c.nombre)}</span>
       <span class="tenue">${quien(c)} · ${c.mia ? (c.compartida ? "👥 compartido" : "🔒 privado") : "compartido"} · ${c.elementos} elemento${c.elementos === 1 ? "" : "s"}</span>
@@ -9342,7 +9387,7 @@ async function abrirDiaAgenda(fecha) {
       <button class="boton chico" data-ag-panorama="${esc(p.ciudad)}" title="Todos los pronósticos para ese día contra lo observado, y el GFS">📊 Pronosticado vs observado</button></div>`).join("");
   const viejo = (Date.parse(hoyArg()) - Date.parse(fecha)) / (24 * HORA) > DIAS_PRONO_GFS;
   const volver = agenda.volver ? `<button class="boton" data-ag-volver title="Volver a la tarjeta desde donde viniste">← Volver ${esc(NOMBRE_VISTA[agenda.volver.vista] || "a donde estabas")}</button>` : "";
-  ficha.innerHTML = `${volver ? `<div class="ag-volver">${volver}</div>` : ""}<div class="ag-cab">
+  ficha.innerHTML = `${volver ? `<div class="ag-volver">${volver}</div>` : ""}<div class="ag-fcab">
       <button class="boton chico" data-ag-mover="-1" title="El día anterior">‹</button>
       <h3>${esc(fmtDiaLargo.format(new Date(fecha + "T12:00:00Z")).replace(/^./, (x) => x.toUpperCase()))}</h3>
       <button class="boton chico" data-ag-mover="1" title="El día siguiente">›</button></div>
@@ -9366,6 +9411,20 @@ async function abrirDiaAgenda(fecha) {
   if (dest) { dest.scrollIntoView({ behavior: "smooth", block: "center" }); dest.classList.add("resaltada"); setTimeout(() => dest.classList.remove("resaltada"), 2500); }
   else ficha.scrollIntoView({ behavior: "smooth", block: "start" });
 }
+// Las etiquetas automáticas de una ciudad en la ficha: cada una con su evidencia
+// (por qué se puso), la estación de la que sale y sus SYNOP en Ogimet para controlarla.
+function situacionCiudad(o, fecha) {
+  const s = o.situacion || [];
+  if (!o.estacion && !s.length) return "";
+  const e = o.estacion || {};
+  const ogimet = e.id ? urlOgimet(e.id, fecha) : null;       // el día entero (03 a 03 UTC) y el reporte de las 12 UTC siguiente
+  const chips = s.map((x) => `<span class="ag-etq" title="${esc(x.evidencia ? "Por qué: " + x.evidencia : x.nombre)}">${esc(x.nombre)}${x.evidencia ? `<small>${esc(x.evidencia)}</small>` : ""}</span>`).join("");
+  return `<div class="ag-sitc">${chips || '<span class="tenue">Ninguna situación especial detectada.</span>'}
+    <span class="tenue ag-fuente">Según los SYNOP de ${esc(e.nombre || "su estación del SMN")}${ogimet ? ` · <a href="${esc(ogimet)}" target="_blank" rel="noopener" title="Ver los SYNOP de ese día en Ogimet, para controlarlo">Ogimet ↗</a>` : ""}
+      · <a href="#" data-ag-sit-ayuda title="Cómo se detecta cada situación">¿cómo se calcula?</a>
+      ${(o.no_evaluadas || []).length ? ` · <span title="Faltaron datos para evaluarlas (no es lo mismo que «no pasó»): ${esc(o.no_evaluadas.join(", "))}">${o.no_evaluadas.length} sin evaluar</span>` : ""}</span></div>`;
+}
+document.addEventListener("click", (e) => { if (e.target.closest("[data-ag-sit-ayuda]")) { e.preventDefault(); abrirAyuda("ay-situacion"); } });
 // Ir a los gráficos donde está una marca: el Diagnóstico de la ciudad (centrado
 // en ese día) o el meteograma de la estación.
 function irAMarca(ambito, ts) {
@@ -9511,6 +9570,13 @@ function abrirCartaEn(producto, ts) {
   }, 500);
   intentar(10);
 }
+$("#ag-ciudad").value = agenda.ciudad;
+$("#ag-ciudad").addEventListener("change", (e) => {
+  agenda.ciudad = e.target.value;
+  try { localStorage.setItem("agenda-ciudad", agenda.ciudad); } catch (_) {}
+  dibujarCalendario();
+});
+$("#ag-sit-ayuda").addEventListener("click", () => abrirAyuda("ay-situacion"));
 $("#ag-ant").addEventListener("click", () => { const [a, m] = agenda.mes.split("-").map(Number); agenda.mes = new Date(Date.UTC(a, m - 2, 1)).toISOString().slice(0, 7); cargarAgenda(); });
 $("#ag-sig").addEventListener("click", () => { const [a, m] = agenda.mes.split("-").map(Number); agenda.mes = new Date(Date.UTC(a, m, 1)).toISOString().slice(0, 7); cargarAgenda(); });
 $("#ag-hoy").addEventListener("click", () => { agenda.mes = hoyArg().slice(0, 7); cargarAgenda().then(() => abrirDiaAgenda(hoyArg())); });
@@ -10400,10 +10466,22 @@ addEventListener("popstate", (e) => {
     texto.querySelectorAll("[data-completa]").forEach((x) => (x.hidden = MODO_WEB === "cartas"));
     $("#ay-indice").innerHTML = secciones().map((x) => `<a href="#${x.id}" data-ay="${x.id}">${esc(x.dataset.tit)}</a>`).join("");
     if (!d.open) d.showModal();
+    cargarSituaciones();
     if (cual && $("#" + cual)) $("#" + cual).scrollIntoView(); else texto.scrollTop = 0;
     marcarIndice();
   }
   window.abrirAyuda = abrirAyuda;
+  let situaciones = null;
+  async function cargarSituaciones() {
+    if (situaciones || MODO_WEB === "cartas") return;
+    try { situaciones = await api("/api/verificacion/situaciones"); } catch (_) { return; }
+    $("#ay-criterios").innerHTML = "<tr><th>Situación</th><th>Se marca si…</th></tr>"
+      + situaciones.etiquetas.map((x) => `<tr><td>${esc(x.nombre)}</td><td>${esc(x.criterio)}</td></tr>`).join("");
+    $("#ay-sit-est").classList.remove("tenue");
+    $("#ay-sit-est").innerHTML = situaciones.ciudades.length
+      ? situaciones.ciudades.map((c) => `<b>${esc(c.ciudad)}</b>: ${esc(c.estacion)}${c.omm ? ` (OMM ${esc(c.omm)})` : ""}`).join(" · ")
+      : "Todavía no hay días calculados.";
+  }
   function marcarIndice() {
     const arriba = texto.getBoundingClientRect().top + 60;
     let actual = secciones()[0];

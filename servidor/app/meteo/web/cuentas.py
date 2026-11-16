@@ -1169,7 +1169,7 @@ def agenda_del_mes(request: Request, mes: str):
     d1 = (d0 + timedelta(days=32)).replace(day=1)
     dias = {}
     dia = lambda f: dias.setdefault(str(f), {"notas_mias": 0, "notas_grupo": 0, "capas_mias": 0, "capas_grupo": 0,
-                                             "marcas": 0, "pronosticos": 0, "lluvia": [], "etiquetas": []})
+                                             "marcas": 0, "pronosticos": 0, "lluvia": [], "etiquetas": [], "situacion": {}})
     for f in _leer(f"""SELECT {DIA_NOTA} AS d, n.usuario_id = %s AS mia, count(*) AS n FROM nota n
                        WHERE (n.usuario_id = %s OR n.compartida) AND {DIA_NOTA} >= %s AND {DIA_NOTA} < %s GROUP BY 1, 2""",
                    (u["id"], u["id"], d0, d1)):
@@ -1195,6 +1195,7 @@ def agenda_del_mes(request: Request, mes: str):
                 x["lluvia"].append(f["ciudad"])
             elif f["elemento"] == "etiquetas" and f["categoria"]:
                 x["etiquetas"] += [e for e in f["categoria"].split(",") if e and e not in x["etiquetas"]]
+                x["situacion"][f["ciudad"]] = [e for e in f["categoria"].split(",") if e]     # cada ciudad, las suyas
     except Exception:          # sin verificación todavía: el resto anda igual
         pass
     return {"mes": mes, "dias": dias}
@@ -1227,10 +1228,19 @@ def agenda_del_dia(request: Request, fecha: date):
                      "objeto": objeto_pronostico(e["ciudad"], fecha, e["publicado_por"])})
     obs = {}
     try:
-        for f in _leer("""SELECT ciudad, elemento, valor, categoria FROM verif_observado
-                          WHERE fecha = %s AND elemento IN ('tmax_urbana', 'tmin_urbana', 'pp', 'etiquetas')""", (fecha,)):
+        for f in _leer("""SELECT v.ciudad, v.elemento, v.valor, v.categoria, v.estacion_id, v.detalle, e.nombre AS est_nombre, e.omm
+                          FROM verif_observado v LEFT JOIN estacion e ON e.id = v.estacion_id
+                          WHERE v.fecha = %s AND v.elemento IN ('tmax_urbana', 'tmin_urbana', 'pp', 'etiquetas')""", (fecha,)):
             x = obs.setdefault(f["ciudad"], {})
             x[f["elemento"]] = f["categoria"] if f["elemento"] in ("pp", "etiquetas") else f["valor"]
+            if f["elemento"] == "etiquetas":
+                # Cada etiqueta con su evidencia y la estación de la que sale (para controlarla en Ogimet).
+                from ..verificacion.etiquetas import ETIQUETAS
+                d = f["detalle"] or {}
+                x["situacion"] = [{"clave": k, "nombre": ETIQUETAS.get(k, k), "evidencia": (d.get("evidencias") or {}).get(k)}
+                                  for k in (f["categoria"] or "").split(",") if k]
+                x["no_evaluadas"] = [ETIQUETAS.get(k, k) for k in d.get("no_evaluadas") or []]
+                x["estacion"] = {"id": f["estacion_id"], "nombre": f["est_nombre"], "omm": f["omm"]}
     except Exception:
         pass
     marcas_dia = _leer(_SQL_MARCAS + f" AND {DIA_LOCAL % 'm.desde'} = %s ORDER BY m.desde", (u["id"], u["id"], fecha))

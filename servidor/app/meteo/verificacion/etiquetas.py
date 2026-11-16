@@ -46,6 +46,29 @@ UMBRALES = {
     "caida_presion_hpa": 8.0,     # en 24 horas
 }
 
+def criterios():
+    """Cada etiqueta con su criterio en palabras, armado con los UMBRALES de
+    acá (lo usa la ayuda de la página: si cambia un umbral, cambia el texto)."""
+    U = UMBRALES
+    return {
+        "frente_frio": f"en {U['frente_horas']} h la presión sube {U['frente_dp_hpa']:g} hPa o más, la temperatura baja "
+                       f"{U['frente_dt_c']:g} °C o más y el viento pasa al sur (SE a SW)",
+        "noche_radiativa": f"de 21 a 07 hs, el {U['radiativa_fraccion']:.0%} de las horas o más con {U['radiativa_octas']} octas "
+                           f"o menos y viento menor a {U['radiativa_viento_ms']:g} m/s",
+        "adveccion_calida": f"{U['norte_horas']} horas o más de viento del N o NE de {U['norte_viento_ms']:g} m/s o más",
+        "sudestada": f"{U['sudestada_horas']} horas o más de viento del E o SE de {U['sudestada_viento_kmh']:g} km/h o más",
+        "cubierto": f"nubosidad media de {U['cubierto_octas']:g} octas o más entre las 09 y las 18 hs",
+        "niebla": "tiempo presente de niebla (ww 40 a 49) o visibilidad menor a 1 km",
+        "tormenta": "algún SYNOP con tiempo presente de tormenta (ww 17, 29 o 91 a 99)",
+        "lluvia_intensa": f"{U['lluvia_intensa_mm']:g} mm o más en 24 h (de 9 a 9 hs)",
+        "viento_fuerte": f"viento medio de {U['viento_fuerte_kmh']:g} km/h o más (no cuentan las ráfagas)",
+        "helada": f"mínima de {U['helada_c']:g} °C o menos (en el abrigo)",
+        "helada_agro": f"mínima de {U['helada_agro_c']:g} °C o menos (en el pasto puede helar)",
+        "caida_presion": f"la presión baja {U['caida_presion_hpa']:g} hPa o más en 24 h",
+        "minima_nocturna": "la mínima ocurrió de noche (de 18 a 21 hs) y no a la madrugada",
+    }
+
+
 WW_NIEBLA = set(range(40, 50))
 WW_TORMENTA = {17, 29} | set(range(91, 100))
 RUMBOS = ("N", "NE", "E", "SE", "S", "SW", "W", "NW")

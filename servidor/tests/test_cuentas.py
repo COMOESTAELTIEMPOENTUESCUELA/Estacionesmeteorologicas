@@ -880,7 +880,9 @@ def test_agenda_del_mes_y_del_dia(cliente, cuentas, monkeypatch, tmp_path):
         assert sorted(n["texto"] for n in f["notas"]) == ["compartida", "la mía"]          # no la privada de Beto
         assert f["capas"][0]["nombre"] == "Vorticidad" and f["capas"][0]["mia"]
         assert f["pronosticos"][0]["firma"] == "AnaP" and f["pronosticos"][0]["usuario"]["nombre"] == "Ana"
-        assert f["observado"]["Ciudad Agenda"] == {"pp": "SI", "tmax_urbana": 24.5, "etiquetas": "tormenta,frente_frio"}
+        o = f["observado"]["Ciudad Agenda"]
+        assert {k: o[k] for k in ("pp", "tmax_urbana", "etiquetas")} == {"pp": "SI", "tmax_urbana": 24.5, "etiquetas": "tormenta,frente_frio"}
+        assert [x["nombre"] for x in o["situacion"]] == ["Tormenta", "Paso de frente frío"]
         # Beto ve la compartida de Ana como "del grupo".
         cliente.cookies.clear()
         ingresar(cliente, cuentas, monkeypatch, "beto@gmail.com")
@@ -1061,4 +1063,36 @@ def test_corridas_gfs_fijar_pedir_y_dibujar(cliente, cuentas, monkeypatch, tmp_p
         with m._pools["e"].connection() as conn:
             conn.execute("DELETE FROM gfs_corrida WHERE corrida < '2026-03-01'")
             conn.execute("DELETE FROM pronostico_emision WHERE ciudad = 'Ciudad Corrida'")
+            conn.commit()
+
+
+def test_agenda_situaciones_por_ciudad(cliente, cuentas, monkeypatch):
+    """Las etiquetas de lo que pasó son de cada ciudad (de su estación sinóptica):
+    el mes las da separadas y la ficha del día con su evidencia y la estación."""
+    m = cuentas
+    with m._pools["e"].connection() as conn:
+        conn.execute("DELETE FROM verif_observado WHERE fecha = '2026-01-14'")
+        conn.execute("""INSERT INTO verif_observado (ciudad, fecha, elemento, valor, categoria, estacion_id, detalle) VALUES
+            ('La Plata', '2026-01-14', 'etiquetas', 1, 'sudestada', 'omm_87593',
+             '{"evidencias": {"sudestada": "7 horas con viento del E o SE"}, "no_evaluadas": ["noche_radiativa"]}'),
+            ('Mar del Plata', '2026-01-14', 'etiquetas', 1, 'tormenta', 'omm_87692', '{"evidencias": {"tormenta": "ww 95"}}')""")
+        conn.commit()
+    try:
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "ana@gmail.com")
+        d = cliente.get("/api/yo/agenda", params={"mes": "2026-01"}).json()["dias"]["2026-01-14"]
+        assert d["situacion"] == {"La Plata": ["sudestada"], "Mar del Plata": ["tormenta"]}
+        o = cliente.get("/api/yo/agenda/dia", params={"fecha": "2026-01-14"}).json()["observado"]
+        assert o["La Plata"]["situacion"] == [{"clave": "sudestada", "nombre": "Sudestada", "evidencia": "7 horas con viento del E o SE"}]
+        assert o["La Plata"]["estacion"] == {"id": "omm_87593", "nombre": "La Plata Aero", "omm": "87593"}
+        assert o["La Plata"]["no_evaluadas"] == ["Noche radiativa (despejada y en calma)"]
+        assert o["Mar del Plata"]["situacion"][0]["nombre"] == "Tormenta"
+        s = cliente.get("/api/verificacion/situaciones").json()
+        assert {"clave": "sudestada", "nombre": "Sudestada",
+                "criterio": "6 horas o más de viento del E o SE de 30 km/h o más"} in s["etiquetas"]
+        assert {"ciudad": "La Plata", "estacion": "La Plata Aero", "omm": "87593"} in s["ciudades"]
+    finally:
+        cliente.cookies.clear()
+        with m._pools["e"].connection() as conn:
+            conn.execute("DELETE FROM verif_observado WHERE fecha = '2026-01-14'")
             conn.commit()

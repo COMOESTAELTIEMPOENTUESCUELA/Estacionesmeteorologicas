@@ -234,6 +234,16 @@ satélite, rayos, observaciones) y qué no (las cartas del pronóstico GFS).
 (📅 Día, el día en que se hizo) abre la ficha de su día en la Agenda, con la
 nota resaltada y un botón «← Volver» que regresa a la tarjeta.
 
+**Lo que pasó (situaciones)**: las etiquetas del día (sudestada, frente frío,
+tormenta…) son AUTOMÁTICAS y de CADA CIUDAD: las calcula la verificación con
+los SYNOP horarios de la estación sinóptica de esa ciudad
+(`verificacion/etiquetas.py`; criterios en `criterios()`, armados con
+`UMBRALES`). En el calendario se elige la ciudad («Lo que pasó en…»; con
+«todas», cada etiqueta lleva la sigla de sus ciudades). En la ficha, cada una
+muestra su evidencia (por qué se puso), la estación y el enlace a sus SYNOP en
+Ogimet. La ayuda («❓ Cómo funciona → Lo que pasó») muestra la tabla de
+criterios desde `GET /api/verificacion/situaciones`.
+
 **🔎 Buscar en lo anotado** (arriba del calendario): notas (texto y
 etiquetas) y marcas de las series, propias y compartidas, que tengan TODAS las
 palabras, sin importar tildes ni mayúsculas ("frente frio" encuentra "Frente

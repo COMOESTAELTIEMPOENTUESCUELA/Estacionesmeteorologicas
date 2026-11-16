@@ -573,6 +573,23 @@ def verificacion_ciudades():
     return [r["ciudad"] for r in consultar("SELECT DISTINCT ciudad FROM pronostico_emision ORDER BY 1")]
 
 
+@app.get("/api/verificacion/situaciones")
+def verificacion_situaciones():
+    """Las etiquetas automáticas de «lo que pasó» (sudestada, frente frío…):
+    cada una con su criterio (armado con los umbrales del código) y, por
+    ciudad, la estación sinóptica de la que salen (la usada en el último día)."""
+    from ..verificacion.etiquetas import ETIQUETAS, criterios
+    c = criterios()
+    try:
+        est = consultar("""SELECT DISTINCT ON (v.ciudad) v.ciudad, e.nombre, e.omm FROM verif_observado v
+                           JOIN estacion e ON e.id = v.estacion_id WHERE v.elemento = 'etiquetas'
+                           ORDER BY v.ciudad, v.fecha DESC""")
+    except Exception:
+        est = []
+    return {"etiquetas": [{"clave": k, "nombre": n, "criterio": c.get(k, "")} for k, n in ETIQUETAS.items()],
+            "ciudades": [{"ciudad": r["ciudad"], "estacion": r["nombre"], "omm": r["omm"]} for r in est]}
+
+
 @app.get("/api/verificacion")
 def verificacion(ciudad: str = "La Plata", desde: date | None = None, hasta: date | None = None,
                  version: str = "final", publicacion: str = "todas", etiqueta: str = "",
