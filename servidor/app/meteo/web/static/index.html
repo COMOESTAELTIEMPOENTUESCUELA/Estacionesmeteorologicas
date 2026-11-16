@@ -1957,6 +1957,16 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
 :is(#c-analisis, #c-fecha-barra) > .filtros .horas-c button[aria-pressed="true"] span, :is(#c-analisis, #c-fecha-barra) > .filtros .horas-c button[aria-pressed="true"] small { color: #475569 !important; }
 
 /* ===== Para quien pide "reducir movimiento" en su sistema (accesibilidad) ===== */
+/* Los desplegables de los paneles oscuros (visor de cartas y barra de cartas):
+   la lista que se ABRE la dibuja el sistema (en Windows, con fondo claro), y
+   con letras blancas no se leía (ej. "Superponer"). color-scheme: dark le dice
+   al navegador que la dibuje oscura; las opciones llevan colores explícitos por
+   si el sistema lo ignora. */
+#c-dialogo select, :is(#c-analisis, #c-fecha-barra) > .filtros select { color-scheme: dark; }
+#c-dialogo select option, #c-dialogo select optgroup,
+:is(#c-analisis, #c-fecha-barra) > .filtros select option { background-color: #16202b; color: #f1f5f9; }
+#c-dialogo select option:checked, :is(#c-analisis, #c-fecha-barra) > .filtros select option:checked { background-color: #2a78d6; color: #fff; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
   .persona:hover, .postit.resaltada:hover { transform: none; }
