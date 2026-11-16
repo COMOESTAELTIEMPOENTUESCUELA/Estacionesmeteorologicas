@@ -223,6 +223,12 @@ de ese día (botón para abrir esa carta a esa hora), los pronósticos publicado
 y accesos a las cartas de ese día, al panorama pronosticado vs observado y a
 **📝 Anotar algo de este día** (privada; se puede compartir).
 
+**🔎 Buscar en lo anotado** (arriba del calendario): notas (texto y
+etiquetas) y marcas de las series, propias y compartidas, que tengan TODAS las
+palabras, sin importar tildes ni mayúsculas ("frente frio" encuentra "Frente
+FRÍO"). Filtros: solo notas o solo marcas, ciudad, fechas y solo lo mío. Cada
+resultado lleva a la ficha de su día. `GET /api/yo/buscar?q=&tipo=&ciudad=&desde=&hasta=&mias=`.
+
 Una nota cuenta para el día que analiza (`fecha_evento`) o, si no dice, para el
 día en que se escribió; los dibujos, para el día (hora argentina) de su carta.
 Las privadas de los demás no se ven. En el celular, Agenda (y Reunión,

@@ -935,8 +935,17 @@ img.con-fondo { background-color: #fff !important; background-size: 100% 100%; b
 .mb-item .cuando { font-weight: 600; white-space: nowrap; }
 .mb-item .boton { margin-left: auto; padding: 1px 8px; font-size: 12px; }
 /* ===== Agenda ===== */
+.ag-buscar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+.ag-buscar input[type=search] { flex: 1 1 280px; min-width: 0; }
+.ag-resultados { margin-bottom: 14px; display: flex; flex-direction: column; gap: 6px; }
+.ag-res { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; padding: 7px 10px; border: 1px solid var(--borde); border-radius: 8px;
+  background: var(--superficie); cursor: pointer; text-align: left; font: inherit; color: inherit; }
+.ag-res:hover { border-color: var(--acento); }
+.ag-res .f { font-weight: 600; white-space: nowrap; }
+.ag-res .t { flex: 1 1 260px; min-width: 0; }
+.ag-res mark { background: color-mix(in srgb, var(--s4) 40%, transparent); color: inherit; border-radius: 3px; padding: 0 1px; }
 .ag-cab { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
-.ag-cab h2 { margin: 0 6px; font-size: 19px; min-width: 170px; text-align: center; text-transform: capitalize; }
+.ag-cab h2 { margin: 0 6px; font-size: 19px; min-width: 170px; text-align: center; }
 .ag-ley { display: inline-flex; gap: 10px; flex-wrap: wrap; font-size: 12px; margin-left: auto; }
 .ag-cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
 .ag-cal .ds { font-size: 11.5px; color: var(--tenue); text-align: center; text-transform: uppercase; padding: 2px 0; }
@@ -2802,6 +2811,18 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
 
         <!-- Agenda: el calendario de lo analizado (notas, dibujos, pronósticos, lo que pasó) -->
         <div class="rv" id="rv-agenda" hidden>
+          <!-- Buscar en todo lo anotado (notas y marcas, propias y compartidas) -->
+          <form class="ag-buscar" id="ag-buscar">
+            <input type="search" name="q" placeholder="🔎 Buscar en lo anotado: «frente frío», «granizo», «subestimó»…" autocomplete="off">
+            <select name="tipo" title="Qué buscar"><option value="todo">Notas y marcas</option><option value="notas">Solo notas</option><option value="marcas">Solo marcas</option></select>
+            <select name="ciudad" title="Ciudad"><option value="">Todas las ciudades</option><option>La Plata</option><option>Junín</option><option>Mar del Plata</option><option>Tandil</option><option>Bahía Blanca</option><option>Bolívar</option></select>
+            <label class="en-linea" title="Desde">desde <input type="date" name="desde"></label>
+            <label class="en-linea" title="Hasta">hasta <input type="date" name="hasta"></label>
+            <label class="en-linea"><input type="checkbox" name="mias"> solo lo mío</label>
+            <button class="boton primario">Buscar</button>
+            <button type="button" class="boton" id="ag-buscar-limpiar" hidden>✕ Cerrar búsqueda</button>
+          </form>
+          <div class="ag-resultados" id="ag-resultados" hidden></div>
           <div class="ag-cab">
             <button class="boton" id="ag-ant" title="Mes anterior">‹</button>
             <h2 id="ag-mes"></h2>
@@ -8956,7 +8977,7 @@ const hoyArg = () => diaArg(new Date());
 async function cargarAgenda(recargarDia = false) {
   if (!agenda.mes) agenda.mes = hoyArg().slice(0, 7);
   const mes = agenda.mes;
-  $("#ag-mes").textContent = MESES_AG.format(new Date(mes + "-15T12:00:00Z"));
+  $("#ag-mes").textContent = MESES_AG.format(new Date(mes + "-15T12:00:00Z")).replace(/^./, (x) => x.toUpperCase());
   try { agenda.dias = (await api(`/api/yo/agenda?mes=${mes}`)).dias; } catch (_) { agenda.dias = {}; }
   if (agenda.mes !== mes) return;
   dibujarCalendario();
@@ -9045,6 +9066,52 @@ function irAMarca(ambito, ts) {
     verDetalleDe(e);
   }
 }
+// ---------- Buscar en lo anotado ----------
+const sinTildes = (t) => String(t).normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+function resaltar(texto, palabras) {
+  // Marca las palabras buscadas en el texto (sin importar tildes ni mayúsculas).
+  let html = esc(texto);
+  if (!palabras.length) return html;
+  const base = sinTildes(texto), marcas = new Array(texto.length).fill(false);
+  for (const w of palabras) { let i = base.indexOf(w); while (i >= 0) { for (let k = i; k < i + w.length; k++) marcas[k] = true; i = base.indexOf(w, i + 1); } }
+  html = ""; let abierto = false;
+  for (let i = 0; i < texto.length; i++) {
+    if (marcas[i] && !abierto) { html += "<mark>"; abierto = true; }
+    if (!marcas[i] && abierto) { html += "</mark>"; abierto = false; }
+    html += esc(texto[i]);
+  }
+  return html + (abierto ? "</mark>" : "");
+}
+$("#ag-buscar").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const f = e.target, cont = $("#ag-resultados");
+  const q = new URLSearchParams({ q: f.q.value.trim(), tipo: f.tipo.value });
+  if (f.ciudad.value) q.set("ciudad", f.ciudad.value);
+  if (f.desde.value) q.set("desde", f.desde.value);
+  if (f.hasta.value) q.set("hasta", f.hasta.value);
+  if (f.mias.checked) q.set("mias", "true");
+  cont.hidden = false; $("#ag-buscar-limpiar").hidden = false;
+  cont.innerHTML = '<p class="tenue">Buscando…</p>';
+  let r;
+  try { r = await api(`/api/yo/buscar?${q}`); } catch (err) { cont.innerHTML = `<p class="tenue">${esc(err.message)}</p>`; return; }
+  cont.innerHTML = `<p class="tenue" style="margin:0">${r.resultados.length ? `${r.resultados.length} resultado${r.resultados.length === 1 ? "" : "s"} · tocá uno para ver ese día` : "No se encontró nada con esos filtros."}</p>` +
+    r.resultados.map((x) => `<button type="button" class="ag-res" data-ag-ir="${esc(x.fecha)}">
+      <span class="f">${esc(diaCorto(x.fecha))}</span>
+      <span>${x.tipo === "nota" ? `📝 ${esc(TIPO_CORTO[x.tipo_nota] || "Nota")}` : `📍 Marca${x.hasta ? " (período)" : ""}`}</span>
+      <span class="t">${resaltar(x.texto.length > 240 ? x.texto.slice(0, 239) + "…" : x.texto, r.palabras)}${(x.etiquetas || []).length ? ` <span class="tenue">#${x.etiquetas.map((t) => resaltar(t, r.palabras)).join(" #")}</span>` : ""}</span>
+      <span class="tenue">${x.lugar ? esc(x.lugar) + " · " : ""}${x.mia ? (x.compartida ? "vos · 👥" : "vos · 🔒") : esc(x.autor)}</span></button>`).join("");
+});
+$("#ag-buscar-limpiar").addEventListener("click", () => {
+  $("#ag-resultados").hidden = true; $("#ag-buscar-limpiar").hidden = true; $("#ag-buscar").reset();
+});
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-ag-ir]");
+  if (!b) return;
+  const fecha = b.dataset.agIr;
+  agenda.mes = fecha.slice(0, 7);
+  cargarAgenda().then(() => abrirDiaAgenda(fecha));
+});
+
 // Abrir una carta en el visor después de ir a esa hora en Diagnóstico.
 function abrirCartaEn(producto, ts) {
   irACartas(ts);

@@ -1237,6 +1237,69 @@ def agenda_del_dia(request: Request, fecha: date):
     return {"fecha": fecha, "notas": notas, "capas": capas, "marcas": marcas_dia, "pronosticos": pron, "observado": obs}
 
 
+# Buscar en lo anotado: notas (texto y etiquetas) y marcas de las series.
+# Sin tildes y sin mayúsculas: "frio" encuentra "Frío".
+_SIN_TILDES = "translate(lower({}), 'áéíóúüñ', 'aeiouun')"
+
+
+def _palabras(q):
+    import unicodedata
+    q = unicodedata.normalize("NFKD", q.lower())
+    q = "".join(c for c in q if not unicodedata.combining(c))
+    return [w for w in q.replace("%", " ").replace("_", " ").split() if w][:8]
+
+
+@router.get("/api/yo/buscar")
+def buscar(request: Request, q: str = "", tipo: str = "todo", ciudad: str = "", desde: date | None = None,
+           hasta: date | None = None, mias: bool = False):
+    """Notas y marcas (propias y compartidas) que tienen TODAS las palabras de
+    q, con filtros por tipo (todo, notas, marcas), ciudad, fechas y solo mías."""
+    u = requiere_usuario(request)
+    palabras = _palabras(q)
+    if not palabras and not (ciudad or desde or hasta):
+        raise HTTPException(400, "escribí algo para buscar (o elegí una ciudad o fechas)")
+    salida = []
+    if tipo in ("todo", "notas"):
+        texto = _SIN_TILDES.format("n.texto || ' ' || array_to_string(n.etiquetas, ' ')")
+        cond, params = ["(n.usuario_id = %s OR n.compartida)"], [u["id"]]
+        for w in palabras:
+            cond.append(f"{texto} LIKE %s"); params.append(f"%{w}%")
+        if mias:
+            cond.append("n.usuario_id = %s"); params.append(u["id"])
+        if ciudad:
+            cond.append("(n.contexto ->> 'ciudad' = %s OR " + _SIN_TILDES.format("n.texto") + " LIKE %s)")
+            params += [ciudad, f"%{_palabras(ciudad)[0] if _palabras(ciudad) else ciudad}%"]
+        if desde:
+            cond.append(f"{DIA_NOTA} >= %s"); params.append(desde)
+        if hasta:
+            cond.append(f"{DIA_NOTA} <= %s"); params.append(hasta)
+        for n in _leer(f"""SELECT n.id, {DIA_NOTA} AS fecha, n.tipo AS tipo_nota, n.texto, n.etiquetas, n.compartida, n.contexto,
+                                  us.nombre AS autor, n.usuario_id = %s AS mia
+                           FROM nota n JOIN usuario us ON us.id = n.usuario_id
+                           WHERE {' AND '.join(cond)} ORDER BY 2 DESC, n.id DESC LIMIT 80""", [u["id"]] + params):
+            salida.append({"tipo": "nota", **n, "lugar": (n.pop("contexto") or {}).get("ciudad")})
+    if tipo in ("todo", "marcas"):
+        cond, params = ["(m.usuario_id = %s OR (m.compartida AND us.activo))"], [u["id"]]
+        for w in palabras:
+            cond.append(_SIN_TILDES.format("m.texto") + " LIKE %s"); params.append(f"%{w}%")
+        if mias:
+            cond.append("m.usuario_id = %s"); params.append(u["id"])
+        if ciudad:
+            cond.append("m.ambito = %s"); params.append(f"ciudad:{ciudad}")
+        dia = DIA_LOCAL % "m.desde"
+        if desde:
+            cond.append(f"{dia} >= %s"); params.append(desde)
+        if hasta:
+            cond.append(f"{dia} <= %s"); params.append(hasta)
+        for m in _leer(f"""SELECT m.id, {dia} AS fecha, m.desde, m.hasta, m.texto, m.compartida, m.ambito,
+                                  us.nombre AS autor, m.usuario_id = %s AS mia
+                           FROM serie_marca m JOIN usuario us ON us.id = m.usuario_id
+                           WHERE {' AND '.join(cond)} ORDER BY m.desde DESC LIMIT 80""", [u["id"]] + params):
+            salida.append({"tipo": "marca", **m, "lugar": m["ambito"].split(":", 1)[1]})
+    salida.sort(key=lambda x: (x["fecha"], x["tipo"] == "nota"), reverse=True)
+    return {"resultados": salida[:120], "palabras": palabras}
+
+
 ARCHIVO_DIR = os.environ.get("ARCHIVO_DIR", "/archivo")
 
 

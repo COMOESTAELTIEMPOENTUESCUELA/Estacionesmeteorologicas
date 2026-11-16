@@ -945,3 +945,39 @@ def test_marcas_sobre_las_series(cliente, cuentas, monkeypatch):
             conn.execute("DELETE FROM serie_marca")
             conn.commit()
         cliente.cookies.clear()
+
+
+def test_buscar_en_lo_anotado(cliente, cuentas, monkeypatch):
+    """Sin tildes ni mayúsculas, todas las palabras, en notas (texto y
+    etiquetas) y marcas; filtros por tipo, ciudad, fechas y solo mías; nunca
+    las privadas de los demás."""
+    m = cuentas
+    try:
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "beto@gmail.com")
+        cliente.post("/api/yo/notas", json={"tipo": "vi", "texto": "Frente FRÍO privado de Beto", "fecha_evento": "2026-04-02"}, headers=X)
+        cliente.post("/api/yo/notas", json={"tipo": "duda", "texto": "¿Por qué el frente frío se frenó?", "fecha_evento": "2026-04-03",
+                                            "compartida": True, "contexto": {"ciudad": "Tandil"}}, headers=X)
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "ana@gmail.com")
+        cliente.post("/api/yo/notas", json={"tipo": "vi", "texto": "Pasó el frente", "etiquetas": ["frio"], "fecha_evento": "2026-04-01"}, headers=X)
+        cliente.post("/api/yo/marcas", json={"ambito": "ciudad:La Plata", "desde": "2026-04-01T18:00:00Z",
+                                             "texto": "Entra el frente frío"}, headers=X)
+        assert cliente.get("/api/yo/buscar").status_code == 400
+        r = cliente.get("/api/yo/buscar", params={"q": "FRENTE frio"}).json()
+        textos = [(x["tipo"], x["texto"]) for x in r["resultados"]]
+        assert ("nota", "Frente FRÍO privado de Beto") not in textos                       # privada ajena: no
+        assert set(textos) == {("nota", "¿Por qué el frente frío se frenó?"), ("nota", "Pasó el frente"), ("marca", "Entra el frente frío")}
+        assert r["resultados"][0]["fecha"] == "2026-04-03" and r["resultados"][0]["tipo_nota"] == "duda"
+        assert [x["tipo"] for x in cliente.get("/api/yo/buscar", params={"q": "frente", "tipo": "marcas"}).json()["resultados"]] == ["marca"]
+        assert {x["texto"] for x in cliente.get("/api/yo/buscar", params={"q": "frente", "mias": "true"}).json()["resultados"]} == \
+            {"Pasó el frente", "Entra el frente frío"}
+        assert [x["texto"] for x in cliente.get("/api/yo/buscar", params={"q": "frente", "ciudad": "Tandil"}).json()["resultados"]] == \
+            ["¿Por qué el frente frío se frenó?"]
+        assert {x["fecha"] for x in cliente.get("/api/yo/buscar", params={"q": "frente", "desde": "2026-04-02"}).json()["resultados"]} == {"2026-04-03"}
+    finally:
+        with m._pools["e"].connection() as conn:
+            conn.execute("DELETE FROM nota WHERE fecha_evento BETWEEN '2026-04-01' AND '2026-04-03'")
+            conn.execute("DELETE FROM serie_marca")
+            conn.commit()
+        cliente.cookies.clear()
