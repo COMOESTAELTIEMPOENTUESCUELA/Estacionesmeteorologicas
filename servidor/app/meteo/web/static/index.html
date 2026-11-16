@@ -923,6 +923,17 @@ img.con-fondo { background-color: #fff !important; background-size: 100% 100%; b
 .cp-graf-tit { font-weight: 600; margin: 4px 0 0; }
 .cp-panel { height: 130px; }
 .c-compartir { font-size: 12.5px; }
+/* ===== Marcas sobre las series ===== */
+.marcas-barra { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 8px; }
+.marcas-barra:empty { display: none; }
+.mb-fila { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.mb-fila .boton.activa { background: var(--acento); color: #fff; }
+.mb-lista { display: flex; flex-direction: column; gap: 4px; }
+.mb-item { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; font-size: 13px; padding: 4px 8px; border-left: 3px solid var(--acento);
+  background: color-mix(in srgb, var(--acento) 6%, transparent); border-radius: 0 6px 6px 0; }
+.mb-item.grupo { border-left-color: var(--s7); background: color-mix(in srgb, var(--s7) 6%, transparent); }
+.mb-item .cuando { font-weight: 600; white-space: nowrap; }
+.mb-item .boton { margin-left: auto; padding: 1px 8px; font-size: 12px; }
 /* ===== Agenda ===== */
 .ag-cab { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
 .ag-cab h2 { margin: 0 6px; font-size: 19px; min-width: 170px; text-align: center; text-transform: capitalize; }
@@ -2026,6 +2037,7 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
         <span class="periodo" id="p-ema"></span>
       </div>
       <p class="ayuda" id="nota-meteograma"></p>
+      <div class="marcas-barra" id="mb-ema"></div>
       <div id="meteograma"></div>
       <div id="ema-rosa-cont" hidden>
         <div class="panel-titulo" style="margin-top:14px">Rosa de los vientos del período <span class="tenue">(% del tiempo que el viento vino de cada dirección)</span></div>
@@ -2049,6 +2061,7 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
         <a class="boton" id="f-smn-csv" href="#">Descargar CSV</a>
         <a class="boton" id="f-smn-ogimet" href="#" target="_blank" rel="noopener" title="La misma estación y período en Ogimet (horas en UTC)">Ver en Ogimet ↗</a>
       </div>
+      <div class="marcas-barra" id="mb-smn"></div>
       <div class="grilla-2">
         <div><div class="panel-titulo">Temperatura y rocío <span class="tenue">(°C)</span></div><div class="panel"><canvas id="smn-temp"></canvas></div></div>
         <div><div class="panel-titulo">Presión a nivel del mar <span class="tenue">(hPa)</span></div><div class="panel"><canvas id="smn-pres"></canvas></div></div>
@@ -2545,6 +2558,7 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
         </label>
       </div>
       <p class="ayuda" id="cmd-nota"></p>
+      <div class="marcas-barra" id="mb-cmd"></div>
       <div class="panel-titulo">Corte tiempo-altura del GFS <span class="tenue">(humedad relativa sombreada, temperatura cada 5 °C — la de 0 °C en azul — y viento)</span></div>
       <div id="cmd-corte" class="cmd-corte"></div>
       <div id="cmd-paneles"></div>
@@ -2793,7 +2807,7 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
             <h2 id="ag-mes"></h2>
             <button class="boton" id="ag-sig" title="Mes siguiente">›</button>
             <button class="boton" id="ag-hoy">Hoy</button>
-            <span class="ag-ley tenue"><span>📝 mis notas</span><span>👥 del grupo</span><span>✏️ dibujos</span><span>🌡️ pronósticos</span><span>🌧 llovió</span></span>
+            <span class="ag-ley tenue"><span>📝 mis notas</span><span>👥 del grupo</span><span>✏️ dibujos</span><span>📍 marcas en series</span><span>🌡️ pronósticos</span><span>🌧 llovió</span></span>
           </div>
           <div class="ag-cal" id="ag-cal"></div>
           <div class="ag-ficha" id="ag-ficha" hidden></div>
@@ -2925,6 +2939,19 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
 </dialog>
 
 <!-- La placa del pronóstico: placa.html la dibuja con el diseño del formulario de Pronóstico-UNLP -->
+<!-- Una marca sobre las series: un momento o un período, con su texto -->
+<dialog id="d-marca" class="d-chico">
+  <form id="f-marca">
+    <h2 id="marca-tit">📍 Marca</h2>
+    <p class="tenue" id="marca-cuando" style="margin-top:0"></p>
+    <label>Qué pasó <textarea name="texto" rows="3" maxlength="2000" required placeholder="Ej.: entra el frente frío: rota el viento al SO y baja la temperatura"></textarea></label>
+    <label class="en-linea"><input type="checkbox" name="compartida"> 👥 Compartirla con el grupo (si no, solo la ves vos)</label>
+    <p class="d-error" id="marca-error" hidden></p>
+    <div class="acc"><button type="button" class="boton" id="marca-borrar" hidden>🗑 Borrar</button>
+      <button type="button" class="boton" data-cerrar>Cancelar</button><button class="boton primario">Guardar</button></div>
+  </form>
+</dialog>
+
 <dialog id="d-placa">
   <div class="placa-cab"><b>🖼️ Placa del pronóstico</b>
     <a class="boton chico" id="placa-pestana" target="_blank" rel="noopener" title="Abrirla sola, en otra pestaña">↗ Pestaña</a>
@@ -3636,6 +3663,8 @@ function rangoAjustado(datasets, margen = 1) {
 
 function panel(canvas, datasets, { unidad, tipo = "line", xmin, xmax, min, max, ticksY, rango, marca, complementos = [] } = {}) {
   if (graficosPanel.has(canvas)) graficosPanel.get(canvas).destroy();
+  // Las marcas de las series (si quien dibuja este grupo de gráficos dijo de qué lugar son).
+  if (ambitoPanel) complementos = [...complementos, pluginMarcas(ambitoPanel)];
   const tinta2 = css("--tinta-2"), tenue = css("--tenue"), grilla = css("--grilla");
   // marca: una línea vertical punteada en ese instante (ej. la hora de la carta).
   const lineaMarca = marca === undefined ? [] : [{ id: "marca", afterDatasetsDraw(chart) {
@@ -3682,9 +3711,148 @@ function panel(canvas, datasets, { unidad, tipo = "line", xmin, xmax, min, max, 
       },
     },
   });
+  g.$ambito = ambitoPanel;
   graficosPanel.set(canvas, g);
   return g;
 }
+
+// ===================== Marcas sobre las series observadas =====================
+// Un momento o un período con un texto ("entra el frente"), de un lugar
+// ("ciudad:La Plata" o "estacion:omm_87593"): se ve en TODOS los gráficos de
+// ese lugar. Privada salvo que se comparta. Quien dibuja un grupo de gráficos
+// pone ambitoPanel antes y lo vuelve a null después.
+let ambitoPanel = null;
+const marcasCache = new Map();          // ambito -> [marcas]
+let marcando = null;                    // {ambito, cont, t1} mientras se marca
+function pluginMarcas(ambito) {
+  return {
+    id: "marcas-serie",
+    afterDatasetsDraw(chart) {
+      const xs = chart.scales.x, { top, bottom, left, right } = chart.chartArea, ctx = chart.ctx;
+      const enX = (t) => Math.max(left, Math.min(right, xs.getPixelForValue(t)));
+      ctx.save();
+      for (const m of marcasCache.get(ambito) || []) {
+        const a = Date.parse(m.desde), b = m.hasta ? Date.parse(m.hasta) : a;
+        if (b < xs.min || a > xs.max) continue;
+        const color = m.mia ? css("--acento") : css("--s7");
+        const x1 = enX(a), x2 = enX(b);
+        if (m.hasta) { ctx.fillStyle = color; ctx.globalAlpha = 0.12; ctx.fillRect(x1, top, Math.max(2, x2 - x1), bottom - top); ctx.globalAlpha = 1; }
+        ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.setLineDash(m.hasta ? [] : [3, 3]);
+        ctx.beginPath(); ctx.moveTo(x1, top); ctx.lineTo(x1, bottom); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = color; ctx.font = "600 10.5px system-ui, sans-serif"; ctx.textBaseline = "top";
+        const txt = "📍 " + (m.texto.length > 28 ? m.texto.slice(0, 27) + "…" : m.texto);
+        ctx.fillText(txt, Math.min(x1 + 3, right - ctx.measureText(txt).width - 2), top + 2);
+      }
+      if (marcando?.ambito === ambito && marcando.t1 !== null) {       // el comienzo ya elegido
+        const x = enX(marcando.t1);
+        ctx.strokeStyle = css("--acento"); ctx.lineWidth = 2; ctx.setLineDash([6, 3]);
+        ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, bottom); ctx.stroke();
+      }
+      ctx.restore();
+    },
+    afterEvent(chart, args) {
+      if (args.event.type !== "click" || marcando?.ambito !== ambito) return;
+      const { left, right } = chart.chartArea;
+      if (args.event.x < left || args.event.x > right) return;
+      const t = Math.round(chart.scales.x.getValueForPixel(args.event.x));
+      if (marcando.t1 === null) { marcando.t1 = t; pintarBarraMarcas(marcando.cont); redibujarMarcas(ambito); }
+      else abrirMarca({ ambito, desde: new Date(Math.min(marcando.t1, t)).toISOString(), hasta: new Date(Math.max(marcando.t1, t)).toISOString() });
+    },
+  };
+}
+function redibujarMarcas(ambito) {
+  for (const g of graficosPanel.values()) if (g.$ambito === ambito && g.canvas?.isConnected) g.draw();
+}
+const fmtMarca = (m) => m.hasta ? `${fmtHora.format(new Date(m.desde))} → ${fmtHora.format(new Date(m.hasta))}` : fmtHora.format(new Date(m.desde));
+// La barra de arriba de los gráficos: el botón para marcar y la lista de marcas del período.
+async function ponerBarraMarcas(contId, ambito, desde, hasta) {
+  const cont = $(contId);
+  if (!cont) return;
+  if (!YO) { cont.innerHTML = ""; return; }
+  cont.dataset.ambito = ambito; cont.dataset.desde = new Date(desde).toISOString(); cont.dataset.hasta = new Date(hasta).toISOString();
+  if (marcando && marcando.cont === contId && marcando.ambito !== ambito) marcando = null;
+  try { marcasCache.set(ambito, await api(`/api/yo/marcas?ambito=${encodeURIComponent(ambito)}&desde=${cont.dataset.desde}&hasta=${cont.dataset.hasta}`)); }
+  catch (_) { marcasCache.set(ambito, []); }
+  if (cont.dataset.ambito !== ambito) return;
+  pintarBarraMarcas(contId);
+  redibujarMarcas(ambito);
+}
+function pintarBarraMarcas(contId) {
+  const cont = $(contId), ambito = cont.dataset.ambito, lista = marcasCache.get(ambito) || [];
+  const activo = marcando?.ambito === ambito && marcando.cont === contId;
+  const guia = !activo ? "" : marcando.t1 === null ? "Tocá un gráfico: el momento (o el comienzo del período)."
+    : `Comienzo: ${fmtHora.format(new Date(marcando.t1))}. Tocá de nuevo para el final, o:`;
+  cont.innerHTML = `<div class="mb-fila">
+      <button type="button" class="boton${activo ? " activa" : ""}" data-mb-marcar title="Marcar un momento o un período en los gráficos (ej. «entra el frente»)">📍 ${activo ? "Marcando…" : "Marcar"}</button>
+      ${activo ? `<span class="tenue">${guia}</span>${marcando.t1 !== null ? '<button type="button" class="boton chico" data-mb-momento>Es un momento</button>' : ""}
+        <button type="button" class="boton chico" data-mb-cancelar>Cancelar</button>` : lista.length ? "" : '<span class="tenue">Sin marcas en este período.</span>'}
+    </div>
+    ${lista.length ? `<div class="mb-lista">${lista.map((m) => `<div class="mb-item${m.mia ? "" : " grupo"}">
+      <span class="cuando">📍 ${esc(fmtMarca(m))}</span><span>${esc(m.texto)}</span>
+      <span class="tenue">${m.mia ? (m.compartida ? "vos · 👥 compartida" : "vos · 🔒 privada") : esc(m.autor)}</span>
+      ${m.mia ? `<button type="button" class="boton" data-mb-editar="${m.id}">✏️</button>` : ""}</div>`).join("")}</div>` : ""}`;
+}
+let marcaEditando = null;
+function abrirMarca(m) {
+  marcaEditando = m;
+  const f = $("#f-marca");
+  f.texto.value = m.texto || ""; f.compartida.checked = !!m.compartida;
+  $("#marca-tit").textContent = m.id ? "📍 Editar la marca" : "📍 Nueva marca";
+  $("#marca-cuando").textContent = (m.hasta && m.hasta !== m.desde ? "Período: " : "Momento: ") + fmtMarca(m.hasta === m.desde ? { ...m, hasta: null } : m) +
+    ` · ${m.ambito.replace(/^ciudad:/, "").replace(/^estacion:/, "estación ")}`;
+  $("#marca-borrar").hidden = !m.id;
+  $("#marca-error").hidden = true;
+  $("#d-marca").showModal();
+  f.texto.focus();
+}
+function terminarMarcado() {
+  const c = marcando?.cont, a = marcando?.ambito;
+  marcando = null;
+  if (c) pintarBarraMarcas(c);
+  if (a) redibujarMarcas(a);
+}
+$("#f-marca").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const m = marcaEditando, f = e.target;
+  const datos = { ambito: m.ambito, desde: m.desde, hasta: m.hasta && m.hasta !== m.desde ? m.hasta : null,
+                  texto: f.texto.value, compartida: f.compartida.checked };
+  try {
+    if (m.id) await apiEnviar(`/api/yo/marcas/${m.id}`, "PUT", datos);
+    else await apiEnviar("/api/yo/marcas", "POST", datos);
+  } catch (err) { $("#marca-error").textContent = err.message; $("#marca-error").hidden = false; return; }
+  $("#d-marca").close();
+  terminarMarcado();
+  recargarBarrasMarcas(m.ambito);
+});
+$("#marca-borrar").addEventListener("click", async () => {
+  const m = marcaEditando;
+  if (!m?.id || !confirm("¿Borrar esta marca?")) return;
+  await apiEnviar(`/api/yo/marcas/${m.id}`, "DELETE");
+  $("#d-marca").close();
+  recargarBarrasMarcas(m.ambito);
+});
+$("#d-marca").addEventListener("close", () => { if (marcando?.t1 !== null && marcando) terminarMarcado(); });
+function recargarBarrasMarcas(ambito) {
+  document.querySelectorAll(".marcas-barra").forEach((c) => {
+    if (c.dataset.ambito === ambito) ponerBarraMarcas("#" + c.id, ambito, c.dataset.desde, c.dataset.hasta);
+  });
+  if (typeof agenda !== "undefined" && red.vista === "agenda") cargarAgenda(true);
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest(".marcas-barra button");
+  if (!b) return;
+  const cont = b.closest(".marcas-barra"), contId = "#" + cont.id, ambito = cont.dataset.ambito;
+  if (b.matches("[data-mb-marcar]")) {
+    if (marcando?.cont === contId) terminarMarcado();
+    else { if (marcando) terminarMarcado(); marcando = { ambito, cont: contId, t1: null }; pintarBarraMarcas(contId); }
+  } else if (b.matches("[data-mb-cancelar]")) terminarMarcado();
+  else if (b.matches("[data-mb-momento]")) abrirMarca({ ambito, desde: new Date(marcando.t1).toISOString(), hasta: null });
+  else if (b.matches("[data-mb-editar]")) {
+    const m = (marcasCache.get(ambito) || []).find((x) => x.id === Number(b.dataset.mbEditar));
+    if (m) abrirMarca(m);
+  }
+});
 
 function serieLinea(etiqueta, puntos, slot, { soloPuntos = false } = {}) {
   const color = css(`--s${slot}`);
@@ -4031,7 +4199,9 @@ async function cargarMeteograma() {
   for (const g of graficosPanel.values()) if (cont.contains(g.canvas)) g.destroy();
   cont.innerHTML = paneles.map(([t, u], i) =>
     `<div class="panel-titulo">${esc(t)} <span class="tenue">(${esc(u)})</span></div><div class="panel"><canvas id="mg-${i}"></canvas></div>`).join("");
-  paneles.forEach(([, , dibujar], i) => dibujar($(`#mg-${i}`)));
+  ambitoPanel = `estacion:${id}`;
+  try { paneles.forEach(([, , dibujar], i) => dibujar($(`#mg-${i}`))); } finally { ambitoPanel = null; }
+  ponerBarraMarcas("#mb-ema", `estacion:${id}`, per.desde, per.hasta);
 
   const hayViento = S.viento_dir && S.viento_vel;
   $("#ema-rosa-cont").hidden = !hayViento;
@@ -4125,9 +4295,13 @@ async function cargarSmn() {
   const asc = obs.slice().reverse();
   const serie = (k) => asc.filter((o) => o[k] !== null).map((o) => [o.ts, o[k]]);
   const x = { xmin: per.desde.getTime(), xmax: per.hasta.getTime() };
-  panel($("#smn-temp"), [serieLinea("Temperatura", serie("temp"), 2), serieLinea("Rocío", serie("td"), 1)], { unidad: "°C", ...x });
-  const dsPres = [serieLinea("Presión", serie("pnm"), 7)];
-  panel($("#smn-pres"), dsPres, { unidad: "hPa", rango: rangoAjustado(dsPres), ...x });
+  ambitoPanel = `estacion:${id}`;
+  try {
+    panel($("#smn-temp"), [serieLinea("Temperatura", serie("temp"), 2), serieLinea("Rocío", serie("td"), 1)], { unidad: "°C", ...x });
+    const dsPres = [serieLinea("Presión", serie("pnm"), 7)];
+    panel($("#smn-pres"), dsPres, { unidad: "hPa", rango: rangoAjustado(dsPres), ...x });
+  } finally { ambitoPanel = null; }
+  ponerBarraMarcas("#mb-smn", `estacion:${id}`, per.desde, per.hasta);
 
   const pares = obs.filter((o) => o.viento_vel !== null).map((o) => ({ dir: o.viento_dir, kmh: o.viento_vel * 3.6 }));
   $("#smn-rosa-cont").hidden = pares.length < 6;
@@ -5545,7 +5719,9 @@ async function cargarDiagnostico() {
   dibujarCorte(G, desde, hasta, +t);
   $("#cmd-paneles").innerHTML = paneles.map(([tit, u], j) => `<div><div class="panel-titulo">${esc(tit)}${u ? ` <span class="tenue">(${esc(u)})</span>` : ""}</div>
     <div class="panel cp-panel"><canvas data-j="${j}"></canvas></div></div>`).join("");
-  paneles.forEach(([, , dibujar], j) => dibujar($(`#cmd-paneles canvas[data-j="${j}"]`)));
+  ambitoPanel = `ciudad:${ciudad}`;
+  try { paneles.forEach(([, , dibujar], j) => dibujar($(`#cmd-paneles canvas[data-j="${j}"]`))); } finally { ambitoPanel = null; }
+  ponerBarraMarcas("#mb-cmd", `ciudad:${ciudad}`, desde, hasta);
 }
 
 // ---------- Corte tiempo-altura (perfiles del GFS uno al lado del otro) ----------
@@ -5775,7 +5951,12 @@ async function graficoSynopCiudad(filaDetalle, dia) {
   cont.innerHTML = `<p class="cp-graf-tit">Lo observado en ${esc(c.ciudad || "")} · estación SMN ${esc(est.replace("omm_", ""))} (SYNOP, hora argentina)</p>` +
     paneles.map(([t, u], j) => `<div class="panel-titulo">${esc(t)}${u ? ` <span class="tenue">(${esc(u)})</span>` : ""}</div>
       <div class="panel cp-panel"><canvas data-j="${j}"></canvas></div>`).join("");
-  paneles.forEach(([, , dibujar], j) => dibujar(cont.querySelector(`canvas[data-j="${j}"]`)));
+  ambitoPanel = c.ciudad ? `ciudad:${c.ciudad}` : null;       // las marcas de la ciudad (solo para mirar)
+  try { paneles.forEach(([, , dibujar], j) => dibujar(cont.querySelector(`canvas[data-j="${j}"]`))); } finally { ambitoPanel = null; }
+  if (YO && c.ciudad && !marcasCache.has(`ciudad:${c.ciudad}`)) {
+    api(`/api/yo/marcas?ambito=${encodeURIComponent("ciudad:" + c.ciudad)}&desde=${d.desde}&hasta=${d.hasta}`)
+      .then((l) => { marcasCache.set(`ciudad:${c.ciudad}`, l); redibujarMarcas(`ciudad:${c.ciudad}`); }).catch(() => {});
+  }
 }
 
 // ---------- Todas las observaciones del día (Diagnóstico) ----------
@@ -8796,6 +8977,7 @@ function dibujarCalendario() {
     const marcas = [x.notas_mias ? `<span title="Mis notas">📝${x.notas_mias}</span>` : "",
       x.notas_grupo ? `<span title="Notas compartidas del grupo">👥${x.notas_grupo}</span>` : "",
       capas ? `<span title="Dibujos sobre cartas: ${x.capas_mias || 0} tuyos, ${x.capas_grupo || 0} compartidos">✏️${capas}</span>` : "",
+      x.marcas ? `<span title="Marcas en las series observadas">📍${x.marcas}</span>` : "",
       x.pronosticos ? `<span title="Pronósticos publicados">🌡️${x.pronosticos}</span>` : "",
       x.lluvia?.length ? `<span title="Llovió en: ${esc(x.lluvia.join(", "))}">🌧</span>` : ""].join("");
     const ev = (x.etiquetas || []).map(textoEtiqueta).join(", ");
@@ -8826,6 +9008,10 @@ async function abrirDiaAgenda(fecha) {
       <span>${esc(c.nivel ? c.nivel + " · " : "")}${esc(c.nombre)}</span>
       <span class="tenue">${quien(c)} · ${c.mia ? (c.compartida ? "👥 compartido" : "🔒 privado") : "compartido"} · ${c.elementos} elemento${c.elementos === 1 ? "" : "s"}</span>
       <button class="boton chico" data-ag-carta="${esc(c.producto)}" data-ts="${esc(c.ts)}">🗺️ Abrir la carta</button></div>`).join("");
+  const marcas = (d.marcas || []).map((m) => `<div class="ag-item"><b>${esc(fmtMarca(m).replace(/^\d+\/\d+,?\s*/, ""))}</b>
+      <span>${esc(m.texto)}</span>
+      <span class="tenue">${esc(m.ambito.replace(/^ciudad:/, "").replace(/^estacion:/, "estación "))} · ${m.mia ? (m.compartida ? "vos · 👥 compartida" : "vos · 🔒 privada") : esc(m.autor)}</span>
+      <button class="boton chico" data-ag-marca="${esc(m.ambito)}" data-ts="${esc(m.desde)}">📈 Ver en los gráficos</button></div>`).join("");
   const pron = d.pronosticos.map((p) => `<div class="ag-item"><b>${esc(p.ciudad)}</b>
       <span>${esc(p.usuario?.nombre || p.firma || "")}${p.hora ? ` <span class="tenue">· ${esc(String(p.hora).slice(0, 5))} hs</span>` : ""}${p.correccion ? ' <span class="tenue">· corrección</span>' : ""}</span>
       <button class="boton chico" data-ag-panorama="${esc(p.ciudad)}">📊 Pronosticado vs observado</button></div>`).join("");
@@ -8838,8 +9024,26 @@ async function abrirDiaAgenda(fecha) {
     <h4>Lo que pasó</h4>${obs ? `<div class="ag-lista">${obs}</div>` : '<p class="tenue">Sin datos de verificación para ese día.</p>'}
     <h4>Notas (${d.notas.length})</h4>${d.notas.length ? `<div class="red-feed ag-notas">${d.notas.map((n) => tarjetaNota(n)).join("")}</div>` : '<p class="tenue">Nada anotado. Con «📝 Anotar algo de este día» queda acá.</p>'}
     <h4>Dibujos sobre las cartas (${d.capas.length})</h4>${capas ? `<div class="ag-lista">${capas}</div>` : '<p class="tenue">Nadie dibujó (o compartió) sobre las cartas de ese día.</p>'}
+    <h4>Marcas en las series (${(d.marcas || []).length})</h4>${marcas ? `<div class="ag-lista">${marcas}</div>` : '<p class="tenue">Sin marcas en los meteogramas de ese día (📍 Marcar, arriba de los gráficos).</p>'}
     <h4>Pronósticos publicados (${d.pronosticos.length})</h4>${pron ? `<div class="ag-lista">${pron}</div>` : '<p class="tenue">No se publicaron pronósticos ese día.</p>'}`;
   ficha.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+// Ir a los gráficos donde está una marca: el Diagnóstico de la ciudad (centrado
+// en ese día) o el meteograma de la estación.
+function irAMarca(ambito, ts) {
+  const [tipo, cual] = [ambito.slice(0, ambito.indexOf(":")), ambito.slice(ambito.indexOf(":") + 1)];
+  if (tipo === "ciudad") {
+    irACartas(ts);
+    setTimeout(() => {
+      verDiag("ciudad");
+      if (![...$("#cmd-ciudad").options].some((o) => o.value === cual)) $("#cmd-ciudad").insertAdjacentHTML("beforeend", `<option>${esc(cual)}</option>`);
+      $("#cmd-ciudad").value = cual; cmdClave = null; cargarDiagnostico();
+      $("#cmd").scrollIntoView({ behavior: "smooth" });
+    }, 1200);
+  } else {
+    const e = ESTACIONES.find((x) => x.id === cual) || { id: cual, tipo: cual.startsWith("omm_") ? "sinoptica" : "ema" };
+    verDetalleDe(e);
+  }
 }
 // Abrir una carta en el visor después de ir a esa hora en Diagnóstico.
 function abrirCartaEn(producto, ts) {
@@ -8862,6 +9066,8 @@ document.addEventListener("click", (e) => {
   if (car) { irACartas(`${car.dataset.agCartas}T12:00:00Z`); return; }
   const una = e.target.closest("[data-ag-carta]");
   if (una) { abrirCartaEn(una.dataset.agCarta, una.dataset.ts); return; }
+  const mk = e.target.closest("[data-ag-marca]");
+  if (mk) { irAMarca(mk.dataset.agMarca, mk.dataset.ts); return; }
   const an = e.target.closest("[data-ag-anotar]");
   if (an) abrirNota({ tipo: "vi", fecha_evento: an.dataset.agAnotar, compartida: false, etiquetas: [], texto: "",
                       contexto: { seccion: "agenda", ts: an.dataset.agAnotar + "T15:00:00Z" } });

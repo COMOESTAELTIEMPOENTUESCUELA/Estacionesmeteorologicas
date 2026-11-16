@@ -894,3 +894,54 @@ def test_agenda_del_mes_y_del_dia(cliente, cuentas, monkeypatch, tmp_path):
             conn.execute("DELETE FROM nota WHERE fecha_evento = '2026-03-17'")
             conn.commit()
         cliente.cookies.clear()
+
+
+def test_marcas_sobre_las_series(cliente, cuentas, monkeypatch):
+    """Un momento o un período con texto, de una ciudad o una estación:
+    privada salvo que se comparta, solo la edita/borra quien la hizo, y aparece
+    en la agenda del día."""
+    m = cuentas
+    q = {"ambito": "ciudad:La Plata", "desde": "2026-03-20T00:00:00Z", "hasta": "2026-03-21T00:00:00Z"}
+    try:
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "ana@gmail.com")
+        r = cliente.post("/api/yo/marcas", json={"ambito": "ciudad:La Plata", "desde": "2026-03-20T18:00:00Z",
+                                                  "texto": "entra el frente: rota al SO"}, headers=X)
+        momento = r.json()["id"]
+        periodo = cliente.post("/api/yo/marcas", json={"ambito": "ciudad:La Plata", "desde": "2026-03-20T22:00:00Z",
+                                                       "hasta": "2026-03-20T20:00:00Z", "texto": "tormenta", "compartida": True},
+                               headers=X).json()["id"]
+        assert cliente.post("/api/yo/marcas", json={"ambito": "ciudad:Narnia", "desde": "2026-03-20T18:00:00Z", "texto": "x"},
+                            headers=X).status_code == 400
+        assert cliente.post("/api/yo/marcas", json={"ambito": "estacion:no_existe", "desde": "2026-03-20T18:00:00Z", "texto": "x"},
+                            headers=X).status_code == 400
+        assert cliente.post("/api/yo/marcas", json={"ambito": "estacion:omm_87593", "desde": "2026-03-20T18:00:00Z", "texto": ""},
+                            headers=X).status_code == 400
+        assert cliente.post("/api/yo/marcas", json={"ambito": "estacion:omm_87593", "desde": "2026-03-01T00:00:00Z",
+                                                    "hasta": "2026-05-01T00:00:00Z", "texto": "largo"}, headers=X).status_code == 400
+        l = cliente.get("/api/yo/marcas", params=q).json()
+        assert [(x["texto"], x["mia"], x["compartida"]) for x in l] == [("entra el frente: rota al SO", True, False), ("tormenta", True, True)]
+        assert l[1]["desde"].startswith("2026-03-20T20") and l[1]["hasta"].startswith("2026-03-20T22")    # se ordenó
+        assert cliente.get("/api/yo/marcas", params={**q, "ambito": "estacion:omm_87593"}).json() == []
+        # Agenda: el 20/3 (hora argentina) tiene 2 marcas.
+        assert cliente.get("/api/yo/agenda", params={"mes": "2026-03"}).json()["dias"]["2026-03-20"]["marcas"] == 2
+        assert len(cliente.get("/api/yo/agenda/dia", params={"fecha": "2026-03-20"}).json()["marcas"]) == 2
+        # Beto: ve solo la compartida y no puede tocar las de Ana.
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "beto@gmail.com")
+        l = cliente.get("/api/yo/marcas", params=q).json()
+        assert [(x["texto"], x["autor"], x["mia"]) for x in l] == [("tormenta", "Ana", False)]
+        assert cliente.put(f"/api/yo/marcas/{periodo}", json={"texto": "mía", "desde": "2026-03-20T20:00:00Z"}, headers=X).status_code == 404
+        assert cliente.delete(f"/api/yo/marcas/{periodo}", headers=X).status_code == 404
+        # Ana la edita (la vuelve privada) y borra la otra.
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "ana@gmail.com")
+        assert cliente.put(f"/api/yo/marcas/{periodo}", json={"texto": "tormenta fuerte", "desde": "2026-03-20T20:00:00Z",
+                                                              "hasta": "2026-03-20T22:00:00Z"}, headers=X).status_code == 200
+        assert cliente.delete(f"/api/yo/marcas/{momento}", headers=X).status_code == 200
+        assert [(x["texto"], x["compartida"]) for x in cliente.get("/api/yo/marcas", params=q).json()] == [("tormenta fuerte", False)]
+    finally:
+        with m._pools["e"].connection() as conn:
+            conn.execute("DELETE FROM serie_marca")
+            conn.commit()
+        cliente.cookies.clear()

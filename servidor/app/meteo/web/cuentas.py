@@ -1079,6 +1079,76 @@ def panorama_del_dia(request: Request, ciudad: str, fecha: date):
             "gfs": [{"plazo": k, **v} for k, v in sorted(gfs.items())], "notas": notas}
 
 # ---------------------------------------------------------------------------
+# Marcas sobre las series observadas (un momento o un período, con texto)
+# ---------------------------------------------------------------------------
+def _ambito_valido(ambito):
+    tipo, _, cual = str(ambito or "").partition(":")
+    if tipo == "ciudad":
+        from ..ciudades import CIUDADES_COORD
+        if cual in CIUDADES_COORD:
+            return f"ciudad:{cual}"
+    elif tipo == "estacion" and cual and _leer("SELECT 1 FROM estacion WHERE id = %s", (cual,)):
+        return f"estacion:{cual}"
+    raise HTTPException(400, "ámbito inválido (ciudad:<nombre> o estacion:<id>)")
+
+
+def _datos_marca(datos):
+    texto = str(datos.get("texto") or "").strip()
+    if not 1 <= len(texto) <= 2000:
+        raise HTTPException(400, "texto: de 1 a 2000 caracteres")
+    desde = _ts_carta(datos.get("desde"))
+    hasta = _ts_carta(datos["hasta"]) if datos.get("hasta") else None
+    if hasta and hasta < desde:
+        desde, hasta = hasta, desde
+    if hasta and hasta - desde > timedelta(days=31):
+        raise HTTPException(400, "un período de hasta 31 días")
+    return texto, desde, hasta, bool(datos.get("compartida"))
+
+
+_SQL_MARCAS = """SELECT m.id, m.ambito, m.desde, m.hasta, m.texto, m.compartida, m.creada,
+                        us.nombre AS autor, m.usuario_id = %s AS mia
+                 FROM serie_marca m JOIN usuario us ON us.id = m.usuario_id
+                 WHERE (m.usuario_id = %s OR (m.compartida AND us.activo))"""
+
+
+@router.get("/api/yo/marcas")
+def marcas(request: Request, ambito: str, desde: str, hasta: str):
+    """Las marcas de un lugar que tocan un período: las propias y las compartidas."""
+    u = requiere_usuario(request)
+    a, d, h = _ambito_valido(ambito), _ts_carta(desde), _ts_carta(hasta)
+    return _leer(_SQL_MARCAS + " AND m.ambito = %s AND m.desde <= %s AND COALESCE(m.hasta, m.desde) >= %s ORDER BY m.desde",
+                 (u["id"], u["id"], a, h, d))
+
+
+@router.post("/api/yo/marcas")
+async def crear_marca(request: Request):
+    u = requiere_usuario(request)
+    datos = await request.json()
+    ambito = _ambito_valido(datos.get("ambito"))
+    texto, desde, hasta, compartida = _datos_marca(datos)
+    return _escribir("""INSERT INTO serie_marca (usuario_id, ambito, desde, hasta, texto, compartida)
+                        VALUES (%s, %s, %s, %s, %s, %s) RETURNING id""", (u["id"], ambito, desde, hasta, texto, compartida))[0]
+
+
+@router.put("/api/yo/marcas/{marca_id}")
+async def editar_marca(request: Request, marca_id: int):
+    u = requiere_usuario(request)
+    texto, desde, hasta, compartida = _datos_marca(await request.json())
+    if not _escribir("""UPDATE serie_marca SET texto = %s, desde = %s, hasta = %s, compartida = %s
+                        WHERE id = %s AND usuario_id = %s RETURNING id""", (texto, desde, hasta, compartida, marca_id, u["id"])):
+        raise HTTPException(404, "no existe (o no es tuya)")
+    return {"ok": True}
+
+
+@router.delete("/api/yo/marcas/{marca_id}")
+def borrar_marca(request: Request, marca_id: int):
+    u = requiere_usuario(request)
+    if not _escribir("DELETE FROM serie_marca WHERE id = %s AND usuario_id = %s RETURNING id", (marca_id, u["id"])):
+        raise HTTPException(404, "no existe (o no es tuya)")
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
 # Agenda: un calendario con lo que hay en cada día (notas, dibujos, pronósticos,
 # lo que pasó) y la ficha de un día con todo junto
 # ---------------------------------------------------------------------------
@@ -1099,7 +1169,7 @@ def agenda_del_mes(request: Request, mes: str):
     d1 = (d0 + timedelta(days=32)).replace(day=1)
     dias = {}
     dia = lambda f: dias.setdefault(str(f), {"notas_mias": 0, "notas_grupo": 0, "capas_mias": 0, "capas_grupo": 0,
-                                             "pronosticos": 0, "lluvia": [], "etiquetas": []})
+                                             "marcas": 0, "pronosticos": 0, "lluvia": [], "etiquetas": []})
     for f in _leer(f"""SELECT {DIA_NOTA} AS d, n.usuario_id = %s AS mia, count(*) AS n FROM nota n
                        WHERE (n.usuario_id = %s OR n.compartida) AND {DIA_NOTA} >= %s AND {DIA_NOTA} < %s GROUP BY 1, 2""",
                    (u["id"], u["id"], d0, d1)):
@@ -1109,6 +1179,11 @@ def agenda_del_mes(request: Request, mes: str):
                    (u["id"], u["id"], d0 - timedelta(days=1), d1 + timedelta(days=1))):
         if d0 <= f["d"] < d1:
             dia(f["d"])["capas_mias" if f["mia"] else "capas_grupo"] += f["n"]
+    for f in _leer(f"""SELECT {DIA_LOCAL % "m.desde"} AS d, count(*) AS n FROM serie_marca m JOIN usuario us ON us.id = m.usuario_id
+                       WHERE (m.usuario_id = %s OR (m.compartida AND us.activo)) AND m.desde >= %s AND m.desde < %s GROUP BY 1""",
+                   (u["id"], d0 - timedelta(days=1), d1 + timedelta(days=1))):
+        if d0 <= f["d"] < d1:
+            dia(f["d"])["marcas"] += f["n"]
     for f in _leer("""SELECT fecha_pronostico AS d, count(DISTINCT (ciudad, publicado_por)) AS n FROM pronostico_emision
                       WHERE fecha_pronostico >= %s AND fecha_pronostico < %s GROUP BY 1""", (d0, d1)):
         dia(f["d"])["pronosticos"] = f["n"]
@@ -1158,7 +1233,8 @@ def agenda_del_dia(request: Request, fecha: date):
             x[f["elemento"]] = f["categoria"] if f["elemento"] in ("pp", "etiquetas") else f["valor"]
     except Exception:
         pass
-    return {"fecha": fecha, "notas": notas, "capas": capas, "pronosticos": pron, "observado": obs}
+    marcas_dia = _leer(_SQL_MARCAS + f" AND {DIA_LOCAL % 'm.desde'} = %s ORDER BY m.desde", (u["id"], u["id"], fecha))
+    return {"fecha": fecha, "notas": notas, "capas": capas, "marcas": marcas_dia, "pronosticos": pron, "observado": obs}
 
 
 ARCHIVO_DIR = os.environ.get("ARCHIVO_DIR", "/archivo")

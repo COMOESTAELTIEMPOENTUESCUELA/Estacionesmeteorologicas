@@ -318,6 +318,26 @@ SYNOP (mapas de Ogimet). Se recuerda en el navegador. El grupo sale de la
   cambian la hora *sin perder el zoom* (sirve para seguir un sistema sobre
   la misma zona) y **↑ ↓** pasan a la carta siguiente.
 
+## Marcas sobre las series observadas (📍 Marcar)
+
+Arriba de los gráficos del **Diagnóstico por ciudad**, del **meteograma de cada
+EMA** y del de cada **estación del SMN** está **📍 Marcar**: se toca un gráfico
+una vez (un momento) o dos (el comienzo y el final de un período) y se escribe
+qué pasó ("entra el frente: rota al SO"). La marca se ve como línea (momento) o
+franja (período) en TODOS los gráficos de ese lugar, con su texto, y en la
+lista de arriba (✏️ para editarla o borrarla). También se ven, para mirar, en
+"Lo observado" de *Lo que pronosticamos*.
+
+- **Privada por defecto**; tildando "Compartirla" la ven los demás (en violeta,
+  con su nombre). Solo la edita o borra quien la hizo.
+- El lugar ("ámbito") es la ciudad (Diagnóstico) o la estación (meteogramas):
+  una marca del Diagnóstico de La Plata no aparece en el meteograma de La
+  Plata Aero, y al revés.
+- En la **Agenda** cuentan para el día en que empiezan (📍), y la ficha del
+  día las lista con "📈 Ver en los gráficos".
+- En la base: `serie_marca`. `GET /api/yo/marcas?ambito=&desde=&hasta=`,
+  `POST /api/yo/marcas`, `PUT` y `DELETE /api/yo/marcas/{id}`.
+
 ## Dibujos: una capa por persona
 
 Con la sesión iniciada, lo que cada uno dibuja sobre una carta (frentes,

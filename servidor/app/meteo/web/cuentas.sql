@@ -195,3 +195,19 @@ CREATE TABLE IF NOT EXISTS carta_capa (
     PRIMARY KEY (usuario_id, producto, ts)
 );
 CREATE INDEX IF NOT EXISTS carta_capa_ts ON carta_capa (ts);
+
+-- Marcas sobre las series observadas: un momento (hasta = NULL) o un período,
+-- con un texto ("entra el frente"). ambito: dónde se ve -- "ciudad:La Plata"
+-- (Diagnóstico por ciudad) o "estacion:omm_87593" (meteograma de la estación).
+CREATE TABLE IF NOT EXISTS serie_marca (
+    id          serial PRIMARY KEY,
+    usuario_id  int NOT NULL REFERENCES usuario(id) ON DELETE CASCADE,
+    ambito      text NOT NULL,
+    desde       timestamptz NOT NULL,
+    hasta       timestamptz,
+    texto       text NOT NULL CHECK (length(texto) BETWEEN 1 AND 2000),
+    compartida  boolean NOT NULL DEFAULT false,
+    creada      timestamptz NOT NULL DEFAULT now(),
+    CHECK (hasta IS NULL OR hasta >= desde)
+);
+CREATE INDEX IF NOT EXISTS serie_marca_ambito ON serie_marca (ambito, desde);
