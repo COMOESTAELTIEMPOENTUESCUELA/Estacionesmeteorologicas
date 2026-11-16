@@ -26,6 +26,7 @@ frecuencias_min:
   cartas: 60
   indices: 720        # índices climáticos (ENSO, SAM, MJO...): cambian despacio
   bot: 15             # bot observador: avisa en la red si algo cambió de golpe
+  gfs_pedidos: 1      # corridas viejas del GFS pedidas desde la página (si no hay ninguna, no hace nada)
   municipio_lp: 60    # EMAs de la Municipalidad: un pedido por hora (la API da solo el último valor: queda un dato por hora)
 
 estaciones:

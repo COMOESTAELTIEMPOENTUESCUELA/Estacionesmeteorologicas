@@ -981,3 +981,84 @@ def test_buscar_en_lo_anotado(cliente, cuentas, monkeypatch):
             conn.execute("DELETE FROM serie_marca")
             conn.commit()
         cliente.cookies.clear()
+
+
+def test_corridas_gfs_fijar_pedir_y_dibujar(cliente, cuentas, monkeypatch, tmp_path):
+    """C y D: una corrida vieja se guarda si se fija (📌), si la usa una nota o
+    un pronóstico; y se puede pedir que se vuelva a dibujar (la ingesta la
+    dibuja de a poco y avisa el estado)."""
+    from pathlib import Path
+    from meteo.cartas import pronostico
+    from meteo.ingesta import db as idb, tareas
+    from meteo.web import app as webapp
+    m = cuentas
+    UTC = timezone.utc
+    config = Path(__file__).parent.parent / "config" / "cartas.yaml"
+    monkeypatch.setattr(webapp, "CARTAS_CONFIG", str(config))
+    monkeypatch.setenv("CARTAS_CONFIG", str(config))
+    monkeypatch.setattr(m, "ARCHIVO_DIR", str(tmp_path))
+    monkeypatch.setenv("ARCHIVO_DIR", str(tmp_path))
+    actual = datetime(2026, 2, 20, 6, tzinfo=UTC)               # la "corrida actual" del archivo de prueba
+    tmp = pronostico.empezar(tmp_path, "gfs_pro_mslp_jet")
+    pronostico.publicar(tmp_path, "gfs_pro_mslp_jet", tmp, actual, [])
+    ing = tareas.Ingesta({"estaciones": []}, idb.conectar(DSN))
+    with m._pools["e"].connection() as conn:
+        conn.execute("DELETE FROM gfs_corrida")              # la cola arranca vacía
+        conn.commit()
+    try:
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "ana@gmail.com")
+        e = cliente.get("/api/yo/gfs/corrida", params={"corrida": "2026020100"}).json()
+        assert (e["guardados"], e["total"], e["vieja"], e["motivos"], e["estado"]) == (0, 33, True, [], None)
+        assert cliente.get("/api/yo/gfs/corrida", params={"corrida": "2026020103"}).status_code == 400
+        # C: 📌 fijar (y soltar).
+        e = cliente.post("/api/yo/gfs/corrida", json={"corrida": "2026020100", "accion": "fijar"}, headers=X).json()
+        assert e["fijada"] and e["motivos"] == ["📌 fijada por Ana"]
+        # C: la usa una nota (abierta desde el pronóstico GFS).
+        cliente.post("/api/yo/notas", json={"tipo": "vi", "texto": "el GFS adelantó el frente",
+                                            "contexto": {"seccion": "gfs", "corrida": "2026020200", "plazo": 48}}, headers=X)
+        assert cliente.get("/api/yo/gfs/corrida", params={"corrida": "2026020200"}).json()["motivos"] == ["la usa 1 nota"]
+        # D: pedir que se dibuje. La actual y las de antes de 2021, no.
+        assert cliente.post("/api/yo/gfs/corrida", json={"corrida": "2026022006", "accion": "dibujar"}, headers=X).status_code == 400
+        assert cliente.post("/api/yo/gfs/corrida", json={"corrida": "2020050100", "accion": "dibujar"}, headers=X).status_code == 400
+        e = cliente.post("/api/yo/gfs/corrida", json={"corrida": "2026020112", "accion": "dibujar", "plazo": 50}, headers=X).json()
+        assert e["estado"] == "pendiente" and e["pedida_por"] == "Ana" and e["en_cola_antes"] == 0
+        # Beto: hasta 3 a la vez.
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "beto@gmail.com")
+        for c in ("2026020200", "2026020206", "2026020212"):
+            assert cliente.post("/api/yo/gfs/corrida", json={"corrida": c, "accion": "dibujar"}, headers=X).json()["estado"] == "pendiente"
+        assert cliente.post("/api/yo/gfs/corrida", json={"corrida": "2026020218", "accion": "dibujar"}, headers=X).status_code == 429
+        assert cliente.get("/api/yo/gfs/corrida", params={"corrida": "2026020206"}).json()["en_cola_antes"] == 2
+        # La ingesta: qué no se borra.
+        with m._pools["e"].connection() as conn:
+            eid = conn.execute("""INSERT INTO pronostico_emision (ciudad, fecha_pronostico, publicado_por, contenido, huella, capturado)
+                                  VALUES ('Ciudad Corrida', '2026-02-03', 'AnaP', '{}', 'corrida-test', '2026-02-03T10:40:00Z')
+                                  RETURNING id""").fetchone()
+            conn.commit()
+        fijas = ing.corridas_fijas({})
+        for c in ("2026020100", "2026020200", "2026020112", "2026020300"):
+            assert datetime.strptime(c, "%Y%m%d%H").replace(tzinfo=UTC) in fijas, c
+        assert datetime(2026, 2, 3, tzinfo=UTC) not in ing.corridas_fijas({"gfs_fijar_pronosticos": False})
+        # La ingesta: dibuja de a poco la más vieja pedida (la de Ana, el plazo pedido primero).
+        llamadas, resp = [], iter([(6, 33), (33, 33)])
+        from meteo.cartas import descarga
+        monkeypatch.setattr(descarga, "dibujar_pedida", lambda cfg, raiz, sesion, t, plazo: (llamadas.append((t, plazo)) or next(resp)))
+        assert ing.correr_gfs_pedidos() == 6
+        assert llamadas == [(datetime(2026, 2, 1, 12, tzinfo=UTC), 48)]
+        e = cliente.get("/api/yo/gfs/corrida", params={"corrida": "2026020112"}).json()
+        assert (e["estado"], e["hechos"]) == ("dibujando", 6)
+        assert ing.correr_gfs_pedidos() == 33
+        assert cliente.get("/api/yo/gfs/corrida", params={"corrida": "2026020112"}).json()["estado"] == "lista"
+        # NOAA no la tiene -> error, a la vista.
+        monkeypatch.setattr(descarga, "dibujar_pedida", lambda *a: (_ for _ in ()).throw(FileNotFoundError("x")))
+        ing.correr_gfs_pedidos()
+        e = cliente.get("/api/yo/gfs/corrida", params={"corrida": "2026020200"}).json()
+        assert e["estado"] == "error" and "NOAA" in e["error"]
+    finally:
+        ing.conn.close()
+        cliente.cookies.clear()
+        with m._pools["e"].connection() as conn:
+            conn.execute("DELETE FROM gfs_corrida WHERE corrida < '2026-03-01'")
+            conn.execute("DELETE FROM pronostico_emision WHERE ciudad = 'Ciudad Corrida'")
+            conn.commit()

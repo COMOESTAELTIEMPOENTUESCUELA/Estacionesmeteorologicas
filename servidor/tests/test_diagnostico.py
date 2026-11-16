@@ -362,3 +362,65 @@ def test_lluvia_de_6_horas_en_el_punto():
     lon = np.arange(-62, -54.9, 0.5)
     campos = {("APCP", "surface"): Campo(lat, lon, np.full((len(lat), len(lon)), 7.25))}
     assert puntos.extraer(campos, {"X": (-34.92, -57.95)})["X"]["pp6"] == 7.2
+
+
+def test_corridas_fijas_no_se_borran(tmp_path):
+    """Las corridas de `fijas` (notas, pronósticos, 📌, redibujadas) quedan
+    aunque tengan más de 8 días; las demás viejas se borran como siempre."""
+    from meteo.cartas import pronostico, puntos
+    base = datetime(2026, 10, 1, tzinfo=UTC)
+    fija = base + timedelta(hours=12)
+    for h in range(0, 24 * 12, 6):                                  # 12 días de corridas
+        ini = base + timedelta(hours=h)
+        tmp = pronostico.empezar(tmp_path, "g")
+        nom = pronostico.nombre("g", ini, 6)
+        (tmp / nom).write_bytes(b"x")
+        pronostico.publicar(tmp_path, "g", tmp, ini, [(6, ini + timedelta(hours=6), nom)],
+                            conservar=timedelta(days=8), ahora=ini + timedelta(hours=5), fijas={fija})
+        puntos.guardar_pronostico(tmp_path, ini, {6: {}}, conservar=timedelta(days=8), ahora=ini + timedelta(hours=5), fijas={fija})
+    inicios = [datetime.fromisoformat(d["inicio"]) for d in pronostico.corridas(tmp_path, "g")]
+    assert fija in inicios and len(inicios) == 33                    # 8 días x 4 + la fijada
+    assert (pronostico.carpeta(tmp_path, "g") / pronostico.nombre("g", fija, 6)).exists()
+    assert base not in inicios                                        # la de al lado, no
+    assert puntos.leer_pronostico(tmp_path, fija) and not puntos.leer_pronostico(tmp_path, base)
+
+
+def test_dibujar_corrida_vieja_a_pedido(tmp_path, monkeypatch):
+    """Una corrida vieja se vuelve a dibujar de a poco (el plazo pedido
+    primero), queda en el historial sin tocar la actual, y si es la actual o
+    NOAA no la tiene, se avisa."""
+    from meteo.cartas import descarga, estilo_bentley as eb, gfs, pronostico, puntos
+    monkeypatch.setattr(descarga, "REINTENTOS_SEG", (0,))
+    bajadas = []
+    def bajar(ts, pedidos, region, sesion, plazo=0):
+        if ts.year < 2021:
+            raise FileNotFoundError("no está")
+        bajadas.append((ts, plazo))
+        return {"plazo": plazo}
+    png = b"\x89PNG\r\n\x1a\n" + b"0" * 100
+    monkeypatch.setattr(gfs, "bajar", bajar)
+    monkeypatch.setattr(eb, "dibujar", lambda campos, inicio, plazo: {k: png + bytes([plazo]) for k in eb.CARTAS})
+    monkeypatch.setattr(eb, "marco", lambda: {"caja": [0, 0, 1, 1]})
+    cfg = {"productos": [{"id": f"pro_{k}", "fuente": "gfs_pronostico", "carta": k} for k in eb.CARTAS]
+           + [{"id": "ana_ivt", "fuente": "gfs_analisis", "carta": "ivt"}]}
+    # La corrida actual.
+    actual = datetime(2026, 11, 15, 6, tzinfo=UTC)
+    tmp = pronostico.empezar(tmp_path, "pro_ivt")
+    (tmp / pronostico.nombre("pro_ivt", actual, 0)).write_bytes(png)
+    pronostico.publicar(tmp_path, "pro_ivt", tmp, actual, [(0, actual, pronostico.nombre("pro_ivt", actual, 0))])
+    vieja = datetime(2026, 10, 20, 0, tzinfo=UTC)
+    assert descarga.dibujar_pedida(cfg, tmp_path, None, vieja, plazo_pref=48) == (6, 33)
+    assert [p for _, p in bajadas] == [48, 42, 54, 36, 60, 30]        # lo que más interesa, primero
+    d = next(x for x in pronostico.corridas(tmp_path, "pro_ivt") if x["inicio"].startswith("2026-10-20"))
+    assert [c["plazo_h"] for c in d["cuadros"]] == [30, 36, 42, 48, 54, 60] and d["esperados"] == 33 and d["redibujada"]
+    assert pronostico.leer(tmp_path, "pro_ivt")["inicio"] == actual.isoformat()      # la actual, intacta
+    assert set(puntos.leer_pronostico(tmp_path, vieja)["plazos"]) == {"30", "36", "42", "48", "54", "60"}
+    for _ in range(5):
+        hechos, total = descarga.dibujar_pedida(cfg, tmp_path, None, vieja, plazo_pref=48)
+    assert (hechos, total) == (33, 33) and len(bajadas) == 33
+    assert descarga.archivo.existe(tmp_path, "ana_ivt", vieja)          # su análisis, archivado
+    assert descarga.dibujar_pedida(cfg, tmp_path, None, vieja) == (33, 33) and len(bajadas) == 33   # ya estaba
+    with pytest.raises(ValueError):
+        descarga.dibujar_pedida(cfg, tmp_path, None, actual)
+    with pytest.raises(FileNotFoundError):
+        descarga.dibujar_pedida(cfg, tmp_path, None, datetime(2020, 5, 1, tzinfo=UTC))

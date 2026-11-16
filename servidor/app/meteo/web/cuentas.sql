@@ -211,3 +211,22 @@ CREATE TABLE IF NOT EXISTS serie_marca (
     CHECK (hasta IS NULL OR hasta >= desde)
 );
 CREATE INDEX IF NOT EXISTS serie_marca_ambito ON serie_marca (ambito, desde);
+
+-- Corridas del GFS que no se borran a los 8 días (ver docs/06-cartas.md):
+-- fijada = alguien tocó «📌 Guardar esta corrida»; estado = se pidió volver a
+-- dibujarla desde el archivo de NOAA (pendiente → dibujando → lista | error),
+-- y la dibuja la ingesta de a poco (hechos = plazos ya dibujados).
+-- Las que usan las notas y los pronósticos publicados se guardan solas (no
+-- hace falta una fila acá: la ingesta las calcula al borrar).
+CREATE TABLE IF NOT EXISTS gfs_corrida (
+    corrida     timestamptz PRIMARY KEY,
+    fijada      boolean NOT NULL DEFAULT false,
+    fijada_por  int REFERENCES usuario(id) ON DELETE SET NULL,
+    estado      text CHECK (estado IN ('pendiente', 'dibujando', 'lista', 'error')),
+    pedida_por  int REFERENCES usuario(id) ON DELETE SET NULL,
+    pedida      timestamptz,
+    plazo       int NOT NULL DEFAULT 0,          -- el plazo que más interesa: se dibuja primero
+    hechos      int NOT NULL DEFAULT 0,
+    error       text,
+    actualizada timestamptz NOT NULL DEFAULT now()
+);

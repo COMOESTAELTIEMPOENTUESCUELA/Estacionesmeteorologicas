@@ -1944,3 +1944,119 @@ def main(argv=None):
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+# ---------------------------------------------------------------------------
+# Corridas del GFS guardadas: las cartas de pronóstico se borran a los 8 días,
+# salvo las que se usan (notas, pronósticos), las 📌 fijadas y las que se
+# vuelven a dibujar a pedido desde el archivo de NOAA (lo hace la ingesta).
+# ---------------------------------------------------------------------------
+GFS_DESDE = datetime(2021, 3, 23, tzinfo=timezone.utc)     # desde ahí NOAA tiene las corridas con el formato que usamos
+GFS_CONSERVAR_DIAS = 8
+PEDIDOS_POR_PERSONA = 3                                    # a la vez (pendientes o dibujándose)
+
+
+def _clave_corrida(clave):
+    try:
+        t = datetime.strptime(str(clave), "%Y%m%d%H").replace(tzinfo=timezone.utc)
+    except ValueError:
+        raise HTTPException(400, "corrida: AAAAMMDDHH")
+    if t.hour % 6:
+        raise HTTPException(400, "las corridas del GFS son a las 00, 06, 12 y 18 UTC")
+    return t
+
+
+def _gfs_guardada(t):
+    """(plazos guardados de la corrida t, la corrida actual, cuántos plazos tiene una corrida)."""
+    from ..cartas import estilo_bentley, pronostico
+    from .app import _cartas_productos
+    prod = next((p["id"] for p in _cartas_productos(con_pronosticos=True) if p["fuente"] == "gfs_pronostico"), None)
+    if not prod:
+        raise HTTPException(404, "no hay cartas de pronóstico del GFS activas")
+    todas = pronostico.corridas(ARCHIVO_DIR, prod)
+    actual = datetime.fromisoformat(todas[0]["inicio"]) if todas else None
+    d = next((x for x in todas if datetime.fromisoformat(x["inicio"]) == t), None)
+    return (len(d["cuadros"]) if d else 0), actual, len(estilo_bentley.PLAZOS)
+
+
+def _fijar_pronosticos():
+    import yaml
+    from .app import CARTAS_CONFIG
+    try:
+        with open(CARTAS_CONFIG, encoding="utf-8") as f:
+            return bool((yaml.safe_load(f) or {}).get("gfs_fijar_pronosticos", True))
+    except FileNotFoundError:
+        return True
+
+
+def _estado_corrida(t):
+    guardados, actual, total = _gfs_guardada(t)
+    fila = (_leer("""SELECT g.fijada, g.estado, g.hechos, g.error, g.plazo, uf.nombre AS fijada_por, up.nombre AS pedida_por,
+                            (SELECT count(*) FROM gfs_corrida o WHERE o.estado IN ('pendiente', 'dibujando') AND o.pedida < g.pedida) AS antes
+                     FROM gfs_corrida g LEFT JOIN usuario uf ON uf.id = g.fijada_por LEFT JOIN usuario up ON up.id = g.pedida_por
+                     WHERE g.corrida = %s""", (t,)) or [{}])[0]
+    clave = t.strftime("%Y%m%d%H")
+    notas = _leer("SELECT count(*) AS n FROM nota WHERE contexto->>'corrida' = %s", (clave,))[0]["n"]
+    # La corrida que había al publicar: sale ~5 h después de su inicio (misma cuenta que _gfs_diario).
+    pron = _leer("""SELECT count(*) AS n FROM pronostico_emision WHERE capturado >= %s AND capturado < %s""",
+                 (t + timedelta(hours=5), t + timedelta(hours=11)))[0]["n"] if _fijar_pronosticos() else 0
+    motivos = ([f"📌 fijada por {fila['fijada_por'] or 'alguien'}"] if fila.get("fijada") else []) \
+        + ([f"la usa{'n' if notas > 1 else ''} {notas} nota{'s' if notas > 1 else ''}"] if notas else []) \
+        + ([f"había al publicar {pron} pronóstico{'s' if pron > 1 else ''}"] if pron else []) \
+        + (["se pidió volver a dibujarla"] if fila.get("estado") else [])
+    vieja = datetime.now(timezone.utc) - t > timedelta(days=GFS_CONSERVAR_DIAS)
+    borra = None if motivos or not guardados else (t + timedelta(days=GFS_CONSERVAR_DIAS, hours=6)).isoformat()
+    return {"corrida": clave, "inicio": t.isoformat(), "guardados": guardados, "total": total,
+            "actual": actual.isoformat() if actual else None, "es_actual_o_nueva": bool(actual and t >= actual),
+            "vieja": vieja, "se_borra": borra, "motivos": motivos, "fijada": bool(fila.get("fijada")),
+            "estado": fila.get("estado"), "hechos": fila.get("hechos") or 0, "error": fila.get("error"),
+            "pedida_por": fila.get("pedida_por"), "en_cola_antes": fila.get("antes") or 0,
+            "disponible_en_noaa": t >= GFS_DESDE}
+
+
+@router.get("/api/yo/gfs/corrida")
+def estado_corrida_gfs(request: Request, corrida: str):
+    requiere_usuario(request)
+    return _estado_corrida(_clave_corrida(corrida))
+
+
+@router.post("/api/yo/gfs/corrida")
+async def pedir_corrida_gfs(request: Request):
+    """{corrida, accion: "fijar" | "soltar" | "dibujar", plazo}: 📌 guardarla
+    para siempre (o dejar de fijarla), o pedir que se vuelva a dibujar."""
+    u = requiere_usuario(request)
+    datos = await request.json()
+    t = _clave_corrida(datos.get("corrida"))
+    accion = datos.get("accion")
+    if accion in ("fijar", "soltar"):
+        _escribir("""INSERT INTO gfs_corrida (corrida, fijada, fijada_por) VALUES (%s, %s, %s)
+                     ON CONFLICT (corrida) DO UPDATE SET fijada = EXCLUDED.fijada, fijada_por = EXCLUDED.fijada_por, actualizada = now()""",
+                  (t, accion == "fijar", u["id"] if accion == "fijar" else None))
+        return _estado_corrida(t)
+    if accion != "dibujar":
+        raise HTTPException(400, "accion: fijar, soltar o dibujar")
+    if t < GFS_DESDE or t > datetime.now(timezone.utc):
+        raise HTTPException(400, f"NOAA tiene las corridas desde el {GFS_DESDE:%d/%m/%Y}")
+    guardados, actual, total = _gfs_guardada(t)
+    if actual and t >= actual:
+        raise HTTPException(400, "es la corrida actual (o una que todavía no salió): se dibuja sola")
+    if guardados >= total:
+        return _estado_corrida(t)                 # ya está entera
+    try:
+        plazo = max(0, min(192, int(datos.get("plazo") or 0)))
+    except (TypeError, ValueError):
+        plazo = 0
+    plazo -= plazo % 6
+    if not es_coordinador(u):
+        n = _leer("""SELECT count(*) AS n FROM gfs_corrida WHERE pedida_por = %s AND estado IN ('pendiente', 'dibujando')
+                     AND corrida <> %s""", (u["id"], t))[0]["n"]
+        if n >= PEDIDOS_POR_PERSONA:
+            raise HTTPException(429, f"Ya tenés {n} corridas dibujándose; esperá a que terminen")
+    _escribir("""INSERT INTO gfs_corrida (corrida, estado, pedida_por, pedida, plazo, hechos)
+                 VALUES (%s, 'pendiente', %s, now(), %s, %s)
+                 ON CONFLICT (corrida) DO UPDATE SET
+                   estado = CASE WHEN gfs_corrida.estado = 'dibujando' THEN 'dibujando' ELSE 'pendiente' END,
+                   pedida_por = COALESCE(gfs_corrida.pedida_por, EXCLUDED.pedida_por),
+                   pedida = CASE WHEN gfs_corrida.estado IN ('pendiente', 'dibujando') THEN gfs_corrida.pedida ELSE now() END,
+                   plazo = EXCLUDED.plazo, error = NULL, actualizada = now()""", (t, u["id"], plazo, guardados))
+    return _estado_corrida(t)

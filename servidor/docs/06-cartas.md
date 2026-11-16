@@ -85,7 +85,7 @@ elegido, de +0 a +192 h, con la hora válida en hora argentina y UTC.
   **pronóstico contra lo que pasó** (el análisis de una hora al lado de lo que
   pronosticaba la corrida de 1 a 7 días antes; la barra recorre las horas con
   análisis). La vista elegida se recuerda en el navegador.
-- **Corrida:** se puede elegir cualquiera de las guardadas (8 días).
+- **Corrida:** se puede elegir cualquiera de las guardadas (8 días, más las 📌 y las vueltas a dibujar).
 - **Zoom** igual en todas las cartas a la vez: Ctrl + rueda (o la rueda sola
   si ya está acercada), doble clic (Shift + doble clic aleja), botones ＋ － ⟲,
   teclas + − 0; arrastrar para moverse. Se mantiene al cambiar de plazo.
@@ -139,6 +139,25 @@ Dibujándolo acá no dependemos de que su página ande.
   nueva se arma en una carpeta aparte y reemplaza a la anterior al terminar:
   nunca se ve a medias. Si algo falla en el medio, queda la anterior y se
   reintenta en la vuelta siguiente.
+- **Corridas guardadas más de 8 días** (no se borran al limpiar): las 📌
+  fijadas a mano, las que usa alguna nota (su contexto dice la corrida), las
+  pedidas a mano (abajo) y, con `gfs_fijar_pronosticos: true` en el YAML, la
+  que había cuando se publicó cada pronóstico del grupo (la de «🌐 GFS» en su
+  tarjeta; ~1 por día, ~25 MB: **~9 GB por año**). La ingesta las calcula de
+  la base justo antes de borrar (`Ingesta.corridas_fijas`); si la base no
+  responde, esa vez no se borra nada. En el selector de corridas aparecen
+  aparte («📌 Guardadas»).
+- **Volver a dibujar una corrida vieja** («🕓 Otra corrida…» al lado del
+  selector, «🌐 Pronóstico GFS» en la ficha de un día de la Agenda, o solo al
+  abrir una nota o un pronóstico cuya corrida ya no está): NOAA guarda todas
+  las corridas desde 2021 en su bucket público. El pedido queda en la tabla
+  `gfs_corrida` (lo hace la web) y la tarea `gfs_pedidos` de la ingesta (cada
+  1 min; si no hay pedidos no hace nada) dibuja **6 plazos por vuelta** (~15 s
+  cada uno: **~8 min la corrida entera**, ~170 KB por imagen), primero el plazo
+  que se estaba mirando. Lo dibujado se ve enseguida (la barra del cuadro avanza
+  sola). Hasta 3 pedidos a la vez por persona (los coordinadores, sin límite).
+  Una redibujada queda guardada para siempre. Si NOAA no la tiene, el cuadro lo
+  dice. API: `GET/POST /api/yo/gfs/corrida` (`accion`: fijar, soltar, dibujar).
 - **El +0 h (análisis) de cada corrida se archiva para siempre** como carta
   de análisis de esa hora (`gfs_ana_*` en el YAML, ~1 GB por año): se ve en
   las cartas de cada hora, al lado de las de Bentley.

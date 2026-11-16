@@ -199,9 +199,9 @@ def ruta_pronostico(raiz, inicio):
     return Path(raiz) / "cartas" / CARPETA_PRONOSTICO / f"gfs_{inicio.astimezone(timezone.utc):%Y%m%d%H}.json"
 
 
-def guardar_pronostico(raiz, inicio, por_plazo, conservar=None, ahora=None):
+def guardar_pronostico(raiz, inicio, por_plazo, conservar=None, ahora=None, fijas=()):
     """por_plazo: {plazo: {ciudad: valores}} (sin el perfil). Con conservar
-    (timedelta), borra las corridas más viejas que eso."""
+    (timedelta), borra las corridas más viejas que eso, salvo las de `fijas`."""
     from datetime import datetime
     destino = ruta_pronostico(raiz, inicio)
     destino.parent.mkdir(parents=True, exist_ok=True)
@@ -217,7 +217,7 @@ def guardar_pronostico(raiz, inicio, por_plazo, conservar=None, ahora=None):
                 t = datetime.strptime(f.stem[4:], "%Y%m%d%H").replace(tzinfo=timezone.utc)
             except ValueError:
                 continue
-            if t < limite:
+            if t < limite and t not in fijas:
                 f.unlink(missing_ok=True)
 
 

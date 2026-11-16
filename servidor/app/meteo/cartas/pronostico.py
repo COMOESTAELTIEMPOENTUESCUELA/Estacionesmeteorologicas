@@ -74,13 +74,15 @@ def corridas(raiz, producto):
     return salida
 
 
-def publicar(raiz, producto, tmp, inicio, cuadros, esperados=None, conservar=None, ahora=None, extra=None):
+def publicar(raiz, producto, tmp, inicio, cuadros, esperados=None, conservar=None, ahora=None, extra=None, fijas=()):
     """Escribe corrida.json y reemplaza la corrida anterior por la nueva.
     cuadros: [(plazo, valida, archivo)]; esperados: cuántos plazos tiene la
     corrida en la página (si hay menos, se completa en las vueltas siguientes).
     conservar (timedelta): las corridas anteriores que empezaron hace menos
     que eso siguen guardadas (historial); las más viejas se borran.
-    extra: más datos para corrida.json (ej. el marco del mapa)."""
+    extra: más datos para corrida.json (ej. el marco del mapa).
+    fijas: inicios de corridas que se guardan aunque sean más viejas (las
+    que usa una nota o un pronóstico, las fijadas a mano y las redibujadas)."""
     (tmp / "corrida.json").write_text(json.dumps({
         "inicio": inicio.isoformat(),
         "esperados": esperados if esperados is not None else len(cuadros),
@@ -93,7 +95,7 @@ def publicar(raiz, producto, tmp, inicio, cuadros, esperados=None, conservar=Non
         (tmp / HISTORIAL).mkdir(exist_ok=True)
         for d in corridas(raiz, producto):
             ini = datetime.fromisoformat(d["inicio"])
-            if ini == inicio or ini < limite:
+            if ini == inicio or (ini < limite and ini not in fijas):
                 continue
             for c in d["cuadros"]:
                 origen, destino = final / c["archivo"], tmp / c["archivo"]
@@ -109,6 +111,22 @@ def publicar(raiz, producto, tmp, inicio, cuadros, esperados=None, conservar=Non
         final.rename(vieja)
     tmp.rename(final)
     shutil.rmtree(vieja, ignore_errors=True)
+
+
+def agregar_al_historial(raiz, producto, inicio, cuadros, esperados, extra=None):
+    """Una corrida VIEJA vuelta a dibujar (a pedido): sus imágenes ya se
+    escribieron en la carpeta (llevan la corrida en el nombre, no pisan nada);
+    acá se anota en el historial con los plazos que ya están. No toca la
+    corrida actual (corrida.json)."""
+    hist = carpeta(raiz, producto) / HISTORIAL
+    hist.mkdir(parents=True, exist_ok=True)
+    tmp = hist / f"{inicio:%Y%m%d%H}.json.tmp"
+    tmp.write_text(json.dumps({
+        "inicio": inicio.isoformat(), "esperados": esperados, "redibujada": True,
+        "cuadros": [{"plazo_h": p, "valida": v.isoformat(), "archivo": a} for p, v, a in sorted(cuadros)],
+        **(extra or {}),
+    }, ensure_ascii=False), encoding="utf-8")
+    tmp.replace(hist / f"{inicio:%Y%m%d%H}.json")
 
 
 def descartar(tmp):

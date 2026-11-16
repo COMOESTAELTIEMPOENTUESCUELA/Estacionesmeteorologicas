@@ -7,6 +7,11 @@
 # Horas a guardar (UTC). Cada carta puede tener las suyas con "horas_utc".
 horas_utc: [0, 6, 12, 18]
 
+# Guardar para siempre las cartas del pronóstico GFS de la corrida que había
+# cuando se publicó cada pronóstico del grupo (~25 MB por corrida, ~9 GB por
+# año). En false, solo se guardan las de notas, las 📌 y las redibujadas.
+gfs_fijar_pronosticos: true
+
 # Radiosondeos REALES (IGRA, de NOAA; ver app/meteo/cartas/sondeos.py).
 # APAGADOS (02/11/2026): el sondeo se sacó de la página (no hay datos para
 # verificarlo). El código queda; para volver a bajarlos, descomentar:
@@ -62,6 +67,12 @@ productos:
   # plazo de NOAA (~500 MB por corrida, 4 corridas por día) y tardan ~15-25 min
   # en dibujarse. Ver app/meteo/cartas/estilo_bentley.py.
   # Para apagarlas: `activo: false` en las cuatro.
+  #
+  # NO se borran a los 8 días (docs/06-cartas.md, "Corridas guardadas"):
+  # las fijadas con 📌, las que usa alguna nota, las vueltas a dibujar a pedido
+  # (🕓 Otra corrida: NOAA guarda todas desde 2021) y, si
+  # `gfs_fijar_pronosticos` (arriba de todo) está en true, la que había cuando
+  # se publicó cada pronóstico del grupo (~1 por día: ~9 GB por año).
   - id: gfs_pro_mslp_jet
     nombre: "Presión, espesor 1000/500 hPa y corriente en chorro"
     nivel: "Superficie y 1000/500 hPa"

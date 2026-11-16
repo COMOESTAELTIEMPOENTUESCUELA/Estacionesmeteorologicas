@@ -972,6 +972,10 @@ img.con-fondo { background-color: #fff !important; background-size: 100% 100%; b
 .ag-horas { display: inline-flex; gap: 4px; align-items: center; flex-wrap: wrap; }
 .ag-aviso { font-size: 12.5px; margin: 6px 0; }
 .ag-notas [data-ir-dia] { display: none; }
+.corr-elegir { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.corr-estado { margin: 12px 0 4px; padding: 10px 12px; border: 1px solid var(--borde); border-radius: 10px; background: var(--superficie); font-size: 14px; line-height: 1.5; min-height: 2.5em; }
+.corr-estado .barra { height: 6px; border-radius: 3px; background: var(--borde); margin-top: 6px; overflow: hidden; }
+.corr-estado .barra i { display: block; height: 100%; background: var(--acento); transition: width .5s; }
 .ag-lista { display: flex; flex-direction: column; gap: 6px; }
 .ag-item { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 6px 10px; border: 1px solid var(--borde); border-radius: 8px; background: var(--superficie); font-size: 13.5px; }
 .ag-item .tenue { font-size: 12px; }
@@ -2416,6 +2420,8 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
       <div class="filtros">
         <h2 style="margin:0; font-size:18px; flex:1 1 280px">Pronóstico GFS <span class="tenue" style="font-weight:400">(con el formato de las cartas de Bentley)</span></h2>
         <label class="en-linea">Corrida <select id="cpr-corrida"></select></label>
+        <button type="button" class="boton chico" id="cpr-fijar" title="Guardar esta corrida para siempre (si no, se borra a los 8 días) y ver por qué se guarda">📌</button>
+        <button type="button" class="boton chico" id="cpr-otra" title="Una corrida vieja: si ya no está guardada, se puede volver a dibujar desde el archivo de NOAA (desde 2021)">🕓 Otra corrida…</button>
         <label class="en-linea">Vista
           <select id="cpr-vista">
             <option value="cuatro">Las 4 juntas</option>
@@ -2989,6 +2995,22 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
     <p class="d-error" id="marca-error" hidden></p>
     <div class="acc"><button type="button" class="boton" id="marca-borrar" hidden>🗑 Borrar</button>
       <button type="button" class="boton" data-cerrar>Cancelar</button><button class="boton primario">Guardar</button></div>
+  </form>
+</dialog>
+
+<dialog id="d-corrida" class="d-chico">
+  <form id="f-corrida">
+    <h2>🌐 Corrida del GFS</h2>
+    <p class="tenue" style="margin-top:0">Las cartas del pronóstico se guardan 8 días (salvo las que usa una nota o un
+      pronóstico, y las 📌). NOAA tiene <b>todas</b> las corridas desde 2021: las que ya no están se pueden volver a
+      dibujar. Tarda unos minutos; los plazos aparecen a medida que se dibujan (el que buscabas, primero).</p>
+    <div class="corr-elegir"><label class="en-linea">Día <input type="date" name="dia" required min="2021-03-23"></label>
+      <label class="en-linea">Hora <select name="hora"><option>00</option><option>06</option><option>12</option><option>18</option></select> UTC</label></div>
+    <div id="corr-estado" class="corr-estado" aria-live="polite"></div>
+    <div class="acc"><button type="button" class="boton" data-cerrar>Cerrar</button>
+      <button type="button" class="boton" id="corr-fijar" hidden>📌 Guardarla</button>
+      <button type="button" class="boton" id="corr-dibujar" hidden>🕓 Dibujarla</button>
+      <button type="button" class="boton primario" id="corr-abrir" hidden>Abrir</button></div>
   </form>
 </dialog>
 
@@ -4671,6 +4693,12 @@ const VISTAS_GFS = ["cuatro", "una", "dos-cartas", "dos-plazos", "corridas", "ve
 async function cargarPronosticoGFS(corrida = null) {
   let d;
   try { d = await api("/api/cartas/pronostico" + (corrida ? `?corrida=${corrida}` : "")); } catch (_) { return; }
+  if (corrida && !d.productos.some((p) => p.cuadros.length)) {
+    // Esa corrida ya no está guardada: se muestra la última y se ofrece volver a dibujarla.
+    await cargarPronosticoGFS(null);
+    abrirCorrida(corrida, cpr.plazoPedido || 0);
+    return;
+  }
   const plazoAntes = cpr.plazos[cpr.i];
   cpr.productos = d.productos.filter((p) => p.cuadros.length);
   cpr.ciudades = d.ciudades || {};
@@ -4682,8 +4710,13 @@ async function cargarPronosticoGFS(corrida = null) {
   cpr.marco = cpr.productos[0].marco;
   // Corridas guardadas (las de todas las cartas son las mismas): la última primero.
   cpr.corridas = (cpr.productos[0].corridas || []).map((c) => ({ inicio: new Date(c.inicio), plazos: new Set(c.plazos) }));
-  $("#cpr-corrida").innerHTML = cpr.corridas.map((c, k) =>
-    `<option value="${k ? claveCorrida(c.inicio) : ""}">${k ? "" : "Última: "}${fmtCorrida(c.inicio)}</option>`).join("");
+  // Las de los últimos 8 días y, aparte, las guardadas (usadas, 📌 o vueltas a dibujar).
+  const opcion = (c, k) => `<option value="${k ? claveCorrida(c.inicio) : ""}">${k ? "" : "Última: "}${fmtCorrida(c.inicio)}${c.inicio.getUTCFullYear() !== new Date().getUTCFullYear() ? " de " + c.inicio.getUTCFullYear() : ""}${c.plazos.size < (cpr.productos[0].esperados || 33) && k ? ` (${c.plazos.size} plazos)` : ""}</option>`;
+  const limite = Date.now() - (DIAS_PRONO_GFS * 24 + 6) * HORA;
+  const recientes = cpr.corridas.map((c, k) => [c, k]).filter(([c, k]) => !k || +c.inicio >= limite);
+  const guardadas = cpr.corridas.map((c, k) => [c, k]).filter(([c, k]) => k && +c.inicio < limite);
+  $("#cpr-corrida").innerHTML = recientes.map(([c, k]) => opcion(c, k)).join("")
+    + (guardadas.length ? `<optgroup label="📌 Guardadas (más viejas)">${guardadas.map(([c, k]) => opcion(c, k)).join("")}</optgroup>` : "");
   $("#cpr-corrida").value = corrida || "";
   // Horas con análisis (+0 h de alguna corrida guardada), para "contra lo que pasó".
   cpr.analisis = cpr.corridas.filter((c) => c.plazos.has(0)).map((c) => c.inicio).sort((a, b) => a - b);
@@ -4691,8 +4724,8 @@ async function cargarPronosticoGFS(corrida = null) {
   const ultima = cpr.corridas[0]?.inicio;
   $("#cpr-nota").textContent = `Corrida del GFS del ${fmtCorrida(cpr.inicio)}${corrida ? " (una anterior)" : ""} · ` +
     `${cpr.plazos.length} plazos, hasta +${cpr.plazos[cpr.plazos.length - 1]} h` +
-    (cpr.productos.some((p) => p.cuadros.length < p.esperados) ? " (el resto todavía no está publicado: se completa solo)" : "") +
-    `. Hay ${cpr.corridas.length} corridas guardadas (las de los últimos 8 días)` + (ultima ? `; la última es la del ${fmtCorrida(ultima)}` : "") +
+    (cpr.productos.some((p) => p.cuadros.length < p.esperados) ? (corrida ? " (faltan plazos: con 📌 se ve si se están dibujando, o se completa)" : " (el resto todavía no está publicado: se completa solo)") : "") +
+    `. Hay ${cpr.corridas.length} corridas guardadas (las de los últimos 8 días y las 📌; con «🕓 Otra corrida» se puede volver a dibujar cualquiera desde 2021)` + (ultima ? `; la última es la del ${fmtCorrida(ultima)}` : "") +
     ". Se actualiza solo con cada corrida nueva del GFS (cada 6 h, ~5 h después de su hora de inicio). Es un pronóstico del modelo: sirve como guía.";
   const opciones = cpr.productos.map((p, k) => `<option value="${k}">${k + 1}. ${esc(p.nivel ? p.nivel + " · " : "")}${esc(p.nombre)}</option>`).join("");
   $("#cpr-a").innerHTML = opciones;
@@ -4928,6 +4961,8 @@ function iniciarPronosticoGFS() {
   $("#cpr-vel").addEventListener("change", () => { if (cpr.reloj) { animarGFS(); animarGFS(); } });
   $("#cpr-vista").addEventListener("change", (e) => { cpr.vista = e.target.value; mostrarPlazoGFS(); });
   $("#cpr-corrida").addEventListener("change", (e) => cargarPronosticoGFS(e.target.value || null));
+  $("#cpr-fijar").addEventListener("click", () => abrirCorrida(claveCorrida(cpr.inicio), cpr.plazos[cpr.i] || 0));
+  $("#cpr-otra").addEventListener("click", () => abrirCorrida(null, cpr.plazos[cpr.i] || 0));
   $("#cpr-a").addEventListener("change", (e) => { cpr.a = Number(e.target.value); mostrarPlazoGFS(); });
   $("#cpr-b").addEventListener("change", (e) => { cpr.b = Number(e.target.value); mostrarPlazoGFS(); });
   $("#cpr-delta").addEventListener("change", mostrarPlazoGFS);
@@ -9093,9 +9128,10 @@ async function abrirDiaAgenda(fecha) {
         ${["00", "06", "12", "18"].map((h) => `<button class="boton chico" data-ag-cartas="${fecha}" data-h="${h}">${h} UTC</button>`).join("")}</span>
       <button class="boton" data-ag-marca="ciudad:${esc(ciudad0)}" data-ts="${fecha}T15:00:00Z" title="Las series observadas de la ciudad (temperatura, viento, presión, lluvia) y el GFS, centradas en ese día">📈 Series de ${esc(ciudad0)}</button>
       <button class="boton" data-ag-panorama="${esc(ciudad0)}" title="Lo que se observó y lo que cada uno pronosticó para ese día">📊 Panorama del día</button>
+      <button class="boton" data-ag-gfs="${fecha.replace(/-/g, "")}00" title="Las cartas del pronóstico GFS de la corrida de las 00 UTC de ese día (si ya no están, se pueden volver a dibujar)">🌐 Pronóstico GFS</button>
       <button class="boton primario" data-ag-anotar="${fecha}" title="Una nota sobre este día (privada; la podés compartir)">📝 Anotar</button>
     </div>
-    ${viejo ? `<p class="tenue ag-aviso">ℹ️ De este día quedan las cartas de <b>análisis</b>, el satélite, los rayos y todas las observaciones. Las cartas del <b>pronóstico</b> GFS de las corridas de ese día ya no están (se guardan ${DIAS_PRONO_GFS} días); los valores del GFS en cada ciudad sí.</p>` : ""}
+    ${viejo ? `<p class="tenue ag-aviso">ℹ️ De este día quedan las cartas de <b>análisis</b>, el satélite, los rayos y todas las observaciones. Las cartas del <b>pronóstico</b> GFS se guardan ${DIAS_PRONO_GFS} días (salvo las que usa una nota o un pronóstico, y las 📌); si no están, con «🌐 Pronóstico GFS» se pueden volver a dibujar desde el archivo de NOAA.</p>` : ""}
     <h4>Lo que pasó</h4>${obs ? `<div class="ag-lista">${obs}</div>` : '<p class="tenue">Sin datos de verificación para ese día.</p>'}
     <h4>Notas (${d.notas.length})</h4>${d.notas.length ? `<div class="red-feed ag-notas">${d.notas.map((n) => tarjetaNota(n)).join("")}</div>` : '<p class="tenue">Nada anotado. Con «📝 Anotar algo de este día» queda acá.</p>'}
     <h4>Dibujos sobre las cartas (${d.capas.length})</h4>${capas ? `<div class="ag-lista">${capas}</div>` : '<p class="tenue">Nadie dibujó (o compartió) sobre las cartas de ese día.</p>'}
@@ -9169,6 +9205,73 @@ document.addEventListener("click", (e) => {
   cargarAgenda().then(() => abrirDiaAgenda(fecha));
 });
 
+// ---------- Corridas del GFS: ver si están, fijarlas (📌) y pedir que se dibujen ----------
+const corr = { plazo: 0, reloj: null, e: null };
+const claveCorr = () => { const f = $("#f-corrida"); return f.dia.value.replace(/-/g, "") + f.hora.value; };
+function abrirCorrida(clave = null, plazo = 0) {
+  if (!YO) { abrirIngreso(); return; }
+  const f = $("#f-corrida");
+  const t = clave ? new Date(Date.UTC(+clave.slice(0, 4), +clave.slice(4, 6) - 1, +clave.slice(6, 8), +clave.slice(8, 10)))
+                  : new Date(Math.floor((Date.now() - 10 * 24 * HORA) / (24 * HORA)) * 24 * HORA);    // por omisión: hace 10 días, 00 UTC
+  f.dia.max = new Date().toISOString().slice(0, 10);
+  f.dia.value = t.toISOString().slice(0, 10);
+  f.hora.value = String(t.getUTCHours()).padStart(2, "0");
+  corr.plazo = plazo;
+  if (!$("#d-corrida").open) $("#d-corrida").showModal();
+  consultarCorrida();
+}
+async function consultarCorrida() {
+  clearTimeout(corr.reloj);
+  const clave = claveCorr();
+  ["#corr-abrir", "#corr-dibujar", "#corr-fijar"].forEach((x) => ($(x).hidden = true));
+  if (clave.length !== 10) { $("#corr-estado").textContent = "Elegí el día."; return; }
+  if (!corr.e || corr.e.corrida !== clave) $("#corr-estado").textContent = "Consultando…";
+  let e;
+  try { e = await api(`/api/yo/gfs/corrida?corrida=${clave}`); }
+  catch (err) { $("#corr-estado").textContent = err.message; return; }
+  if (clave !== claveCorr()) return;               // mientras tanto eligió otra
+  corr.e = e;
+  pintarCorrida(e);
+  if (["pendiente", "dibujando"].includes(e.estado) && $("#d-corrida").open) corr.reloj = setTimeout(consultarCorrida, 15000);
+}
+function pintarCorrida(e) {
+  const completa = e.guardados >= e.total, enCurso = ["pendiente", "dibujando"].includes(e.estado);
+  const nombre = fmtCorrida(new Date(e.inicio)) + (new Date(e.inicio).getUTCFullYear() !== new Date().getUTCFullYear() ? " de " + new Date(e.inicio).getUTCFullYear() : "");
+  let hay = !e.disponible_en_noaa ? "NOAA tiene las corridas desde el 23/03/2021."
+    : e.es_actual_o_nueva ? (e.guardados ? "Es la corrida actual: se completa sola." : "Todavía no salió (o la está dibujando la descarga normal).")
+    : completa ? `✅ Está guardada entera (${e.total} plazos, +0 a +192 h).`
+    : e.guardados ? `Hay ${e.guardados} de ${e.total} plazos.` : "❌ No está guardada (se borró, o nunca se dibujó).";
+  const estado = e.estado === "pendiente" ? `<br>🕓 Pedida por ${esc(e.pedida_por || "alguien")}: en cola${e.en_cola_antes ? ` (${e.en_cola_antes} antes)` : ", empieza en un minuto"}. Se actualiza sola.`
+    : e.estado === "dibujando" && !completa ? `<br>🖌️ Dibujándose: ${e.guardados} de ${e.total} plazos (~30 s cada uno). Se actualiza sola; ya podés abrir lo que está.`
+    : e.estado === "error" ? `<br>⚠️ ${esc(e.error || "falló")}` : "";
+  const guarda = e.motivos.length ? `<br>📌 Se guarda para siempre: ${esc(e.motivos.join(" · "))}.`
+    : e.se_borra ? `<br><span class="tenue">Se borra sola el ${esc(diaCorto(diaArg(new Date(e.se_borra))))} (a los 8 días), salvo que la fijes.</span>` : "";
+  $("#corr-estado").innerHTML = `<b>Corrida del ${esc(nombre)}</b><br>${hay}${estado}${guarda}`
+    + (enCurso || (e.guardados && !completa) ? `<div class="barra"><i style="width:${Math.round(100 * e.guardados / e.total)}%"></i></div>` : "");
+  $("#corr-abrir").hidden = !e.guardados;
+  $("#corr-dibujar").hidden = completa || e.es_actual_o_nueva || !e.disponible_en_noaa || enCurso;
+  $("#corr-dibujar").textContent = e.estado === "error" ? "🕓 Reintentar" : e.guardados ? "🕓 Completarla" : "🕓 Dibujarla (unos 10 min)";
+  $("#corr-fijar").hidden = !(e.guardados || enCurso);
+  $("#corr-fijar").textContent = e.fijada ? "📌 Dejar de fijarla" : "📌 Guardarla para siempre";
+}
+async function accionCorrida(accion) {
+  try {
+    const e = await apiEnviar("/api/yo/gfs/corrida", "POST", { corrida: claveCorr(), accion, plazo: corr.plazo });
+    corr.e = e; pintarCorrida(e);
+    if (["pendiente", "dibujando"].includes(e.estado)) { clearTimeout(corr.reloj); corr.reloj = setTimeout(consultarCorrida, 15000); }
+  } catch (err) { $("#corr-estado").insertAdjacentHTML("beforeend", `<br>⚠️ ${esc(err.message)}`); }
+}
+$("#f-corrida").addEventListener("change", () => consultarCorrida());
+$("#f-corrida").addEventListener("submit", (e) => e.preventDefault());
+$("#corr-dibujar").addEventListener("click", () => accionCorrida("dibujar"));
+$("#corr-fijar").addEventListener("click", () => accionCorrida(corr.e?.fijada ? "soltar" : "fijar"));
+$("#corr-abrir").addEventListener("click", () => {
+  const clave = claveCorr();
+  $("#d-corrida").close();
+  abrirContexto({ seccion: "gfs", corrida: clave, plazo: corr.plazo });
+});
+$("#d-corrida").addEventListener("close", () => clearTimeout(corr.reloj));
+
 // Desde la agenda a Diagnóstico: el botón «← Volver» de arriba trae de nuevo a la ficha del día.
 function volverAAgenda() {
   if (red.vista !== "agenda") return;
@@ -9203,6 +9306,8 @@ document.addEventListener("click", (e) => {
     return;
   }
   if (e.target.closest("[data-ag-volver]")) { volverDeLaAgenda(); return; }
+  const agg = e.target.closest("[data-ag-gfs]");
+  if (agg) { volverAAgenda(); abrirContexto({ seccion: "gfs", corrida: agg.dataset.agGfs, plazo: 12 }); return; }
   const ird = e.target.closest("[data-ir-dia]");
   if (ird) { irAlDia(ird.dataset.irDia, ird.closest(".postit")); return; }
   const mk = e.target.closest("[data-ag-marca]");
@@ -9485,7 +9590,7 @@ async function irAlModelo(tarjeta) {
   if (!it) return;
   const m = red.modelos[it.objeto] || {};
   const corrida = m.corrida || (await corridaDelPronostico(it))?.corrida;
-  if (!corrida) { alert("La corrida del GFS de ese momento ya no está guardada (se guardan las de los últimos 8 días)."); return; }
+  if (!corrida) { abrirCorrida(corridasCandidatas(it)[0], 24); return; }      // ya no está: se puede volver a dibujar
   const inicio = Date.UTC(+corrida.slice(0, 4), +corrida.slice(4, 6) - 1, +corrida.slice(6, 8), +corrida.slice(8, 10));
   const plazo = Math.max(0, Math.round((Date.parse(it.dias[0].fecha + "T18:00:00Z") - inicio) / (6 * HORA)) * 6);   // la tarde del día 1
   const quien = tarjeta.querySelector(".quien b")?.textContent.trim();
@@ -9920,6 +10025,7 @@ async function abrirContexto(c) {
   if (c.seccion === "gfs") {
     abrir("cartas");
     setTimeout(() => verSeccionCartas("pron"), cargadas.cartas ? 0 : 300);
+    cpr.plazoPedido = Number(c.plazo) || 0;
     await cargarPronosticoGFS(c.corrida && cpr.corridas && cpr.corridas[0] && claveCorrida(cpr.corridas[0].inicio) === c.corrida ? null : c.corrida);
     const k = cpr.plazos.indexOf(Number(c.plazo)); if (k >= 0) cpr.i = k;
     const a = cpr.productos.findIndex((p) => p.id === c.carta); if (a >= 0) cpr.a = a;

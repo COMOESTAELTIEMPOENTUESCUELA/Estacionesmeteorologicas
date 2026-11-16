@@ -52,14 +52,16 @@ def una_sola_descarga(raiz):
             fcntl.flock(f, fcntl.LOCK_UN)
 
 
-def correr(cfg, raiz, sesion, tormenta=None):
+def correr(cfg, raiz, sesion, tormenta=None, fijas=None):
     """tormenta(desde, hasta, region) -> lista de informes de tormenta (SYNOP):
-    la da la ingesta, que tiene la base. Sin eso, no se arman los mapas de rayos."""
+    la da la ingesta, que tiene la base. Sin eso, no se arman los mapas de rayos.
+    fijas() -> inicios de las corridas del GFS que no se borran a los 8 días
+    (también lo sabe la base: notas, pronósticos, fijadas y redibujadas)."""
     with una_sola_descarga(raiz):
-        return _correr(cfg, raiz, sesion, tormenta)
+        return _correr(cfg, raiz, sesion, tormenta, fijas)
 
 
-def _correr(cfg, raiz, sesion, tormenta=None):
+def _correr(cfg, raiz, sesion, tormenta=None, fijas=None):
     horas = tuple(cfg.get("horas_utc", (0, 6, 12, 18)))
     # descargar: false -> se muestra lo archivado, pero no se baja más (ej. Bentley).
     activos = [p for p in cfg["productos"] if p.get("activo", True) and p.get("descargar", True)]
@@ -153,7 +155,7 @@ def _correr(cfg, raiz, sesion, tormenta=None):
     prono = [p for p in activos if p["fuente"] == "gfs_pronostico"]
     if prono:
         try:
-            _correr_pronostico_gfs(prono, raiz, sesion, analisis=[p for p in activos if p["fuente"] == "gfs_analisis"])
+            _correr_pronostico_gfs(prono, raiz, sesion, analisis=[p for p in activos if p["fuente"] == "gfs_analisis"], fijas=fijas)
         except Exception as ex:
             errores.append(f"pronóstico GFS: {str(ex)[:150]}")
             log.warning("cartas: %s", errores[-1])
@@ -383,7 +385,7 @@ GFS_PRONO_CONSERVAR = timedelta(days=8, hours=6)   # el +192 h de la corrida má
 GFS_PUNTOS_CONSERVAR = timedelta(days=400)
 
 
-def _correr_pronostico_gfs(productos, raiz, sesion, ahora=None, analisis=()):
+def _correr_pronostico_gfs(productos, raiz, sesion, ahora=None, analisis=(), fijas=None):
     """Pronóstico del GFS dibujado en el servidor con el formato de las cartas
     de Bentley (estilo_bentley.py): todos los plazos de la última corrida.
     La nueva se arma aparte y reemplaza a la anterior al terminar; las de los
@@ -391,6 +393,7 @@ def _correr_pronostico_gfs(productos, raiz, sesion, ahora=None, analisis=()):
     corridas entre sí y el pronóstico con lo que pasó.
     analisis: productos (fuente gfs_analisis) donde se ARCHIVA para siempre el
     +0 h de cada corrida, como las cartas de análisis de cada hora.
+    fijas() -> las corridas viejas que no se borran (se pregunta al final).
     Devuelve cuántas imágenes dibujó."""
     from . import estilo_bentley as eb, gfs, pronostico, puntos
     inicio = _ultima_corrida_gfs(sesion, eb.PLAZOS[-1], ahora)
@@ -423,12 +426,79 @@ def _correr_pronostico_gfs(productos, raiz, sesion, ahora=None, analisis=()):
             pronostico.descartar(t)        # queda la corrida anterior; se reintenta en la próxima vuelta
         raise
     extra = {"marco": eb.marco()}
+    conservar, conservar_puntos = GFS_PRONO_CONSERVAR, GFS_PUNTOS_CONSERVAR
+    try:
+        quedan = frozenset(fijas()) if fijas else frozenset()
+    except Exception as ex:            # sin saber cuáles están fijadas, esta vez no se borra nada (mejor guardar de más)
+        log.warning("cartas: no se pudo saber qué corridas están fijadas (%s); esta vez no se borra ninguna", str(ex)[:120])
+        quedan, conservar, conservar_puntos = frozenset(), timedelta(days=36500), None
     for p in productos:
         pronostico.publicar(raiz, p["id"], tmps[p["id"]], inicio, cuadros[p["id"]],
-                            conservar=GFS_PRONO_CONSERVAR, ahora=ahora, extra=extra)
-    puntos.guardar_pronostico(raiz, inicio, valores, conservar=GFS_PUNTOS_CONSERVAR, ahora=ahora)
+                            conservar=conservar, ahora=ahora, extra=extra, fijas=quedan)
+    puntos.guardar_pronostico(raiz, inicio, valores, conservar=conservar_puntos, ahora=ahora, fijas=quedan)
     log.info("cartas: pronóstico GFS de la corrida %s listo (%d plazos)", inicio, len(eb.PLAZOS))
     return len(eb.PLAZOS) * len(productos)
+
+
+# ---------------------------------------------------------------------------
+# Volver a dibujar una corrida VIEJA a pedido (NOAA guarda todas desde 2021 en
+# su bucket público). Se dibuja de a poco (unos plazos por vuelta, ~30 s cada
+# uno) para no frenar al resto de la ingesta; el plazo que más interesa, primero.
+# ---------------------------------------------------------------------------
+PLAZOS_POR_VUELTA = 6
+
+
+def _cuadros_guardados(raiz, producto, inicio):
+    """{plazo: (plazo, valida, archivo)} de una corrida ya guardada (los que tienen imagen)."""
+    from . import pronostico
+    for d in pronostico.corridas(raiz, producto):
+        if datetime.fromisoformat(d["inicio"]) == inicio:
+            return {c["plazo_h"]: (c["plazo_h"], datetime.fromisoformat(c["valida"]), c["archivo"])
+                    for c in d["cuadros"] if (pronostico.carpeta(raiz, producto) / c["archivo"]).exists()}
+    return {}
+
+
+def dibujar_pedida(cfg, raiz, sesion, inicio, plazo_pref=0, max_plazos=PLAZOS_POR_VUELTA):
+    """Dibuja hasta max_plazos plazos que falten de la corrida `inicio` (vieja)
+    y los anota en el historial. -> (plazos que ya están, plazos totales).
+    FileNotFoundError: NOAA no tiene esa corrida."""
+    from . import estilo_bentley as eb, pronostico, puntos
+    inicio = inicio.astimezone(timezone.utc)
+    activos = [p for p in cfg["productos"] if p.get("activo", True)]
+    productos = [p for p in activos if p["fuente"] == "gfs_pronostico"]
+    analisis = [p for p in activos if p["fuente"] == "gfs_analisis"]
+    if not productos:
+        raise ValueError("no hay cartas de pronóstico del GFS activas")
+    with una_sola_descarga(raiz):
+        actuales = [t for t in (pronostico.corrida_guardada(raiz, p["id"]) for p in productos) if t]
+        if actuales and inicio >= min(actuales):
+            raise ValueError("es la corrida actual (o una más nueva): se dibuja sola")
+        hechos = {p["id"]: _cuadros_guardados(raiz, p["id"], inicio) for p in productos}
+        orden = sorted(eb.PLAZOS, key=lambda x: (abs(x - plazo_pref), x))
+        faltan = [pl for pl in orden if any(pl not in hechos[p["id"]] for p in productos)]
+        if faltan:
+            valores = {int(k): v for k, v in ((puntos.leer_pronostico(raiz, inicio) or {}).get("plazos") or {}).items()}
+            extra = {"marco": eb.marco()}
+            for plazo in faltan[:max_plazos]:
+                campos = _bajar_gfs(inicio, eb.PEDIDOS | puntos.PEDIDOS_PRONOSTICO, eb.REGION, sesion, plazo=plazo)
+                valores[plazo] = {c: {k: v for k, v in x.items() if k != "perfil"} for c, x in puntos.extraer(campos).items()}
+                imagenes = eb.dibujar(campos, inicio, plazo)
+                if plazo == 0:
+                    for p in analisis:
+                        if p.get("carta") in imagenes and not archivo.existe(raiz, p["id"], inicio):
+                            archivo.guardar(raiz, p["id"], inicio, imagenes[p["carta"]])
+                for p in productos:
+                    nom = pronostico.nombre(p["id"], inicio, plazo)
+                    pronostico.carpeta(raiz, p["id"]).mkdir(parents=True, exist_ok=True)
+                    (pronostico.carpeta(raiz, p["id"]) / nom).write_bytes(imagenes[p["carta"]])
+                    hechos[p["id"]][plazo] = (plazo, inicio + timedelta(hours=plazo), nom)
+                # Se anota después de cada plazo: si se corta, lo hecho queda.
+                for p in productos:
+                    pronostico.agregar_al_historial(raiz, p["id"], inicio, list(hechos[p["id"]].values()),
+                                                    len(eb.PLAZOS), extra=extra)
+                puntos.guardar_pronostico(raiz, inicio, valores)
+                log.info("cartas: corrida pedida %s, +%d h dibujado", inicio, plazo)
+    return min(len(h) for h in hechos.values()), len(eb.PLAZOS)
 
 
 GFS_HORAS_ATRAS = 48      # el análisis sale ~4 h después de la hora; si la PC estuvo apagada, se recupera

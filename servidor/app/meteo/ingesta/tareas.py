@@ -12,6 +12,7 @@ import threading
 import time
 from datetime import datetime, timedelta, timezone
 
+import psycopg
 import yaml
 
 from . import db
@@ -20,6 +21,22 @@ from .base import HORA_ARG, sesion_http
 from .fuentes import comunidad, davis, municipio_lp, ogimet, pronosticos, thingspeak, wunderground
 
 log = logging.getLogger(__name__)
+
+def clave_a_corrida(clave):
+    """"2026111012" -> datetime UTC (o None si no es una corrida)."""
+    try:
+        t = datetime.strptime(str(clave), "%Y%m%d%H").replace(tzinfo=timezone.utc)
+    except ValueError:
+        return None
+    return t if t.hour % 6 == 0 else None
+
+
+def corrida_al_publicar(capturado):
+    """La corrida del GFS que estaba disponible al publicar un pronóstico (sale
+    ~5 h después de su hora de inicio): la misma cuenta que web/cuentas.py."""
+    t = capturado.astimezone(timezone.utc) - timedelta(hours=5)
+    return t.replace(hour=t.hour - t.hour % 6, minute=0, second=0, microsecond=0)
+
 
 RECOLECTORES = {
     "thingspeak": thingspeak,
@@ -150,7 +167,78 @@ class Ingesta:
                          "(guarda ~10 días) no se puede recuperar así.", desde, hasta, r)
                 reg["filas"] = sum(r.values())
             else:
-                reg["filas"] = descarga.correr(cfg, raiz, self.sesion, tormenta=self.hubo_tormenta)
+                reg["filas"] = descarga.correr(cfg, raiz, self.sesion, tormenta=self.hubo_tormenta,
+                                               fijas=lambda: self.corridas_fijas(cfg))
+
+    def corridas_fijas(self, cfg):
+        """Corridas del GFS cuyas cartas de pronóstico NO se borran a los 8 días:
+        - las fijadas a mano (📌) y las vueltas a dibujar a pedido;
+        - las que usa alguna nota (la abrió desde el pronóstico GFS: su contexto
+          dice qué corrida);
+        - con `gfs_fijar_pronosticos` (cartas.yaml, sí por omisión), la que había
+          cuando se publicó cada pronóstico del grupo (la que compara «🌐 GFS»).
+        Si una tabla no existe todavía (base sin cuentas), se sigue sin ella."""
+        fijas = set()
+        def consulta(sql, a_corrida):
+            try:
+                with self.conn.cursor() as cur:
+                    cur.execute(sql)
+                    for (x,) in cur.fetchall():
+                        c = a_corrida(x)
+                        if c:
+                            fijas.add(c)
+            except psycopg.errors.UndefinedTable:
+                pass
+            finally:
+                self.conn.rollback()           # no dejar la transacción abierta (idle_in_transaction)
+        consulta("SELECT corrida FROM gfs_corrida WHERE fijada OR estado IS NOT NULL", lambda t: t.astimezone(timezone.utc))
+        consulta("SELECT DISTINCT contexto->>'corrida' FROM nota WHERE contexto->>'corrida' ~ '^[0-9]{10}$'", clave_a_corrida)
+        if cfg.get("gfs_fijar_pronosticos", True):
+            consulta("SELECT DISTINCT capturado FROM pronostico_emision WHERE capturado > now() - interval '400 days'",
+                     corrida_al_publicar)
+        return fijas
+
+    def correr_gfs_pedidos(self):
+        """Corridas viejas del GFS que alguien pidió volver a dibujar (🕓 en el
+        pronóstico GFS): dibuja unos plazos de la más antigua pedida por vuelta."""
+        from ..cartas import descarga
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute("""SELECT corrida, plazo FROM gfs_corrida WHERE estado IN ('pendiente', 'dibujando')
+                               ORDER BY pedida LIMIT 1""")
+                fila = cur.fetchone()
+                if fila:
+                    cur.execute("UPDATE gfs_corrida SET estado = 'dibujando', actualizada = now() WHERE corrida = %s", (fila[0],))
+            self.conn.commit()
+        except psycopg.errors.UndefinedTable:
+            self.conn.rollback()
+            return 0
+        if not fila:
+            return 0
+        corrida, plazo = fila
+        cfg = cargar_config(os.environ.get("CARTAS_CONFIG", "/config/cartas.yaml"))
+        raiz = os.environ.get("ARCHIVO_DIR", "/archivo")
+        estado, error, hechos, total = "dibujando", None, None, None
+        with db.registrar_tarea(self.conn, "gfs_pedidos") as reg:
+            try:
+                hechos, total = descarga.dibujar_pedida(cfg, raiz, self.sesion, corrida, plazo)
+                reg["filas"] = hechos
+                if hechos >= total:
+                    estado = "lista"
+            except descarga.EnCurso:
+                return 0                            # la descarga normal está trabajando: en la próxima vuelta
+            except FileNotFoundError:
+                estado, error = "error", "NOAA no tiene esa corrida (guarda desde 2021)"
+            except ValueError as ex:
+                estado, error = "error", str(ex)[:300]
+            except Exception as ex:
+                estado, error = "error", f"falló la descarga o el dibujo: {str(ex)[:250]}"
+                reg["mensaje"] = error
+            with self.conn.cursor() as cur:
+                cur.execute("""UPDATE gfs_corrida SET estado = %s, error = %s, hechos = COALESCE(%s, hechos),
+                               actualizada = now() WHERE corrida = %s""", (estado, error, hechos, corrida))
+            self.conn.commit()
+        return hechos or 0
 
     def hubo_tormenta(self, desde, hasta, region):
         """Estaciones sinópticas de la región que informaron tormenta (tiempo
@@ -181,6 +269,8 @@ class Ingesta:
             return self.correr_pronosticos()
         if tarea == "cartas":
             return self.correr_cartas(desde, hasta if desde else None)
+        if tarea == "gfs_pedidos":
+            return self.correr_gfs_pedidos()
         if tarea == "indices":
             return self.correr_indices()
         if tarea == "bot":
