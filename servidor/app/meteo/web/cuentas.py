@@ -1222,6 +1222,56 @@ def borrar_nota(nota_id: int, request: Request):
 
 
 # ---------------------------------------------------------------------------
+# Capas de análisis sobre las cartas: una por persona, privada o compartida
+# ---------------------------------------------------------------------------
+def _ts_carta(ts):
+    try:
+        t = datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
+    except ValueError:
+        raise HTTPException(400, "ts inválido")
+    return (t if t.tzinfo else t.replace(tzinfo=timezone.utc)).astimezone(timezone.utc)
+
+
+@router.get("/api/yo/capas")
+def capas_de_la_hora(request: Request, ts: str):
+    """Las capas de una hora (todas las cartas): la propia (privada o no) y las
+    que los demás compartieron, con el nombre de quien la hizo."""
+    u = requiere_usuario(request)
+    t = _ts_carta(ts)
+    filas = _leer("""SELECT c.producto, c.usuario_id, us.nombre AS autor, c.compartida, c.dibujo, c.actualizado
+                     FROM carta_capa c JOIN usuario us ON us.id = c.usuario_id
+                     WHERE c.ts = %s AND (c.usuario_id = %s OR (c.compartida AND us.activo))
+                     ORDER BY us.nombre""", (t, u["id"]))
+    for f in filas:
+        f["mia"] = f.pop("usuario_id") == u["id"]
+    return {"ts": t, "capas": filas}
+
+
+@router.put("/api/yo/capa")
+async def guardar_capa(request: Request, producto: str, ts: str):
+    """Guarda la capa propia de una carta y hora: {"dibujo": {...}, "compartida": bool}.
+    Si queda vacía, se borra. Anda también en la copia pública (es de cada cuenta)."""
+    from .app import _producto_valido, _validar_dibujo
+    u = requiere_usuario(request)
+    _producto_valido(producto)
+    t = _ts_carta(ts)
+    datos = await request.json()
+    import json
+    if len(json.dumps(datos.get("dibujo") or {})) > 400_000:
+        raise HTTPException(400, "el dibujo es demasiado grande")
+    d = _validar_dibujo(datos.get("dibujo") or {})
+    compartida = bool(datos.get("compartida"))
+    if not d["elementos"]:
+        _escribir("DELETE FROM carta_capa WHERE usuario_id = %s AND producto = %s AND ts = %s", (u["id"], producto, t))
+        return {"ok": True, "elementos": 0}
+    _escribir("""INSERT INTO carta_capa (usuario_id, producto, ts, dibujo, compartida) VALUES (%s, %s, %s, %s, %s)
+                 ON CONFLICT (usuario_id, producto, ts) DO UPDATE
+                 SET dibujo = EXCLUDED.dibujo, compartida = EXCLUDED.compartida, actualizado = now()""",
+              (u["id"], producto, t, Jsonb(d), compartida))
+    return {"ok": True, "elementos": len(d["elementos"]), "compartida": compartida}
+
+
+# ---------------------------------------------------------------------------
 # Calibración compartida de las cartas sin coordenadas
 # ---------------------------------------------------------------------------
 @router.put("/api/yo/calibracion")

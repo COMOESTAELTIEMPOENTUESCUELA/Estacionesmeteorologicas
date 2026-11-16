@@ -922,6 +922,10 @@ img.con-fondo { background-color: #fff !important; background-size: 100% 100%; b
 .cp-graf { margin-top: 10px; width: 0; min-width: 100%; }
 .cp-graf-tit { font-weight: 600; margin: 4px 0 0; }
 .cp-panel { height: 130px; }
+.c-compartir { font-size: 12.5px; }
+.c-capas-otras { display: inline-flex; gap: 6px; flex-wrap: wrap; align-items: center; font-size: 12px; }
+.c-capas-otras label { display: inline-flex; gap: 3px; align-items: center; padding: 1px 7px; border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.18); cursor: pointer; white-space: nowrap; }
 .cp-obs-cab { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 #cp-obs { margin-top: 10px; }
 #cp-obs-ciudades { flex-wrap: wrap; max-width: 100%; }
@@ -2575,6 +2579,10 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
         <button class="boton solo-dibujo" id="c-limpiar" title="Borrar todo el dibujo de esta carta">Limpiar</button>
         <button class="boton" id="c-exportar" title="Descargar la carta con el dibujo, como imagen">⬇ PNG</button>
         <span class="tenue" id="c-dib-estado"></span>
+        <!-- Con sesión: la capa es de cada uno, privada salvo que se comparta -->
+        <label class="en-linea solo-dibujo c-compartir" id="c-compartir" hidden title="Si está tildado, los demás ven tu dibujo encima de esta carta (sin poder tocarlo)">
+          <input type="checkbox" id="c-compartir-chk"> 🔓 Compartir mi dibujo</label>
+        <span class="c-capas-otras" id="c-capas-otras"></span>
       </div>
       <div class="barra" id="c-medir-barra">
         <span class="tenue">Medir:</span>
@@ -4885,7 +4893,7 @@ async function cargarCartas() {
   document.querySelectorAll("#f-c-horas button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.h === $("#f-c-hora").value)));
   const titulo = fmtCartaTitulo.format(t);
   $("#c-titulo").innerHTML = `${esc(titulo.charAt(0).toUpperCase() + titulo.slice(1))} <span class="hora-utc">${String(t.getUTCHours()).padStart(2, "0")} UTC</span>`;
-  const r = await api(`/api/cartas?ts=${encodeURIComponent(t.toISOString())}`);
+  const [r] = await Promise.all([api(`/api/cartas?ts=${encodeURIComponent(t.toISOString())}`), cargarCapas(t)]);
   actualizarIndices();
   const placa = $("#f-c-vista").value === "placa";
   const deLaHora = r.productos.filter((p) => p.horas_utc.includes(t.getUTCHours()));
@@ -6130,9 +6138,51 @@ function escribirDibujoLocal(producto, ts, d) {
   if (d?.elementos.length) localStorage.setItem(claveLocal(producto, ts), JSON.stringify(d));
   else localStorage.removeItem(claveLocal(producto, ts));
 }
-// Lo que se ve de una carta: el oficial y, en la copia pública, el propio encima.
+// ---------- Capas por persona (con sesión) ----------
+// Cada uno dibuja en SU capa, guardada con su cuenta (también desde la copia
+// pública): privada, salvo que la comparta. Encima de la carta se ven, además,
+// el dibujo común de antes (p.dibujo) y las capas que compartieron los demás.
+const capasHora = new Map();        // ts ISO -> { producto: { mia, otras: [{autor, dibujo}] } }
+let capasOcultas = new Set();       // autores cuyas capas compartidas no se quieren ver
+try { capasOcultas = new Set(JSON.parse(localStorage.getItem("capas-ocultas") || "[]")); } catch (_) {}
+const conCapas = () => !!YO;
+async function cargarCapas(ts) {
+  if (!conCapas()) return;
+  const clave = new Date(ts).toISOString();
+  try {
+    const r = await api(`/api/yo/capas?ts=${encodeURIComponent(clave)}`);
+    const porCarta = {};
+    for (const c of r.capas) {
+      const x = porCarta[c.producto] || (porCarta[c.producto] = { mia: null, otras: [] });
+      if (c.mia) x.mia = { dibujo: c.dibujo, compartida: c.compartida };
+      else x.otras.push({ autor: c.autor, dibujo: c.dibujo });
+    }
+    capasHora.set(clave, porCarta);
+  } catch (_) { /* sin capas: se ve la carta igual */ }
+}
+const capasDe = (producto, ts) => (capasHora.get(new Date(ts).toISOString()) || {})[producto] || { mia: null, otras: [] };
+const otrasVisibles = (producto, ts) => capasDe(producto, ts).otras.filter((o) => !capasOcultas.has(o.autor));
+// Varios dibujos en uno solo (para la capa "de abajo" del visor, que no se toca).
+function unirDibujos(lista) {
+  const ds = lista.filter((d) => d?.elementos?.length);
+  return ds.length ? { ancho: DIB_ANCHO, alto: ds[0].alto, elementos: ds.flatMap((d) => d.elementos) } : null;
+}
+// Lo que se ve de una carta: el común, las capas compartidas de los demás y la
+// propia encima (sin sesión, en la copia pública: la del navegador).
 function dibujosDe(p, ts) {
+  if (conCapas()) {
+    const c = capasDe(p.id, ts);
+    return [p.dibujo, ...otrasVisibles(p.id, ts).map((o) => o.dibujo), c.mia?.dibujo].filter((d) => d?.elementos?.length);
+  }
   return [p.dibujo, dibujoPropioLocal() ? leerDibujoLocal(p.id, ts) : null].filter((d) => d?.elementos?.length);
+}
+// La barra del visor: compartir la propia y mostrar/ocultar las de los demás.
+function pintarControlesCapas() {
+  $("#c-compartir").hidden = !conCapas();
+  $("#c-compartir-chk").checked = !!dib.compartida;
+  const otras = conCapas() && dib.producto ? capasDe(dib.producto, dib.ts).otras : [];
+  $("#c-capas-otras").innerHTML = otras.length ? '<span class="tenue">Del grupo:</span>' + otras.map((o) =>
+    `<label title="El dibujo que compartió ${esc(o.autor)}"><input type="checkbox" data-capa-autor="${esc(o.autor)}"${capasOcultas.has(o.autor) ? "" : " checked"}> ✏️ ${esc(o.autor)}</label>`).join("") : "";
 }
 // Para la placa: el dibujo encima de la miniatura.
 const svgDibujo = (d) => `<svg viewBox="0 0 ${d.ancho} ${d.alto}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">${contenidoDibujo(d)}</svg>`;
@@ -6547,7 +6597,17 @@ function cargarDibujoVisor(p) {
   dib.centroElegido = -1;
   dib.producto = p.id;
   dib.ts = tsCarta().toISOString();
-  if (dibujoPropioLocal()) {          // copia pública: el oficial abajo (fijo), el propio para editar
+  dib.compartida = false;
+  dib.importarLocal = false;
+  if (conCapas()) {                   // con sesión: abajo (fijo) el común y lo compartido; la propia para editar
+    const c = capasDe(p.id, dib.ts);
+    dib.base = unirDibujos([p.dibujo, ...otrasVisibles(p.id, dib.ts).map((o) => o.dibujo)]);
+    dib.dibujo = c.mia ? JSON.parse(JSON.stringify(c.mia.dibujo)) : null;
+    dib.compartida = !!c.mia?.compartida;
+    // Lo que había dibujado en este navegador antes de tener cuenta: pasa a su capa.
+    const local = !c.mia && leerDibujoLocal(p.id, dib.ts);
+    if (local?.elementos?.length) { dib.dibujo = local; dib.importarLocal = true; dib.sucio = true; }
+  } else if (dibujoPropioLocal()) {   // copia pública sin sesión: el oficial abajo (fijo), el propio para editar
     dib.base = p.dibujo || null;
     dib.dibujo = leerDibujoLocal(p.id, dib.ts);
   } else {
@@ -6556,7 +6616,10 @@ function cargarDibujoVisor(p) {
   }
   dib.historia = [];
   dib.actual = null;
-  $("#c-dib-estado").textContent = dibujoPropioLocal() ? "tus dibujos se guardan solo en este navegador" : "";
+  $("#c-dib-estado").textContent = conCapas() ? (dib.importarLocal ? "pasando a tu cuenta lo dibujado en este navegador…" : dib.compartida ? "tu dibujo · compartido" : "tu dibujo · privado")
+    : dibujoPropioLocal() ? "tus dibujos se guardan solo en este navegador (entrá con tu usuario para tenerlos en cualquier compu)" : "";
+  pintarControlesCapas();
+  if (dib.importarLocal) setTimeout(guardarDibujoYa, 0);
   const img = $("#c-vista img");
   const listo = async () => {
     dib.alto = dib.dibujo?.alto || dib.base?.alto || Math.round(DIB_ANCHO * img.naturalHeight / img.naturalWidth) || 750;
@@ -6666,6 +6729,23 @@ async function guardarDibujoYa() {
   if (!dib.sucio || !dib.producto) return;
   dib.sucio = false;
   const { producto, ts } = dib, dibujo = dib.dibujo || { ancho: DIB_ANCHO, alto: dib.alto, elementos: [] };
+  if (conCapas()) {
+    const compartida = !!dib.compartida, importada = dib.importarLocal;
+    $("#c-dib-estado").textContent = "guardando…";
+    try {
+      await apiEnviar(`/api/yo/capa?producto=${encodeURIComponent(producto)}&ts=${encodeURIComponent(ts)}`, "PUT", { dibujo, compartida });
+      const porCarta = capasHora.get(new Date(ts).toISOString()) || {};
+      capasHora.set(new Date(ts).toISOString(), porCarta);
+      const x = porCarta[producto] || (porCarta[producto] = { mia: null, otras: [] });
+      x.mia = dibujo.elementos.length ? { dibujo: JSON.parse(JSON.stringify(dibujo)), compartida } : null;
+      if (importada) { try { escribirDibujoLocal(producto, ts, null); } catch (_) {} dib.importarLocal = false; }
+      if (dib.producto === producto) $("#c-dib-estado").textContent = `guardado ✓ · ${compartida ? "compartido con el grupo" : "privado (solo vos)"}`;
+    } catch (err) {
+      dib.sucio = true;
+      $("#c-dib-estado").textContent = "no se pudo guardar: " + err.message;
+    }
+    return;
+  }
   if (dibujoPropioLocal()) {
     try {
       escribirDibujoLocal(producto, ts, dibujo);
@@ -6751,6 +6831,22 @@ function iniciarHerramientas() {
   $("#c-m-borrar").addEventListener("click", () => { med.lista = []; med.actual = null; pintarDibujoVisor(); dibujarResultados(); });
   $("#c-m-horas").addEventListener("input", dibujarResultados);
   $("#c-deshacer").addEventListener("click", deshacerDibujo);
+  // Compartir (o no) la capa propia de esta carta.
+  $("#c-compartir-chk").addEventListener("change", (e) => {
+    dib.compartida = e.target.checked;
+    if (dib.dibujo?.elementos.length) programarGuardado();
+    else $("#c-dib-estado").textContent = dib.compartida ? "se va a compartir cuando dibujes" : "tu dibujo · privado";
+  });
+  // Ver u ocultar la capa que compartió alguien del grupo.
+  $("#c-capas-otras").addEventListener("change", (e) => {
+    const autor = e.target.dataset?.capaAutor;
+    if (!autor) return;
+    if (e.target.checked) capasOcultas.delete(autor); else capasOcultas.add(autor);
+    try { localStorage.setItem("capas-ocultas", JSON.stringify([...capasOcultas])); } catch (_) {}
+    const p = cartasHora.find((c) => c.id === dib.producto);
+    dib.base = unirDibujos([p?.dibujo, ...otrasVisibles(dib.producto, dib.ts).map((o) => o.dibujo)]);
+    pintarDibujoVisor();
+  });
   $("#c-limpiar").addEventListener("click", () => {
     if (dib.dibujo?.elementos.length && confirm("¿Borrar todo el dibujo de esta carta?")) cambiarDibujo((el) => el.splice(0));
   });
@@ -7336,6 +7432,10 @@ async function cargarCuenta() {
   try { CUENTA = await api("/api/yo"); } catch (_) { return; }
   YO = CUENTA.usuario;
   FOTOS = CUENTA.fotos || {};
+  // Si las cartas se cargaron antes de saber quién es: volver a cargarlas con sus capas.
+  // (solo si ya hay una fecha elegida: si no, las cartas todavía están arrancando y van a cargar las capas solas).
+  if (YO && typeof cargadas !== "undefined" && cargadas.cartas && typeof cargarCartas === "function"
+      && $("#f-c-fecha")?.value && !isNaN(tsCarta())) cargarCartas();
   const c = $("#cuenta");
   if (YO) {
     c.innerHTML = `<span>👤 ${esc(YO.nombre)}</span><button class="boton" id="cuenta-clave" title="${YO.tiene_clave ? "Cambiar mi contraseña" : "Ponerme una contraseña (para entrar sin Google)"}">🔑</button><button class="boton" id="cuenta-salir">Salir</button>`;

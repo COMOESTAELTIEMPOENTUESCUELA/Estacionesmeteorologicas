@@ -790,3 +790,53 @@ def test_claves_iniciales_para_el_lanzamiento(cliente, cuentas, capsys):
             conn.execute("UPDATE usuario SET clave = NULL, clave_temporal = false")
             conn.commit()
         cliente.cookies.clear()
+
+
+def test_capas_de_dibujo_por_persona(cliente, cuentas, monkeypatch, tmp_path):
+    """Cada uno dibuja en su capa: privada (los demás no la ven), compartida
+    (la ven con su nombre, sin poder tocarla), vacía = borrada. Anda también
+    en la copia pública, y sin sesión no."""
+    from meteo.web import app as web
+    cfg = tmp_path / "cartas.yaml"
+    cfg.write_text("productos:\n  - {id: b_rv, nombre: V, fuente: bentley, dominio: southamer, variable: rel_vort}\n")
+    monkeypatch.setattr(web, "CARTAS_CONFIG", str(cfg))
+    m = cuentas
+    q = {"producto": "b_rv", "ts": "2026-10-12T12:00:00Z"}
+    frente = {"ancho": 1000, "alto": 750, "elementos": [{"tipo": "frente", "clase": "frio", "lado": 1, "puntos": [[100, 100], [300, 250]]}]}
+    centro = {"ancho": 1000, "alto": 750, "elementos": [{"tipo": "centro", "letra": "A", "x": 500, "y": 400}]}
+    try:
+        cliente.cookies.clear()
+        assert cliente.put("/api/yo/capa", params=q, json={"dibujo": frente}, headers=X).status_code == 401
+        ingresar(cliente, cuentas, monkeypatch, "ana@gmail.com")
+        assert cliente.put("/api/yo/capa", params=q, json={"dibujo": frente}).status_code == 403          # sin X-Pedido
+        assert cliente.put("/api/yo/capa", params=q, json={"dibujo": frente}, headers=X).json()["elementos"] == 1
+        assert cliente.put("/api/yo/capa", params={**q, "producto": "otra"}, json={"dibujo": frente}, headers=X).status_code == 404
+        assert cliente.put("/api/yo/capa", params=q, json={"dibujo": {**frente, "elementos": [{"tipo": "<script>"}]}},
+                           headers=X).status_code == 400
+        [mia] = cliente.get("/api/yo/capas", params={"ts": q["ts"]}).json()["capas"]
+        assert mia["mia"] and not mia["compartida"] and mia["autor"] == "Ana"
+        # Beto no la ve (privada); dibuja la suya en la misma carta: no pisa la de Ana.
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "beto@gmail.com")
+        assert cliente.get("/api/yo/capas", params={"ts": q["ts"]}).json()["capas"] == []
+        cliente.put("/api/yo/capa", params=q, json={"dibujo": centro}, headers=X)
+        # Ana la comparte: Beto la ve, con su nombre, y no es "mía".
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "ana@gmail.com")
+        assert cliente.get("/api/yo/capas", params={"ts": q["ts"]}).json()["capas"][0]["dibujo"]["elementos"][0]["tipo"] == "frente"
+        cliente.put("/api/yo/capa", params=q, json={"dibujo": frente, "compartida": True}, headers=X)
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "beto@gmail.com")
+        capas = {(c["autor"], c["mia"]): c for c in cliente.get("/api/yo/capas", params={"ts": q["ts"]}).json()["capas"]}
+        assert set(capas) == {("Ana", False), ("Beto", True)}
+        assert capas[("Beto", True)]["dibujo"]["elementos"][0]["tipo"] == "centro"          # la suya, intacta
+        # En la copia pública también se guarda (es de cada cuenta); vacía = se borra.
+        monkeypatch.setattr(web, "WEB_MODO", "cartas")
+        assert cliente.put("/api/yo/capa", params=q, json={"dibujo": {**centro, "elementos": []}}, headers=X).json()["elementos"] == 0
+        assert [c["autor"] for c in cliente.get("/api/yo/capas", params={"ts": q["ts"]}).json()["capas"]] == ["Ana"]
+    finally:
+        monkeypatch.setattr(web, "WEB_MODO", "completo")
+        with m._pools["e"].connection() as conn:
+            conn.execute("DELETE FROM carta_capa")
+            conn.commit()
+        cliente.cookies.clear()

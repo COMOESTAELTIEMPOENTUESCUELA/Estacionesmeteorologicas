@@ -318,6 +318,25 @@ SYNOP (mapas de Ogimet). Se recuerda en el navegador. El grupo sale de la
   cambian la hora *sin perder el zoom* (sirve para seguir un sistema sobre
   la misma zona) y **↑ ↓** pasan a la carta siguiente.
 
+## Dibujos: una capa por persona
+
+Con la sesión iniciada, lo que cada uno dibuja sobre una carta (frentes,
+centros, textos, flechas) queda en **su capa**, guardada con su cuenta: se ve
+igual desde cualquier compu, también desde la copia pública.
+
+- **Privada por defecto.** Con **🔓 Compartir mi dibujo** (en la barra del
+  visor) la ven los demás encima de esa carta, con su nombre, sin poder tocarla.
+- **"Del grupo:"** lista las capas que compartieron los demás en esa carta;
+  cada una se puede ocultar o mostrar (se recuerda en el navegador).
+- Dos personas en la misma carta no se pisan: cada una edita solo la suya.
+- Lo que alguien había dibujado en su navegador antes de tener cuenta pasa
+  solo a su capa la primera vez que abre esa carta con la sesión iniciada.
+- Sin sesión, todo sigue como antes: en la copia pública se guarda en el
+  navegador; en el visualizador completo, el **dibujo común** de cada carta
+  (`carta_dibujo`), que con sesión se ve debajo de las capas.
+- En la base: `carta_capa` (usuario, carta, hora, dibujo, compartida).
+  `GET /api/yo/capas?ts=` y `PUT /api/yo/capa?producto=&ts=`.
+
 ## Herramientas de análisis
 
 - **Dibujar** (visor grande, barra "Dibujar"): frentes frío, cálido,

@@ -180,3 +180,18 @@ CREATE TABLE IF NOT EXISTS carta_calibracion (
     por         text,
     actualizada timestamptz NOT NULL DEFAULT now()
 );
+
+-- Capas de análisis sobre las cartas, UNA POR PERSONA (frentes, centros,
+-- notas): privada por defecto; "compartida" la ven los demás encima de la
+-- carta (sin poder tocarla). Reemplaza al dibujo único de carta_dibujo, que
+-- queda como "dibujo común" anterior.
+CREATE TABLE IF NOT EXISTS carta_capa (
+    usuario_id  int         NOT NULL REFERENCES usuario(id) ON DELETE CASCADE,
+    producto    text        NOT NULL,
+    ts          timestamptz NOT NULL,
+    dibujo      jsonb       NOT NULL,
+    compartida  boolean     NOT NULL DEFAULT false,
+    actualizado timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (usuario_id, producto, ts)
+);
+CREATE INDEX IF NOT EXISTS carta_capa_ts ON carta_capa (ts);
