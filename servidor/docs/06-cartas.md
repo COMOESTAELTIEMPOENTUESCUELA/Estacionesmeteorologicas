@@ -338,6 +338,12 @@ SYNOP (mapas de Ogimet). Se recuerda en el navegador. El grupo sale de la
   (sale a los 350 ms con el mouse; en el celular, manteniendo apretado medio
   segundo, y ese toque no activa el botón). Para explicar un botón nuevo alcanza
   con ponerle `title="…"`.
+- **Atrás y adelante del navegador**: cada cambio de sección, parte, pestaña
+  de Diagnóstico o vista del Grupo suma un paso al historial (`anotarLugar`),
+  así «atrás» vuelve al lugar anterior y a la misma altura de la página, en vez
+  de salir. La fecha/hora de Diagnóstico y el día de la Agenda se recuerdan sin
+  sumar pasos. Abrir el visor, la ayuda o la placa también suma un paso:
+  «atrás» los cierra (y cerrarlos con ✕ lo saca).
 - En las tarjetas de pronóstico, los botones del modelo van juntos en el bloque
   violeta **Modelo GFS** (📈 Comparar, solo en Modo Análisis, y 🌐 Cartas).
 

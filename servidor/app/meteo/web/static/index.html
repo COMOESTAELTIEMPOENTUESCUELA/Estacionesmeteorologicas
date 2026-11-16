@@ -3485,7 +3485,7 @@ function marcarNav() {
   }
   // La dirección refleja dónde se está (para compartir el link o volver con "atrás" del navegador).
   const h = "#" + (g === "ahora" && pestanaActual !== "mapa" ? pestanaActual : { ahora: "ahora", analisis: "analisis", pronostico: "pronostico", verif: "verificacion", grupo: "grupo" }[g]);
-  if (location.hash !== h && !location.search.includes("compartir_")) history.replaceState(null, "", location.pathname + location.search + h);
+  if (!location.search.includes("compartir_")) anotarLugar(location.pathname + location.search + h);
 }
 document.querySelectorAll("#nav-principal button").forEach((b) => b.addEventListener("click", () => irGrupo(b.dataset.grupo)));
 // Ir a la sección que dice la dirección (#analisis, #pronostico, #verificacion, #grupo, #smn...),
@@ -5267,6 +5267,7 @@ function verDiag(sec) {
     else el.classList.toggle("ds-oculta", el.dataset.dsec !== sec);
   });
   try { localStorage.setItem("diag-seccion", sec); } catch (_) {}
+  if (typeof anotarLugar === "function") setTimeout(() => anotarLugar(), 0);
   // Los gráficos dibujados mientras estaban ocultos se reacomodan al aparecer.
   setTimeout(() => window.dispatchEvent(new Event("resize")), 0);
 }
@@ -9227,6 +9228,7 @@ async function cargarFilas() {
 // ----- Navegación entre secciones -----
 function verRed(v, cargar = true) {
   red.vista = v;
+  setTimeout(() => anotarLugar(), 0);
   setTimeout(marcarBarraAbajo, 0);
   document.querySelectorAll("#red-nav button").forEach((b) => b.classList.toggle("activa", b.dataset.rv === v));
   document.querySelectorAll("#tab-perfil .rv").forEach((x) => (x.hidden = x.id !== `rv-${v}`));
@@ -10285,10 +10287,110 @@ async function abrirContexto(c) {
   }
   cargarCuenta();
   irAlEnlace(true);
-  window.addEventListener("hashchange", () => irAlEnlace(false));      // un link con # dentro de la página, o "atrás"
+  setTimeout(() => { hist.listo = true; }, 1500);      // lo que pasa mientras carga no suma pasos al historial
   cargarMapa().catch((e) => { $("#lista").innerHTML = `<p>Error cargando estaciones: ${esc(e.message)}</p>`; });
   setInterval(() => { cargarMapa(); if (cargadas.estado) cargarEstado(); }, 5 * 60e3);  // refresca cada 5 min
 })();
+
+// ----- Atrás y adelante del navegador -----
+// Cada cambio de LUGAR (sección, parte, pestaña de Diagnóstico, vista del
+// Grupo) suma un paso al historial: «atrás» vuelve al lugar anterior (y a la
+// misma altura de la página) en vez de salir de la página. Los cuadros grandes
+// (visor de cartas, ayuda, placa) también suman un paso: «atrás» los cierra.
+// La fecha y la hora de Diagnóstico se recuerdan, pero cambiarlas no suma pasos.
+const hist = { listo: false, restaurando: false, cerrandoPorAtras: false, reloj: null };
+try { history.scrollRestoration = "manual"; } catch (_) {}
+function lugarActual() {
+  const l = { tab: pestanaActual };
+  if (pestanaActual === "cartas") {
+    l.cv = vistaCartas();
+    if (l.cv === "diag") l.ds = document.querySelector('#diag-nav [aria-selected="true"]')?.dataset.dsec || "cartas";
+  }
+  if (pestanaActual === "perfil" && typeof red !== "undefined") {
+    l.rv = red.vista;
+    if (red.vista === "perfil") l.quien = red.perfil?.quien?.id ?? (red.perfil?.quien ? "f:" + red.perfil.quien.nombre : null);
+  }
+  return l;
+}
+const mismoLugar = (a, b) => !!a && !!b && JSON.stringify(a) === JSON.stringify(b);
+function datosDelLugar(l = lugarActual()) {          // lo que se recuerda del lugar sin que sea un paso nuevo
+  if (l?.cv === "diag") return { f: $("#f-c-fecha")?.value, h: $("#f-c-hora")?.value };
+  if (l?.rv === "agenda") return { dia: agenda.dia || null };
+  return {};
+}
+function anotarLugar(url = location.pathname + location.search + location.hash) {
+  if (hist.restaurando || typeof pestanaActual === "undefined") return;
+  const l = lugarActual(), st = history.state || {};
+  if (!hist.listo || mismoLugar(st.lugar, l) || !st.lugar) {
+    history.replaceState({ ...st, lugar: l, ...datosDelLugar() }, "", url);
+    return;
+  }
+  clearTimeout(hist.reloj);
+  history.replaceState({ ...st, ...datosDelLugar(st.lugar) }, "");      // cómo quedó el lugar que se deja
+  history.pushState({ lugar: l, scroll: 0, ...datosDelLugar() }, "", url);
+}
+// La altura de la página y la fecha de Diagnóstico se van guardando en el paso actual.
+addEventListener("scroll", () => {
+  clearTimeout(hist.reloj);
+  hist.reloj = setTimeout(() => {
+    if (!history.state?.lugar || hist.restaurando) return;
+    history.replaceState({ ...history.state, scroll: Math.round(scrollY), ...datosDelLugar() }, "");
+  }, 250);
+}, { passive: true });
+function restaurarLugar(st) {
+  const l = st.lugar;
+  const cambiaFecha = l.cv === "diag" && st.f && (st.f !== $("#f-c-fecha").value || st.h !== $("#f-c-hora").value);
+  const cambiaDia = l.rv === "agenda" && st.dia && st.dia !== agenda.dia;
+  if (mismoLugar(lugarActual(), l) && !cambiaFecha && !cambiaDia) return;
+  hist.restaurando = true;
+  try {
+    if (l.tab === "cartas") {
+      if (pestanaActual !== "cartas") abrir("cartas");
+      verSeccionCartas(l.cv);
+      if (l.cv === "diag") {
+        verDiag(l.ds);
+        if (st.f && (st.f !== $("#f-c-fecha").value || st.h !== $("#f-c-hora").value)) { $("#f-c-fecha").value = st.f; $("#f-c-hora").value = st.h; cargarCartas(); }
+      }
+    } else if (l.tab === "perfil") {
+      if (pestanaActual !== "perfil") abrir("perfil");
+      const yaEsta = (v) => !!document.querySelector(`#rv-${v} .postit, #rv-${v} .persona`);
+      if (l.rv === "perfil" && l.quien !== undefined && l.quien !== null && String(red.perfil?.quien?.id) !== String(l.quien)) abrirPerfil(l.quien);
+      else if (l.rv === "agenda") { verRed("agenda", !agenda.mes); if (cambiaDia) { agenda.mes = st.dia.slice(0, 7); cargarAgenda().then(() => abrirDiaAgenda(st.dia)); } }
+      else if (l.rv === "dia" && !red.dia) verRed("inicio");
+      else verRed(l.rv, !yaEsta(l.rv));
+    } else abrir(l.tab);
+  } finally {
+    setTimeout(() => { hist.restaurando = false; }, 100);
+  }
+  const y = st.scroll || 0, ir = (n) => { scrollTo(0, y); if (Math.abs(scrollY - y) > 40 && n) setTimeout(() => ir(n - 1), 250); };
+  setTimeout(() => ir(8), 120);
+}
+const DIALOGOS_HIST = ["c-dialogo", "d-ayuda", "d-placa"];
+for (const id of DIALOGOS_HIST) {
+  const d = document.getElementById(id);
+  if (!d) continue;
+  new MutationObserver(() => {
+    if (d.open && history.state?.dialogo !== id && hist.listo) history.pushState({ ...(history.state || {}), dialogo: id }, "");
+  }).observe(d, { attributes: true, attributeFilter: ["open"] });
+  d.addEventListener("close", () => {
+    if (!hist.cerrandoPorAtras && history.state?.dialogo === id) { hist.saltar = true; history.back(); }   // se cerró con ✕ o Esc: se saca su paso
+  });
+}
+addEventListener("popstate", (e) => {
+  const st = e.state || {};
+  if (hist.saltar) {                                   // vuelta por haber cerrado un cuadro: se queda donde está
+    hist.saltar = false;
+    if (st.lugar) history.replaceState({ ...st, ...datosDelLugar(st.lugar) }, "");
+    return;
+  }
+  const abierto = DIALOGOS_HIST.map((id) => document.getElementById(id)).find((d) => d?.open && st.dialogo !== d.id);
+  if (abierto) {                                       // «atrás» con un cuadro abierto: se cierra y nada más
+    hist.cerrandoPorAtras = true; abierto.close(); hist.cerrandoPorAtras = false;
+    return;
+  }
+  if (st.lugar) restaurarLugar(st);
+  else irAlEnlace(false);                              // un enlace con # dentro de la página
+});
 
 // ----- Ayuda: «Cómo funciona» (botón ❓ de arriba, o la dirección #ayuda) -----
 (function () {
