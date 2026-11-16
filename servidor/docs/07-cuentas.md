@@ -279,6 +279,16 @@ docker compose exec web python -m meteo.web.cuentas clave --email dylan@hotmail.
 docker compose exec web python -m meteo.web.cuentas clave --email dylan@hotmail.com
 ```
 
+**Para el lanzamiento, a todos de una vez:** una clave temporal DISTINTA a
+cada usuario activo que todavía no tiene (no la misma para todos: con una
+común, cualquiera podría entrar como otro hasta que la cambie). Se muestran
+una sola vez, en una tabla, para pasarle a cada uno la suya por privado.
+
+```bash
+docker compose exec web python -m meteo.web.cuentas claves-iniciales
+# (con --todos, también a los que ya tenían: se las reemplaza)
+```
+
 La que pone el administrador es **temporal**: al entrar, la página pide
 elegir una propia (10 caracteres o más). Cada uno la cambia cuando quiera con 🔑.
 

@@ -1561,15 +1561,43 @@ def admin_tabla(request: Request, tabla: str, pagina: int = 0, orden: str = "", 
 # ---------------------------------------------------------------------------
 # Alta y baja de usuarios (desde la terminal del servidor)
 # ---------------------------------------------------------------------------
+def clave_al_azar():
+    """Contraseña temporal: 4 grupos de 4 letras/números, sin los que se
+    confunden (l/1, o/0). Fácil de dictar, difícil de adivinar."""
+    letras = "abcdefghjkmnpqrstuvwxyz23456789"
+    return "-".join("".join(secrets.choice(letras) for _ in range(4)) for _ in range(4))
+
+
+def claves_iniciales(conn, todos=False):
+    """Para el lanzamiento: una contraseña temporal DISTINTA a cada usuario
+    activo que todavía no tiene (con todos=True, a todos). Al entrar, la página
+    le pide elegir una propia. Se imprime una sola vez y no queda guardada."""
+    filas = conn.execute(f"""SELECT id, email, nombre, nombre_usuario FROM usuario WHERE activo
+                             {"" if todos else "AND clave IS NULL"} ORDER BY nombre""").fetchall()
+    if not filas:
+        print("No hay usuarios activos sin clave (con --todos se les genera a todos).")
+        return 0
+    print(f"{'Nombre':24} {'Usuario':16} {'Mail':34} Clave temporal")
+    for u in filas:
+        clave = clave_al_azar()
+        conn.execute("UPDATE usuario SET clave = %s, clave_temporal = true WHERE id = %s", (huella_clave(clave), u["id"]))
+        conn.execute("DELETE FROM sesion WHERE usuario_id = %s", (u["id"],))
+        print(f"{u['nombre'][:24]:24} {(u['nombre_usuario'] or '-')[:16]:16} {u['email'][:34]:34} {clave}")
+    print(f"\n{len(filas)} claves temporales. Pasale a cada uno la suya por un canal privado: al entrar,")
+    print("la página le pide cambiarla. No quedan guardadas en ningún lado (si se pierde, se genera otra).")
+    return 0
+
+
 def main(argv=None):
     """docker compose exec web python -m meteo.web.cuentas agregar --email ... --nombre ... [--firma Mate] [--rol coordinador]
     docker compose exec web python -m meteo.web.cuentas listar
-    docker compose exec web python -m meteo.web.cuentas desactivar --email ..."""
+    docker compose exec web python -m meteo.web.cuentas desactivar --email ...
+    docker compose exec web python -m meteo.web.cuentas claves-iniciales   (una clave temporal a cada uno que no tenga)"""
     import psycopg
     from psycopg.rows import dict_row
     ap = argparse.ArgumentParser(prog="python -m meteo.web.cuentas", description=main.__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("comando", choices=["agregar", "listar", "desactivar", "activar", "clave"])
+    ap.add_argument("comando", choices=["agregar", "listar", "desactivar", "activar", "clave", "claves-iniciales"])
     ap.add_argument("--email")
     ap.add_argument("--nombre")
     ap.add_argument("--rol", choices=["pronosticador", "coordinador", "admin"], default="pronosticador")
@@ -1578,6 +1606,8 @@ def main(argv=None):
     ap.add_argument("--con-clave", action="store_true",
                     help="al agregar, generarle también una contraseña temporal")
     ap.add_argument("--usuario", help="nombre de usuario para entrar sin escribir el mail (ej. meteodylan)")
+    ap.add_argument("--todos", action="store_true",
+                    help="con 'claves-iniciales': también a los que ya tienen clave (se la reemplaza)")
     ap.add_argument("--elegir", action="store_true",
                     help="con 'clave': escribir vos la contraseña (la pide sin mostrarla) en vez de generarla al azar")
     a = ap.parse_args(argv)
@@ -1590,6 +1620,8 @@ def main(argv=None):
                 print(f"{u['email']:35} {u['nombre_usuario'] or '-':14} {u['nombre']:20} {u['rol']:13} firmas={','.join(u['firmas']) or '-':20} "
                       f"{'activo' if u['activo'] else 'INACTIVO'}  {cl:20} último ingreso: {u['ultimo_ingreso'] or '-'}")
             return
+        if a.comando == "claves-iniciales":
+            return claves_iniciales(conn, todos=a.todos)
         if not a.email:
             ap.error("falta --email")
         email = a.email.strip().lower()
@@ -1608,9 +1640,7 @@ def main(argv=None):
                          (email, a.nombre, a.rol, a.firma, usuario))
             print(f"listo: {email} ({a.rol}) puede ingresar")
         if a.comando == "clave" or (a.comando == "agregar" and a.con_clave):
-            # Contraseña temporal al azar: 4 grupos de 4 letras/números (fácil de dictar, difícil de adivinar).
-            letras = "abcdefghjkmnpqrstuvwxyz23456789"
-            clave = "-".join("".join(secrets.choice(letras) for _ in range(4)) for _ in range(4))
+            clave = clave_al_azar()
             if a.elegir:
                 # Se pide sin mostrarla y sin pasarla en el comando (no queda en el historial de la terminal).
                 import getpass

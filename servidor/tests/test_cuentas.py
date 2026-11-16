@@ -763,3 +763,30 @@ def test_placa_del_pronostico(cliente, cuentas, monkeypatch):
     html = cliente.get("/placa.html").text
     assert 'id="placa-1"' in html and 'id="placa-2"' in html and "contenteditable" not in html
     assert "/api/yo/pronostico/placa" in html
+
+
+def test_claves_iniciales_para_el_lanzamiento(cliente, cuentas, capsys):
+    """Una clave temporal DISTINTA a cada uno que no tiene; los que ya tienen
+    no se tocan (salvo --todos); y cada uno entra con la suya."""
+    m = cuentas
+    try:
+        m.main(["clave", "--email", "beto@gmail.com"])            # Beto ya tiene clave: no se la cambia
+        capsys.readouterr()
+        assert m.main(["claves-iniciales"]) == 0
+        sal = capsys.readouterr().out
+        filas = {l.split()[-2]: l.split()[-1] for l in sal.splitlines() if "@" in l}   # mail -> clave
+        assert "beto@gmail.com" not in filas and "ana@gmail.com" in filas
+        assert len(set(filas.values())) == len(filas)                # todas distintas
+        temp = m._leer("SELECT email, clave_temporal FROM usuario WHERE activo AND email = ANY(%s)", (list(filas),))
+        assert all(u["clave_temporal"] for u in temp)
+        cliente.cookies.clear()
+        r = cliente.post("/auth/clave", json={"email": "ana@gmail.com", "clave": filas["ana@gmail.com"]}, headers=X)
+        assert r.status_code == 200 and r.json()["temporal"] is True
+        # Repetir: ya no queda nadie sin clave.
+        m.main(["claves-iniciales"])
+        assert "No hay usuarios activos sin clave" in capsys.readouterr().out
+    finally:
+        with m._pools["e"].connection() as conn:
+            conn.execute("UPDATE usuario SET clave = NULL, clave_temporal = false")
+            conn.commit()
+        cliente.cookies.clear()
