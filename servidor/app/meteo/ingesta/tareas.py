@@ -31,13 +31,6 @@ def clave_a_corrida(clave):
     return t if t.hour % 6 == 0 else None
 
 
-def corrida_al_publicar(capturado):
-    """La corrida del GFS que estaba disponible al publicar un pronóstico (sale
-    ~5 h después de su hora de inicio): la misma cuenta que web/cuentas.py."""
-    t = capturado.astimezone(timezone.utc) - timedelta(hours=5)
-    return t.replace(hour=t.hour - t.hour % 6, minute=0, second=0, microsecond=0)
-
-
 RECOLECTORES = {
     "thingspeak": thingspeak,
     "wunderground": wunderground,
@@ -168,15 +161,16 @@ class Ingesta:
                 reg["filas"] = sum(r.values())
             else:
                 reg["filas"] = descarga.correr(cfg, raiz, self.sesion, tormenta=self.hubo_tormenta,
-                                               fijas=lambda: self.corridas_fijas(cfg))
+                                               fijas=lambda: self.corridas_fijas(cfg, raiz))
 
-    def corridas_fijas(self, cfg):
+    def corridas_fijas(self, cfg, raiz):
         """Corridas del GFS cuyas cartas de pronóstico NO se borran a los 8 días:
         - las fijadas a mano (📌) y las vueltas a dibujar a pedido;
         - las que usa alguna nota (la abrió desde el pronóstico GFS: su contexto
           dice qué corrida);
         - con `gfs_fijar_pronosticos` (cartas.yaml, sí por omisión), la que había
-          cuando se publicó cada pronóstico del grupo (la que compara «🌐 GFS»).
+          cuando se publicó cada pronóstico del grupo (la que compara «🌐 GFS»:
+          puntos.corrida_al_publicar, que si esa corrida no se dibujó cae a la anterior).
         Si una tabla no existe todavía (base sin cuentas), se sigue sin ella."""
         fijas = set()
         def consulta(sql, a_corrida):
@@ -194,8 +188,9 @@ class Ingesta:
         consulta("SELECT corrida FROM gfs_corrida WHERE fijada OR estado IS NOT NULL", lambda t: t.astimezone(timezone.utc))
         consulta("SELECT DISTINCT contexto->>'corrida' FROM nota WHERE contexto->>'corrida' ~ '^[0-9]{10}$'", clave_a_corrida)
         if cfg.get("gfs_fijar_pronosticos", True):
+            from ..cartas import puntos
             consulta("SELECT DISTINCT capturado FROM pronostico_emision WHERE capturado > now() - interval '400 days'",
-                     corrida_al_publicar)
+                     lambda cap: puntos.corrida_al_publicar(raiz, cap))
         return fijas
 
     def correr_gfs_pedidos(self):
@@ -226,7 +221,7 @@ class Ingesta:
                 if hechos >= total:
                     estado = "lista"
             except descarga.EnCurso:
-                return 0                            # la descarga normal está trabajando: en la próxima vuelta
+                estado = "pendiente"                # la descarga normal está trabajando: en la próxima vuelta
             except FileNotFoundError:
                 estado, error = "error", "NOAA no tiene esa corrida (guarda desde 2021)"
             except ValueError as ex:

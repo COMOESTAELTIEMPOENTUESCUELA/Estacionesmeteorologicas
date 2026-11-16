@@ -424,3 +424,29 @@ def test_dibujar_corrida_vieja_a_pedido(tmp_path, monkeypatch):
         descarga.dibujar_pedida(cfg, tmp_path, None, actual)
     with pytest.raises(FileNotFoundError):
         descarga.dibujar_pedida(cfg, tmp_path, None, datetime(2020, 5, 1, tzinfo=UTC))
+
+
+def test_corrida_redibujada_sobrevive_a_la_siguiente_publicacion(tmp_path):
+    """Una corrida vieja vuelta a dibujar (json en corridas/ e imágenes sueltas)
+    queda en la carpeta nueva cuando llega la corrida siguiente, si está en fijas."""
+    from meteo.cartas import pronostico
+    UTC = timezone.utc
+    actual, vieja = datetime(2026, 11, 15, 6, tzinfo=UTC), datetime(2026, 10, 20, 0, tzinfo=UTC)
+    tmp = pronostico.empezar(tmp_path, "g")
+    (tmp / pronostico.nombre("g", actual, 0)).write_bytes(b"a")
+    pronostico.publicar(tmp_path, "g", tmp, actual, [(0, actual, pronostico.nombre("g", actual, 0))])
+    nom = pronostico.nombre("g", vieja, 48)
+    (pronostico.carpeta(tmp_path, "g") / nom).write_bytes(b"v")
+    pronostico.agregar_al_historial(tmp_path, "g", vieja, [(48, vieja + timedelta(hours=48), nom)], 33)
+    assert [d["inicio"][:10] for d in pronostico.corridas(tmp_path, "g")] == ["2026-11-15", "2026-10-20"]
+    # Llega la corrida siguiente: la redibujada (vieja) se mantiene solo si está en fijas.
+    def siguiente(ini, fijas):
+        t = pronostico.empezar(tmp_path, "g")
+        (t / pronostico.nombre("g", ini, 0)).write_bytes(b"n")
+        pronostico.publicar(tmp_path, "g", t, ini, [(0, ini, pronostico.nombre("g", ini, 0))],
+                            conservar=timedelta(days=8), ahora=ini + timedelta(hours=5), fijas=fijas)
+    siguiente(actual + timedelta(hours=6), {vieja})
+    assert (pronostico.carpeta(tmp_path, "g") / nom).read_bytes() == b"v"
+    assert any(d["inicio"].startswith("2026-10-20") and d.get("redibujada") for d in pronostico.corridas(tmp_path, "g"))
+    siguiente(actual + timedelta(hours=12), set())
+    assert not (pronostico.carpeta(tmp_path, "g") / nom).exists()

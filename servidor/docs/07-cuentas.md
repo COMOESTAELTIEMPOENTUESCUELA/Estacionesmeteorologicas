@@ -256,6 +256,16 @@ Las privadas de los demás no se ven. En el celular, Agenda (y Reunión,
 Métricas, Administración) aparecen en una fila arriba, en Grupo.
 `GET /api/yo/agenda?mes=AAAA-MM` y `GET /api/yo/agenda/dia?fecha=`.
 
+## Administración → Actividad (quién usa la página)
+
+Solo administradores. Por persona: último uso, último ingreso, sesiones
+abiertas, aparatos (sistema y navegador, sacados del user-agent de cada
+sesión), y lo publicado, anotado y enviado en 30 días; abajo, los intentos de
+ingreso fallidos de la semana. El «último uso» lo anota la web en la sesión
+(`sesion.ultimo_uso`) como mucho una vez cada 10 minutos. No se guarda cada
+pedido: para eso están los logs del contenedor web (`docker compose logs
+--since 24h web`; Docker conserva ~30 MB). `GET /api/yo/admin/actividad`.
+
 ## Seguridad
 
 - **Quién entra**: Google dice quién es (mail verificado); la tabla `usuario`

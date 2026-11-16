@@ -1038,10 +1038,27 @@ def test_corridas_gfs_fijar_pedir_y_dibujar(cliente, cuentas, monkeypatch, tmp_p
                                   VALUES ('Ciudad Corrida', '2026-02-03', 'AnaP', '{}', 'corrida-test', '2026-02-03T10:40:00Z')
                                   RETURNING id""").fetchone()
             conn.commit()
-        fijas = ing.corridas_fijas({})
+        fijas = ing.corridas_fijas({}, str(tmp_path))
         for c in ("2026020100", "2026020200", "2026020112", "2026020300"):
             assert datetime.strptime(c, "%Y%m%d%H").replace(tzinfo=UTC) in fijas, c
-        assert datetime(2026, 2, 3, tzinfo=UTC) not in ing.corridas_fijas({"gfs_fijar_pronosticos": False})
+        assert datetime(2026, 2, 3, tzinfo=UTC) not in ing.corridas_fijas({"gfs_fijar_pronosticos": False}, str(tmp_path))
+        # Si la corrida de 5 h antes no se dibujó, la tarjeta compara con la anterior: se fija ESA.
+        from meteo.cartas import puntos
+        puntos.guardar_pronostico(tmp_path, datetime(2026, 2, 2, 18, tzinfo=UTC), {6: {"La Plata": {"sup": {"t": 20}}}})
+        fijas = ing.corridas_fijas({}, str(tmp_path))
+        assert datetime(2026, 2, 2, 18, tzinfo=UTC) in fijas and datetime(2026, 2, 3, tzinfo=UTC) not in fijas
+        assert cliente.get("/api/yo/gfs/corrida", params={"corrida": "2026020218"}).json()["motivos"] == ["había al publicar 1 pronóstico"]
+        assert "había" not in " ".join(cliente.get("/api/yo/gfs/corrida", params={"corrida": "2026020300"}).json()["motivos"])
+        # Beto no puede soltar lo que fijó Ana (un coordinador sí).
+        assert cliente.post("/api/yo/gfs/corrida", json={"corrida": "2026020100", "accion": "soltar"}, headers=X).status_code == 403
+        assert cliente.get("/api/yo/gfs/corrida", params={"corrida": "2026020100"}).json()["fijada"]
+        # Ni ve cuántas notas privadas ajenas la usan.
+        assert cliente.get("/api/yo/gfs/corrida", params={"corrida": "2026020200"}).json()["motivos"] == ["se pidió volver a dibujarla"]
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "coord@gmail.com")
+        assert not cliente.post("/api/yo/gfs/corrida", json={"corrida": "2026020100", "accion": "soltar"}, headers=X).json()["fijada"]
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "beto@gmail.com")
         # La ingesta: dibuja de a poco la más vieja pedida (la de Ana, el plazo pedido primero).
         llamadas, resp = [], iter([(6, 33), (33, 33)])
         from meteo.cartas import descarga
@@ -1050,6 +1067,11 @@ def test_corridas_gfs_fijar_pedir_y_dibujar(cliente, cuentas, monkeypatch, tmp_p
         assert llamadas == [(datetime(2026, 2, 1, 12, tzinfo=UTC), 48)]
         e = cliente.get("/api/yo/gfs/corrida", params={"corrida": "2026020112"}).json()
         assert (e["estado"], e["hechos"]) == ("dibujando", 6)
+        # Si la descarga normal tiene el lock, vuelve a «pendiente» (no queda «dibujando» sin avance).
+        monkeypatch.setattr(descarga, "dibujar_pedida", lambda *a: (_ for _ in ()).throw(descarga.EnCurso("ocupado")))
+        assert ing.correr_gfs_pedidos() == 0
+        assert cliente.get("/api/yo/gfs/corrida", params={"corrida": "2026020112"}).json()["estado"] == "pendiente"
+        monkeypatch.setattr(descarga, "dibujar_pedida", lambda cfg, raiz, sesion, t, plazo: (llamadas.append((t, plazo)) or next(resp)))
         assert ing.correr_gfs_pedidos() == 33
         assert cliente.get("/api/yo/gfs/corrida", params={"corrida": "2026020112"}).json()["estado"] == "lista"
         # NOAA no la tiene -> error, a la vista.
@@ -1096,3 +1118,26 @@ def test_agenda_situaciones_por_ciudad(cliente, cuentas, monkeypatch):
         with m._pools["e"].connection() as conn:
             conn.execute("DELETE FROM verif_observado WHERE fecha = '2026-01-14'")
             conn.commit()
+
+
+def test_admin_actividad_y_ultimo_uso(cliente, cuentas, monkeypatch):
+    """Administración → Actividad: quién usa la página. El último uso de cada
+    sesión se anota solo (como mucho cada 10 min) al usarla."""
+    m = cuentas
+    cliente.cookies.clear()
+    ingresar(cliente, cuentas, monkeypatch, "ana@gmail.com")
+    cliente.get("/api/yo")
+    with m._pools["l"].connection() as conn:
+        uso = conn.execute("SELECT s.ultimo_uso FROM sesion s JOIN usuario u ON u.id = s.usuario_id WHERE u.email = 'ana@gmail.com'").fetchone()["ultimo_uso"]
+    assert uso is not None
+    assert cliente.get("/api/yo/admin/actividad").status_code == 403          # Ana no es admin
+    with m._pools["e"].connection() as conn:
+        conn.execute("UPDATE usuario SET rol = 'admin' WHERE email = 'ana@gmail.com'")
+        conn.commit()
+    cliente.cookies.clear()
+    ingresar(cliente, cuentas, monkeypatch, "ana@gmail.com")
+    d = cliente.get("/api/yo/admin/actividad").json()
+    ana = next(p for p in d["personas"] if p["nombre"] == "Ana")
+    assert ana["sesiones"] >= 1 and ana["ultimo_uso"] and ana["ultimo_ingreso"]
+    assert isinstance(ana["dispositivos"], list) and {"id", "rol", "notas_30d", "pronosticos_30d", "mensajes_30d"} <= set(ana)
+    assert "fallidos" in d

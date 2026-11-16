@@ -221,6 +221,25 @@ def guardar_pronostico(raiz, inicio, por_plazo, conservar=None, ahora=None, fija
                 f.unlink(missing_ok=True)
 
 
+def corrida_al_publicar(raiz, capturado, atras=4):
+    """La corrida del GFS que se usa para comparar un pronóstico publicado en
+    `capturado`: el GFS sale ~5 h después de su hora de inicio, así que es la
+    corrida de 5 h antes redondeada; si esa no tiene valores guardados (salió
+    tarde, falló), la anterior, hasta `atras` corridas (la misma cuenta que
+    _gfs_diario en web/cuentas.py y corridasCandidatas en la página). Si
+    ninguna tiene valores, la primera candidata. -> datetime UTC"""
+    from datetime import timedelta
+    t = capturado.astimezone(timezone.utc) - timedelta(hours=5)
+    primera = t.replace(hour=t.hour - t.hour % 6, minute=0, second=0, microsecond=0)
+    inicio = primera
+    for _ in range(atras):
+        d = leer_pronostico(raiz, inicio)
+        if d and d.get("plazos"):
+            return inicio
+        inicio -= timedelta(hours=6)
+    return primera
+
+
 def leer_pronostico(raiz, inicio):
     try:
         return json.loads(ruta_pronostico(raiz, inicio).read_text(encoding="utf-8"))

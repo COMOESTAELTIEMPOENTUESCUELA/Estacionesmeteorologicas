@@ -28,6 +28,9 @@ CREATE TABLE IF NOT EXISTS sesion (
     agente     text
 );
 CREATE INDEX IF NOT EXISTS sesion_usuario ON sesion (usuario_id);
+-- Cuándo se usó por última vez cada sesión (se anota como mucho cada 10 min):
+-- para que Administración muestre quién usa la página y desde qué aparato.
+ALTER TABLE sesion ADD COLUMN IF NOT EXISTS ultimo_uso timestamptz;
 
 -- Libreta: lo que cada uno vio, le llamó la atención, sus dudas y las
 -- preguntas para la reunión sinóptica. Con el contexto de dónde lo vio (qué

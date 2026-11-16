@@ -2938,9 +2938,10 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
 
         <!-- Administración (solo rol admin): parámetros de la verificación y la base de datos -->
         <div class="rv" id="rv-admin" hidden>
-          <div class="red-subtabs" id="adm-tabs"><button data-adm="verif" class="activa">⚙️ Verificación</button><button data-adm="base">🗄️ Base de datos</button></div>
+          <div class="red-subtabs" id="adm-tabs"><button data-adm="verif" class="activa">⚙️ Verificación</button><button data-adm="base">🗄️ Base de datos</button><button data-adm="act" title="Quién usa la página: último uso, aparatos, lo que publicó cada uno">👥 Actividad</button></div>
           <div id="adm-verif"><p class="tenue">Cargando…</p></div>
           <div id="adm-base" hidden></div>
+          <div id="adm-act" hidden></div>
         </div>
 
         <!-- Panorama de un día: todos los pronósticos para esa fecha, lo observado, el GFS, las cartas y las notas -->
@@ -9215,6 +9216,33 @@ function dibujarAdminVerif() {
     finally { b.disabled = false; }
   });
 }
+// Actividad: quién usa la página (admins). El servidor anota el último uso de
+// cada sesión como mucho cada 10 min; no guarda cada pedido.
+async function cargarActividad() {
+  $("#adm-act").innerHTML = '<p class="tenue">Cargando…</p>';
+  let d;
+  try { d = await api("/api/yo/admin/actividad"); }
+  catch (err) { $("#adm-act").innerHTML = `<p class="tenue">No se pudo cargar: ${esc(err.message)}</p>`; return; }
+  const cuando = (t) => t ? `<span title="${esc(fmtEscrita.format(new Date(t)))}">${esc(hace(t))}</span>` : '<span class="tenue">nunca</span>';
+  const activos = d.personas.filter((p) => p.ultimo_uso && Date.now() - Date.parse(p.ultimo_uso) < 7 * 24 * HORA).length;
+  $("#adm-act").innerHTML = `<div class="tarjeta">
+      <p class="adm-ayuda">Quién usa la página. «Último uso» se anota como mucho cada 10 minutos por sesión (no se guarda cada pedido:
+        el detalle está en los logs del contenedor web). <b>${activos}</b> de ${d.personas.length} personas entraron en los últimos 7 días.</p>
+      <div class="tabla-scroll" style="max-height:none"><table class="verif adm-act-t">
+        <tr><th>Quién</th><th>Último uso</th><th>Último ingreso</th><th>Sesiones</th><th>Aparatos</th><th title="Pronósticos publicados en 30 días (ciudad y fecha distintas)">Pronósticos 30 d</th><th>Notas 30 d</th><th>Mensajes 30 d</th></tr>
+        ${d.personas.map((p) => `<tr class="${p.activo ? "" : "tenue"}"><td style="text-align:left"><b data-perfil="${p.id}">${esc(p.nombre)}</b> <small class="tenue">${esc(p.rol)}${p.activo ? "" : " · baja"}</small></td>
+          <td>${cuando(p.ultimo_uso)}</td><td>${cuando(p.ultimo_ingreso)}</td><td>${p.sesiones || 0}</td>
+          <td style="text-align:left">${p.dispositivos.map(esc).join("<br>") || '<span class="tenue">–</span>'}</td>
+          <td>${p.pronosticos_30d || 0}</td><td>${p.notas_30d || 0}</td><td>${p.mensajes_30d || 0}</td></tr>`).join("")}
+      </table></div>
+      <h3 style="font-size:15px;margin:16px 0 6px">Intentos de ingreso fallidos (7 días)</h3>
+      ${d.fallidos.length ? `<table class="verif"><tr><th>Mail o usuario</th><th>Intentos</th><th>Último</th></tr>
+        ${d.fallidos.map((f) => `<tr><td style="text-align:left">${esc(f.email)}</td><td>${f.n}</td><td>${cuando(f.ultimo)}</td></tr>`).join("")}</table>`
+        : '<p class="tenue">Ninguno.</p>'}
+      <p class="adm-ayuda" style="margin-top:12px">Para ver cada pedido (quién pidió qué y cuándo), en el servidor:
+        <code>docker compose logs --since 24h web | grep -v "GET /api/estaciones"</code>. Los logs guardan los últimos ~30 MB.</p>
+    </div>`;
+}
 // Base de datos: solo para mirar (el servidor la consulta en modo solo lectura).
 async function cargarTablas() {
   try { adm.tablas = await api("/api/yo/admin/tablas"); }
@@ -9667,8 +9695,9 @@ async function iniciarPerfil() {
   $("#adm-tabs").addEventListener("click", (e) => {
     const b = e.target.closest("[data-adm]"); if (!b) return;
     $("#adm-tabs").querySelectorAll("button").forEach((x) => x.classList.toggle("activa", x === b));
-    $("#adm-verif").hidden = b.dataset.adm !== "verif"; $("#adm-base").hidden = b.dataset.adm !== "base";
+    for (const k of ["verif", "base", "act"]) $(`#adm-${k}`).hidden = b.dataset.adm !== k;
     if (b.dataset.adm === "base" && !adm.tablas) cargarTablas();
+    if (b.dataset.adm === "act") cargarActividad();
   });
   $("#lb-l-todas").hidden = YO.rol !== "admin";
   $("#lb-todas").addEventListener("change", () => cargarInicio());
@@ -10353,7 +10382,12 @@ async function abrirContexto(c) {
   }
   cargarCuenta();
   irAlEnlace(true);
-  setTimeout(() => { hist.listo = true; }, 1500);      // lo que pasa mientras carga no suma pasos al historial
+  setTimeout(() => {
+    hist.listo = true;                                 // lo que pasa mientras carga no suma pasos al historial
+    // Al recargar (F5) el navegador ya no restaura solo la altura (scrollRestoration manual): se hace acá.
+    const st = history.state;
+    if (st?.lugar && st.scroll && mismoLugar(lugarActual(), st.lugar)) scrollTo(0, st.scroll);
+  }, 1500);
   cargarMapa().catch((e) => { $("#lista").innerHTML = `<p>Error cargando estaciones: ${esc(e.message)}</p>`; });
   setInterval(() => { cargarMapa(); if (cargadas.estado) cargarEstado(); }, 5 * 60e3);  // refresca cada 5 min
 })();
@@ -10431,10 +10465,12 @@ function restaurarLugar(st) {
   const y = st.scroll || 0, ir = (n) => { scrollTo(0, y); if (Math.abs(scrollY - y) > 40 && n) setTimeout(() => ir(n - 1), 250); };
   setTimeout(() => ir(8), 120);
 }
-const DIALOGOS_HIST = ["c-dialogo", "d-ayuda", "d-placa"];
-for (const id of DIALOGOS_HIST) {
-  const d = document.getElementById(id);
-  if (!d) continue;
+// Todos los cuadros (visor, ayuda, placa, corrida, notas…): abrirlos suma un
+// paso, así «atrás» (sobre todo en el celular) los cierra en vez de cambiar la
+// sección por debajo; cerrarlos con ✕ o Esc saca ese paso.
+for (const d of document.querySelectorAll("dialog")) {
+  const id = d.id;
+  if (!id) continue;
   new MutationObserver(() => {
     if (d.open && history.state?.dialogo !== id && hist.listo) history.pushState({ ...(history.state || {}), dialogo: id }, "");
   }).observe(d, { attributes: true, attributeFilter: ["open"] });
@@ -10449,7 +10485,7 @@ addEventListener("popstate", (e) => {
     if (st.lugar) history.replaceState({ ...st, ...datosDelLugar(st.lugar) }, "");
     return;
   }
-  const abierto = DIALOGOS_HIST.map((id) => document.getElementById(id)).find((d) => d?.open && st.dialogo !== d.id);
+  const abierto = [...document.querySelectorAll("dialog[open]")].find((d) => st.dialogo !== d.id);
   if (abierto) {                                       // «atrás» con un cuadro abierto: se cierra y nada más
     hist.cerrandoPorAtras = true; abierto.close(); hist.cerrandoPorAtras = false;
     return;
@@ -10535,7 +10571,11 @@ addEventListener("popstate", (e) => {
   let el = null, reloj = null, mostrado = false, tocado = null;
   const tomar = (x) => {
     const t = x.getAttribute("title");
-    if (t) { x.dataset.tt = t; x.removeAttribute("title"); if (!x.getAttribute("aria-label") && !x.textContent.trim()) x.setAttribute("aria-label", t); }
+    if (t) {
+      x.dataset.tt = t; x.removeAttribute("title");            // que no salga también el del navegador
+      if (!x.getAttribute("aria-label") && !x.textContent.trim()) x.setAttribute("aria-label", t);
+      else if (!x.getAttribute("aria-description")) x.setAttribute("aria-description", t);   // lectores de pantalla
+    }
     return x.dataset.tt;
   };
   function ocultar() { clearTimeout(reloj); g.classList.remove("visible"); el = null; mostrado = false; }
@@ -10563,6 +10603,13 @@ addEventListener("popstate", (e) => {
     if (!x || !tomar(x)) return;
     el = x; reloj = setTimeout(() => mostrar(x), 350);
   });
+  // Con el teclado (Tab): se muestra al enfocar, como hacía el navegador con el title.
+  document.addEventListener("focusin", (e) => {
+    const x = e.target.closest?.("[title], [data-tt]");
+    if (!x || !x.matches(":focus-visible") || !tomar(x)) return;
+    ocultar(); el = x; mostrar(x);
+  });
+  document.addEventListener("focusout", () => { if (el && document.activeElement !== el) ocultar(); });
   document.addEventListener("pointerout", (e) => {
     if (e.pointerType === "mouse" && el && !el.contains(e.relatedTarget)) ocultar();
   });

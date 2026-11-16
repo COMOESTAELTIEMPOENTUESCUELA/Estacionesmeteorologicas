@@ -489,8 +489,10 @@ def dibujar_pedida(cfg, raiz, sesion, inicio, plazo_pref=0, max_plazos=PLAZOS_PO
                             archivo.guardar(raiz, p["id"], inicio, imagenes[p["carta"]])
                 for p in productos:
                     nom = pronostico.nombre(p["id"], inicio, plazo)
-                    pronostico.carpeta(raiz, p["id"]).mkdir(parents=True, exist_ok=True)
-                    (pronostico.carpeta(raiz, p["id"]) / nom).write_bytes(imagenes[p["carta"]])
+                    destino = pronostico.carpeta(raiz, p["id"]) / nom
+                    destino.parent.mkdir(parents=True, exist_ok=True)
+                    destino.with_suffix(".tmp").write_bytes(imagenes[p["carta"]])     # la web sirve la carpeta: nunca a medias
+                    destino.with_suffix(".tmp").replace(destino)
                     hechos[p["id"]][plazo] = (plazo, inicio + timedelta(hours=plazo), nom)
                 # Se anota después de cada plazo: si se corta, lo hecho queda.
                 for p in productos:

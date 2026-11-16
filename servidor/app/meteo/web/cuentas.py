@@ -126,10 +126,16 @@ def usuario_actual(request: Request):
     token = request.cookies.get(COOKIE)
     if token and _pools:
         filas = _leer("""
-            SELECT u.id, u.email, u.nombre, u.rol, u.firmas, u.bio, u.metricas_publicas
+            SELECT u.id, u.email, u.nombre, u.rol, u.firmas, u.bio, u.metricas_publicas,
+                   s.ultimo_uso IS NULL OR s.ultimo_uso < now() - interval '10 minutes' AS anotar_uso
             FROM sesion s JOIN usuario u ON u.id = s.usuario_id
             WHERE s.huella = %s AND s.expira > now() AND u.activo""", (_huella(token),))
         u = filas[0] if filas else None
+        if u and u.pop("anotar_uso", False):
+            try:                      # «se usó»: como mucho una vez cada 10 min por sesión (Administración → Actividad)
+                _escribir("UPDATE sesion SET ultimo_uso = now() WHERE huella = %s", (_huella(token),))
+            except Exception:
+                pass
         if u and u["rol"] in ("coordinador", "admin") and request.cookies.get(COOKIE_VER_COMO) == "pronosticador":
             u = {**u, "rol": "pronosticador", "rol_real": u["rol"]}
     request.state.usuario = u
@@ -1698,6 +1704,50 @@ def requiere_admin(request):
     return u
 
 
+def _dispositivo(agente):
+    """'Mozilla/5.0 (Linux; Android 13; …) Chrome/…' -> 'Android · Chrome'."""
+    a = agente or ""
+    so = next((n for k, n in (("Android", "Android"), ("iPhone", "iPhone"), ("iPad", "iPad"), ("Windows", "Windows"),
+                              ("Mac OS", "Mac"), ("CrOS", "Chromebook"), ("Linux", "Linux")) if k in a), "?")
+    nav = next((n for k, n in (("Edg/", "Edge"), ("OPR/", "Opera"), ("Firefox/", "Firefox"), ("Chrome/", "Chrome"),
+                               ("Safari/", "Safari")) if k in a), "?")
+    return f"{so} · {nav}"
+
+
+@router.get("/api/yo/admin/actividad")
+def admin_actividad(request: Request):
+    """Quién usa la página (solo administradores): por persona, el último uso,
+    el último ingreso, las sesiones abiertas y desde qué aparatos; lo publicado
+    y anotado en los últimos 30 días; y los intentos de ingreso fallidos de la
+    última semana. No hay registro de cada pedido: el detalle está en los logs
+    del contenedor web (docker compose logs web)."""
+    requiere_admin(request)
+    personas = _leer("""
+        SELECT u.id, u.nombre, u.rol, u.activo, u.firmas,
+               max(s.ultimo_uso) AS ultimo_uso, max(s.creada) AS ultimo_ingreso,
+               count(s.huella) FILTER (WHERE s.expira > now()) AS sesiones,
+               array_remove(array_agg(DISTINCT s.agente) FILTER (WHERE s.expira > now()), NULL) AS agentes,
+               (SELECT count(*) FROM nota n WHERE n.usuario_id = u.id AND n.creada > now() - interval '30 days') AS notas_30d,
+               (SELECT count(*) FROM mensaje m WHERE m.usuario_id = u.id AND m.creado > now() - interval '30 days') AS mensajes_30d
+        FROM usuario u LEFT JOIN sesion s ON s.usuario_id = u.id
+        GROUP BY u.id ORDER BY max(s.ultimo_uso) DESC NULLS LAST, u.nombre""")
+    pron = {}
+    try:
+        for f in _leer("""SELECT publicado_por, count(DISTINCT (ciudad, fecha_pronostico)) AS n FROM pronostico_emision
+                          WHERE capturado > now() - interval '30 days' GROUP BY 1"""):
+            pron[f["publicado_por"]] = f["n"]
+    except Exception:
+        pass
+    salida = [{"id": p["id"], "nombre": p["nombre"], "rol": p["rol"], "activo": p["activo"],
+               "ultimo_uso": p["ultimo_uso"], "ultimo_ingreso": p["ultimo_ingreso"], "sesiones": p["sesiones"],
+               "dispositivos": sorted({_dispositivo(a) for a in (p["agentes"] or [])}),
+               "notas_30d": p["notas_30d"], "mensajes_30d": p["mensajes_30d"],
+               "pronosticos_30d": sum(pron.get(f, 0) for f in (p["firmas"] or []))} for p in personas]
+    fallidos = _leer("""SELECT email, count(*) AS n, max(ts) AS ultimo FROM ingreso_fallido
+                        WHERE ts > now() - interval '7 days' GROUP BY email ORDER BY n DESC LIMIT 20""")
+    return {"personas": salida, "fallidos": fallidos, "ahora": datetime.now(timezone.utc)}
+
+
 @router.get("/api/yo/admin/verificacion")
 def admin_verificacion(request: Request):
     """Los parámetros (con su valor, el de siempre y los límites), las
@@ -1989,27 +2039,44 @@ def _gfs_guardada(t):
     return (len(d["cuadros"]) if d else 0), actual, len(estilo_bentley.PLAZOS)
 
 
+_FIJAR_CACHE = {}       # mtime del YAML -> valor (el cuadro consulta cada 15 s: no releer el archivo cada vez)
+
+
 def _fijar_pronosticos():
     import yaml
     from .app import CARTAS_CONFIG
     try:
-        with open(CARTAS_CONFIG, encoding="utf-8") as f:
-            return bool((yaml.safe_load(f) or {}).get("gfs_fijar_pronosticos", True))
-    except FileNotFoundError:
+        mtime = os.path.getmtime(CARTAS_CONFIG)
+        if mtime not in _FIJAR_CACHE:
+            with open(CARTAS_CONFIG, encoding="utf-8") as f:
+                _FIJAR_CACHE.clear()
+                _FIJAR_CACHE[mtime] = bool((yaml.safe_load(f) or {}).get("gfs_fijar_pronosticos", True))
+        return _FIJAR_CACHE[mtime]
+    except OSError:
         return True
 
 
-def _estado_corrida(t):
+def _pronosticos_con_corrida(t):
+    """Cuántos pronósticos publicados comparan con la corrida t (la que había
+    al publicar, o la anterior si esa no se dibujó: puntos.corrida_al_publicar)."""
+    from ..cartas import puntos
+    # Candidatas de un pronóstico: hasta 4 corridas (18 h) antes de capturado−5h.
+    filas = _leer("SELECT capturado FROM pronostico_emision WHERE capturado >= %s AND capturado < %s",
+                  (t + timedelta(hours=5), t + timedelta(hours=5 + 24)))
+    return sum(1 for f in filas if puntos.corrida_al_publicar(ARCHIVO_DIR, f["capturado"]) == t)
+
+
+def _estado_corrida(t, u):
     guardados, actual, total = _gfs_guardada(t)
     fila = (_leer("""SELECT g.fijada, g.estado, g.hechos, g.error, g.plazo, uf.nombre AS fijada_por, up.nombre AS pedida_por,
                             (SELECT count(*) FROM gfs_corrida o WHERE o.estado IN ('pendiente', 'dibujando') AND o.pedida < g.pedida) AS antes
                      FROM gfs_corrida g LEFT JOIN usuario uf ON uf.id = g.fijada_por LEFT JOIN usuario up ON up.id = g.pedida_por
                      WHERE g.corrida = %s""", (t,)) or [{}])[0]
     clave = t.strftime("%Y%m%d%H")
-    notas = _leer("SELECT count(*) AS n FROM nota WHERE contexto->>'corrida' = %s", (clave,))[0]["n"]
-    # La corrida que había al publicar: sale ~5 h después de su inicio (misma cuenta que _gfs_diario).
-    pron = _leer("""SELECT count(*) AS n FROM pronostico_emision WHERE capturado >= %s AND capturado < %s""",
-                 (t + timedelta(hours=5), t + timedelta(hours=11)))[0]["n"] if _fijar_pronosticos() else 0
+    # Solo las notas que esta persona puede ver (las privadas ajenas igual la fijan, pero no se cuentan acá).
+    notas = _leer("SELECT count(*) AS n FROM nota WHERE contexto->>'corrida' = %s AND (usuario_id = %s OR compartida)",
+                  (clave, u["id"]))[0]["n"]
+    pron = _pronosticos_con_corrida(t) if _fijar_pronosticos() else 0
     motivos = ([f"📌 fijada por {fila['fijada_por'] or 'alguien'}"] if fila.get("fijada") else []) \
         + ([f"la usa{'n' if notas > 1 else ''} {notas} nota{'s' if notas > 1 else ''}"] if notas else []) \
         + ([f"había al publicar {pron} pronóstico{'s' if pron > 1 else ''}"] if pron else []) \
@@ -2026,8 +2093,8 @@ def _estado_corrida(t):
 
 @router.get("/api/yo/gfs/corrida")
 def estado_corrida_gfs(request: Request, corrida: str):
-    requiere_usuario(request)
-    return _estado_corrida(_clave_corrida(corrida))
+    u = requiere_usuario(request)
+    return _estado_corrida(_clave_corrida(corrida), u)
 
 
 @router.post("/api/yo/gfs/corrida")
@@ -2038,11 +2105,15 @@ async def pedir_corrida_gfs(request: Request):
     datos = await request.json()
     t = _clave_corrida(datos.get("corrida"))
     accion = datos.get("accion")
+    if accion == "soltar" and not es_coordinador(u):
+        fila = _leer("SELECT fijada_por FROM gfs_corrida WHERE corrida = %s AND fijada", (t,))
+        if fila and fila[0]["fijada_por"] not in (None, u["id"]):
+            raise HTTPException(403, "La fijó otra persona: solo ella o un coordinador la pueden soltar")
     if accion in ("fijar", "soltar"):
         _escribir("""INSERT INTO gfs_corrida (corrida, fijada, fijada_por) VALUES (%s, %s, %s)
                      ON CONFLICT (corrida) DO UPDATE SET fijada = EXCLUDED.fijada, fijada_por = EXCLUDED.fijada_por, actualizada = now()""",
                   (t, accion == "fijar", u["id"] if accion == "fijar" else None))
-        return _estado_corrida(t)
+        return _estado_corrida(t, u)
     if accion != "dibujar":
         raise HTTPException(400, "accion: fijar, soltar o dibujar")
     if t < GFS_DESDE or t > datetime.now(timezone.utc):
@@ -2051,7 +2122,7 @@ async def pedir_corrida_gfs(request: Request):
     if actual and t >= actual:
         raise HTTPException(400, "es la corrida actual (o una que todavía no salió): se dibuja sola")
     if guardados >= total:
-        return _estado_corrida(t)                 # ya está entera
+        return _estado_corrida(t, u)              # ya está entera
     try:
         plazo = max(0, min(192, int(datos.get("plazo") or 0)))
     except (TypeError, ValueError):
@@ -2069,4 +2140,4 @@ async def pedir_corrida_gfs(request: Request):
                    pedida_por = COALESCE(gfs_corrida.pedida_por, EXCLUDED.pedida_por),
                    pedida = CASE WHEN gfs_corrida.estado IN ('pendiente', 'dibujando') THEN gfs_corrida.pedida ELSE now() END,
                    plazo = EXCLUDED.plazo, error = NULL, actualizada = now()""", (t, u["id"], plazo, guardados))
-    return _estado_corrida(t)
+    return _estado_corrida(t, u)
