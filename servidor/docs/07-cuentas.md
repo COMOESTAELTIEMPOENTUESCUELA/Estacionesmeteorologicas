@@ -223,6 +223,17 @@ de ese día (botón para abrir esa carta a esa hora), los pronósticos publicado
 y accesos a las cartas de ese día, al panorama pronosticado vs observado y a
 **📝 Anotar algo de este día** (privada; se puede compartir).
 
+Arriba de la ficha, **Analizar ese día**: las cartas de Diagnóstico a las 00,
+06, 12 o 18 UTC, las series observadas de la ciudad centradas en ese día, el
+panorama y Anotar; con ‹ › se pasa al día anterior o siguiente. Al ir a Cartas
+desde la agenda aparece «← Volver a la agenda» para volver a la ficha. Si el
+día tiene más de 8 días, un aviso recuerda qué queda guardado (análisis,
+satélite, rayos, observaciones) y qué no (las cartas del pronóstico GFS).
+
+**📅 Ir al día** desde el feed o un perfil: cada nota (📅) y cada pronóstico
+(📅 Día, el día en que se hizo) abre la ficha de su día en la Agenda, con la
+nota resaltada y un botón «← Volver» que regresa a la tarjeta.
+
 **🔎 Buscar en lo anotado** (arriba del calendario): notas (texto y
 etiquetas) y marcas de las series, propias y compartidas, que tengan TODAS las
 palabras, sin importar tildes ni mayúsculas ("frente frio" encuentra "Frente

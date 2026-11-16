@@ -963,6 +963,15 @@ img.con-fondo { background-color: #fff !important; background-size: 100% 100%; b
 .ag-ficha h3 { margin: 0 0 8px; font-size: 18px; }
 .ag-ficha h4 { margin: 14px 0 6px; font-size: 14px; color: var(--tinta-2); }
 .ag-acc { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.ag-cab { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.ag-cab { flex-wrap: nowrap; }
+.ag-cab h3 { margin: 0; min-width: 0; }
+.ag-volver { margin-bottom: 8px; }
+@media (max-width: 600px) { .ag-cab h3 { font-size: 17px; } }
+.ag-analizar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 10px 0 4px; padding: 8px 10px; border: 1px solid var(--borde); border-radius: 10px; background: var(--superficie); }
+.ag-horas { display: inline-flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+.ag-aviso { font-size: 12.5px; margin: 6px 0; }
+.ag-notas [data-ir-dia] { display: none; }
 .ag-lista { display: flex; flex-direction: column; gap: 6px; }
 .ag-item { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 6px 10px; border: 1px solid var(--borde); border-radius: 8px; background: var(--superficie); font-size: 13.5px; }
 .ag-item .tenue { font-size: 12px; }
@@ -4625,6 +4634,7 @@ function dibujarVerifDias() {
 // ======================================================================
 const fmtCartaTitulo = new Intl.DateTimeFormat("es-AR", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long", year: "numeric" });
 let cartasDisp = {};
+let tsCartasPedida = null;      // la hora pedida al entrar por primera vez a Cartas (que no la pise "la última hora")
 
 function tsCarta() {
   const f = $("#f-c-fecha").value, h = String($("#f-c-hora").value).padStart(2, "0");
@@ -5054,7 +5064,8 @@ async function iniciarCartas() {
   iniciarIndices();
   iniciarPronosticoGFS();
   cartasDisp = await api("/api/cartas/disponibles");
-  ponerTsCarta(ultimaHoraGFS(cartasDisp) || new Date(Math.floor(Date.now() / 21600e3) * 21600e3));
+  // Si se llegó con una fecha pedida (desde la agenda, una nota…), esa; si no, la última hora con GFS.
+  ponerTsCarta(tsCartasPedida || ultimaHoraGFS(cartasDisp) || new Date(Math.floor(Date.now() / 21600e3) * 21600e3));
   $("#f-c-fecha").addEventListener("change", cargarCartas);
   $("#f-c-hora").addEventListener("change", cargarCartas);
   $("#f-c-horas").addEventListener("click", (e) => {
@@ -7874,6 +7885,8 @@ function abrirEmbed(boton) {
 }
 
 // ----- La tarjeta de una nota -----
+// El día de una nota: el del evento o, si no tiene, el día (hora argentina) en que se escribió.
+const diaDeNota = (nt) => nt.fecha_evento ? String(nt.fecha_evento).slice(0, 10) : diaArg(new Date(nt.creada));
 function tarjetaNota(nt, reunion = false) {
   // Estilo "Instagram": cabecera (avatar, nombre, dónde), la imagen de borde a
   // borde, la barra de reacciones y acciones, y abajo el texto con el nombre en negrita.
@@ -7892,6 +7905,7 @@ function tarjetaNota(nt, reunion = false) {
     tratada: `<button class="boton" data-acc="concluir">Editar conclusión</button><button class="boton" data-acc="estado" data-estado="discusion" title="Reabrir">↩</button>`,
   }[estado] : "";
   const acciones = accReunion
+    + `<button class="boton" data-ir-dia="${esc(diaDeNota(nt))}" title="Abrir ese día en la Agenda: cartas, series, panorama y todo lo anotado">📅</button>`
     + (esCoord() && nt.compartida ? `<button class="boton" data-acc="presentar" title="Mostrarla a pantalla completa en la reunión">🖥️</button>` : "")
     + (nt.mia ? `<button class="boton" data-acc="editar" title="Editar">✏️</button><button class="boton" data-acc="borrar" title="Borrar">🗑️</button>` : "");
   const alertaViva = (nt.etiquetas || []).includes("alertanowcasting") && Date.now() - Date.parse(nt.creada) < 6 * HORA;
@@ -8065,6 +8079,7 @@ function tarjetaPron(it) {
       <button class="boton" data-cartas="${esc(it.fecha_emision)}" title="Las cartas de diagnóstico del día en que se hizo el pronóstico">🗺️ Cartas</button>
       <button class="boton" data-modelo title="El GFS de ese momento contra lo pronosticado y lo medido, en vivo">📈 ${red.modelos[it.objeto]?.abierto ? "Ocultar modelo" : "Modelo"}</button>
       <button class="boton" data-cartas-modelo title="Las cartas y el meteograma del GFS de esa corrida (se guardan 8 días)">🌐 GFS</button>
+      <button class="boton" data-ir-dia="${esc(it.fecha_emision)}" title="Abrir en la Agenda el día en que se hizo: cartas, series, notas y lo demás de ese día">📅 Día</button>
       <button class="boton" data-enviar-pron title="Mandar este pronóstico por mensaje (privado o a un grupo)">💬 Enviar</button>
       <button class="boton" data-placa="${esc(it.objeto)}" title="La placa para redes, tal cual la arma el formulario de Pronóstico-UNLP">🖼️ Placa</button>
     </div>
@@ -9017,6 +9032,26 @@ function dibujarCalendario() {
   }
   $("#ag-cal").innerHTML = html;
 }
+// Ir al día de una tarjeta (nota o pronóstico) desde el feed o un perfil: la
+// ficha de ese día en la Agenda, con un botón para volver a la tarjeta.
+function irAlDia(fecha, tarjeta) {
+  const obj = tarjeta?.dataset.obj || (tarjeta?.dataset.id ? `nota:${tarjeta.dataset.id}` : "");
+  agenda.volver = red.vista === "agenda" ? agenda.volver : { vista: red.vista, obj, scroll: window.scrollY };
+  agenda.destacar = obj;
+  verRed("agenda", false);
+  agenda.mes = fecha.slice(0, 7);
+  cargarAgenda().then(() => abrirDiaAgenda(fecha));
+}
+function volverDeLaAgenda() {
+  const v = agenda.volver;
+  agenda.volver = null;
+  if (!v) return;
+  red.diaVolver = v;
+  volverDelDia();                                   // misma vuelta que desde el panorama: a la tarjeta
+}
+// Las cartas de pronóstico del GFS se guardan 8 días (las de análisis, siempre).
+const DIAS_PRONO_GFS = 8;
+const NOMBRE_VISTA = { inicio: "a Inicio", perfil: "al perfil", reunion: "a la reunión", dia: "al panorama" };
 async function abrirDiaAgenda(fecha) {
   agenda.dia = fecha;
   document.querySelectorAll("#ag-cal .ag-dia").forEach((b) => b.classList.toggle("elegido", b.dataset.agDia === fecha));
@@ -9046,18 +9081,30 @@ async function abrirDiaAgenda(fecha) {
   const pron = d.pronosticos.map((p) => `<div class="ag-item"><b>${esc(p.ciudad)}</b>
       <span>${esc(p.usuario?.nombre || p.firma || "")}${p.hora ? ` <span class="tenue">· ${esc(String(p.hora).slice(0, 5))} hs</span>` : ""}${p.correccion ? ' <span class="tenue">· corrección</span>' : ""}</span>
       <button class="boton chico" data-ag-panorama="${esc(p.ciudad)}">📊 Pronosticado vs observado</button></div>`).join("");
-  ficha.innerHTML = `<h3>${esc(fmtDiaLargo.format(new Date(fecha + "T12:00:00Z")).replace(/^./, (x) => x.toUpperCase()))}</h3>
-    <div class="ag-acc">
-      <button class="boton" data-ag-cartas="${fecha}" title="Diagnóstico: las cartas de ese día (12 UTC)">🗺️ Cartas de ese día</button>
+  const viejo = (Date.parse(hoyArg()) - Date.parse(fecha)) / (24 * HORA) > DIAS_PRONO_GFS;
+  const volver = agenda.volver ? `<button class="boton" data-ag-volver title="Volver a la tarjeta desde donde viniste">← Volver ${esc(NOMBRE_VISTA[agenda.volver.vista] || "a donde estabas")}</button>` : "";
+  ficha.innerHTML = `${volver ? `<div class="ag-volver">${volver}</div>` : ""}<div class="ag-cab">
+      <button class="boton chico" data-ag-mover="-1" title="El día anterior">‹</button>
+      <h3>${esc(fmtDiaLargo.format(new Date(fecha + "T12:00:00Z")).replace(/^./, (x) => x.toUpperCase()))}</h3>
+      <button class="boton chico" data-ag-mover="1" title="El día siguiente">›</button></div>
+    <div class="ag-analizar">
+      <span class="tenue">Analizar ese día:</span>
+      <span class="ag-horas" title="Diagnóstico: las cartas, el satélite y las observaciones a esa hora">🗺️ Cartas
+        ${["00", "06", "12", "18"].map((h) => `<button class="boton chico" data-ag-cartas="${fecha}" data-h="${h}">${h} UTC</button>`).join("")}</span>
+      <button class="boton" data-ag-marca="ciudad:${esc(ciudad0)}" data-ts="${fecha}T15:00:00Z" title="Las series observadas de la ciudad (temperatura, viento, presión, lluvia) y el GFS, centradas en ese día">📈 Series de ${esc(ciudad0)}</button>
       <button class="boton" data-ag-panorama="${esc(ciudad0)}" title="Lo que se observó y lo que cada uno pronosticó para ese día">📊 Panorama del día</button>
-      <button class="boton primario" data-ag-anotar="${fecha}" title="Una nota sobre este día (privada; la podés compartir)">📝 Anotar algo de este día</button>
+      <button class="boton primario" data-ag-anotar="${fecha}" title="Una nota sobre este día (privada; la podés compartir)">📝 Anotar</button>
     </div>
+    ${viejo ? `<p class="tenue ag-aviso">ℹ️ De este día quedan las cartas de <b>análisis</b>, el satélite, los rayos y todas las observaciones. Las cartas del <b>pronóstico</b> GFS de las corridas de ese día ya no están (se guardan ${DIAS_PRONO_GFS} días); los valores del GFS en cada ciudad sí.</p>` : ""}
     <h4>Lo que pasó</h4>${obs ? `<div class="ag-lista">${obs}</div>` : '<p class="tenue">Sin datos de verificación para ese día.</p>'}
     <h4>Notas (${d.notas.length})</h4>${d.notas.length ? `<div class="red-feed ag-notas">${d.notas.map((n) => tarjetaNota(n)).join("")}</div>` : '<p class="tenue">Nada anotado. Con «📝 Anotar algo de este día» queda acá.</p>'}
     <h4>Dibujos sobre las cartas (${d.capas.length})</h4>${capas ? `<div class="ag-lista">${capas}</div>` : '<p class="tenue">Nadie dibujó (o compartió) sobre las cartas de ese día.</p>'}
     <h4>Marcas en las series (${(d.marcas || []).length})</h4>${marcas ? `<div class="ag-lista">${marcas}</div>` : '<p class="tenue">Sin marcas en los meteogramas de ese día (📍 Marcar, arriba de los gráficos).</p>'}
     <h4>Pronósticos publicados (${d.pronosticos.length})</h4>${pron ? `<div class="ag-lista">${pron}</div>` : '<p class="tenue">No se publicaron pronósticos ese día.</p>'}`;
-  ficha.scrollIntoView({ behavior: "smooth", block: "start" });
+  const dest = agenda.destacar && ficha.querySelector(`.postit[data-id="${CSS.escape(agenda.destacar.replace("nota:", ""))}"]`);
+  agenda.destacar = null;
+  if (dest) { dest.scrollIntoView({ behavior: "smooth", block: "center" }); dest.classList.add("resaltada"); setTimeout(() => dest.classList.remove("resaltada"), 2500); }
+  else ficha.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 // Ir a los gráficos donde está una marca: el Diagnóstico de la ciudad (centrado
 // en ese día) o el meteograma de la estación.
@@ -9122,6 +9169,12 @@ document.addEventListener("click", (e) => {
   cargarAgenda().then(() => abrirDiaAgenda(fecha));
 });
 
+// Desde la agenda a Diagnóstico: el botón «← Volver» de arriba trae de nuevo a la ficha del día.
+function volverAAgenda() {
+  if (red.vista !== "agenda") return;
+  volverRed = { obj: "", vista: "agenda", scroll: window.scrollY };
+  $("#red-volver").textContent = `← Volver a la agenda${agenda.dia ? ` (${diaCorto(agenda.dia)})` : ""}`;
+}
 // Abrir una carta en el visor después de ir a esa hora en Diagnóstico.
 function abrirCartaEn(producto, ts) {
   irACartas(ts);
@@ -9140,11 +9193,20 @@ document.addEventListener("click", (e) => {
   const pan = e.target.closest("[data-ag-panorama]");
   if (pan && agenda.dia) { red.diaVolver = { vista: "agenda", obj: "", scroll: window.scrollY }; abrirDia(pan.dataset.agPanorama, agenda.dia); return; }
   const car = e.target.closest("[data-ag-cartas]");
-  if (car) { irACartas(`${car.dataset.agCartas}T12:00:00Z`); return; }
+  if (car) { volverAAgenda(); irACartas(`${car.dataset.agCartas}T${car.dataset.h || "12"}:00:00Z`); return; }
   const una = e.target.closest("[data-ag-carta]");
-  if (una) { abrirCartaEn(una.dataset.agCarta, una.dataset.ts); return; }
+  if (una) { volverAAgenda(); abrirCartaEn(una.dataset.agCarta, una.dataset.ts); return; }
+  const mov = e.target.closest("[data-ag-mover]");
+  if (mov && agenda.dia) {
+    const f = sumarDias(agenda.dia, Number(mov.dataset.agMover));
+    if (f.slice(0, 7) !== agenda.mes) { agenda.mes = f.slice(0, 7); cargarAgenda().then(() => abrirDiaAgenda(f)); } else abrirDiaAgenda(f);
+    return;
+  }
+  if (e.target.closest("[data-ag-volver]")) { volverDeLaAgenda(); return; }
+  const ird = e.target.closest("[data-ir-dia]");
+  if (ird) { irAlDia(ird.dataset.irDia, ird.closest(".postit")); return; }
   const mk = e.target.closest("[data-ag-marca]");
-  if (mk) { irAMarca(mk.dataset.agMarca, mk.dataset.ts); return; }
+  if (mk) { if (mk.dataset.agMarca.startsWith("ciudad:")) volverAAgenda(); irAMarca(mk.dataset.agMarca, mk.dataset.ts); return; }
   const an = e.target.closest("[data-ag-anotar]");
   if (an) abrirNota({ tipo: "vi", fecha_evento: an.dataset.agAnotar, compartida: false, etiquetas: [], texto: "",
                       contexto: { seccion: "agenda", ts: an.dataset.agAnotar + "T15:00:00Z" } });
@@ -9848,8 +9910,9 @@ $("#cpm-anotar").addEventListener("click", () => {
 
 // Volver al lugar de una nota.
 function irACartas(ts) {
-  abrir("cartas");
   const t = new Date(ts);
+  tsCartasPedida = t;
+  abrir("cartas");
   const ir = () => { verSeccionCartas("diag"); $("#f-c-fecha").value = t.toISOString().slice(0, 10); $("#f-c-hora").value = String(t.getUTCHours() - t.getUTCHours() % 6); cargarCartas(); };
   setTimeout(ir, cargadas.cartas ? 0 : 600);
 }
