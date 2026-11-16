@@ -840,3 +840,57 @@ def test_capas_de_dibujo_por_persona(cliente, cuentas, monkeypatch, tmp_path):
             conn.execute("DELETE FROM carta_capa")
             conn.commit()
         cliente.cookies.clear()
+
+
+def test_agenda_del_mes_y_del_dia(cliente, cuentas, monkeypatch, tmp_path):
+    """El calendario cuenta, por día, las notas (propias y compartidas, no las
+    privadas ajenas), los dibujos, los pronósticos y lo observado; la ficha
+    del día trae todo junto."""
+    from meteo.web import app as web
+    cfg = tmp_path / "cartas.yaml"
+    cfg.write_text("productos:\n  - {id: b_rv, nombre: Vorticidad, nivel: 500 hPa, fuente: bentley, dominio: southamer, variable: rel_vort}\n")
+    monkeypatch.setattr(web, "CARTAS_CONFIG", str(cfg))
+    m = cuentas
+    dibujo = {"ancho": 1000, "alto": 750, "elementos": [{"tipo": "centro", "letra": "B", "x": 1, "y": 1}]}
+    with m._pools["e"].connection() as conn:
+        conn.execute("""INSERT INTO pronostico_emision (ciudad, fecha_pronostico, publicado_por, contenido, huella, hora_emision)
+                        VALUES ('Ciudad Agenda', '2026-03-17', 'AnaP', '{}', 'agenda-1', '07:40')""")
+        conn.execute("""INSERT INTO verif_observado (ciudad, fecha, elemento, valor, categoria) VALUES
+                        ('Ciudad Agenda', '2026-03-17', 'pp', 1, 'SI'), ('Ciudad Agenda', '2026-03-17', 'tmax_urbana', 24.5, NULL),
+                        ('Ciudad Agenda', '2026-03-17', 'etiquetas', 2, 'tormenta,frente_frio')""")
+        conn.commit()
+    try:
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "beto@gmail.com")
+        cliente.post("/api/yo/notas", json={"tipo": "vi", "texto": "privada de Beto", "fecha_evento": "2026-03-17"}, headers=X)
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "ana@gmail.com")
+        cliente.post("/api/yo/notas", json={"tipo": "vi", "texto": "la mía", "fecha_evento": "2026-03-17"}, headers=X)
+        cliente.post("/api/yo/notas", json={"tipo": "vi", "texto": "compartida", "fecha_evento": "2026-03-17", "compartida": True}, headers=X)
+        # 17/3 a las 00 UTC = 16/3 21 hs en Argentina: va al 16 (día local).
+        cliente.put("/api/yo/capa", params={"producto": "b_rv", "ts": "2026-03-17T00:00:00Z"}, json={"dibujo": dibujo}, headers=X)
+        cliente.put("/api/yo/capa", params={"producto": "b_rv", "ts": "2026-03-17T12:00:00Z"}, json={"dibujo": dibujo}, headers=X)
+        assert cliente.get("/api/yo/agenda", params={"mes": "2026-1"}).status_code == 400
+        dias = cliente.get("/api/yo/agenda", params={"mes": "2026-03"}).json()["dias"]
+        d = dias["2026-03-17"]
+        assert (d["notas_mias"], d["notas_grupo"], d["capas_mias"], d["pronosticos"]) == (2, 0, 1, 1)
+        assert d["lluvia"] == ["Ciudad Agenda"] and d["etiquetas"] == ["tormenta", "frente_frio"]
+        assert dias["2026-03-16"]["capas_mias"] == 1
+        f = cliente.get("/api/yo/agenda/dia", params={"fecha": "2026-03-17"}).json()
+        assert sorted(n["texto"] for n in f["notas"]) == ["compartida", "la mía"]          # no la privada de Beto
+        assert f["capas"][0]["nombre"] == "Vorticidad" and f["capas"][0]["mia"]
+        assert f["pronosticos"][0]["firma"] == "AnaP" and f["pronosticos"][0]["usuario"]["nombre"] == "Ana"
+        assert f["observado"]["Ciudad Agenda"] == {"pp": "SI", "tmax_urbana": 24.5, "etiquetas": "tormenta,frente_frio"}
+        # Beto ve la compartida de Ana como "del grupo".
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "beto@gmail.com")
+        d = cliente.get("/api/yo/agenda", params={"mes": "2026-03"}).json()["dias"]["2026-03-17"]
+        assert (d["notas_mias"], d["notas_grupo"], d["capas_mias"], d["capas_grupo"]) == (1, 1, 0, 0)
+    finally:
+        with m._pools["e"].connection() as conn:
+            conn.execute("DELETE FROM pronostico_emision WHERE huella = 'agenda-1'")
+            conn.execute("DELETE FROM verif_observado WHERE ciudad = 'Ciudad Agenda'")
+            conn.execute("DELETE FROM carta_capa")
+            conn.execute("DELETE FROM nota WHERE fecha_evento = '2026-03-17'")
+            conn.commit()
+        cliente.cookies.clear()

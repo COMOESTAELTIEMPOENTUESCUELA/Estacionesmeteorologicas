@@ -1078,6 +1078,89 @@ def panorama_del_dia(request: Request, ciudad: str, fecha: date):
     return {"ciudad": ciudad, "fecha": fecha, "observado": obs, "pronosticos": pron,
             "gfs": [{"plazo": k, **v} for k, v in sorted(gfs.items())], "notas": notas}
 
+# ---------------------------------------------------------------------------
+# Agenda: un calendario con lo que hay en cada día (notas, dibujos, pronósticos,
+# lo que pasó) y la ficha de un día con todo junto
+# ---------------------------------------------------------------------------
+DIA_LOCAL = "(%s AT TIME ZONE 'America/Argentina/Buenos_Aires')::date"
+DIA_NOTA = "COALESCE(n.fecha_evento, " + DIA_LOCAL % "n.creada" + ")"
+
+
+@router.get("/api/yo/agenda")
+def agenda_del_mes(request: Request, mes: str):
+    """Por día del mes (AAAA-MM): cuántas notas propias y del grupo, cuántos
+    dibujos sobre cartas (propios y compartidos), cuántos pronósticos se
+    publicaron, en qué ciudades llovió y qué pasó (etiquetas)."""
+    u = requiere_usuario(request)
+    try:
+        d0 = date.fromisoformat(mes + "-01")
+    except ValueError:
+        raise HTTPException(400, "mes: AAAA-MM")
+    d1 = (d0 + timedelta(days=32)).replace(day=1)
+    dias = {}
+    dia = lambda f: dias.setdefault(str(f), {"notas_mias": 0, "notas_grupo": 0, "capas_mias": 0, "capas_grupo": 0,
+                                             "pronosticos": 0, "lluvia": [], "etiquetas": []})
+    for f in _leer(f"""SELECT {DIA_NOTA} AS d, n.usuario_id = %s AS mia, count(*) AS n FROM nota n
+                       WHERE (n.usuario_id = %s OR n.compartida) AND {DIA_NOTA} >= %s AND {DIA_NOTA} < %s GROUP BY 1, 2""",
+                   (u["id"], u["id"], d0, d1)):
+        dia(f["d"])["notas_mias" if f["mia"] else "notas_grupo"] += f["n"]
+    for f in _leer(f"""SELECT {DIA_LOCAL % "c.ts"} AS d, c.usuario_id = %s AS mia, count(*) AS n FROM carta_capa c
+                       WHERE (c.usuario_id = %s OR c.compartida) AND c.ts >= %s AND c.ts < %s GROUP BY 1, 2""",
+                   (u["id"], u["id"], d0 - timedelta(days=1), d1 + timedelta(days=1))):
+        if d0 <= f["d"] < d1:
+            dia(f["d"])["capas_mias" if f["mia"] else "capas_grupo"] += f["n"]
+    for f in _leer("""SELECT fecha_pronostico AS d, count(DISTINCT (ciudad, publicado_por)) AS n FROM pronostico_emision
+                      WHERE fecha_pronostico >= %s AND fecha_pronostico < %s GROUP BY 1""", (d0, d1)):
+        dia(f["d"])["pronosticos"] = f["n"]
+    try:
+        for f in _leer("""SELECT fecha AS d, ciudad, elemento, categoria FROM verif_observado
+                          WHERE fecha >= %s AND fecha < %s AND elemento IN ('pp', 'etiquetas') ORDER BY ciudad""", (d0, d1)):
+            x = dia(f["d"])
+            if f["elemento"] == "pp" and f["categoria"] == "SI":
+                x["lluvia"].append(f["ciudad"])
+            elif f["elemento"] == "etiquetas" and f["categoria"]:
+                x["etiquetas"] += [e for e in f["categoria"].split(",") if e and e not in x["etiquetas"]]
+    except Exception:          # sin verificación todavía: el resto anda igual
+        pass
+    return {"mes": mes, "dias": dias}
+
+
+@router.get("/api/yo/agenda/dia")
+def agenda_del_dia(request: Request, fecha: date):
+    """Todo lo de un día: las notas (propias y compartidas, del día que
+    analizan o, si no dicen, del día en que se escribieron), los dibujos sobre
+    las cartas de ese día, los pronósticos publicados y lo observado."""
+    u = requiere_usuario(request)
+    notas = _notas_con_extras(u, ["(n.usuario_id = %s OR n.compartida)", f"{DIA_NOTA} = %s"], [u["id"], fecha], limite=100)
+    from .app import _cartas_productos
+    productos = {p["id"]: p for p in _cartas_productos()}
+    capas = []
+    for c in _leer(f"""SELECT c.producto, c.ts, us.nombre AS autor, c.usuario_id = %s AS mia, c.compartida,
+                              jsonb_array_length(c.dibujo -> 'elementos') AS elementos
+                       FROM carta_capa c JOIN usuario us ON us.id = c.usuario_id
+                       WHERE (c.usuario_id = %s OR (c.compartida AND us.activo)) AND {DIA_LOCAL % "c.ts"} = %s
+                       ORDER BY c.ts, us.nombre""", (u["id"], u["id"], fecha)):
+        p = productos.get(c["producto"], {})
+        capas.append({**c, "nombre": p.get("nombre", c["producto"]), "nivel": p.get("nivel", "")})
+    usuarios = {f: x for x in _leer("SELECT id, nombre, firmas FROM usuario WHERE activo") for f in x["firmas"]}
+    pron = []
+    for e in _leer("""SELECT ciudad, publicado_por, max(hora_emision) AS hora, bool_or(es_correccion) AS correccion
+                      FROM pronostico_emision WHERE fecha_pronostico = %s GROUP BY 1, 2 ORDER BY 1, 2""", (fecha,)):
+        us = usuarios.get(e["publicado_por"])
+        pron.append({"ciudad": e["ciudad"], "firma": e["publicado_por"], "hora": e["hora"], "correccion": e["correccion"],
+                     "usuario": {"id": us["id"], "nombre": us["nombre"]} if us else None,
+                     "objeto": objeto_pronostico(e["ciudad"], fecha, e["publicado_por"])})
+    obs = {}
+    try:
+        for f in _leer("""SELECT ciudad, elemento, valor, categoria FROM verif_observado
+                          WHERE fecha = %s AND elemento IN ('tmax_urbana', 'tmin_urbana', 'pp', 'etiquetas')""", (fecha,)):
+            x = obs.setdefault(f["ciudad"], {})
+            x[f["elemento"]] = f["categoria"] if f["elemento"] in ("pp", "etiquetas") else f["valor"]
+    except Exception:
+        pass
+    return {"fecha": fecha, "notas": notas, "capas": capas, "pronosticos": pron, "observado": obs}
+
+
 ARCHIVO_DIR = os.environ.get("ARCHIVO_DIR", "/archivo")
 
 

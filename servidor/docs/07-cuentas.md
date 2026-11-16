@@ -210,6 +210,25 @@ placa (el borde naranja "manual" del formulario), ese texto no se publica,
 así que acá sale el texto automático. Las publicaciones viejas que se
 guardaron resumidas (sin tramos) salen solo con temperaturas.
 
+## Agenda (Grupo → Agenda)
+
+Un calendario mensual de lo analizado. Cada día muestra:
+📝 mis notas · 👥 notas compartidas del grupo · ✏️ dibujos sobre cartas
+(propios y compartidos) · 🌡️ pronósticos publicados · 🌧 si llovió en alguna
+ciudad, y las etiquetas de lo que pasó (frente frío, tormenta…).
+
+Al tocar un día, la **ficha** junta todo: lo que pasó en cada ciudad, las
+notas (con sus acciones de siempre: editar, comentar, reaccionar), los dibujos
+de ese día (botón para abrir esa carta a esa hora), los pronósticos publicados
+y accesos a las cartas de ese día, al panorama pronosticado vs observado y a
+**📝 Anotar algo de este día** (privada; se puede compartir).
+
+Una nota cuenta para el día que analiza (`fecha_evento`) o, si no dice, para el
+día en que se escribió; los dibujos, para el día (hora argentina) de su carta.
+Las privadas de los demás no se ven. En el celular, Agenda (y Reunión,
+Métricas, Administración) aparecen en una fila arriba, en Grupo.
+`GET /api/yo/agenda?mes=AAAA-MM` y `GET /api/yo/agenda/dia?fecha=`.
+
 ## Seguridad
 
 - **Quién entra**: Google dice quién es (mail verificado); la tabla `usuario`

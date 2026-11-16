@@ -923,6 +923,45 @@ img.con-fondo { background-color: #fff !important; background-size: 100% 100%; b
 .cp-graf-tit { font-weight: 600; margin: 4px 0 0; }
 .cp-panel { height: 130px; }
 .c-compartir { font-size: 12.5px; }
+/* ===== Agenda ===== */
+.ag-cab { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+.ag-cab h2 { margin: 0 6px; font-size: 19px; min-width: 170px; text-align: center; text-transform: capitalize; }
+.ag-ley { display: inline-flex; gap: 10px; flex-wrap: wrap; font-size: 12px; margin-left: auto; }
+.ag-cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.ag-cal .ds { font-size: 11.5px; color: var(--tenue); text-align: center; text-transform: uppercase; padding: 2px 0; }
+.ag-dia { min-height: 74px; border: 1px solid var(--borde); border-radius: 8px; padding: 4px 6px; background: var(--superficie);
+  cursor: pointer; display: flex; flex-direction: column; gap: 2px; text-align: left; font: inherit; color: inherit; }
+.ag-dia:hover { border-color: var(--acento); }
+.ag-dia.otro { opacity: .35; }
+.ag-dia.hoy .n { background: var(--acento); color: #fff; border-radius: 10px; padding: 0 6px; }
+.ag-dia.elegido { outline: 2px solid var(--acento); outline-offset: -1px; }
+.ag-dia.vacio { cursor: default; }
+.ag-dia .n { font-weight: 600; font-size: 13px; align-self: flex-start; }
+.ag-dia .m { display: flex; flex-wrap: wrap; gap: 2px 6px; font-size: 11.5px; line-height: 1.3; }
+.ag-dia .ev { font-size: 10.5px; color: var(--tenue); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ag-ficha { margin-top: 14px; }
+.ag-ficha h3 { margin: 0 0 8px; font-size: 18px; }
+.ag-ficha h4 { margin: 14px 0 6px; font-size: 14px; color: var(--tinta-2); }
+.ag-acc { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.ag-lista { display: flex; flex-direction: column; gap: 6px; }
+.ag-item { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 6px 10px; border: 1px solid var(--borde); border-radius: 8px; background: var(--superficie); font-size: 13.5px; }
+.ag-item .tenue { font-size: 12px; }
+.ag-item .boton { margin-left: auto; }
+/* Celular: la barra de abajo ya tiene Inicio, Mensajes, Grupo y Perfil; lo que
+   no está ahí (Agenda, Reunión, Métricas, Administración) va en una fila arriba. */
+@media (max-width: 760px) {
+  body.con-barra-abajo .red-izq { display: block !important; }
+  body.con-barra-abajo .red-izq .red-yo,
+  body.con-barra-abajo #red-nav button:is([data-rv="inicio"], [data-rv="perfil"], [data-rv="personas"], [data-rv="chat"]) { display: none; }
+  body.con-barra-abajo #red-nav { flex-direction: row; overflow-x: auto; gap: 4px; padding-bottom: 4px; }
+  body.con-barra-abajo #red-nav button { white-space: nowrap; font-size: 13.5px; padding: 6px 10px; border-radius: 10px; }
+}
+@media (max-width: 640px) {
+  .ag-dia { min-height: 54px; padding: 3px; }
+  .ag-dia .m { font-size: 10px; gap: 0 3px; }
+  .ag-dia .ev { display: none; }
+  .ag-ley { margin-left: 0; }
+}
 .c-capas-otras { display: inline-flex; gap: 6px; flex-wrap: wrap; align-items: center; font-size: 12px; }
 .c-capas-otras label { display: inline-flex; gap: 3px; align-items: center; padding: 1px 7px; border-radius: 10px;
   border: 1px solid rgba(255,255,255,.18); cursor: pointer; white-space: nowrap; }
@@ -2674,6 +2713,7 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
         <div class="red-nav" id="red-nav" role="navigation" aria-label="Secciones del perfil">
           <button data-rv="inicio" class="activa"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg></span> Inicio</button>
           <button data-rv="perfil"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></span> Mi perfil</button>
+          <button data-rv="agenda"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span> Agenda</button>
           <button data-rv="personas"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.5 3-5.5 6.5-5.5s6.5 2 6.5 5.5M16 4.5a3.5 3.5 0 0 1 0 7M18 14.8c2.2.6 3.5 2.4 3.5 5.2"/></svg></span> El grupo</button>
           <button data-rv="chat"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 21l1.9-5.4A8 8 0 1 1 21 12z"/><path d="M8.5 12h.01M12 12h.01M15.5 12h.01"/></svg></span> Mensajes <b class="cuenta-n" id="chat-n" hidden></b></button>
           <button data-rv="reunion"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01"/></svg></span> Reunión sinóptica <b class="cuenta-n" id="rs-n" hidden></b></button>
@@ -2744,6 +2784,19 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
           <p class="ayuda">Todos los del grupo y las firmas que aparecen en los pronósticos (aunque no tengan cuenta). Los números (errores medios, aciertos)
             los ve cada uno de sí mismo y los coordinadores; el resto, solo si esa persona eligió mostrarlos (🔓 en su perfil).</p>
           <div class="red-personas" id="red-personas"></div>
+        </div>
+
+        <!-- Agenda: el calendario de lo analizado (notas, dibujos, pronósticos, lo que pasó) -->
+        <div class="rv" id="rv-agenda" hidden>
+          <div class="ag-cab">
+            <button class="boton" id="ag-ant" title="Mes anterior">‹</button>
+            <h2 id="ag-mes"></h2>
+            <button class="boton" id="ag-sig" title="Mes siguiente">›</button>
+            <button class="boton" id="ag-hoy">Hoy</button>
+            <span class="ag-ley tenue"><span>📝 mis notas</span><span>👥 del grupo</span><span>✏️ dibujos</span><span>🌡️ pronósticos</span><span>🌧 llovió</span></span>
+          </div>
+          <div class="ag-cal" id="ag-cal"></div>
+          <div class="ag-ficha" id="ag-ficha" hidden></div>
         </div>
 
         <!-- Reunión sinóptica -->
@@ -8701,6 +8754,7 @@ function verRed(v, cargar = true) {
   if (v === "metricas") cargarGrupo();
   if (v === "admin") cargarAdmin();
   if (v === "chat") cargarChats();
+  if (v === "agenda") cargarAgenda();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 // Vuelve a cargar lo que se está mirando (después de escribir, borrar, etc.).
@@ -8708,18 +8762,122 @@ function cargarLibreta() {
   if (red.vista === "perfil" && red.perfil.quien) cargarFeed(red.perfil, red.perfil.params || {}, "#red-feed-perfil", "#red-mas-perfil", "Nada publicado en estas semanas");
   else if (red.vista === "inicio") cargarInicio();
   else if (red.vista === "dia" && red.dia) abrirDia(red.dia.ciudad, red.dia.fecha, red.dia.plazo);
+  else if (red.vista === "agenda") cargarAgenda(true);
   cargarReunion();
 }
+// ---------- Agenda ----------
+const agenda = { mes: null, dias: {}, dia: null, datos: null };
+// "frente_frio" -> "frente frío" (las etiquetas de lo que pasó, como texto).
+const ETQ_TEXTO = { frio: "frío", calido: "cálido", granizo: "granizo", niebla: "niebla" };
+const textoEtiqueta = (e) => String(e).split("_").map((w) => ETQ_TEXTO[w] || w).join(" ");
+const MESES_AG = new Intl.DateTimeFormat("es-AR", { timeZone: "UTC", month: "long", year: "numeric" });
+const hoyArg = () => diaArg(new Date());
+async function cargarAgenda(recargarDia = false) {
+  if (!agenda.mes) agenda.mes = hoyArg().slice(0, 7);
+  const mes = agenda.mes;
+  $("#ag-mes").textContent = MESES_AG.format(new Date(mes + "-15T12:00:00Z"));
+  try { agenda.dias = (await api(`/api/yo/agenda?mes=${mes}`)).dias; } catch (_) { agenda.dias = {}; }
+  if (agenda.mes !== mes) return;
+  dibujarCalendario();
+  if (recargarDia && agenda.dia) abrirDiaAgenda(agenda.dia);
+}
+function dibujarCalendario() {
+  const [a, m] = agenda.mes.split("-").map(Number);
+  const primero = new Date(Date.UTC(a, m - 1, 1));
+  const inicio = new Date(primero); inicio.setUTCDate(1 - ((primero.getUTCDay() + 6) % 7));     // desde el lunes
+  const hoy = hoyArg();
+  let html = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"].map((d) => `<div class="ds">${d}</div>`).join("");
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(inicio); d.setUTCDate(inicio.getUTCDate() + i);
+    const f = d.toISOString().slice(0, 10);
+    if (i >= 35 && f.slice(0, 7) !== agenda.mes) break;                  // no hace falta la sexta fila
+    const x = agenda.dias[f] || {};
+    const capas = (x.capas_mias || 0) + (x.capas_grupo || 0);
+    const marcas = [x.notas_mias ? `<span title="Mis notas">📝${x.notas_mias}</span>` : "",
+      x.notas_grupo ? `<span title="Notas compartidas del grupo">👥${x.notas_grupo}</span>` : "",
+      capas ? `<span title="Dibujos sobre cartas: ${x.capas_mias || 0} tuyos, ${x.capas_grupo || 0} compartidos">✏️${capas}</span>` : "",
+      x.pronosticos ? `<span title="Pronósticos publicados">🌡️${x.pronosticos}</span>` : "",
+      x.lluvia?.length ? `<span title="Llovió en: ${esc(x.lluvia.join(", "))}">🌧</span>` : ""].join("");
+    const ev = (x.etiquetas || []).map(textoEtiqueta).join(", ");
+    html += `<button type="button" class="ag-dia${f.slice(0, 7) !== agenda.mes ? " otro" : ""}${f === hoy ? " hoy" : ""}${f === agenda.dia ? " elegido" : ""}"
+      data-ag-dia="${f}"><span class="n">${d.getUTCDate()}</span><span class="m">${marcas}</span>${ev ? `<span class="ev" title="${esc(ev)}">${esc(ev)}</span>` : ""}</button>`;
+  }
+  $("#ag-cal").innerHTML = html;
+}
+async function abrirDiaAgenda(fecha) {
+  agenda.dia = fecha;
+  document.querySelectorAll("#ag-cal .ag-dia").forEach((b) => b.classList.toggle("elegido", b.dataset.agDia === fecha));
+  const ficha = $("#ag-ficha");
+  ficha.hidden = false;
+  ficha.innerHTML = '<p class="tenue">Cargando…</p>';
+  let d;
+  try { d = await api(`/api/yo/agenda/dia?fecha=${fecha}`); } catch (err) { ficha.innerHTML = `<p class="tenue">No se pudo cargar: ${esc(err.message)}</p>`; return; }
+  if (agenda.dia !== fecha) return;
+  agenda.datos = d;
+  const ciudades = [...new Set([...Object.keys(d.observado), ...d.pronosticos.map((p) => p.ciudad)])];
+  const ciudad0 = ciudades.includes("La Plata") ? "La Plata" : ciudades[0] || "La Plata";
+  const quien = (x) => x.mia ? "Vos" : esc(x.autor);
+  const obs = Object.entries(d.observado).map(([c, o]) => `<div class="ag-item"><b>${esc(c)}</b>
+      <span>máx ${num(o.tmax_urbana)} · mín ${num(o.tmin_urbana)} °C</span>
+      <span>${o.pp === "SI" ? "🌧 llovió" : o.pp === "NO" ? "sin lluvia" : ""}</span>
+      ${o.etiquetas ? `<span class="tenue">${esc(o.etiquetas.split(",").map(textoEtiqueta).join(", "))}</span>` : ""}
+      <button class="boton chico" data-ag-panorama="${esc(c)}" title="Pronosticado contra observado ese día">📊 Panorama</button></div>`).join("");
+  const capas = d.capas.map((c) => `<div class="ag-item"><b>${String(new Date(c.ts).getUTCHours()).padStart(2, "0")} UTC</b>
+      <span>${esc(c.nivel ? c.nivel + " · " : "")}${esc(c.nombre)}</span>
+      <span class="tenue">${quien(c)} · ${c.mia ? (c.compartida ? "👥 compartido" : "🔒 privado") : "compartido"} · ${c.elementos} elemento${c.elementos === 1 ? "" : "s"}</span>
+      <button class="boton chico" data-ag-carta="${esc(c.producto)}" data-ts="${esc(c.ts)}">🗺️ Abrir la carta</button></div>`).join("");
+  const pron = d.pronosticos.map((p) => `<div class="ag-item"><b>${esc(p.ciudad)}</b>
+      <span>${esc(p.usuario?.nombre || p.firma || "")}${p.hora ? ` <span class="tenue">· ${esc(String(p.hora).slice(0, 5))} hs</span>` : ""}${p.correccion ? ' <span class="tenue">· corrección</span>' : ""}</span>
+      <button class="boton chico" data-ag-panorama="${esc(p.ciudad)}">📊 Pronosticado vs observado</button></div>`).join("");
+  ficha.innerHTML = `<h3>${esc(fmtDiaLargo.format(new Date(fecha + "T12:00:00Z")).replace(/^./, (x) => x.toUpperCase()))}</h3>
+    <div class="ag-acc">
+      <button class="boton" data-ag-cartas="${fecha}" title="Diagnóstico: las cartas de ese día (12 UTC)">🗺️ Cartas de ese día</button>
+      <button class="boton" data-ag-panorama="${esc(ciudad0)}" title="Lo que se observó y lo que cada uno pronosticó para ese día">📊 Panorama del día</button>
+      <button class="boton primario" data-ag-anotar="${fecha}" title="Una nota sobre este día (privada; la podés compartir)">📝 Anotar algo de este día</button>
+    </div>
+    <h4>Lo que pasó</h4>${obs ? `<div class="ag-lista">${obs}</div>` : '<p class="tenue">Sin datos de verificación para ese día.</p>'}
+    <h4>Notas (${d.notas.length})</h4>${d.notas.length ? `<div class="red-feed ag-notas">${d.notas.map((n) => tarjetaNota(n)).join("")}</div>` : '<p class="tenue">Nada anotado. Con «📝 Anotar algo de este día» queda acá.</p>'}
+    <h4>Dibujos sobre las cartas (${d.capas.length})</h4>${capas ? `<div class="ag-lista">${capas}</div>` : '<p class="tenue">Nadie dibujó (o compartió) sobre las cartas de ese día.</p>'}
+    <h4>Pronósticos publicados (${d.pronosticos.length})</h4>${pron ? `<div class="ag-lista">${pron}</div>` : '<p class="tenue">No se publicaron pronósticos ese día.</p>'}`;
+  ficha.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+// Abrir una carta en el visor después de ir a esa hora en Diagnóstico.
+function abrirCartaEn(producto, ts) {
+  irACartas(ts);
+  const intentar = (n) => setTimeout(() => {
+    if (cartasHora.some((c) => c.id === producto) && tsCarta().toISOString() === new Date(ts).toISOString()) abrirCarta(producto);
+    else if (n) intentar(n - 1);
+  }, 500);
+  intentar(10);
+}
+$("#ag-ant").addEventListener("click", () => { const [a, m] = agenda.mes.split("-").map(Number); agenda.mes = new Date(Date.UTC(a, m - 2, 1)).toISOString().slice(0, 7); cargarAgenda(); });
+$("#ag-sig").addEventListener("click", () => { const [a, m] = agenda.mes.split("-").map(Number); agenda.mes = new Date(Date.UTC(a, m, 1)).toISOString().slice(0, 7); cargarAgenda(); });
+$("#ag-hoy").addEventListener("click", () => { agenda.mes = hoyArg().slice(0, 7); cargarAgenda().then(() => abrirDiaAgenda(hoyArg())); });
+document.addEventListener("click", (e) => {
+  const dia = e.target.closest("[data-ag-dia]");
+  if (dia) { abrirDiaAgenda(dia.dataset.agDia); return; }
+  const pan = e.target.closest("[data-ag-panorama]");
+  if (pan && agenda.dia) { red.diaVolver = { vista: "agenda", obj: "", scroll: window.scrollY }; abrirDia(pan.dataset.agPanorama, agenda.dia); return; }
+  const car = e.target.closest("[data-ag-cartas]");
+  if (car) { irACartas(`${car.dataset.agCartas}T12:00:00Z`); return; }
+  const una = e.target.closest("[data-ag-carta]");
+  if (una) { abrirCartaEn(una.dataset.agCarta, una.dataset.ts); return; }
+  const an = e.target.closest("[data-ag-anotar]");
+  if (an) abrirNota({ tipo: "vi", fecha_evento: an.dataset.agAnotar, compartida: false, etiquetas: [], texto: "",
+                      contexto: { seccion: "agenda", ts: an.dataset.agAnotar + "T15:00:00Z" } });
+});
+
 function buscarNota(id) {
   const r = red.reunion.find((n) => n.id === id);          // la del tablero es la más fresca (estado)
   if (r) return r;
   for (const it of [...red.inicio.items, ...red.perfil.items]) if (it.tipo === "nota" && it.nota.id === id) return it.nota;
-  return (red.dia?.datos?.notas || []).find((n) => n.id === id) || null;
+  return (red.dia?.datos?.notas || []).find((n) => n.id === id) || (agenda.datos?.notas || []).find((n) => n.id === id) || null;
 }
 function buscarObjeto(obj) {
   return [...red.inicio.items, ...red.perfil.items].filter((it) => (it.tipo === "nota" ? `nota:${it.nota.id}` : it.objeto) === obj)
     .concat(red.reunion.filter((n) => `nota:${n.id}` === obj).map((n) => ({ tipo: "nota", nota: n })))
-    .concat((red.dia?.datos?.notas || []).filter((n) => `nota:${n.id}` === obj).map((n) => ({ tipo: "nota", nota: n })));
+    .concat((red.dia?.datos?.notas || []).filter((n) => `nota:${n.id}` === obj).map((n) => ({ tipo: "nota", nota: n })))
+    .concat((agenda.datos?.notas || []).filter((n) => `nota:${n.id}` === obj).map((n) => ({ tipo: "nota", nota: n })));
 }
 function redibujar() {
   if (red.vista === "inicio") dibujarFeed("#red-feed", red.inicio, "Todavía no hay nada");
