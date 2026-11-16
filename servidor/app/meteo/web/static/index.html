@@ -558,6 +558,11 @@ img.avatar { object-fit: cover; background: var(--plano); display: inline-block;
 .postit .etqs button { border: 1px solid var(--borde); border-radius: 99px; padding: 0 7px; font-size: 11.5px; background: none; color: var(--tinta-2); cursor: pointer; }
 .postit .acc { display: flex; gap: 6px; flex-wrap: wrap; }
 .postit .acc .boton { padding: 1px 8px; font-size: 12px; }
+/* Los botones del modelo GFS, juntos y de otro color: que se encuentren de un vistazo. */
+.postit .acc .grupo-gfs { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; padding: 2px 3px 2px 9px; border-radius: 99px;
+  background: color-mix(in srgb, var(--s7) 12%, transparent); border: 1px solid color-mix(in srgb, var(--s7) 50%, transparent); }
+.grupo-gfs > b { font-size: 11.5px; font-weight: 600; color: var(--s7); white-space: nowrap; margin-right: 2px; }
+.postit .acc .grupo-gfs .boton { border-color: color-mix(in srgb, var(--s7) 45%, var(--borde)); border-radius: 99px; }
 .postit .coment { border-top: 1px dashed var(--borde); padding-top: 6px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
 .postit .coment .c { overflow-wrap: anywhere; }
 .postit .coment .c span { white-space: pre-wrap; }
@@ -972,6 +977,40 @@ img.con-fondo { background-color: #fff !important; background-size: 100% 100%; b
 .ag-horas { display: inline-flex; gap: 4px; align-items: center; flex-wrap: wrap; }
 .ag-aviso { font-size: 12.5px; margin: 6px 0; }
 .ag-notas [data-ir-dia] { display: none; }
+/* Ayuda: «Cómo funciona» */
+#d-ayuda { width: min(1000px, calc(100vw - 24px)); height: min(820px, calc(100vh - 24px)); max-width: none; max-height: none; padding: 0;
+  border: 1px solid var(--borde); border-radius: 14px; background: var(--plano); color: var(--tinta); }
+#d-ayuda[open] { display: flex; flex-direction: column; }
+#d-ayuda::backdrop { background: rgba(0,0,0,.45); }
+.ay-cab { display: flex; gap: 10px; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--borde); flex-wrap: wrap; }
+.ay-cab h2 { margin: 0; font-size: 19px; flex: 1 1 auto; }
+#ay-buscar { flex: 0 1 300px; min-width: 0; padding: 6px 10px; border: 1px solid var(--borde); border-radius: 8px; font: inherit; background: var(--superficie); color: var(--tinta); }
+.ay-cuerpo { display: flex; flex: 1; min-height: 0; }
+.ay-indice { flex: 0 0 200px; overflow-y: auto; padding: 10px 8px; border-right: 1px solid var(--borde); display: flex; flex-direction: column; gap: 2px; }
+.ay-indice a { padding: 6px 10px; border-radius: 8px; color: var(--tinta-2); text-decoration: none; font-size: 14px; }
+.ay-indice a:hover, .ay-indice a.activo { background: color-mix(in srgb, var(--acento) 12%, transparent); color: var(--acento); }
+.ay-texto { flex: 1; overflow-y: auto; padding: 4px 22px 30px; line-height: 1.55; font-size: 15px; }
+.ay-texto h3 { font-size: 18px; margin: 22px 0 6px; } .ay-texto h4 { font-size: 15.5px; margin: 14px 0 4px; }
+.ay-texto ul { padding-left: 20px; } .ay-texto li { margin: 3px 0; }
+.ay-tip { padding: 8px 12px; border-radius: 8px; background: color-mix(in srgb, var(--acento) 10%, transparent); }
+.ay-glos dt { font-weight: 650; margin-top: 8px; } .ay-glos dd { margin: 0 0 0 14px; }
+.ay-texto mark { background: #fde68a; color: inherit; border-radius: 2px; }
+.ay-texto .ay-oculta { display: none; }
+@media (max-width: 700px) {
+  #d-ayuda { width: 100vw; height: 100dvh; border-radius: 0; border: 0; }
+  .ay-cuerpo { flex-direction: column; }
+  .ay-indice { flex: 0 0 auto; flex-direction: row; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--borde); scrollbar-width: none; }
+  .ay-indice a { white-space: nowrap; flex-shrink: 0; }
+  .ay-texto { padding: 4px 14px 30px; }
+  #ay-buscar { flex-basis: 100%; order: 3; }
+}
+/* Globito de ayuda (reemplaza al del navegador: sale enseguida, se lee mejor y anda en el celular). */
+#globito { position: fixed; z-index: 100000; max-width: min(340px, calc(100vw - 16px)); padding: 7px 10px; border-radius: 8px;
+  background: #1e293b; color: #f8fafc; font-size: 13px; line-height: 1.4; box-shadow: 0 6px 20px rgba(0,0,0,.28);
+  pointer-events: none; opacity: 0; transform: translateY(2px); transition: opacity .12s, transform .12s; white-space: pre-line; }
+#globito.visible { opacity: 1; transform: none; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #globito { background: #f1f5f9; color: #0f172a; } }
+:root[data-theme="dark"] #globito { background: #f1f5f9; color: #0f172a; }
 .corr-elegir { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
 .corr-estado { margin: 12px 0 4px; padding: 10px 12px; border: 1px solid var(--borde); border-radius: 10px; background: var(--superficie); font-size: 14px; line-height: 1.5; min-height: 2.5em; }
 .corr-estado .barra { height: 6px; border-radius: 3px; background: var(--borde); margin-top: 6px; overflow: hidden; }
@@ -2011,18 +2050,19 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
     <span id="letra-val" aria-live="polite">100 %</span>
     <button type="button" id="letra-mas" title="Agrandar la letra" aria-label="Agrandar la letra">A+</button>
   </div>
+  <button class="boton tema" id="ayuda-btn" title="Cómo funciona la plataforma: qué hay en cada sección y qué significa cada cosa">❓</button>
   <button class="boton tema" id="tema" title="Tema: automático (el del sistema)">🌓</button>
   <div class="cuenta" id="cuenta"></div>
 </header>
 
 <!-- Barra de abajo en el celular (con sesión): lo más usado a mano con el pulgar -->
 <div class="barra-abajo" id="barra-abajo" role="navigation" aria-label="Navegación rápida" hidden>
-  <button data-ir="inicio"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg></span>Inicio</button>
-  <button data-ir="cartas"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2zM9 4v14M15 6v14"/></svg></span>Cartas</button>
-  <button data-ir="publicar" class="publicar"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span>Publicar</button>
-  <button data-ir="chat"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 21l1.9-5.4A8 8 0 1 1 21 12z"/><path d="M8.5 12h.01M12 12h.01M15.5 12h.01"/></svg><b class="ba-n" id="chat-n2" hidden></b></span>Mensajes</button>
-  <button data-ir="personas"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.5 3-5.5 6.5-5.5s6.5 2 6.5 5.5M16 4.5a3.5 3.5 0 0 1 0 7M18 14.8c2.2.6 3.5 2.4 3.5 5.2"/></svg></span>Grupo</button>
-  <button data-ir="perfil"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></span>Perfil</button>
+  <button data-ir="inicio" title="Inicio: lo último del grupo (pronósticos, notas, preguntas)"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg></span>Inicio</button>
+  <button data-ir="cartas" title="Cartas: análisis, satélite y pronóstico del GFS"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2zM9 4v14M15 6v14"/></svg></span>Cartas</button>
+  <button data-ir="publicar" class="publicar" title="Publicar: una nota, una duda o algo que viste (privada o para el grupo)"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span>Publicar</button>
+  <button data-ir="chat" title="Mensajes privados y de grupo"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 21l1.9-5.4A8 8 0 1 1 21 12z"/><path d="M8.5 12h.01M12 12h.01M15.5 12h.01"/></svg><b class="ba-n" id="chat-n2" hidden></b></span>Mensajes</button>
+  <button data-ir="personas" title="El grupo: quiénes son, sus perfiles y métricas"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.5 3-5.5 6.5-5.5s6.5 2 6.5 5.5M16 4.5a3.5 3.5 0 0 1 0 7M18 14.8c2.2.6 3.5 2.4 3.5 5.2"/></svg></span>Grupo</button>
+  <button data-ir="perfil" title="Tu perfil: tus pronósticos, notas y lo que guardaste"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></span>Perfil</button>
 </div>
 
 <main>
@@ -2041,12 +2081,12 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
     <!-- Qué se dibuja en cada estación: el estado (de siempre) o el valor de una variable -->
     <div class="mapa-var-barra">
       <div class="horas-c" role="group" aria-label="Variable en el mapa" id="mapa-var">
-        <button type="button" data-v="estado" aria-pressed="true">Estado</button>
-        <button type="button" data-v="temp">🌡 Temperatura</button>
-        <button type="button" data-v="hum">💧 Humedad</button>
-        <button type="button" data-v="pres">Presión</button>
-        <button type="button" data-v="viento">💨 Viento</button>
-        <button type="button" data-v="lluvia">🌧 Lluvia hoy</button>
+        <button type="button" data-v="estado" aria-pressed="true" title="Si cada estación está mandando datos: ✓ al día · ! demorada · ✕ cortada o sin datos">Estado</button>
+        <button type="button" data-v="temp" title="La última temperatura de cada estación, con colores (azul frío → rojo calor)">🌡 Temperatura</button>
+        <button type="button" data-v="hum" title="La última humedad relativa de cada estación">💧 Humedad</button>
+        <button type="button" data-v="pres" title="La última presión al nivel del mar (hPa) de cada estación; «est.» = solo la tiene a la altura de la estación (no se compara con las demás)">Presión</button>
+        <button type="button" data-v="viento" title="Viento: la flecha apunta hacia donde va, la velocidad en km/h y de dónde viene; el color dice si es leve, moderado, regular o fuerte">💨 Viento</button>
+        <button type="button" data-v="lluvia" title="La lluvia acumulada hoy (desde las 0 hs de Argentina) en cada estación">🌧 Lluvia hoy</button>
       </div>
       <span class="tenue" id="mapa-var-nota"></span>
     </div>
@@ -2388,14 +2428,14 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
   <!-- ============================ CARTAS ============================ -->
   <section id="tab-cartas" hidden>
     <div class="cartas-nav" id="cartas-nav" role="tablist" aria-label="Qué mirar">
-      <button role="tab" data-cvista="pron" class="pron"><b>Pronóstico</b><span>cartas del GFS y meteograma</span></button>
-      <button role="tab" data-cvista="diag" class="diag"><b>Diagnóstico</b><span>lo que pasó: análisis, satélite, observaciones</span></button>
-      <button role="tab" data-cvista="grupo" class="grupo"><b>Lo que pronosticamos</b><span>contra lo observado</span></button>
+      <button role="tab" data-cvista="pron" class="pron" title="El pronóstico del modelo GFS: cartas de +0 a +192 h y meteograma por ciudad"><b>Pronóstico</b><span>cartas del GFS y meteograma</span></button>
+      <button role="tab" data-cvista="diag" class="diag" title="Lo que pasó a una hora: cartas de análisis, satélite, rayos y observaciones"><b>Diagnóstico</b><span>lo que pasó: análisis, satélite, observaciones</span></button>
+      <button role="tab" data-cvista="grupo" class="grupo" title="Los pronósticos del grupo para esa fecha, comparados con lo observado"><b>Lo que pronosticamos</b><span>contra lo observado</span></button>
     </div>
     <div class="tarjeta ci" id="ci">
       <div class="ci-cab">
         <h3>Contexto climático <span class="tenue" style="font-weight:400" id="ci-fecha"></span></h3>
-        <button class="boton chico" id="ci-ver" aria-expanded="false">Ver evolución y período ▾</button>
+        <button class="boton chico" id="ci-ver" aria-expanded="false" title="Ver cómo vinieron los índices climáticos (ENSO, SAM, MJO…) en los últimos meses">Ver evolución y período ▾</button>
       </div>
       <div class="ci-chips" id="ci-chips"><span class="tenue">Cargando índices…</span></div>
       <div class="ci-det" id="ci-det" hidden>
@@ -2517,10 +2557,10 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
     </div>
     <!-- Diagnóstico en pestañas: una sección por vez, sin deslizar por todo -->
     <nav class="diag-nav horas-c" id="diag-nav" data-cvista="diag" role="tablist" aria-label="Secciones de Diagnóstico">
-      <button type="button" role="tab" data-dsec="cartas"><b>🗺️ Cartas</b><span>análisis y satélite</span></button>
-      <button type="button" role="tab" data-dsec="ciudad"><b>📈 Por ciudad</b><span>meteograma y corte</span></button>
-      <button type="button" role="tab" data-dsec="hora"><b>🕐 Obs. de la hora</b><span>SYNOP de esa hora</span></button>
-      <button type="button" role="tab" data-dsec="dia"><b>📋 Obs. del día</b><span>todas, por estación</span></button>
+      <button type="button" role="tab" data-dsec="cartas" title="Las cartas de esa hora (análisis del GFS, Bentley, satélite, rayos, Ogimet); tocá una para verla grande y dibujar"><b>🗺️ Cartas</b><span>análisis y satélite</span></button>
+      <button type="button" role="tab" data-dsec="ciudad" title="Meteograma de una ciudad: temperatura, viento, presión y lluvia observados alrededor de esa hora, con el GFS"><b>📈 Por ciudad</b><span>meteograma y corte</span></button>
+      <button type="button" role="tab" data-dsec="hora" title="Los SYNOP (observaciones del SMN) de esa hora en todas las estaciones"><b>🕐 Obs. de la hora</b><span>SYNOP de esa hora</span></button>
+      <button type="button" role="tab" data-dsec="dia" title="Todas las observaciones de ese día, estación por estación"><b>📋 Obs. del día</b><span>todas, por estación</span></button>
     </nav>
     <div class="tarjeta" id="c-analisis" data-cvista="diag" data-dsec="cartas">
       <div class="filtros">
@@ -2620,7 +2660,7 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
     <!-- Todas las observaciones del día, estación por estación (se abre si se quiere) -->
     <div class="tarjeta" id="cp-obs-tarjeta" data-cvista="diag" data-dsec="dia">
       <div class="cp-obs-cab"><h2 style="margin:0; font-size:18px; flex:1 1 280px">Observaciones del día <span class="tenue" style="font-weight:400">(todas, de cada estación de la ciudad, de 00 a 24 hs)</span></h2>
-        <button type="button" class="boton" id="cp-obs-ver" aria-expanded="false">📋 Ver todas</button></div>
+        <button type="button" class="boton" id="cp-obs-ver" aria-expanded="false" title="Todas las observaciones del día de esta ciudad, hora por hora">📋 Ver todas</button></div>
       <div id="cp-obs" hidden>
         <div class="horas-c" role="group" aria-label="Ciudad" id="cp-obs-ciudades"></div>
         <div id="cp-obs-cont"></div>
@@ -2721,7 +2761,7 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
       <div class="filtros">
         <span class="periodo" id="p-bit"></span>
         <label>Estación <select id="f-bit-est"><option value="">Todas</option></select></label>
-        <button class="boton primario" id="b-bit-nuevo">+ Anotar falla o mantenimiento</button>
+        <button class="boton primario" id="b-bit-nuevo" title="Anotar una falla o un mantenimiento de una estación (queda en su historial y explica los huecos de datos)">+ Anotar falla o mantenimiento</button>
         <a class="boton" id="b-bit-csv" href="api/incidentes?formato=csv">Bitácora en CSV</a>
       </div>
       <div class="causas-total" id="bit-causas"></div>
@@ -2759,14 +2799,14 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
       <aside class="red-izq">
         <button class="red-yo" id="red-yo" data-perfil-yo title="Ver mi perfil"></button>
         <div class="red-nav" id="red-nav" role="navigation" aria-label="Secciones del perfil">
-          <button data-rv="inicio" class="activa"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg></span> Inicio</button>
-          <button data-rv="perfil"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></span> Mi perfil</button>
-          <button data-rv="agenda"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span> Agenda</button>
-          <button data-rv="personas"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.5 3-5.5 6.5-5.5s6.5 2 6.5 5.5M16 4.5a3.5 3.5 0 0 1 0 7M18 14.8c2.2.6 3.5 2.4 3.5 5.2"/></svg></span> El grupo</button>
-          <button data-rv="chat"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 21l1.9-5.4A8 8 0 1 1 21 12z"/><path d="M8.5 12h.01M12 12h.01M15.5 12h.01"/></svg></span> Mensajes <b class="cuenta-n" id="chat-n" hidden></b></button>
-          <button data-rv="reunion"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01"/></svg></span> Reunión sinóptica <b class="cuenta-n" id="rs-n" hidden></b></button>
-          <button data-rv="metricas" id="rv-b-metricas" hidden><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M2 20h20"/></svg></span> Métricas del grupo</button>
-          <button data-rv="admin" id="rv-b-admin" hidden><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.1L3 17.7 6.3 21l6.3-6.3a4 4 0 0 0 5.1-5.4l-2.5 2.5-2.6-.6-.6-2.6z"/></svg></span> Administración</button>
+          <button data-rv="inicio" class="activa" title="Lo último del grupo: pronósticos publicados, notas compartidas y preguntas"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg></span> Inicio</button>
+          <button data-rv="perfil" title="Tu perfil: tus pronósticos y su verificación, tus notas e insignias"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></span> Mi perfil</button>
+          <button data-rv="agenda" title="Calendario de lo analizado: notas, dibujos, marcas y pronósticos de cada día, y buscador"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span> Agenda</button>
+          <button data-rv="personas" title="Quiénes forman el grupo; tocá a alguien para ver su perfil"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.5 3-5.5 6.5-5.5s6.5 2 6.5 5.5M16 4.5a3.5 3.5 0 0 1 0 7M18 14.8c2.2.6 3.5 2.4 3.5 5.2"/></svg></span> El grupo</button>
+          <button data-rv="chat" title="Mensajes privados y de grupo"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 21l1.9-5.4A8 8 0 1 1 21 12z"/><path d="M8.5 12h.01M12 12h.01M15.5 12h.01"/></svg></span> Mensajes <b class="cuenta-n" id="chat-n" hidden></b></button>
+          <button data-rv="reunion" title="Tablero de la reunión sinóptica: preguntas propuestas, en discusión y tratadas"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01"/></svg></span> Reunión sinóptica <b class="cuenta-n" id="rs-n" hidden></b></button>
+          <button data-rv="metricas" id="rv-b-metricas" hidden title="Cómo viene el grupo: errores medios, aciertos de lluvia y comparación con el GFS"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M2 20h20"/></svg></span> Métricas del grupo</button>
+          <button data-rv="admin" id="rv-b-admin" hidden title="Administración: usuarios, ajustes de la verificación y la base"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.1L3 17.7 6.3 21l6.3-6.3a4 4 0 0 0 5.1-5.4l-2.5 2.5-2.6-.6-.6-2.6z"/></svg></span> Administración</button>
         </div>
       </aside>
 
@@ -2789,19 +2829,19 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
             </div>
           </div>
           <div class="muro-filtros">
-            <span id="rf-tipos"><button class="chip-f activa" data-f="">Todo</button><button class="chip-f" data-f="pron">🌡️ Pronósticos</button><button class="chip-f" data-f="nota">📝 Notas</button><button class="chip-f" data-f="pregunta">❓ Preguntas</button></span>
+            <span id="rf-tipos"><button class="chip-f activa" data-f="" title="Mostrar todo">Todo</button><button class="chip-f" data-f="pron">🌡️ Pronósticos</button><button class="chip-f" data-f="nota" title="Solo las notas (lo que alguien vio o le llamó la atención)">📝 Notas</button><button class="chip-f" data-f="pregunta">❓ Preguntas</button></span>
             <input type="search" id="mf-buscar" placeholder="Buscar (texto, persona, #etiqueta, ciudad)…" style="flex:1 1 180px;min-width:140px">
             <label class="en-linea" id="lb-l-todas" hidden title="Solo administradores"><input type="checkbox" id="lb-todas"> Incluir las privadas de todos</label>
           </div>
           <div id="red-feed" class="red-feed"></div>
-          <button class="boton red-mas" id="red-mas" hidden>Ver días anteriores</button>
+          <button class="boton red-mas" id="red-mas" hidden title="Cargar lo publicado en las semanas anteriores">Ver días anteriores</button>
         </div>
 
         <!-- Perfil de una persona -->
         <div class="rv" id="rv-perfil" hidden>
           <div class="tarjeta red-cab" id="red-cab"></div>
           <div class="red-subtabs"><button data-pt="pub" class="activa">Publicaciones</button><button data-pt="pron">Pronósticos y errores</button></div>
-          <div id="pt-pub"><div id="red-feed-perfil" class="red-feed"></div><button class="boton red-mas" id="red-mas-perfil" hidden>Ver días anteriores</button></div>
+          <div id="pt-pub"><div id="red-feed-perfil" class="red-feed"></div><button class="boton red-mas" id="red-mas-perfil" hidden title="Cargar lo publicado en las semanas anteriores">Ver días anteriores</button></div>
           <div id="pt-pron" hidden>
     <div class="tarjeta">
       <div class="filtros">
@@ -2852,7 +2892,7 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
             <button class="boton" id="ag-ant" title="Mes anterior">‹</button>
             <h2 id="ag-mes"></h2>
             <button class="boton" id="ag-sig" title="Mes siguiente">›</button>
-            <button class="boton" id="ag-hoy">Hoy</button>
+            <button class="boton" id="ag-hoy" title="Volver al mes actual y abrir el día de hoy">Hoy</button>
             <span class="ag-ley tenue"><span>📝 mis notas</span><span>👥 del grupo</span><span>✏️ dibujos</span><span>📍 marcas en series</span><span>🌡️ pronósticos</span><span>🌧 llovió</span></span>
           </div>
           <div class="ag-cal" id="ag-cal"></div>
@@ -2865,7 +2905,7 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
             <b>En discusión</b> lo que se está mirando y, al terminar, a <b>Conclusión</b> con el consenso (queda en el historial). Las mueve quien la
             escribió o un coordinador (botones, o arrastrando en la compu).</p>
             <button class="boton" id="rs-presentar" hidden title="Pantalla completa con lo que está en discusión (← → para pasar)">🖥️ Presentar</button>
-            <button class="boton primario" id="rs-nueva">❓ Nueva pregunta</button></div>
+            <button class="boton primario" id="rs-nueva" title="Proponer una pregunta para tratar en la próxima reunión sinóptica">❓ Nueva pregunta</button></div>
           <div id="rs-lista" class="kanban"></div>
         </div>
 
@@ -2873,7 +2913,7 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
         <div class="rv" id="rv-chat" hidden>
           <div class="chat">
             <aside class="chat-lista">
-              <div class="chat-botones"><button class="boton primario" id="chat-nuevo">✏️ Nueva conversación</button>
+              <div class="chat-botones"><button class="boton primario" id="chat-nuevo" title="Empezar una conversación con una persona o con varias">✏️ Nueva conversación</button>
                 <button class="boton" id="chat-dudas" title="Mandale una duda o una sugerencia a los administradores">💡 Dudas y sugerencias</button></div>
               <div id="chat-convs"><p class="tenue">Cargando…</p></div>
             </aside>
@@ -2892,7 +2932,7 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
 
         <!-- Panorama de un día: todos los pronósticos para esa fecha, lo observado, el GFS, las cartas y las notas -->
         <div class="rv" id="rv-dia" hidden>
-          <div class="dia-barra"><button class="boton" data-dia-volver>← Volver</button>
+          <div class="dia-barra"><button class="boton" data-dia-volver title="Volver a la tarjeta desde donde viniste">← Volver</button>
             <button class="boton" data-dia-mover="-1" title="Día anterior">‹</button>
             <h2 id="dia-tit"></h2>
             <button class="boton" data-dia-mover="1" title="Día siguiente">›</button></div>
@@ -2998,6 +3038,177 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
   </form>
 </dialog>
 
+<dialog id="d-ayuda" aria-labelledby="ay-tit">
+  <div class="ay-cab"><h2 id="ay-tit">❓ Cómo funciona Meteo UNLP</h2>
+    <input type="search" id="ay-buscar" placeholder="🔎 Buscar en la ayuda: corrida, traza, capa…" autocomplete="off">
+    <button type="button" class="boton" id="ay-cerrar" title="Cerrar la ayuda (Esc)">✕</button></div>
+  <div class="ay-cuerpo">
+    <nav class="ay-indice" id="ay-indice" aria-label="Índice de la ayuda"></nav>
+    <div class="ay-texto" id="ay-texto">
+
+<section id="ay-que" data-tit="Qué es">
+<h3>Qué es</h3>
+<p>Una plataforma de <b>análisis</b> del Grupo de Pronóstico (FCAG-UNLP) que junta en un solo lugar lo que pasa ahora
+(las estaciones), lo que pasó (cartas, satélite, observaciones), lo que dice el modelo (GFS), lo que pronosticamos y cómo
+nos fue. Además funciona como la <b>agenda meteorológica</b> del grupo: lo que cada uno anota, dibuja o marca queda
+guardado en su día y se puede volver a encontrar.</p>
+<p class="ay-tip">💡 Casi todos los botones tienen una explicación: pasá el mouse por encima (en el celular, mantené apretado
+el botón medio segundo).</p>
+</section>
+
+<section id="ay-moverse" data-tit="Cómo moverse">
+<h3>Cómo moverse</h3>
+<p>Arriba hay cinco secciones:</p>
+<ul>
+<li data-completa><b>Ahora</b>: las estaciones en este momento (mapa, EMAs, SMN, lluvia del día, comparar, estado).</li>
+<li><b>Análisis</b>: el diagnóstico de una fecha y hora: cartas, satélite, rayos y observaciones.</li>
+<li><b>Pronóstico</b>: el modelo GFS y lo que pronosticó el grupo.</li>
+<li data-completa><b>Verificación</b>: los pronósticos contra lo observado, con estadísticas.</li>
+<li data-completa><b>Grupo</b> (con tu usuario): inicio, perfil, agenda, mensajes, reunión sinóptica.</li>
+</ul>
+<p>Además: <b>Modo Análisis 🤓</b> muestra las herramientas completas (tablas, comparar con el modelo, atajos de teclado).
+Sin él la página queda más simple. <b>Letra</b> agranda o achica todo, y <b>🌓</b> cambia entre claro, oscuro y automático;
+las dos cosas quedan guardadas en ese navegador. En el celular, la barra de abajo lleva a lo más usado.</p>
+<p>La dirección de la página cambia según dónde estás (<code>#analisis</code>, <code>#pronostico</code>…): se puede copiar y mandar.</p>
+</section>
+
+<section id="ay-ahora" data-tit="Ahora: estaciones" data-completa>
+<h3>Ahora: las estaciones</h3>
+<ul>
+<li><b>Mapa</b>: todas las estaciones. Con los botones de arriba elegís qué ver: <b>Estado</b> (✓ al día, ! demorada,
+✕ cortada), temperatura, humedad, presión al nivel del mar, viento (la flecha apunta hacia donde va) o la lluvia de hoy.
+Las casillas prenden o apagan cada red.</li>
+<li><b>Redes</b>: las <b>EMAs</b> (estaciones automáticas del grupo y de las escuelas), la <b>Red municipal</b> de La Plata
+(se consulta cada 1 h) y las estaciones del <b>SMN</b> (informes SYNOP cada 1 o 3 h).</li>
+<li><b>EMAs</b> y <b>Estaciones SMN</b>: el último dato de cada una, sus gráficos y la descarga en CSV.</li>
+<li><b>Lluvia diaria</b>: una tabla con lo que llovió cada día en cada estación.</li>
+<li><b>Comparar</b>: una misma variable de varias estaciones en un solo gráfico.</li>
+<li><b>Estado y fallas</b>: si cada estación está mandando, sus cortes y la bitácora de fallas y mantenimientos
+(sirve para saber por qué falta un dato).</li>
+</ul>
+</section>
+
+<section id="ay-analisis" data-tit="Análisis (Diagnóstico)">
+<h3>Análisis: el diagnóstico de una fecha y hora</h3>
+<p>Elegís <b>fecha y hora (UTC)</b> arriba; se abre en la última hora que tiene carta del GFS. Las flechas
+<kbd>←</kbd> <kbd>→</kbd> mueven de a 6 h. Tiene cuatro pestañas:</p>
+<ul>
+<li><b>🗺️ Cartas</b>: las de esa hora, agrupadas por origen: análisis del GFS dibujado en el servidor, las de Bentley,
+satélite GOES (infrarrojo y vapor de agua), rayos (GLM, solo cuando hubo tormenta) y las de Ogimet (SYNOP ploteados).</li>
+<li><b>📈 Por ciudad</b>: el meteograma de lo que pasó alrededor de esa hora (temperatura, viento, presión, lluvia) en las
+estaciones de la ciudad, con el GFS de referencia.</li>
+<li><b>🕐 Obs. de la hora</b>: los SYNOP de esa hora en todas las estaciones.</li>
+<li><b>📋 Obs. del día</b>: todas las observaciones de ese día, estación por estación.</li>
+</ul>
+<h4>El visor de cartas</h4>
+<p>Tocando una carta se abre grande. Ahí podés hacer zoom, pasar de hora o de carta (flechas), <b>superponer</b> otra carta con
+transparencia, <b>medir</b> distancias y áreas y <b>dibujar</b>: frentes (frío, cálido, ocluido, estacionario), centros A y B,
+trazos, textos y sellos de tiempo presente.</p>
+<p><b>Capas</b>: cada persona dibuja en su propia capa. Es privada hasta que tildás <b>«Compartir con el grupo»</b>; las capas
+compartidas de los demás se ven debajo de la tuya y se pueden apagar de a una.</p>
+<h4>Marcas en las series 📍</h4>
+<p>En los gráficos (meteogramas), <b>📍 Marcar</b> deja anotado un momento o un período («entra el frente: rota al SO»).
+Aparecen en los gráficos y en la Agenda de ese día. Privadas, salvo que las compartas.</p>
+</section>
+
+<section id="ay-pron" data-tit="Pronóstico: modelo GFS">
+<h3>Pronóstico: el modelo GFS</h3>
+<p>Las cartas del GFS (el modelo global de NOAA) dibujadas en el servidor con el formato de las de Alicia Bentley, de
+<b>+0 a +192 h</b> cada 6 h. Se actualiza con cada <b>corrida</b> nueva (4 por día; salen ~5 h después de su hora).</p>
+<ul>
+<li><b>Vistas</b>: las 4 cartas juntas, una grande, comparar 2 cartas, comparar 2 plazos, <b>consistencia entre corridas</b>
+(la misma hora pronosticada por las últimas corridas: si cambia mucho, hay que confiar menos) y <b>pronóstico contra lo que
+pasó</b> (contra el análisis de esa hora).</li>
+<li><b>Meteograma</b>: los valores del GFS en cada ciudad para todos los plazos.</li>
+<li>Con el mouse sobre la tarjeta: <kbd>←</kbd> <kbd>→</kbd> 6 h, <kbd>Shift</kbd> 24 h, <kbd>Espacio</kbd> anima,
+<kbd>1</kbd>–<kbd>4</kbd> elige carta.</li>
+</ul>
+<h4>Corridas guardadas</h4>
+<p>Las cartas de cada corrida se guardan <b>8 días</b>. No se borran las que usa una nota o un pronóstico publicado, ni las
+fijadas con <b>📌</b>. Con <b>🕓 Otra corrida…</b> se puede ver cualquier corrida desde 2021: si ya no está, se pide
+«Dibujarla» y el servidor la vuelve a dibujar desde el archivo de NOAA (unos 10 minutos; los plazos aparecen a medida que
+se dibujan). Las cartas de <b>análisis</b> (Diagnóstico) se guardan siempre.</p>
+<h4>Lo que pronosticamos</h4>
+<p>Los pronósticos del grupo para cada ciudad (mínima y máxima urbana y suburbana, lluvia, cielo y viento), con lo observado
+al lado a medida que pasan los días.</p>
+</section>
+
+<section id="ay-verif" data-tit="Verificación" data-completa>
+<h3>Verificación</h3>
+<p>Los pronósticos de Pronóstico UNLP contra lo observado. Se filtra por ciudad, fechas, versión (la original o la final con
+correcciones), cuándo se publicó y tipo de situación. Se descarga en CSV.</p>
+<ul>
+<li><b>Temperatura</b>: error medio en °C y <b>sesgo</b> (+ = se pronosticó de más). La mínima va de 21 a 21 hs.</li>
+<li><b>Precipitación</b>: si acertó «llueve / no llueve». Un día con «sí» pronosticado es el que tiene lluvias, lloviznas,
+tormentas… en algún período. La <b>traza</b> (menos de 0,1 mm) puede contar o no como lluvia: lo decide un coordinador.</li>
+<li><b>Viento</b>: acierta si la dirección predominante observada está entre las pronosticadas.</li>
+<li><b>Persistencia</b> = pronosticar «lo mismo que ayer»; la <b>destreza</b> dice cuánto menos se erra que con ella.</li>
+<li><b>Confiabilidad</b>: exploratorio (menos de 30 días), indicativo (30 a 99) o robusto (100 o más).</li>
+</ul>
+<p>Al final de esa pestaña está «Cómo funciona esta verificación», con cada cuenta en detalle.</p>
+</section>
+
+<section id="ay-grupo" data-tit="Grupo: la red" data-completa>
+<h3>Grupo: la red del grupo</h3>
+<p>Con tu usuario (cada pronosticador tiene el suyo):</p>
+<ul>
+<li><b>Inicio</b>: lo último: pronósticos publicados, notas compartidas y preguntas. Se puede filtrar y buscar por #etiqueta.</li>
+<li><b>Mi perfil</b>: tus pronósticos con su verificación, tus notas e insignias.</li>
+<li><b>Agenda</b>: un calendario con lo que hay en cada día (📝 notas, ✏️ dibujos, 📍 marcas, 🌡️ pronósticos, 🌧 si llovió).
+Al tocar un día se abre su <b>ficha</b>, con todo junto y accesos para analizarlo: cartas a cada hora, series de la ciudad,
+panorama y el pronóstico GFS de ese día. Arriba, un <b>buscador</b> en todo lo anotado (sin importar tildes).</li>
+<li><b>El grupo</b>: quiénes son y sus perfiles. <b>Mensajes</b>: privados o de grupo.</li>
+<li><b>Reunión sinóptica</b>: preguntas propuestas, en discusión y tratadas, con su conclusión.</li>
+</ul>
+<h4>Las tarjetas de pronóstico</h4>
+<ul>
+<li>El gráfico muestra mínima y máxima: <b>pronosticado → observado</b>. Tocando un día se abre su <b>panorama</b>: todos los
+pronósticos para esa fecha contra lo observado, y el GFS.</li>
+<li><b>🗺️ Diagnóstico</b>: las cartas del día en que se hizo el pronóstico (lo que había a la vista).</li>
+<li><b>Modelo GFS</b> (violeta): <b>📈 Comparar</b> pone el GFS de ese momento contra lo pronosticado y lo medido (Modo
+Análisis); <b>🌐 Cartas</b> abre las cartas de esa corrida.</li>
+<li><b>📅 Día</b> abre la ficha de ese día en la Agenda; <b>💬 Enviar</b> lo manda por mensaje; <b>🖼️ Placa</b> arma la imagen
+para redes, igual que el formulario de Pronóstico-UNLP.</li>
+<li>🏆 = esa temperatura estuvo más cerca que el GFS.</li>
+</ul>
+<h4>Notas 📝</h4>
+<p>Una nota es algo que viste, te llamó la atención o te genera una duda, con imagen y #etiquetas. Se escribe desde cualquier
+lugar (📝 Anotar) y guarda <b>dónde</b> se escribió (la carta, la hora, la corrida): tocando 📍 se vuelve ahí. Puede ser
+<b>«para el día…»</b> (lo que esperás que pase), y queda en su día de la Agenda.</p>
+<p><b>Privacidad</b>: lo privado (notas, capas, marcas) lo ven vos y los <b>administradores</b>; los administradores también
+pueden leer los mensajes. Lo compartido lo ve todo el grupo.</p>
+</section>
+
+<section id="ay-glosario" data-tit="Glosario">
+<h3>Glosario</h3>
+<dl class="ay-glos">
+<dt>UTC</dt><dd>La hora universal, la de las cartas y los modelos. En Argentina es UTC − 3: las 12 UTC son las 9 hs.</dd>
+<dt>Corrida</dt><dd>Cada vez que se ejecuta el modelo: a las 00, 06, 12 y 18 UTC. «La corrida de las 00» empieza con los datos de esa hora.</dd>
+<dt>Plazo (+h)</dt><dd>Cuántas horas después del inicio de la corrida vale la carta: +48 h de la corrida de las 00 del lunes = las 00 UTC del miércoles.</dd>
+<dt>Análisis</dt><dd>El estado de la atmósfera a una hora según el modelo con todas las observaciones (el +0 h). Es «lo que pasó».</dd>
+<dt>GFS</dt><dd>Global Forecast System, el modelo global de NOAA (EE. UU.), con grilla de 0,5°.</dd>
+<dt>Bentley</dt><dd>Las cartas de Alicia Bentley (NOAA); el formato que copian las nuestras.</dd>
+<dt>EMA</dt><dd>Estación meteorológica automática.</dd>
+<dt>SYNOP</dt><dd>El informe codificado de las estaciones del SMN (cada 1, 3 o 6 h). <b>Ogimet</b> es la página de donde se bajan.</dd>
+<dt>Presión al nivel del mar</dt><dd>La presión llevada al nivel del mar, para comparar estaciones a distinta altura. «est.» = la de la estación, sin reducir.</dd>
+<dt>Urbana / suburbana</dt><dd>La temperatura de la ciudad (en La Plata, el Observatorio) y la de las afueras (el aeropuerto): de noche la ciudad es más cálida (isla de calor).</dd>
+<dt>Día 1, 2, 3, 4</dt><dd>Los días del pronóstico: el Día 1 es el día en que se publica.</dd>
+<dt>Ya conocida</dt><dd>Una mínima que ya había ocurrido cuando se publicó el pronóstico: se muestra, pero no se califica.</dd>
+<dt>Traza</dt><dd>Lluvia de menos de 0,1 mm (mojó, pero no se pudo medir).</dd>
+<dt>Error medio / sesgo</dt><dd>Cuánto se erra en promedio (sin signo) / si se tiende a pronosticar de más (+) o de menos (−).</dd>
+<dt>Espesor 1000/500</dt><dd>La distancia entre esos niveles de presión: mayor con aire cálido, menor con aire frío. Ayuda a ver los frentes.</dd>
+<dt>θe (temperatura potencial equivalente)</dt><dd>Junta temperatura y humedad: valores altos = aire cálido y húmedo.</dd>
+<dt>IVT</dt><dd>Transporte integrado de vapor: cuánta humedad lleva el viento en toda la columna (los «ríos atmosféricos»).</dd>
+<dt>Vorticidad</dt><dd>Cuánto gira el aire. En 500 hPa, sus máximos ciclónicos acompañan a las vaguadas y favorecen el ascenso.</dd>
+<dt>GLM</dt><dd>El detector de rayos del satélite GOES-19.</dd>
+<dt>ENSO, SAM, MJO</dt><dd>Índices climáticos (El Niño/La Niña, el modo anular del sur, la oscilación de Madden-Julian) que dan contexto a la situación.</dd>
+</dl>
+</section>
+
+    </div>
+  </div>
+</dialog>
+
 <dialog id="d-corrida" class="d-chico">
   <form id="f-corrida">
     <h2>🌐 Corrida del GFS</h2>
@@ -3008,9 +3219,9 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
       <label class="en-linea">Hora <select name="hora"><option>00</option><option>06</option><option>12</option><option>18</option></select> UTC</label></div>
     <div id="corr-estado" class="corr-estado" aria-live="polite"></div>
     <div class="acc"><button type="button" class="boton" data-cerrar>Cerrar</button>
-      <button type="button" class="boton" id="corr-fijar" hidden>📌 Guardarla</button>
-      <button type="button" class="boton" id="corr-dibujar" hidden>🕓 Dibujarla</button>
-      <button type="button" class="boton primario" id="corr-abrir" hidden>Abrir</button></div>
+      <button type="button" class="boton" id="corr-fijar" hidden title="Que esta corrida no se borre a los 8 días">📌 Guardarla</button>
+      <button type="button" class="boton" id="corr-dibujar" hidden title="Pedir que el servidor la vuelva a dibujar desde el archivo de NOAA (se ve a medida que avanza)">🕓 Dibujarla</button>
+      <button type="button" class="boton primario" id="corr-abrir" hidden title="Ver las cartas de esta corrida en el Pronóstico GFS">Abrir</button></div>
   </form>
 </dialog>
 
@@ -3234,6 +3445,16 @@ const GRUPOS = {
   verif: { tab: "verif" },
   grupo: { tab: "perfil" },
 };
+const AYUDA_PARTES = {
+  mapa: "Todas las estaciones en el mapa; arriba se elige qué variable mostrar",
+  emas: "Las estaciones automáticas (del grupo, escuelas y municipio): último dato, gráficos y descarga",
+  smn: "Las estaciones del Servicio Meteorológico Nacional (SYNOP cada 1 o 3 h)",
+  lluvia: "Lluvia de cada día en todas las estaciones, en una tabla",
+  series: "Comparar una variable entre varias estaciones en el mismo gráfico",
+  estado: "Si cada estación está mandando datos, sus cortes y el historial de fallas y mantenimiento",
+  pron: "Las cartas del modelo GFS de +0 a +192 h y su meteograma en cada ciudad",
+  grupo: "Lo que pronosticó el grupo para cada ciudad, contra lo observado",
+};
 const VIEJOS = { perfil: "grupo", red: "grupo", cartas: "analisis", diagnostico: "analisis", verificacion: "verif",
                  mapa: "ahora", emas: "ahora", smn: "ahora", lluvia: "ahora", series: "ahora", estado: "ahora" };
 let ultimaAhora = "mapa", ultimaPron = "pron";
@@ -3260,7 +3481,7 @@ function marcarNav() {
   sub.hidden = !partes || MODO_WEB === "cartas" && g !== "pronostico";
   if (partes) {
     const actual = g === "ahora" ? pestanaActual : vistaCartas();
-    sub.innerHTML = partes.map(([k, n]) => `<button role="tab" data-parte="${k}" aria-selected="${k === actual}">${n}</button>`).join("");
+    sub.innerHTML = partes.map(([k, n]) => `<button role="tab" data-parte="${k}" aria-selected="${k === actual}"${AYUDA_PARTES[k] ? ` title="${esc(AYUDA_PARTES[k])}"` : ""}>${n}</button>`).join("");
   }
   // La dirección refleja dónde se está (para compartir el link o volver con "atrás" del navegador).
   const h = "#" + (g === "ahora" && pestanaActual !== "mapa" ? pestanaActual : { ahora: "ahora", analisis: "analisis", pronostico: "pronostico", verif: "verificacion", grupo: "grupo" }[g]);
@@ -3847,7 +4068,7 @@ function pintarBarraMarcas(contId) {
     : `Comienzo: ${fmtHora.format(new Date(marcando.t1))}. Tocá de nuevo para el final, o:`;
   cont.innerHTML = `<div class="mb-fila">
       <button type="button" class="boton${activo ? " activa" : ""}" data-mb-marcar title="Marcar un momento o un período en los gráficos (ej. «entra el frente»)">📍 ${activo ? "Marcando…" : "Marcar"}</button>
-      ${activo ? `<span class="tenue">${guia}</span>${marcando.t1 !== null ? '<button type="button" class="boton chico" data-mb-momento>Es un momento</button>' : ""}
+      ${activo ? `<span class="tenue">${guia}</span>${marcando.t1 !== null ? '<button type="button" class="boton chico" data-mb-momento title="Marcar solo un momento (no un período)">Es un momento</button>' : ""}
         <button type="button" class="boton chico" data-mb-cancelar>Cancelar</button>` : lista.length ? "" : '<span class="tenue">Sin marcas en este período.</span>'}
     </div>
     ${lista.length ? `<div class="mb-lista">${lista.map((m) => `<div class="mb-item${m.mia ? "" : " grupo"}">
@@ -7749,13 +7970,13 @@ async function cargarCuenta() {
       && $("#f-c-fecha")?.value && !isNaN(tsCarta())) cargarCartas();
   const c = $("#cuenta");
   if (YO) {
-    c.innerHTML = `<span>👤 ${esc(YO.nombre)}</span><button class="boton" id="cuenta-clave" title="${YO.tiene_clave ? "Cambiar mi contraseña" : "Ponerme una contraseña (para entrar sin Google)"}">🔑</button><button class="boton" id="cuenta-salir">Salir</button>`;
+    c.innerHTML = `<span>👤 ${esc(YO.nombre)}</span><button class="boton" id="cuenta-clave" title="${YO.tiene_clave ? "Cambiar mi contraseña" : "Ponerme una contraseña (para entrar sin Google)"}">🔑</button><button class="boton" id="cuenta-salir" title="Cerrar la sesión en este navegador">Salir</button>`;
     $("#cuenta-salir").addEventListener("click", async () => { await apiEnviar("/auth/salir", "POST"); location.hash = ""; location.reload(); });
     $("#cuenta-clave").addEventListener("click", () => abrirCambioClave(false));
     // Administradores y coordinadores: ver la página como la ve un pronosticador.
     if (YO.rol_real) {
       document.body.insertAdjacentHTML("afterbegin", `<div class="ver-como" role="status">👁 Estás viendo la página <b>como un pronosticador</b>
-        (sin tus permisos de ${YO.rol_real === "admin" ? "administrador" : "coordinador"}). <button class="boton chico" id="ver-como-salir">Volver a mi vista</button></div>`);
+        (sin tus permisos de ${YO.rol_real === "admin" ? "administrador" : "coordinador"}). <button class="boton chico" id="ver-como-salir" title="Dejar de ver la página como otra persona">Volver a mi vista</button></div>`);
       $("#ver-como-salir").addEventListener("click", () => verComo(false));
     } else if (esCoord()) {
       c.insertAdjacentHTML("afterbegin", `<button class="boton" id="ver-como" title="Ver la página como la ve un pronosticador común (sin tus permisos)">👁</button>`);
@@ -7935,8 +8156,8 @@ function tarjetaNota(nt, reunion = false) {
   const coment = nt.compartida ? comentariosHTML(nt.comentarios || [], `data-coment="${nt.id}"`, "Agregá un comentario…", "data-borrar-c") : "";
   const estado = nt.estado || (nt.tratada ? "tratada" : "propuesta");
   const accReunion = reunion && nt.compartida && puede ? {
-    propuesta: `<button class="boton" data-acc="estado" data-estado="discusion">▶ A discusión</button>`,
-    discusion: `<button class="boton primario" data-acc="concluir">✓ Concluir</button><button class="boton" data-acc="estado" data-estado="propuesta" title="Volver a propuestas">↩</button>`,
+    propuesta: `<button class="boton" data-acc="estado" data-estado="discusion" title="Pasarla a «en discusión» (se está tratando ahora)">▶ A discusión</button>`,
+    discusion: `<button class="boton primario" data-acc="concluir" title="Cerrarla anotando la conclusión de la reunión">✓ Concluir</button><button class="boton" data-acc="estado" data-estado="propuesta" title="Volver a propuestas">↩</button>`,
     tratada: `<button class="boton" data-acc="concluir">Editar conclusión</button><button class="boton" data-acc="estado" data-estado="discusion" title="Reabrir">↩</button>`,
   }[estado] : "";
   const acciones = accReunion
@@ -8111,9 +8332,10 @@ function tarjetaPron(it) {
     </details>
 
     <div class="acc">
-      <button class="boton" data-cartas="${esc(it.fecha_emision)}" title="Las cartas de diagnóstico del día en que se hizo el pronóstico">🗺️ Cartas</button>
-      <button class="boton" data-modelo title="El GFS de ese momento contra lo pronosticado y lo medido, en vivo">📈 ${red.modelos[it.objeto]?.abierto ? "Ocultar modelo" : "Modelo"}</button>
-      <button class="boton" data-cartas-modelo title="Las cartas y el meteograma del GFS de esa corrida (se guardan 8 días)">🌐 GFS</button>
+      <button class="boton" data-cartas="${esc(it.fecha_emision)}" title="Diagnóstico: las cartas de análisis, el satélite y las observaciones del día en que se hizo el pronóstico (lo que había a la vista al pronosticar)">🗺️ Diagnóstico</button>
+      <span class="grupo-gfs" title="El modelo GFS de cuando se hizo este pronóstico"><b>Modelo GFS</b>
+        <button class="boton" data-modelo title="El GFS de ese momento contra lo pronosticado y lo medido, en vivo">📈 ${red.modelos[it.objeto]?.abierto ? "Ocultar" : "Comparar"}</button>
+        <button class="boton" data-cartas-modelo title="Las cartas y el meteograma del GFS de esa corrida (si ya no están, se pueden volver a dibujar)">🌐 Cartas</button></span>
       <button class="boton" data-ir-dia="${esc(it.fecha_emision)}" title="Abrir en la Agenda el día en que se hizo: cartas, series, notas y lo demás de ese día">📅 Día</button>
       <button class="boton" data-enviar-pron title="Mandar este pronóstico por mensaje (privado o a un grupo)">💬 Enviar</button>
       <button class="boton" data-placa="${esc(it.objeto)}" title="La placa para redes, tal cual la arma el formulario de Pronóstico-UNLP">🖼️ Placa</button>
@@ -8415,7 +8637,7 @@ function dibujarCabecera(p) {
       ${p.bio ? `<div class="bio">${esc(p.bio)}</div>` : yo ? '<div class="bio tenue">Contale al grupo quién sos (Editar perfil).</div>' : ""}
       ${contarInsignias(p.insignias) ? `<div class="sub" style="margin-top:6px">Insignias de los últimos 90 días: ${contarInsignias(p.insignias)}</div>` : ""}
       ${numeros}
-      ${yo ? `<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap"><button class="boton" id="pf-editar">✏️ Editar perfil</button>
+      ${yo ? `<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap"><button class="boton" id="pf-editar" title="Cambiar tu nombre, foto, firma y qué mostrar a los demás">✏️ Editar perfil</button>
         <label class="boton" title="Una foto tuya (se recorta cuadrada; la ven solo los del grupo)">📷 ${FOTOS[YO.id] ? "Cambiar foto" : "Subir foto"}<input type="file" id="pf-foto" accept="image/*" hidden></label>
         ${FOTOS[YO.id] ? '<button class="boton" id="pf-foto-quitar">Quitar foto</button>' : ""}</div>
         <form id="pf-form" hidden style="margin-top:10px;display:flex;flex-direction:column;gap:8px;max-width:520px">
@@ -9108,14 +9330,14 @@ async function abrirDiaAgenda(fecha) {
   const capas = d.capas.map((c) => `<div class="ag-item"><b>${String(new Date(c.ts).getUTCHours()).padStart(2, "0")} UTC</b>
       <span>${esc(c.nivel ? c.nivel + " · " : "")}${esc(c.nombre)}</span>
       <span class="tenue">${quien(c)} · ${c.mia ? (c.compartida ? "👥 compartido" : "🔒 privado") : "compartido"} · ${c.elementos} elemento${c.elementos === 1 ? "" : "s"}</span>
-      <button class="boton chico" data-ag-carta="${esc(c.producto)}" data-ts="${esc(c.ts)}">🗺️ Abrir la carta</button></div>`).join("");
+      <button class="boton chico" data-ag-carta="${esc(c.producto)}" data-ts="${esc(c.ts)}" title="Abrir esa carta a esa hora, con los dibujos">🗺️ Abrir la carta</button></div>`).join("");
   const marcas = (d.marcas || []).map((m) => `<div class="ag-item"><b>${esc(fmtMarca(m).replace(/^\d+\/\d+,?\s*/, ""))}</b>
       <span>${esc(m.texto)}</span>
       <span class="tenue">${esc(m.ambito.replace(/^ciudad:/, "").replace(/^estacion:/, "estación "))} · ${m.mia ? (m.compartida ? "vos · 👥 compartida" : "vos · 🔒 privada") : esc(m.autor)}</span>
-      <button class="boton chico" data-ag-marca="${esc(m.ambito)}" data-ts="${esc(m.desde)}">📈 Ver en los gráficos</button></div>`).join("");
+      <button class="boton chico" data-ag-marca="${esc(m.ambito)}" data-ts="${esc(m.desde)}" title="Ir a los gráficos donde está la marca">📈 Ver en los gráficos</button></div>`).join("");
   const pron = d.pronosticos.map((p) => `<div class="ag-item"><b>${esc(p.ciudad)}</b>
       <span>${esc(p.usuario?.nombre || p.firma || "")}${p.hora ? ` <span class="tenue">· ${esc(String(p.hora).slice(0, 5))} hs</span>` : ""}${p.correccion ? ' <span class="tenue">· corrección</span>' : ""}</span>
-      <button class="boton chico" data-ag-panorama="${esc(p.ciudad)}">📊 Pronosticado vs observado</button></div>`).join("");
+      <button class="boton chico" data-ag-panorama="${esc(p.ciudad)}" title="Todos los pronósticos para ese día contra lo observado, y el GFS">📊 Pronosticado vs observado</button></div>`).join("");
   const viejo = (Date.parse(hoyArg()) - Date.parse(fecha)) / (24 * HORA) > DIAS_PRONO_GFS;
   const volver = agenda.volver ? `<button class="boton" data-ag-volver title="Volver a la tarjeta desde donde viniste">← Volver ${esc(NOMBRE_VISTA[agenda.volver.vista] || "a donde estabas")}</button>` : "";
   ficha.innerHTML = `${volver ? `<div class="ag-volver">${volver}</div>` : ""}<div class="ag-cab">
@@ -9125,7 +9347,7 @@ async function abrirDiaAgenda(fecha) {
     <div class="ag-analizar">
       <span class="tenue">Analizar ese día:</span>
       <span class="ag-horas" title="Diagnóstico: las cartas, el satélite y las observaciones a esa hora">🗺️ Cartas
-        ${["00", "06", "12", "18"].map((h) => `<button class="boton chico" data-ag-cartas="${fecha}" data-h="${h}">${h} UTC</button>`).join("")}</span>
+        ${["00", "06", "12", "18"].map((h) => `<button class="boton chico" data-ag-cartas="${fecha}" data-h="${h}" title="Diagnóstico de ese día a esa hora: cartas, satélite y observaciones">${h} UTC</button>`).join("")}</span>
       <button class="boton" data-ag-marca="ciudad:${esc(ciudad0)}" data-ts="${fecha}T15:00:00Z" title="Las series observadas de la ciudad (temperatura, viento, presión, lluvia) y el GFS, centradas en ese día">📈 Series de ${esc(ciudad0)}</button>
       <button class="boton" data-ag-panorama="${esc(ciudad0)}" title="Lo que se observó y lo que cada uno pronosticó para ese día">📊 Panorama del día</button>
       <button class="boton" data-ag-gfs="${fecha.replace(/-/g, "")}00" title="Las cartas del pronóstico GFS de la corrida de las 00 UTC de ese día (si ya no están, se pueden volver a dibujar)">🌐 Pronóstico GFS</button>
@@ -9188,7 +9410,7 @@ $("#ag-buscar").addEventListener("submit", async (e) => {
   let r;
   try { r = await api(`/api/yo/buscar?${q}`); } catch (err) { cont.innerHTML = `<p class="tenue">${esc(err.message)}</p>`; return; }
   cont.innerHTML = `<p class="tenue" style="margin:0">${r.resultados.length ? `${r.resultados.length} resultado${r.resultados.length === 1 ? "" : "s"} · tocá uno para ver ese día` : "No se encontró nada con esos filtros."}</p>` +
-    r.resultados.map((x) => `<button type="button" class="ag-res" data-ag-ir="${esc(x.fecha)}">
+    r.resultados.map((x) => `<button type="button" class="ag-res" data-ag-ir="${esc(x.fecha)}" title="Abrir la ficha de ese día en la agenda">
       <span class="f">${esc(diaCorto(x.fecha))}</span>
       <span>${x.tipo === "nota" ? `📝 ${esc(TIPO_CORTO[x.tipo_nota] || "Nota")}` : `📍 Marca${x.hasta ? " (período)" : ""}`}</span>
       <span class="t">${resaltar(x.texto.length > 240 ? x.texto.slice(0, 239) + "…" : x.texto, r.palabras)}${(x.etiquetas || []).length ? ` <span class="tenue">#${x.etiquetas.map((t) => resaltar(t, r.palabras)).join(" #")}</span>` : ""}</span>
@@ -9565,7 +9787,7 @@ async function alternarModelo(tarjeta) {
   m.abierto = !m.abierto;
   const caja = tarjeta.querySelector(".pron-modelo"), boton = tarjeta.querySelector("[data-modelo]");
   caja.hidden = !m.abierto;
-  boton.textContent = m.abierto ? "📈 Ocultar modelo" : "📈 Modelo";
+  boton.textContent = m.abierto ? "📈 Ocultar" : "📈 Comparar";
   if (!m.abierto) { clearInterval(m.reloj); return; }
   if (m.html) { m.html && traerObservado(it, m, caja, false); return; }
   caja.innerHTML = '<span class="tenue">Buscando la corrida del GFS de ese momento…</span>';
@@ -10066,6 +10288,123 @@ async function abrirContexto(c) {
   window.addEventListener("hashchange", () => irAlEnlace(false));      // un link con # dentro de la página, o "atrás"
   cargarMapa().catch((e) => { $("#lista").innerHTML = `<p>Error cargando estaciones: ${esc(e.message)}</p>`; });
   setInterval(() => { cargarMapa(); if (cargadas.estado) cargarEstado(); }, 5 * 60e3);  // refresca cada 5 min
+})();
+
+// ----- Ayuda: «Cómo funciona» (botón ❓ de arriba, o la dirección #ayuda) -----
+(function () {
+  const d = $("#d-ayuda"), texto = $("#ay-texto");
+  const secciones = () => [...texto.querySelectorAll("section")].filter((x) => !(MODO_WEB === "cartas" && x.hasAttribute("data-completa")));
+  function abrirAyuda(cual) {
+    texto.querySelectorAll("[data-completa]").forEach((x) => (x.hidden = MODO_WEB === "cartas"));
+    $("#ay-indice").innerHTML = secciones().map((x) => `<a href="#${x.id}" data-ay="${x.id}">${esc(x.dataset.tit)}</a>`).join("");
+    if (!d.open) d.showModal();
+    if (cual && $("#" + cual)) $("#" + cual).scrollIntoView(); else texto.scrollTop = 0;
+    marcarIndice();
+  }
+  window.abrirAyuda = abrirAyuda;
+  function marcarIndice() {
+    const arriba = texto.getBoundingClientRect().top + 60;
+    let actual = secciones()[0];
+    for (const x of secciones()) if (!x.classList.contains("ay-oculta") && x.getBoundingClientRect().top <= arriba) actual = x;
+    document.querySelectorAll("#ay-indice a").forEach((a) => a.classList.toggle("activo", a.dataset.ay === actual?.id));
+  }
+  texto.addEventListener("scroll", marcarIndice);
+  $("#ay-indice").addEventListener("click", (e) => {
+    const a = e.target.closest("[data-ay]"); if (!a) return;
+    e.preventDefault(); $("#" + a.dataset.ay).scrollIntoView({ behavior: "smooth" });
+  });
+  $("#ayuda-btn").addEventListener("click", () => abrirAyuda());
+  $("#ay-cerrar").addEventListener("click", () => d.close());
+  d.addEventListener("click", (e) => { if (e.target === d) d.close(); });      // tocar afuera cierra
+  // Buscar: deja solo los párrafos/ítems con todas las palabras y las resalta.
+  const originales = new Map();
+  $("#ay-buscar").addEventListener("input", (e) => {
+    const palabras = sinTildes(e.target.value).split(/\s+/).filter((w) => w.length > 1);
+    texto.querySelectorAll("p, li, dt, dd").forEach((x) => {
+      if (!originales.has(x)) originales.set(x, x.innerHTML);
+      x.innerHTML = originales.get(x);
+      const ok = !palabras.length || palabras.every((w) => sinTildes(x.textContent).includes(w));
+      x.classList.toggle("ay-oculta", !ok);
+      if (ok && palabras.length) resaltarEn(x, palabras);
+    });
+    texto.querySelectorAll("section").forEach((sec) => sec.classList.toggle("ay-oculta",
+      palabras.length > 0 && !sec.querySelector("p:not(.ay-oculta), li:not(.ay-oculta), dt:not(.ay-oculta)")));
+    texto.querySelectorAll("h4").forEach((h) => h.classList.toggle("ay-oculta", palabras.length > 0));
+    texto.scrollTop = 0; marcarIndice();
+  });
+  function resaltarEn(nodo, palabras) {           // marca las palabras en los textos (sin romper las negritas)
+    const caminante = document.createTreeWalker(nodo, NodeFilter.SHOW_TEXT);
+    const textos = []; while (caminante.nextNode()) textos.push(caminante.currentNode);
+    for (const t of textos) {
+      const html = resaltar(t.nodeValue, palabras);
+      if (html.includes("<mark>")) { const sp = document.createElement("span"); sp.innerHTML = html; t.replaceWith(sp); }
+    }
+  }
+  if (location.hash === "#ayuda") setTimeout(() => abrirAyuda(), 800);
+  addEventListener("hashchange", () => { if (location.hash === "#ayuda") abrirAyuda(); });
+})();
+
+// ----- Globito de ayuda -----
+// Toma el `title` de cualquier elemento (los botones lo tienen) y lo muestra
+// enseguida con mouse (350 ms) o manteniendo apretado en el celular (0,5 s).
+// El title se pasa a data-tt para que no salga también el del navegador.
+(function () {
+  const g = document.createElement("div");
+  g.id = "globito"; g.setAttribute("role", "tooltip");
+  document.body.appendChild(g);
+  let el = null, reloj = null, mostrado = false, tocado = null;
+  const tomar = (x) => {
+    const t = x.getAttribute("title");
+    if (t) { x.dataset.tt = t; x.removeAttribute("title"); if (!x.getAttribute("aria-label") && !x.textContent.trim()) x.setAttribute("aria-label", t); }
+    return x.dataset.tt;
+  };
+  function ocultar() { clearTimeout(reloj); g.classList.remove("visible"); el = null; mostrado = false; }
+  function mostrar(x) {
+    const texto = x.dataset.tt;
+    if (!texto || !x.isConnected) return;
+    // Dentro de un cuadro abierto (modal) va adentro de él, si no quedaría tapado.
+    const dueno = x.closest("dialog[open]") || document.body;
+    if (g.parentNode !== dueno) dueno.appendChild(g);
+    g.textContent = texto;
+    g.style.left = "0px"; g.style.top = "0px";
+    const o = g.getBoundingClientRect();                 // dónde cae el (0,0): si el cuadro tiene efectos, no es la pantalla
+    const r = x.getBoundingClientRect(), w = g.offsetWidth, h = g.offsetHeight;
+    let left = r.left + r.width / 2 - w / 2, top = r.bottom + 8;
+    left = Math.max(8, Math.min(left, innerWidth - w - 8));
+    if (top + h > innerHeight - 8) top = r.top - h - 8;
+    g.style.left = `${left - o.left}px`; g.style.top = `${Math.max(8, top) - o.top}px`;
+    g.classList.add("visible"); mostrado = true;
+  }
+  document.addEventListener("pointerover", (e) => {
+    if (e.pointerType !== "mouse") return;
+    const x = e.target.closest?.("[title], [data-tt]");
+    if (x === el) return;
+    ocultar();
+    if (!x || !tomar(x)) return;
+    el = x; reloj = setTimeout(() => mostrar(x), 350);
+  });
+  document.addEventListener("pointerout", (e) => {
+    if (e.pointerType === "mouse" && el && !el.contains(e.relatedTarget)) ocultar();
+  });
+  // Celular: mantener apretado muestra la ayuda (y ese toque no hace clic).
+  document.addEventListener("pointerdown", (e) => {
+    if (e.pointerType === "mouse") { ocultar(); return; }
+    ocultar();
+    const x = e.target.closest?.("[title], [data-tt]");
+    if (!x || !tomar(x)) return;
+    el = x; tocado = { x: e.clientX, y: e.clientY };
+    reloj = setTimeout(() => { mostrar(x); setTimeout(() => { if (el === x) ocultar(); }, 3500); }, 500);
+  });
+  document.addEventListener("pointermove", (e) => {
+    if (tocado && e.pointerType !== "mouse" && Math.hypot(e.clientX - tocado.x, e.clientY - tocado.y) > 10) { tocado = null; if (!mostrado) ocultar(); }
+  });
+  document.addEventListener("pointerup", () => { tocado = null; if (!mostrado) clearTimeout(reloj); });
+  document.addEventListener("click", (e) => {
+    if (mostrado && e.pointerType !== "mouse" && el && el.contains(e.target)) { e.preventDefault(); e.stopPropagation(); }
+  }, true);
+  document.addEventListener("contextmenu", (e) => { if (mostrado) e.preventDefault(); });   // sin el menú del celular encima
+  addEventListener("scroll", () => { if (mostrado) ocultar(); }, true);
+  addEventListener("keydown", (e) => { if (e.key === "Escape") ocultar(); });
 })();
 </script>
 </body>

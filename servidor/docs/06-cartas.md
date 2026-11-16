@@ -327,6 +327,20 @@ cada grupo: Modelo (análisis del GFS y de Bentley), Satélite, Rayos (GLM) y
 SYNOP (mapas de Ogimet). Se recuerda en el navegador. El grupo sale de la
 `fuente` de cada carta (`GRUPOS_FUENTE` en index.html).
 
+## Ayuda en la página
+
+- **❓ Cómo funciona** (botón de arriba, o la dirección `#ayuda`): la explicación
+  de cada sección y un glosario, con índice y buscador. En la copia pública
+  (modo cartas) solo aparecen las partes que se ven ahí (`data-completa` marca
+  las demás). Está en `static/index.html` (`<dialog id="d-ayuda">`): al agregar
+  algo nuevo a la página, sumarlo ahí.
+- **Globito**: el `title` de cualquier botón se muestra con un globito propio
+  (sale a los 350 ms con el mouse; en el celular, manteniendo apretado medio
+  segundo, y ese toque no activa el botón). Para explicar un botón nuevo alcanza
+  con ponerle `title="…"`.
+- En las tarjetas de pronóstico, los botones del modelo van juntos en el bloque
+  violeta **Modelo GFS** (📈 Comparar, solo en Modo Análisis, y 🌐 Cartas).
+
 ## En el visualizador
 
 - **Placa** (de entrada): todas las cartas de esa hora en una pantalla, como
