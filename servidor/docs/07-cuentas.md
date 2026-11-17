@@ -266,6 +266,17 @@ ingreso fallidos de la semana. El «último uso» lo anota la web en la sesión
 pedido: para eso están los logs del contenedor web (`docker compose logs
 --since 24h web`; Docker conserva ~30 MB). `GET /api/yo/admin/actividad`.
 
+Además, por persona, **por dónde entra** (`sesion.ultima_copia`: 🌐 la copia
+pública por Funnel o 🖥️ la completa) y las **visitas por día** de cada copia
+(tabla `visita`, también sin cuenta): cada carga de la página (`/api/modo`)
+cuenta una persona por día y copia. No se guarda la IP: una huella sha256 de
+IP + navegador con una sal que cambia cada día (no se puede seguir a nadie
+entre días ni volver a la IP). Se borran a los 400 días.
+
+En los logs de la copia pública aparece la IP real de cada visitante (no
+`172.19.0.1`): `web-cartas` corre con `--forwarded-allow-ips "*"` y toma la
+que agrega Funnel; es seguro porque solo escucha en 127.0.0.1.
+
 ## Seguridad
 
 - **Quién entra**: Google dice quién es (mail verificado); la tabla `usuario`

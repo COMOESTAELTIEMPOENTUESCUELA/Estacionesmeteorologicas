@@ -31,6 +31,20 @@ CREATE INDEX IF NOT EXISTS sesion_usuario ON sesion (usuario_id);
 -- Cuándo se usó por última vez cada sesión (se anota como mucho cada 10 min):
 -- para que Administración muestre quién usa la página y desde qué aparato.
 ALTER TABLE sesion ADD COLUMN IF NOT EXISTS ultimo_uso timestamptz;
+ALTER TABLE sesion ADD COLUMN IF NOT EXISTS ultima_copia text;      -- 'completo' o 'cartas' (la copia pública, por Funnel)
+-- Visitas por día (también sin cuenta), para saber cuánta gente usa cada copia.
+-- No se guarda la IP: solo una huella (sha256 con una sal secreta que cambia
+-- cada día), que alcanza para contar personas distintas en el día y no permite
+-- seguir a nadie de un día a otro ni volver a la IP.
+CREATE TABLE IF NOT EXISTS visita (
+    dia        date NOT NULL,
+    copia      text NOT NULL,
+    huella     text NOT NULL,
+    usuario_id int REFERENCES usuario(id) ON DELETE SET NULL,
+    aparato    text,
+    primera    timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (dia, copia, huella)
+);
 
 -- Libreta: lo que cada uno vio, le llamó la atención, sus dudas y las
 -- preguntas para la reunión sinóptica. Con el contexto de dónde lo vio (qué

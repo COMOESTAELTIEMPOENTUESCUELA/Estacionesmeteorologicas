@@ -95,7 +95,9 @@ services:
     build: ./app
     restart: unless-stopped
     logging: *logging
-    command: uvicorn meteo.web.app:app --host 0.0.0.0 --port 8080 --proxy-headers
+    # Funnel reenvía cada pedido desde esta misma máquina y agrega la IP real
+    # (X-Forwarded-For): se le cree porque esta copia solo escucha en 127.0.0.1.
+    command: uvicorn meteo.web.app:app --host 0.0.0.0 --port 8080 --proxy-headers --forwarded-allow-ips "*"
     depends_on:
       db:
         condition: service_healthy

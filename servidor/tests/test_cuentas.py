@@ -1140,4 +1140,19 @@ def test_admin_actividad_y_ultimo_uso(cliente, cuentas, monkeypatch):
     ana = next(p for p in d["personas"] if p["nombre"] == "Ana")
     assert ana["sesiones"] >= 1 and ana["ultimo_uso"] and ana["ultimo_ingreso"]
     assert isinstance(ana["dispositivos"], list) and {"id", "rol", "notas_30d", "pronosticos_30d", "mensajes_30d"} <= set(ana)
-    assert "fallidos" in d
+    assert "fallidos" in d and ana["copias"] == ["completo"]
+    # Visitas: cada carga de la página (/api/modo) cuenta una persona por día y copia; sin cuenta también.
+    with m._pools["e"].connection() as conn:
+        conn.execute("DELETE FROM visita")
+        conn.commit()
+    cliente.get("/api/modo", headers={"user-agent": "Mozilla/5.0 (Linux; Android 13) Chrome/120"})
+    cliente.get("/api/modo", headers={"user-agent": "Mozilla/5.0 (Linux; Android 13) Chrome/120"})     # la misma persona: no suma
+    cliente.cookies.clear()
+    cliente.get("/api/modo", headers={"user-agent": "Mozilla/5.0 (iPhone) Safari/604"})                # otra, sin cuenta
+    with m._pools["l"].connection() as conn:
+        filas = conn.execute("SELECT usuario_id IS NOT NULL AS cuenta, aparato, huella FROM visita ORDER BY cuenta").fetchall()
+    assert [(f["cuenta"], f["aparato"]) for f in filas] == [(False, "iPhone · Safari"), (True, "Android · Chrome")]
+    assert all(len(f["huella"]) == 24 and "." not in f["huella"] for f in filas)          # nunca la IP
+    ingresar(cliente, cuentas, monkeypatch, "ana@gmail.com")
+    v = cliente.get("/api/yo/admin/actividad").json()["visitas"]
+    assert v[0]["total"] >= 2 and v[0]["sin_cuenta"] >= 1 and "Ana" in v[0]["quienes"]

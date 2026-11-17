@@ -11,7 +11,7 @@
 <script>try { const t = localStorage.getItem("tema"); if (t === "dark" || t === "light") document.documentElement.dataset.theme = t; } catch (_) {}
 // Tamaño de letra elegido (antes de dibujar, para que no "salte").
 try { const z = Number(localStorage.getItem("letra")); if (z > 1 && z <= 1.6) { document.documentElement.style.zoom = z; document.documentElement.style.setProperty("--zoom", z); } } catch (_) {}</script>
-<link rel="manifest" href="/manifest.webmanifest">
+<link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials">
 <meta name="theme-color" content="#2a78d6">
 <link rel="apple-touch-icon" href="/iconos/apple-touch-icon.png">
 <style>
@@ -9229,12 +9229,20 @@ async function cargarActividad() {
       <p class="adm-ayuda">Quién usa la página. «Último uso» se anota como mucho cada 10 minutos por sesión (no se guarda cada pedido:
         el detalle está en los logs del contenedor web). <b>${activos}</b> de ${d.personas.length} personas entraron en los últimos 7 días.</p>
       <div class="tabla-scroll" style="max-height:none"><table class="verif adm-act-t">
-        <tr><th>Quién</th><th>Último uso</th><th>Último ingreso</th><th>Sesiones</th><th>Aparatos</th><th title="Pronósticos publicados en 30 días (ciudad y fecha distintas)">Pronósticos 30 d</th><th>Notas 30 d</th><th>Mensajes 30 d</th></tr>
+        <tr><th>Quién</th><th>Último uso</th><th>Último ingreso</th><th>Sesiones</th><th title="Copia pública = por la dirección de Funnel (…ts.net); completa = el visualizador :8080">Por dónde</th><th>Aparatos</th><th title="Pronósticos publicados en 30 días (ciudad y fecha distintas)">Pronósticos 30 d</th><th>Notas 30 d</th><th>Mensajes 30 d</th></tr>
         ${d.personas.map((p) => `<tr class="${p.activo ? "" : "tenue"}"><td style="text-align:left"><b data-perfil="${p.id}">${esc(p.nombre)}</b> <small class="tenue">${esc(p.rol)}${p.activo ? "" : " · baja"}</small></td>
           <td>${cuando(p.ultimo_uso)}</td><td>${cuando(p.ultimo_ingreso)}</td><td>${p.sesiones || 0}</td>
+          <td style="text-align:left">${(p.copias || []).map((c) => c === "cartas" ? "🌐 pública" : "🖥️ completa").join("<br>") || '<span class="tenue">–</span>'}</td>
           <td style="text-align:left">${p.dispositivos.map(esc).join("<br>") || '<span class="tenue">–</span>'}</td>
           <td>${p.pronosticos_30d || 0}</td><td>${p.notas_30d || 0}</td><td>${p.mensajes_30d || 0}</td></tr>`).join("")}
       </table></div>
+      <h3 style="font-size:15px;margin:16px 0 6px">Visitas por día (14 días)</h3>
+      <p class="adm-ayuda">Personas distintas que abrieron cada copia ese día (también sin cuenta). Sin cuenta no se sabe quién es:
+        se cuenta con una huella de la conexión que cambia cada día (no se guarda la IP).</p>
+      ${d.visitas.length ? `<table class="verif"><tr><th>Día</th><th>Copia</th><th>Personas</th><th>Sin cuenta</th><th>Con cuenta</th></tr>
+        ${d.visitas.map((v) => `<tr><td>${esc(diaCorto(String(v.dia).slice(0, 10)))}</td><td>${v.copia === "cartas" ? "🌐 pública (Funnel)" : "🖥️ completa"}</td>
+          <td><b>${v.total}</b></td><td>${v.sin_cuenta}</td><td style="text-align:left">${(v.quienes || []).map(esc).join(", ") || "–"}</td></tr>`).join("")}</table>`
+        : '<p class="tenue">Todavía no hay visitas registradas (se empiezan a contar desde esta actualización).</p>'}
       <h3 style="font-size:15px;margin:16px 0 6px">Intentos de ingreso fallidos (7 días)</h3>
       ${d.fallidos.length ? `<table class="verif"><tr><th>Mail o usuario</th><th>Intentos</th><th>Último</th></tr>
         ${d.fallidos.map((f) => `<tr><td style="text-align:left">${esc(f.email)}</td><td>${f.n}</td><td>${cuando(f.ultimo)}</td></tr>`).join("")}</table>`

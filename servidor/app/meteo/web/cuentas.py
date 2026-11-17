@@ -133,7 +133,8 @@ def usuario_actual(request: Request):
         u = filas[0] if filas else None
         if u and u.pop("anotar_uso", False):
             try:                      # «se usó»: como mucho una vez cada 10 min por sesión (Administración → Actividad)
-                _escribir("UPDATE sesion SET ultimo_uso = now() WHERE huella = %s", (_huella(token),))
+                _escribir("UPDATE sesion SET ultimo_uso = now(), ultima_copia = %s WHERE huella = %s",
+                          (os.environ.get("WEB_MODO", "completo"), _huella(token)))
             except Exception:
                 pass
         if u and u["rol"] in ("coordinador", "admin") and request.cookies.get(COOKIE_VER_COMO) == "pronosticador":
@@ -1704,6 +1705,33 @@ def requiere_admin(request):
     return u
 
 
+def registrar_visita(request: Request):
+    """Una visita por persona, por día y por copia (la página la anuncia al
+    cargar, con /api/modo). Sin cuenta, se cuenta igual, con una huella de la IP
+    que no se puede revertir; con cuenta, además quién es."""
+    try:
+        hoy = datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=-3))).date()
+        sal = _leer("SELECT valor->>'sal' AS sal FROM ajuste WHERE clave = 'visitas.sal' AND valor->>'dia' = %s", (str(hoy),))
+        if not sal:                      # una sal nueva cada día: no se puede seguir a nadie entre días
+            nueva = secrets.token_hex(16)
+            _escribir("""INSERT INTO ajuste (clave, valor) VALUES ('visitas.sal', %s)
+                         ON CONFLICT (clave) DO UPDATE SET valor = CASE WHEN ajuste.valor->>'dia' = %s THEN ajuste.valor
+                                                                         ELSE EXCLUDED.valor END, actualizado = now()""",
+                      (Jsonb({"dia": str(hoy), "sal": nueva}), str(hoy)))
+            sal = _leer("SELECT valor->>'sal' AS sal FROM ajuste WHERE clave = 'visitas.sal'")
+        ip = request.client.host if request.client else ""
+        huella = hashlib.sha256(f"{sal[0]['sal']}|{ip}|{request.headers.get('user-agent', '')}".encode()).hexdigest()[:24]
+        u = usuario_actual(request)
+        _escribir("""INSERT INTO visita (dia, copia, huella, usuario_id, aparato) VALUES (%s, %s, %s, %s, %s)
+                     ON CONFLICT (dia, copia, huella) DO UPDATE SET usuario_id = COALESCE(EXCLUDED.usuario_id, visita.usuario_id)""",
+                  (hoy, os.environ.get("WEB_MODO", "completo"), huella, u["id"] if u else None,
+                   _dispositivo(request.headers.get("user-agent"))))
+        if secrets.randbelow(200) == 0:  # de vez en cuando, lo de hace más de 400 días se borra
+            _escribir("DELETE FROM visita WHERE dia < now() - interval '400 days'")
+    except Exception as ex:              # contar visitas nunca puede romper la página
+        logging.getLogger(__name__).debug("visita: %s", ex)
+
+
 def _dispositivo(agente):
     """'Mozilla/5.0 (Linux; Android 13; …) Chrome/…' -> 'Android · Chrome'."""
     a = agente or ""
@@ -1727,6 +1755,7 @@ def admin_actividad(request: Request):
                max(s.ultimo_uso) AS ultimo_uso, max(s.creada) AS ultimo_ingreso,
                count(s.huella) FILTER (WHERE s.expira > now()) AS sesiones,
                array_remove(array_agg(DISTINCT s.agente) FILTER (WHERE s.expira > now()), NULL) AS agentes,
+               array_remove(array_agg(DISTINCT s.ultima_copia), NULL) AS copias,
                (SELECT count(*) FROM nota n WHERE n.usuario_id = u.id AND n.creada > now() - interval '30 days') AS notas_30d,
                (SELECT count(*) FROM mensaje m WHERE m.usuario_id = u.id AND m.creado > now() - interval '30 days') AS mensajes_30d
         FROM usuario u LEFT JOIN sesion s ON s.usuario_id = u.id
@@ -1741,11 +1770,17 @@ def admin_actividad(request: Request):
     salida = [{"id": p["id"], "nombre": p["nombre"], "rol": p["rol"], "activo": p["activo"],
                "ultimo_uso": p["ultimo_uso"], "ultimo_ingreso": p["ultimo_ingreso"], "sesiones": p["sesiones"],
                "dispositivos": sorted({_dispositivo(a) for a in (p["agentes"] or [])}),
+               "copias": sorted(p["copias"] or []),
                "notas_30d": p["notas_30d"], "mensajes_30d": p["mensajes_30d"],
                "pronosticos_30d": sum(pron.get(f, 0) for f in (p["firmas"] or []))} for p in personas]
     fallidos = _leer("""SELECT email, count(*) AS n, max(ts) AS ultimo FROM ingreso_fallido
                         WHERE ts > now() - interval '7 days' GROUP BY email ORDER BY n DESC LIMIT 20""")
-    return {"personas": salida, "fallidos": fallidos, "ahora": datetime.now(timezone.utc)}
+    # Visitas de los últimos 14 días por copia: personas distintas en el día, con y sin cuenta.
+    visitas = _leer("""SELECT v.dia, v.copia, count(*) AS total, count(*) FILTER (WHERE v.usuario_id IS NULL) AS sin_cuenta,
+                              array_remove(array_agg(DISTINCT u.nombre), NULL) AS quienes
+                       FROM visita v LEFT JOIN usuario u ON u.id = v.usuario_id
+                       WHERE v.dia > now() - interval '14 days' GROUP BY 1, 2 ORDER BY 1 DESC, 2""")
+    return {"personas": salida, "fallidos": fallidos, "visitas": visitas, "ahora": datetime.now(timezone.utc)}
 
 
 @router.get("/api/yo/admin/verificacion")

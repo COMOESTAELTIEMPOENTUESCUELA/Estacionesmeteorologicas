@@ -727,8 +727,10 @@ def observaciones_del_dia(request: Request, ciudad: str, fecha: date):
 
 
 @app.get("/api/modo")
-def modo():
-    """"completo" (el visualizador privado) o "cartas" (la copia pública)."""
+def modo(request: Request):
+    """"completo" (el visualizador privado) o "cartas" (la copia pública).
+    La página lo pide una vez al cargar: ahí se cuenta la visita (Administración → Actividad)."""
+    cuentas.registrar_visita(request)
     return {"modo": WEB_MODO}
 
 
