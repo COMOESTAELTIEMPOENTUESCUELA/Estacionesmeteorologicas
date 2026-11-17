@@ -14,8 +14,16 @@ EMAs de las escuelas a veces tienen saltos que no son reales). Ráfagas: todas
 las que las miden. Como mucho UNA alerta por estación cada 3 horas, y una
 sola nota por vuelta con todas las estaciones que saltaron.
 
+Cada aviso lleva una IMAGEN según lo que se detectó (IMAGENES_POR_TIPO):
+tormenta o ráfaga -> el mapa de rayos del GLM (o el infrarrojo); caída de
+temperatura o de presión -> la carta de análisis (o el satélite). Las cartas se
+archivan en las horas sinópticas y llegan con demora: se elige la más cercana
+a la hora del aviso que ya esté, y si todavía no hay ninguna, el bot la
+completa en las vueltas siguientes (hasta IMAGEN_ESPERA).
+
 Corre como tarea de la ingesta ("bot", cada 15 minutos).
 """
+import os
 import logging
 from datetime import datetime, timedelta, timezone
 
@@ -38,6 +46,52 @@ ARG = timezone(timedelta(hours=-3))
 CIUDAD_DE = {v: k for k, v in SYNOP_PUNTOS.items()} | {e: "La Plata" for e in OBSERVATORIO}
 
 num = lambda v, d=1: f"{v:.{d}f}".replace(".", ",")
+
+# Qué imagen mostrar según lo detectado (la primera que esté archivada).
+IMAGENES_POR_TIPO = {
+    "tormenta": ["satelite_rayos_bsas", "satelite_glm", "satelite_ir13"],
+    "rafaga": ["satelite_rayos_bsas", "satelite_ir13", "satelite_geocolor"],
+    "temperatura": ["gfs_ana_mslp_jet", "satelite_ir13"],
+    "presion": ["gfs_ana_mslp_jet", "satelite_airmass", "satelite_ir13"],
+}
+PRIORIDAD = ("tormenta", "rafaga", "temperatura", "presion")      # si saltaron varias cosas, manda la primera
+IMAGEN_ESPERA = timedelta(hours=8)          # hasta cuándo se sigue buscando la imagen de un aviso
+IMAGEN_DISTANCIA = timedelta(hours=4)       # la imagen tiene que ser de hasta 4 h antes o después del aviso
+
+
+def tipo_de(frase):
+    """La frase de detectar() -> "tormenta" | "rafaga" | "temperatura" | "presion"."""
+    for clave, tipo in (("tormenta", "tormenta"), ("ráfaga", "rafaga"), ("temperatura", "temperatura"), ("presión", "presion")):
+        if clave in frase:
+            return tipo
+    return None
+
+
+def imagenes_para(frases):
+    """Los productos a probar, en orden, según lo más importante detectado."""
+    tipos = {tipo_de(f) for f in frases}
+    salida = []
+    for t in PRIORIDAD:
+        if t in tipos:
+            salida += [p for p in IMAGENES_POR_TIPO[t] if p not in salida]
+    return salida
+
+
+def elegir_imagen(raiz, productos, alerta):
+    """La carta archivada para el aviso: el primer producto de la lista que
+    tenga alguna imagen a menos de IMAGEN_DISTANCIA de la hora del aviso, la
+    más cercana. -> (producto, ts) o None si todavía no llegó ninguna."""
+    from ..cartas import archivo
+    t0 = alerta.astimezone(timezone.utc).replace(minute=0, second=0, microsecond=0)
+    horas = sorted({t0 + timedelta(hours=h) for h in range(-int(IMAGEN_DISTANCIA.total_seconds() // 3600),
+                                                            int(IMAGEN_DISTANCIA.total_seconds() // 3600) + 1)},
+                   key=lambda t: (abs(t - alerta), t < alerta))       # a igual distancia, mejor la de después
+    horas = [t for t in horas if abs(t - alerta) <= IMAGEN_DISTANCIA]
+    for p in productos:
+        for t in horas:
+            if archivo.existe(raiz, p, t):
+                return p, t
+    return None
 
 
 def _cerca(serie, objetivo, tolerancia):
@@ -84,6 +138,30 @@ def _usuario_bot(cur):
     return cur.fetchone()["id"]
 
 
+def _poner_imagen(contexto):
+    """Si ya hay una carta para el aviso, la nota pasa a apuntar a ella: su
+    imagen se ve en la tarjeta y tocarla abre esa carta en el visor."""
+    raiz = os.environ.get("ARCHIVO_DIR", "/archivo")
+    alerta = datetime.fromisoformat(contexto["alerta"])
+    r = elegir_imagen(raiz, contexto.get("imagenes") or [], alerta)
+    if not r:
+        return False
+    producto, ts = r
+    contexto.update({"seccion": "analisis", "producto": producto, "ts": ts.isoformat()})
+    return True
+
+
+def completar_imagenes(cur, bot, ahora):
+    """Avisos recientes del bot que todavía esperan su imagen (llega con demora)."""
+    cur.execute("""SELECT id, contexto FROM nota WHERE usuario_id = %s AND creada > %s
+                   AND contexto ? 'imagenes' AND NOT contexto ? 'producto'""", (bot, ahora - IMAGEN_ESPERA))
+    for r in cur.fetchall():
+        c = dict(r["contexto"])
+        if _poner_imagen(c):
+            cur.execute("UPDATE nota SET contexto = %s WHERE id = %s", (Jsonb(c), r["id"]))
+            log.info("bot observador: nota %s con imagen %s %s", r["id"], c["producto"], c["ts"])
+
+
 def correr(conn, ahora=None):
     """Una vuelta: lee las últimas 4 h, detecta y publica (si corresponde). -> nota creada o None."""
     ahora = ahora or datetime.now(timezone.utc)
@@ -105,6 +183,7 @@ def correr(conn, ahora=None):
         for e in est.values():
             e["pres"] = e["pnm"] or e["pres_est"]          # la que tenga (no mezclar las dos)
         bot = _usuario_bot(cur)
+        completar_imagenes(cur, bot, ahora)
         cur.execute("SELECT contexto->>'estaciones' AS e FROM nota WHERE usuario_id = %s AND creada > %s", (bot, ahora - SILENCIO))
         recientes = {x for r in cur.fetchall() for x in (r["e"] or "").split(",") if x}
         hallazgos = [(e, f) for e in sorted(est.values(), key=lambda x: x["nombre"])
@@ -119,6 +198,10 @@ def correr(conn, ahora=None):
         contexto = {"seccion": "meteograma", "ts": ahora.isoformat(), "estaciones": ",".join(e["id"] for e, _ in hallazgos)}
         if CIUDAD_DE.get(primera):
             contexto["ciudad"] = CIUDAD_DE[primera]
+        # La imagen según lo detectado: si ya está, va; si no, se completa en otra vuelta.
+        contexto["imagenes"] = imagenes_para([f for _, fs in hallazgos for f in fs])
+        contexto["alerta"] = ahora.isoformat()
+        _poner_imagen(contexto)
         cur.execute("""INSERT INTO nota (usuario_id, tipo, texto, etiquetas, compartida, fecha_evento, contexto, creada, actualizada)
                        VALUES (%s, 'llamo_atencion', %s, %s, true, %s, %s, %s, %s) RETURNING id""",
                     (bot, texto, ["alertanowcasting"], ahora.astimezone(ARG).date(), Jsonb(contexto), ahora, ahora))

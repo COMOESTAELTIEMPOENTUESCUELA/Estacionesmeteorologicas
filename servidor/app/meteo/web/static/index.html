@@ -10460,7 +10460,10 @@ function describirContexto(c) {
   if (c.seccion === "gfs" && c.ciudad) return `Meteograma del pronóstico GFS · ${c.ciudad} · corrida ${c.corrida}`;
   if (c.seccion === "gfs") return `Pronóstico GFS · corrida ${c.corrida}, +${c.plazo} h${c.carta ? " · " + c.carta : ""}`;
   if (c.seccion === "meteograma") return `Diagnóstico de ${c.ciudad || ""}${cuando ? " · " + cuando : ""}`;
-  return `Cartas de análisis · ${cuando}${c.producto ? " · " + c.producto : ""}`;
+  const NOMBRES = { satelite_rayos_bsas: "rayos (GLM)", satelite_glm: "rayos (GLM) sobre GeoColor", satelite_ir13: "satélite infrarrojo",
+                    satelite_geocolor: "satélite GeoColor", satelite_airmass: "satélite Air Mass", gfs_ana_mslp_jet: "análisis de superficie y chorro" };
+  const nombre = c.producto ? (cartasHora.find((x) => x.id === c.producto) ? tituloCarta(cartasHora.find((x) => x.id === c.producto)) : NOMBRES[c.producto] || c.producto) : "";
+  return `Cartas de análisis · ${cuando}${nombre ? " · " + nombre : ""}`;
 }
 function abrirNota(nt, fuente = null) {
   notaEditando = nt.id ? nt : null;

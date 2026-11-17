@@ -1338,10 +1338,11 @@ def _miniatura(c):
             ruta = pronostico.carpeta(ARCHIVO_DIR, c["carta"]) / nombre
             return f"/cartas-img/{pronostico.CARPETA}/{c['carta']}/{nombre}" if ruta.exists() else None
         if c.get("ts"):
-            ts = datetime.fromisoformat(str(c["ts"]).replace("Z", "+00:00"))
-            ts = ts.replace(hour=ts.hour - ts.hour % 6, minute=0, second=0, microsecond=0)
+            exacta = datetime.fromisoformat(str(c["ts"]).replace("Z", "+00:00")).replace(minute=0, second=0, microsecond=0)
+            ts = exacta.replace(hour=exacta.hour - exacta.hour % 6)
             raiz = Path(ARCHIVO_DIR) / "cartas"
-            for producto in [c.get("producto"), "gfs_ana_mslp_jet", "bentley_mslp_jet"]:
+            # Primero la carta de la nota a su hora exacta (el bot elige una que existe), después la sinóptica.
+            for producto, ts in [(c.get("producto"), exacta), (c.get("producto"), ts), ("gfs_ana_mslp_jet", ts), ("bentley_mslp_jet", ts)]:
                 if not producto:
                     continue
                 m = archivo.ruta_miniatura(ARCHIVO_DIR, producto, ts)

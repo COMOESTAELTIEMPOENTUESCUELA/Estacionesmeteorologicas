@@ -140,6 +140,15 @@ La página de Cartas (también la copia pública) sigue igual para todos. Quien
     grupo comente. Una sola nota por vuelta y como mucho una alerta por
     estación cada 3 h. El bot no puede ingresar a la página ni aparece en
     "El grupo".
+    Cada aviso lleva una **imagen según lo detectado** (`IMAGENES_POR_TIPO`):
+    tormenta → rayos del GLM (`satelite_rayos_bsas`, después `satelite_glm`,
+    después el infrarrojo); ráfaga → rayos o infrarrojo; caída de temperatura
+    → la carta de análisis (`gfs_ana_mslp_jet`) o el infrarrojo; caída de
+    presión → la carta de análisis o Air Mass. Si saltaron varias cosas manda
+    la primera de `PRIORIDAD` (tormenta, ráfaga, temperatura, presión). Se
+    toma la carta archivada más cercana a la hora del aviso (hasta 4 h antes
+    o después); como llegan con demora, si todavía no hay, el bot la completa
+    en las vueltas siguientes (hasta 8 h). Tocar la imagen abre esa carta.
   - A la derecha: lo de **ayer, pronosticado contra observado**, y las
     preguntas pendientes.
 
