@@ -111,6 +111,11 @@ def armar_pares(dias, observado):
         for el, campo in TEMPERATURAS.items():
             fila[el] = {"pron": d.get(campo), "obs": obs(el).get("valor"), "pers": obs(el, ayer).get("valor"),
                         "estacion": obs(el).get("estacion_id"), "periodo": obs(el).get("categoria")}
+        for el in ("tmin_urbana", "tmin_suburbana"):
+            # Mínima del día civil tomada de un termómetro que cubre en parte la noche anterior, sin lecturas para comprobarlo.
+            motivo = (obs(el).get("detalle") or {}).get("tmin_sin_comprobar")
+            if motivo:
+                fila[el]["sin_comprobar"] = motivo
         fila["tmin_periodo"] = {"pron": der["tmin_periodo"], "obs": obs("tmin_urbana").get("categoria")
                                 or obs("tmin_suburbana").get("categoria")}
         si_no = lambda o: None if not o else o.get("categoria") == "SI"

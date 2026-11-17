@@ -217,6 +217,7 @@ def temperaturas(lecturas, extremos, dia):
         "tmin_periodo": None if tmin_t is None else ("madrugada" if tmin_antes else periodo_de(hora_local(tmin_t))),
         "tmin_dia_anterior": tmin_antes, "tmin_civil": tmin_civil, "tmin_2121": tmin_2121,
         "tmin_ventana": "civil" if MINIMA_CIVIL else "21a21",
+        "tmin_sin_comprobar": civil["sin_comprobar"] if MINIMA_CIVIL else None,
         "completitud": completitud, "fuente": fuente, "periodos": por_periodo,
         "tmax_ok": tmax is not None and (completitud >= COMPLETITUD_MINIMA or con_grupo["tmax"]),
         "tmin_ok": tmin is not None and tmin_ok,
@@ -234,13 +235,14 @@ def _minima_civil(lecturas, extremos, dia):
     inicio, fin = limites(dia)
     del_dia = [(t, v) for t, v in lecturas if inicio <= t < fin]
     t_min, v_min = min(del_dia, key=lambda x: x[1]) if del_dia else (None, None)
-    fuente, con_grupo = "lecturas", False
+    fuente, con_grupo, sin_comprobar = "lecturas", False, None
     for ts, tipo, valor in extremos:
         desde = ts - timedelta(hours=HORAS_EXTREMO)
         if tipo != "tmin" or ts <= inicio or desde >= fin:
             continue
         afuera = [(t, v) for t, v in lecturas if desde <= t < inicio or fin <= t <= ts]
         horas_afuera = (max(inicio - desde, timedelta(0)) + max(ts - fin, timedelta(0))) / timedelta(hours=1)
+        comprobado = True
         if horas_afuera:
             if len({t.replace(minute=0) for t, _ in afuera}) >= 0.6 * horas_afuera:
                 adentro = [v for t, v in del_dia if desde <= t <= ts]
@@ -248,13 +250,23 @@ def _minima_civil(lecturas, extremos, dia):
                     continue
             elif horas_afuera > HORAS_EXTREMO / 2:
                 continue        # sin lecturas para comprobar y casi todo afuera
+            else:
+                comprobado = False   # se acepta (la mayor parte cae en el día), pero sin poder comprobarlo
         con_grupo = True
         if v_min is None or valor < v_min:
             dentro = [(t, v) for t, v in del_dia if desde <= t <= ts]
             v_min, fuente = valor, "synop"
+            # Por qué no se puede asegurar que sea del día (se muestra en la página).
+            a0, a1 = hora_local(desde), hora_local(desde + timedelta(hours=horas_afuera))
+            sin_comprobar = None if comprobado else (
+                f"El termómetro de mínima del SYNOP de las {ts.astimezone(timezone.utc):%H} UTC registra la menor temperatura "
+                f"de las 12 horas anteriores ({hora_local(desde):02d} a {hora_local(ts):02d} hs). {int(horas_afuera)} de esas horas "
+                f"({a0:02d} a {a1 if a1 else 24:02d} hs) son del día anterior, y la estación no informó la temperatura a esas horas: "
+                f"no se puede saber si los {str(valor).replace('.', ',')} °C fueron antes o después de las 00 hs. Se toma como "
+                f"mínima del día porque la mayor parte del período del termómetro cae dentro del día.")
             t_min = min(dentro, key=lambda x: x[1])[0] if dentro else min(ts, fin - timedelta(seconds=1))
     completitud = _completitud([t for t, _ in del_dia], inicio, fin)
-    return {"valor": v_min, "ts": t_min, "fuente": fuente,
+    return {"valor": v_min, "ts": t_min, "fuente": fuente, "sin_comprobar": sin_comprobar,
             "ok": v_min is not None and (completitud >= COMPLETITUD_MINIMA or con_grupo)}
 
 
@@ -512,7 +524,8 @@ def filas_ciudad(ciudad, defs, estaciones, dia):
             t = obs(est_id).get("temp")
             if t and (t["tmax_ok"] or t["tmin_ok"]):
                 detalle = {k: t[k] for k in ("completitud", "fuente", "periodos", "tmax_hora", "tmin_hora",
-                                             "tmin_dia_anterior", "tmin_civil", "tmin_2121", "tmin_ventana", "tmin_ts")}
+                                             "tmin_dia_anterior", "tmin_civil", "tmin_2121", "tmin_ventana", "tmin_ts",
+                                             "tmin_sin_comprobar")}
                 if t["tmax_ok"]:
                     filas.append((ciudad, dia, f"tmax_{ambito}", t["tmax"], None, est_id, detalle))
                 if t["tmin_ok"]:

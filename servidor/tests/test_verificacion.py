@@ -516,3 +516,25 @@ def test_la_traza_cuenta_o_no_segun_el_ajuste():
     finally:
         ajustes.aplicar({})
     assert ob.TRAZA_CUENTA is True
+
+
+def test_minima_civil_sin_comprobar_estacion_sin_datos_de_noche(monkeypatch):
+    """Tandil (informa de 09 a 21 hs): el termómetro de las 12 UTC (21 a 09 hs)
+    se usa para la mínima del día civil, pero queda marcado «sin comprobar»
+    con el porqué: no hay lecturas de las 21 a 24 del día anterior."""
+    monkeypatch.setattr(ob, "MINIMA_CIVIL", True)
+    utc = lambda d, h: datetime(2026, 10, d, h, tzinfo=timezone.utc)
+    lect = [(utc(13, h), 12 + (h - 12) * 0.8) for h in range(12, 24)] + [(utc(14, 0), 13.0)]
+    r = ob.temperaturas(lect, [(utc(13, 12), "tmin", 4.0), (utc(14, 0), "tmin", 11.5)], DIA)
+    assert r["tmin"] == 4.0 and r["tmin_ok"]
+    m = r["tmin_sin_comprobar"]
+    assert "12 UTC" in m and "21 a 09 hs" in m and "21 a 24 hs" in m and "4,0 °C" in m and "antes o después de las 00 hs" in m
+    # Si la mínima la dan las lecturas (no el termómetro), no hay nada que comprobar.
+    r = ob.temperaturas(lect, [(utc(13, 12), "tmin", 13.0)], DIA)
+    assert r["tmin_sin_comprobar"] is None
+    # Con lecturas de la noche anterior, se comprueba: no queda marcada.
+    lect2 = [(utc(13, h), 9.0 + abs(h - 9) * 0.4) for h in range(0, 24)] + [(utc(12, h), 12.0) for h in range(21, 24)]
+    assert ob.temperaturas(lect2, [(utc(13, 12), "tmin", 8.6)], DIA)["tmin_sin_comprobar"] is None
+    # Con la regla de 21 a 21 no hay duda (el termómetro cae entero en la ventana).
+    monkeypatch.setattr(ob, "MINIMA_CIVIL", False)
+    assert ob.temperaturas(lect, [(utc(13, 12), "tmin", 4.0)], DIA)["tmin_sin_comprobar"] is None

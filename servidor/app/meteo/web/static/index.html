@@ -1037,6 +1037,7 @@ g.fantasma { opacity: .45; filter: grayscale(1); }
 #globito.visible { opacity: 1; transform: none; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #globito { background: #f1f5f9; color: #0f172a; } }
 :root[data-theme="dark"] #globito { background: #f1f5f9; color: #0f172a; }
+.sin-comprobar { font-size: 11px; color: var(--tinta-2); white-space: nowrap; cursor: help; border-bottom: 1px dotted var(--tenue); }
 .corr-elegir { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
 .corr-estado { margin: 12px 0 4px; padding: 10px 12px; border: 1px solid var(--borde); border-radius: 10px; background: var(--superficie); font-size: 14px; line-height: 1.5; min-height: 2.5em; }
 .corr-estado .barra { height: 6px; border-radius: 3px; background: var(--borde); margin-top: 6px; overflow: hidden; }
@@ -3172,7 +3173,10 @@ al lado a medida que pasan los días.</p>
 <p>Los pronósticos de Pronóstico UNLP contra lo observado. Se filtra por ciudad, fechas, versión (la original o la final con
 correcciones), cuándo se publicó y tipo de situación. Se descarga en CSV.</p>
 <ul>
-<li><b>Temperatura</b>: error medio en °C y <b>sesgo</b> (+ = se pronosticó de más). La máxima y la mínima son las del día civil (00 a 24 hs, hora argentina).</li>
+<li><b>Temperatura</b>: error medio en °C y <b>sesgo</b> (+ = se pronosticó de más). La máxima y la mínima son las del día civil (00 a 24 hs, hora argentina).
+Una mínima marcada <b>«❔ sin comprobar»</b> salió del termómetro de mínima de las 12 UTC (que mide de 21 a 09 hs) en una estación que no informa
+de noche (como Tandil): no se puede saber si fue antes o después de las 00 hs. Se toma igual (la mayor parte de su período cae en el día) y al
+pasar el mouse dice el porqué.</li>
 <li><b>Precipitación</b>: si acertó «llueve / no llueve». Un día con «sí» pronosticado es el que tiene lluvias, lloviznas,
 tormentas… en algún período. La <b>traza</b> (menos de 0,1 mm) puede contar o no como lluvia: lo decide un coordinador.</li>
 <li><b>Viento</b>: acierta si la dirección predominante observada está entre las pronosticadas.</li>
@@ -6339,7 +6343,9 @@ function celdaTemp(t) {
   if (t.obs === null || t.obs === undefined) return `${num(t.pron, 0)} / <span class="tenue">s/d</span>`;
   const e = t.obs - t.pron;
   const flecha = Math.abs(e) <= 0.5 ? "" : e > 0 ? "▲" : "▼";
-  return `${num(t.pron, 0)} / ${num(t.obs)} <span class="err ${claseErr(e)}" title="error ${e > 0 ? "+" : ""}${num(e)} °C">${flecha}${num(Math.abs(e))}</span>`;
+  // Mínima que no se pudo comprobar que sea del día (el porqué, al pasar el mouse o mantener apretado).
+  const duda = t.sin_comprobar ? ` <span class="sin-comprobar" title="Mínima sin comprobar: ${esc(t.sin_comprobar)}">❔ sin comprobar</span>` : "";
+  return `${num(t.pron, 0)} / ${num(t.obs)} <span class="err ${claseErr(e)}" title="error ${e > 0 ? "+" : ""}${num(e)} °C">${flecha}${num(Math.abs(e))}</span>${duda}`;
 }
 function siNo(v) { return v === null || v === undefined ? '<span class="tenue">s/d</span>' : v ? "sí" : "no"; }
 function celdaPP(pp) {
