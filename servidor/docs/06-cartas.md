@@ -413,6 +413,13 @@ lado del título quién dibujó (`✏️ vos, Ana`). Una corrida con dibujos no 
 borra a los 8 días (la ingesta la suma a las fijas) y el dibujo aparece en la
 Agenda el día válido, con un botón que abre esa carta y ese plazo.
 
+**En las 4 cartas a la vez**: además de la capa de cada carta hay una común a
+las cuatro de ese plazo (`gfs_pro_las4@corrida`), que se ve encima de todas
+(comparten el mapa). En el visor, «✏️ En las 4 cartas a la vez» elige en cuál
+se dibuja (con ▲ ▼ se ve el dibujo común sobre cada carta; la otra capa propia
+queda abajo, fija); en la vista «Las 4 juntas», «✏️ Dibujar en las 4» abre el
+visor así. Privada o compartida, con fantasma, copiar y agenda, como las demás.
+
 Cuando llega una corrida nueva, el dibujo queda en la suya (no se mueve). Para
 compararlo: **👻 Dibujo de la corrida anterior** (interruptor en Pronóstico GFS
 y en el visor, recordado en el navegador) muestra en gris, debajo, lo dibujado

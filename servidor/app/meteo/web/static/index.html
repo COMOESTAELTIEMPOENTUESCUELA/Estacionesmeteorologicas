@@ -2534,6 +2534,7 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
           <button class="boton" id="cpr-z0" title="Ver la carta entera (0)">⟲</button>
         </span>
         <label class="en-linea" title="Puntos en las ciudades del pronóstico del grupo (tecla C)"><input type="checkbox" id="cpr-ciudades" checked> Ciudades</label>
+        <button type="button" class="boton chico" id="cpr-las4" hidden title="Dibujar una sola vez y que se vea en las cuatro cartas de este plazo (frentes, centros…)">✏️ Dibujar en las 4</button>
         <label class="en-linea" id="cpr-l-fantasma" title="Mostrar, en gris y transparente, lo dibujado (por vos o compartido) en la corrida anterior para esta misma hora: para ver cuánto cambió el modelo"><input type="checkbox" id="cpr-fantasma"> 👻 Dibujo de la corrida anterior</label>
         <button class="boton anotar" id="cpr-anotar" hidden title="Anotar en tu libreta algo de este plazo del pronóstico">📝 Anotar</button>
       </div>
@@ -2738,6 +2739,7 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
         <!-- Con sesión: la capa es de cada uno, privada salvo que se comparta -->
         <label class="en-linea solo-dibujo c-compartir" id="c-compartir" hidden title="Si está tildado, los demás ven tu dibujo encima de esta carta (sin poder tocarlo)">
           <input type="checkbox" id="c-compartir-chk"> 🔓 Compartir mi dibujo</label>
+        <label class="en-linea" id="c-las4-l" hidden title="Lo que dibujes se ve en las cuatro cartas de este plazo (comparten el mapa). Destildado: solo en esta carta."><input type="checkbox" id="c-las4"> ✏️ En las 4 cartas a la vez</label>
         <label class="en-linea" id="c-fantasma-l" hidden title="Ver, en gris, lo dibujado en la corrida anterior para esta misma hora"><input type="checkbox" id="c-fantasma"> 👻 Corrida anterior</label>
         <button type="button" class="boton" id="c-copiar-ant" hidden title="Traer a tu capa lo que dibujaste en la corrida anterior para esta misma hora (después lo podés mover o borrar)">📋 Copiar de la corrida anterior</button>
         <span class="c-capas-otras" id="c-capas-otras"></span>
@@ -5145,6 +5147,7 @@ function mostrarPlazoGFS() {
   g.innerHTML = html;
   aplicarZoomGFS();
   pintarCapasGFS();
+  $("#cpr-las4").hidden = !YO || v !== "cuatro";
   marcarPlazoMeteograma();
   if (!verif) document.querySelectorAll("#cpr-dias button").forEach((b) =>
     b.classList.toggle("actual", fmtDia.format(validaGFS(cpr.plazos[Number(b.dataset.k)])) === fmtDia.format(validaGFS(plazo))));
@@ -5184,11 +5187,15 @@ async function pintarCapasGFS(recargar = false) {
   await Promise.all(horas.filter((t) => recargar || !capasHora.has(t)).map((t) => cargarCapas(t)));
   for (const x of svgs) {
     const [prod, ts] = x.dataset.capa.split("|"), c = capasDe(prod, ts);
-    const ds = [...otrasVisibles(prod, ts).map((o) => o.dibujo), c.mia?.dibujo].filter((d) => d?.elementos?.length);
-    const f = verFantasma ? capaAnterior(prod, ts) : null;
+    const comun = `${LAS4}@${prod.split("@")[1]}`, c4 = capasDe(comun, ts);
+    const ds = [...otrasVisibles(prod, ts).map((o) => o.dibujo), ...otrasVisibles(comun, ts).map((o) => o.dibujo),
+                c4.mia?.dibujo, c.mia?.dibujo].filter((d) => d?.elementos?.length);
+    const f0 = verFantasma ? capaAnterior(prod, ts) : null, f4 = verFantasma ? capaAnterior(comun, ts) : null;
+    const f = f0 || f4 ? { clave: [f0?.clave, f4?.clave].filter(Boolean).sort().pop(), dibujo: unirDibujos([f0?.dibujo, f4?.dibujo]) } : null;
     x.setAttribute("viewBox", `0 0 ${DIB_ANCHO} ${ds[0]?.alto || f?.dibujo.alto || 750}`);
     x.innerHTML = svgFantasma(f) + ds.map(contenidoDibujo).join("");       // el fantasma, debajo
-    const quienes = [...(c.mia?.dibujo?.elementos?.length ? ["vos"] : []), ...otrasVisibles(prod, ts).map((o) => o.autor)];
+    const quienes = [...new Set([...(c.mia?.dibujo?.elementos?.length || c4.mia?.dibujo?.elementos?.length ? ["vos"] : []),
+                                 ...otrasVisibles(prod, ts).map((o) => o.autor), ...otrasVisibles(comun, ts).map((o) => o.autor)])];
     const a = document.querySelector(`[data-capa-autores="${CSS.escape(x.dataset.capa)}"]`);
     if (a) a.textContent = [quienes.length ? `✏️ ${quienes.join(", ")}` : "",
                             f ? `👻 corrida del ${fmtCorrida(fechaClave(f.clave))}` : ""].filter(Boolean).join(" · ");
@@ -5196,7 +5203,7 @@ async function pintarCapasGFS(recargar = false) {
 }
 document.addEventListener("click", (e) => {
   const b = e.target.closest("[data-cpr-dibujar]");
-  if (b) abrirCartaPron(b.dataset.cprDibujar, b.dataset.corrida, Number(b.dataset.plazo));
+  if (b) abrirCartaPron(b.dataset.cprDibujar, b.dataset.corrida, Number(b.dataset.plazo), false);     // solo esa carta
 });
 
 // ----- Zoom: el mismo en todas las cartas (comparten el marco) -----
@@ -5307,6 +5314,10 @@ function iniciarPronosticoGFS() {
   $("#cpr-vista").addEventListener("change", (e) => { cpr.vista = e.target.value; mostrarPlazoGFS(); });
   $("#cpr-corrida").addEventListener("change", (e) => cargarPronosticoGFS(e.target.value || null));
   $("#cpr-fantasma").checked = verFantasma;
+  $("#cpr-las4").addEventListener("click", () => {
+    const p = cpr.productos[0];
+    if (p) abrirCartaPron(p.id, claveCorrida(cpr.inicio), cpr.plazos[cpr.i], true);
+  });
   $("#c-fantasma").addEventListener("change", (e) => { $("#cpr-fantasma").checked = e.target.checked; $("#cpr-fantasma").dispatchEvent(new Event("change")); });
   $("#cpr-fantasma").addEventListener("change", (e) => {
     verFantasma = e.target.checked;
@@ -6565,8 +6576,13 @@ function cartasVisor() {
     grupo: "gfs_pro", fuente: "gfs_pronostico", url: urlGFS(k, inicio, plazo), dibujo: null })).filter((c) => c.url);
 }
 const tsVisor = () => visorPron ? new Date(+visorPron.inicio + visorPron.plazo * HORA) : tsCarta();
-async function abrirCartaPron(producto, clave, plazo) {
+// La capa "para las 4 cartas" de una corrida y plazo: se ve encima de las cuatro
+// (comparten el mapa: un punto es el mismo lugar en todas).
+const LAS4 = "gfs_pro_las4";
+let dibujarLas4 = false;
+async function abrirCartaPron(producto, clave, plazo, las4 = null) {
   guardarDibujoYa();
+  if (las4 !== null) dibujarLas4 = las4;
   visorPron = { inicio: new Date(Date.UTC(+clave.slice(0, 4), +clave.slice(4, 6) - 1, +clave.slice(6, 8), +clave.slice(8, 10))), plazo };
   cartaVisor = `${producto}@${clave}`;
   Object.assign(zoom, { s: 1, x: 0, y: 0 });
@@ -6612,7 +6628,7 @@ function mostrarEnVisor() {
   const p = cartasVisor().find((c) => c.id === cartaVisor);
   const img = $("#c-vista img");
   $("#c-dialogo-titulo").textContent = visorPron
-    ? `Pronóstico GFS · corrida del ${fmtCorrida(visorPron.inicio)} · +${visorPron.plazo} h · ${textoValida(tsVisor())} — ${p ? tituloCarta(p) : "no está guardada"}`
+    ? `Pronóstico GFS · corrida del ${fmtCorrida(visorPron.inicio)} · +${visorPron.plazo} h · ${textoValida(tsVisor())} — ${p ? tituloCarta(p) : "no está guardada"}${dibujarLas4 ? " · ✏️ dibujando en las 4 cartas" : ""}`
     : `${$("#c-titulo").textContent} — ${p ? tituloCarta(p) : "no archivada para esta hora"}`;
   img.hidden = !p;
   if (!p) return;
@@ -7331,13 +7347,18 @@ function pintarDibujoVisor() {
 function cargarDibujoVisor(p) {
   guardarDibujoYa();        // lo pendiente de la carta/hora anterior, antes de cambiar
   dib.centroElegido = -1;
-  dib.producto = p.id;
+  // En el pronóstico se puede dibujar en la capa de esta carta o en la común a las 4.
+  const comun = visorPron ? `${LAS4}@${claveCorrida(visorPron.inicio)}` : null;
+  dib.producto = comun && dibujarLas4 ? comun : p.id;
   dib.ts = tsVisor().toISOString();
   dib.compartida = false;
   dib.importarLocal = false;
   if (conCapas()) {                   // con sesión: abajo (fijo) el común y lo compartido; la propia para editar
-    const c = capasDe(p.id, dib.ts);
-    dib.base = unirDibujos([p.dibujo, ...otrasVisibles(p.id, dib.ts).map((o) => o.dibujo)]);
+    const c = capasDe(dib.producto, dib.ts);
+    // Abajo (fijo): lo compartido de la carta y de las 4, y lo mío de la capa que no se está editando.
+    const otraMia = comun ? capasDe(dibujarLas4 ? p.id : comun, dib.ts).mia?.dibujo : null;
+    dib.base = unirDibujos([p.dibujo, ...otrasVisibles(p.id, dib.ts).map((o) => o.dibujo),
+                            ...(comun ? otrasVisibles(comun, dib.ts).map((o) => o.dibujo) : []), otraMia]);
     dib.dibujo = c.mia ? JSON.parse(JSON.stringify(c.mia.dibujo)) : null;
     dib.compartida = !!c.mia?.compartida;
     // Lo que había dibujado en este navegador antes de tener cuenta: pasa a su capa.
@@ -7359,6 +7380,8 @@ function cargarDibujoVisor(p) {
   const ant = visorPron && conCapas() ? capaAnterior(p.id, dib.ts, true) : null;
   $("#c-copiar-ant").hidden = !ant;
   $("#c-fantasma-l").hidden = !visorPron;
+  $("#c-las4-l").hidden = !visorPron || !conCapas();
+  $("#c-las4").checked = !!(visorPron && dibujarLas4);
   $("#c-fantasma").checked = verFantasma;
   if (ant) $("#c-copiar-ant").textContent = `📋 Copiar lo mío de la corrida del ${fmtCorrida(fechaClave(ant.clave))}`;
   if (dib.importarLocal) setTimeout(guardarDibujoYa, 0);
@@ -7371,6 +7394,12 @@ function cargarDibujoVisor(p) {
   };
   if (img.complete && img.naturalWidth) listo(); else img.addEventListener("load", listo, { once: true });
 }
+$("#c-las4").addEventListener("change", (e) => {
+  guardarDibujoYa();
+  dibujarLas4 = e.target.checked;
+  const p = cartasVisor().find((c) => c.id === cartaVisor);
+  if (p) { cargarDibujoVisor(p); mostrarEnVisor(); }
+});
 $("#c-copiar-ant").addEventListener("click", () => {
   const ant = capaAnterior(dib.producto, dib.ts, true);
   if (!ant) return;
@@ -9821,7 +9850,11 @@ document.addEventListener("click", (e) => {
     volverAAgenda();
     const { corrida, plazo, base } = una.dataset;
     abrirContexto({ seccion: "gfs", corrida, plazo: Number(plazo), carta: base })
-      .then(() => { if (cpr.corridas.some((c) => claveCorrida(c.inicio) === corrida)) abrirCartaPron(base, corrida, Number(plazo)); });
+      .then(() => {
+        if (!cpr.corridas.some((c) => claveCorrida(c.inicio) === corrida)) return;
+        if (base === LAS4) abrirCartaPron(cpr.productos[0].id, corrida, Number(plazo), true);   // el dibujo de las 4 cartas
+        else abrirCartaPron(base, corrida, Number(plazo), false);
+      });
     return;
   }
   if (una) { volverAAgenda(); abrirCartaEn(una.dataset.agCarta, una.dataset.ts); return; }

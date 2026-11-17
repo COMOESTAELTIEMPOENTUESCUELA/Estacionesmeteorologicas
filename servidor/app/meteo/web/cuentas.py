@@ -1224,7 +1224,7 @@ def agenda_del_dia(request: Request, fecha: date):
                        WHERE (c.usuario_id = %s OR (c.compartida AND us.activo)) AND {DIA_LOCAL % "c.ts"} = %s
                        ORDER BY c.ts, us.nombre""", (u["id"], u["id"], fecha)):
         base, _, corrida = c["producto"].partition("@")      # las del pronóstico GFS: "carta@corrida"
-        p = productos.get(base, {})
+        p = productos.get(base, {"nombre": "Las 4 cartas del pronóstico"} if base == CAPA_LAS4 else {})
         extra = {}
         if corrida:
             try:
@@ -1480,6 +1480,9 @@ def _ts_carta(ts):
     return (t if t.tzinfo else t.replace(tzinfo=timezone.utc)).astimezone(timezone.utc)
 
 
+CAPA_LAS4 = "gfs_pro_las4"
+
+
 def _producto_capa(producto, t):
     """La carta de una capa. Las de análisis: su id. Las del PRONÓSTICO GFS:
     "gfs_pro_mslp_jet@AAAAMMDDHH" (la carta y la corrida), y t es la hora
@@ -1489,7 +1492,8 @@ def _producto_capa(producto, t):
         _producto_valido(producto)
         return
     base, _, clave = producto.partition("@")
-    if base not in {p["id"] for p in _cartas_productos(con_pronosticos=True) if p["fuente"] == "gfs_pronostico"}:
+    # "gfs_pro_las4": la capa común a las cuatro cartas del pronóstico (comparten el mapa).
+    if base != CAPA_LAS4 and base not in {p["id"] for p in _cartas_productos(con_pronosticos=True) if p["fuente"] == "gfs_pronostico"}:
         raise HTTPException(404, "carta desconocida")
     horas = (t - _clave_corrida(clave)).total_seconds() / 3600
     if not (0 <= horas <= 384 and horas % 6 == 0):

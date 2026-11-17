@@ -1181,16 +1181,21 @@ def test_capas_sobre_el_pronostico_gfs(cliente, cuentas, monkeypatch, tmp_path):
         assert cliente.put(url("gfs_pro_nada@2026020100", "2026-02-03T00:00:00Z"), json={"dibujo": d}, headers=X).status_code == 404
         assert cliente.put(url("gfs_pro_mslp_jet@2026020103", "2026-02-03T00:00:00Z"), json={"dibujo": d}, headers=X).status_code == 400
         assert cliente.put(url("gfs_pro_ivt@2026020100", "2026-02-03T00:00:00Z"), json={"dibujo": d}, headers=X).json()["elementos"] == 1   # privada
+        # La capa común a las 4 cartas (también vale; las demás cartas inventadas, no).
+        assert cliente.put(url("gfs_pro_las4@2026020100", "2026-02-03T00:00:00Z"), json={"dibujo": d, "compartida": True}, headers=X).json()["elementos"] == 1
         # Beto ve la compartida, no la privada.
         cliente.cookies.clear()
         ingresar(cliente, cuentas, monkeypatch, "beto@gmail.com")
         capas = cliente.get("/api/yo/capas", params={"ts": "2026-02-03T00:00:00Z"}).json()["capas"]
-        assert [(c["producto"], c["autor"], c["mia"]) for c in capas] == [("gfs_pro_mslp_jet@2026020100", "Ana", False)]
+        assert sorted((c["producto"], c["autor"], c["mia"]) for c in capas) == [("gfs_pro_las4@2026020100", "Ana", False),
+                                                                                ("gfs_pro_mslp_jet@2026020100", "Ana", False)]
         # La agenda del día válido (02/02, hora argentina) la muestra como del pronóstico, con su corrida y plazo.
         a = cliente.get("/api/yo/agenda/dia", params={"fecha": "2026-02-02"}).json()["capas"]
-        assert [(c["corrida"], c["plazo"], c["base"], c["autor"]) for c in a] == [("2026020100", 48, "gfs_pro_mslp_jet", "Ana")]
+        assert sorted((c["corrida"], c["plazo"], c["base"], c["autor"]) for c in a) == [("2026020100", 48, "gfs_pro_las4", "Ana"),
+                                                                                        ("2026020100", 48, "gfs_pro_mslp_jet", "Ana")]
+        assert next(c for c in a if c["base"] == "gfs_pro_las4")["nombre"] == "Las 4 cartas del pronóstico"
         # El estado de la corrida lo dice, y la ingesta no la borra.
-        assert "tiene 1 dibujo" in cliente.get("/api/yo/gfs/corrida", params={"corrida": "2026020100"}).json()["motivos"]
+        assert "tiene 2 dibujos" in cliente.get("/api/yo/gfs/corrida", params={"corrida": "2026020100"}).json()["motivos"]
         ing = tareas.Ingesta({"estaciones": []}, idb.conectar(DSN))
         try:
             assert datetime(2026, 2, 1, tzinfo=UTC) in ing.corridas_fijas({"gfs_fijar_pronosticos": False}, str(tmp_path))
