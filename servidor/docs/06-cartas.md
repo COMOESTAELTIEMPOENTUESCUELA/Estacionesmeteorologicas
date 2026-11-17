@@ -420,6 +420,13 @@ se dibuja (con ▲ ▼ se ve el dibujo común sobre cada carta; la otra capa pro
 queda abajo, fija); en la vista «Las 4 juntas», «✏️ Dibujar en las 4» abre el
 visor así. Privada o compartida, con fantasma, copiar y agenda, como las demás.
 
+**Ver lo marcado en otras cartas** (sin copiarlo): cada carta tiene su
+análisis, pero en el visor «👁 Ver también lo marcado en:» ofrece las otras
+cartas de esa misma hora que tienen dibujos y el mismo mapa (`grupoCarta`), y
+las muestra tenues debajo (no se pueden tocar desde ahí). Anda en Pronóstico y
+en Diagnóstico; la elección se recuerda en el navegador. En «Las 4 juntas»,
+«🔀 En cada carta, lo marcado en las otras» hace lo mismo en la grilla.
+
 Cuando llega una corrida nueva, el dibujo queda en la suya (no se mueve). Para
 compararlo: **👻 Dibujo de la corrida anterior** (interruptor en Pronóstico GFS
 y en el visor, recordado en el navegador) muestra en gris, debajo, lo dibujado

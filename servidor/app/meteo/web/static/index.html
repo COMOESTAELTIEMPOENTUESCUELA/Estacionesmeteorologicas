@@ -813,6 +813,9 @@ img.con-fondo { background-color: #fff !important; background-size: 100% 100%; b
 .cpr-dib { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
 /* El dibujo de la corrida anterior: gris y transparente, debajo del de esta. */
 g.fantasma { opacity: .45; filter: grayscale(1); }
+/* Lo marcado en OTRA carta de la misma hora: con sus colores, pero tenue. */
+g.de-otra-carta { opacity: .5; }
+.c-otras-cartas { gap: 10px; flex-wrap: wrap; font-size: 13px; }
 .cpr-dibujar { margin-left: 6px; }
 .cpr-autores { display: block; font-size: 12px; color: var(--s7); font-weight: 600; white-space: normal; }
 .cpr-autores:empty { display: none; }
@@ -2534,6 +2537,7 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
           <button class="boton" id="cpr-z0" title="Ver la carta entera (0)">⟲</button>
         </span>
         <label class="en-linea" title="Puntos en las ciudades del pronóstico del grupo (tecla C)"><input type="checkbox" id="cpr-ciudades" checked> Ciudades</label>
+        <label class="en-linea" id="cpr-l-cruzar" title="En cada carta, además, lo marcado en las otras tres (tenue): para ver todo junto sin copiar nada"><input type="checkbox" id="cpr-cruzar"> 🔀 En cada carta, lo marcado en las otras</label>
         <button type="button" class="boton chico" id="cpr-las4" hidden title="Dibujar una sola vez y que se vea en las cuatro cartas de este plazo (frentes, centros…)">✏️ Dibujar en las 4</button>
         <label class="en-linea" id="cpr-l-fantasma" title="Mostrar, en gris y transparente, lo dibujado (por vos o compartido) en la corrida anterior para esta misma hora: para ver cuánto cambió el modelo"><input type="checkbox" id="cpr-fantasma"> 👻 Dibujo de la corrida anterior</label>
         <button class="boton anotar" id="cpr-anotar" hidden title="Anotar en tu libreta algo de este plazo del pronóstico">📝 Anotar</button>
@@ -2744,6 +2748,7 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
         <button type="button" class="boton" id="c-copiar-ant" hidden title="Traer a tu capa lo que dibujaste en la corrida anterior para esta misma hora (después lo podés mover o borrar)">📋 Copiar de la corrida anterior</button>
         <span class="c-capas-otras" id="c-capas-otras"></span>
       </div>
+      <div class="barra c-otras-cartas" id="c-otras-cartas" hidden></div>
       <div class="barra" id="c-medir-barra">
         <span class="tenue">Medir:</span>
         <button class="boton herr" data-herr="m_dist" title="Distancia sobre la Tierra (varios tramos): longitud de onda, desplazamiento de un sistema (atajo: D)">📏 Distancia</button>
@@ -5159,7 +5164,8 @@ function mostrarPlazoGFS() {
 // La corrida más nueva, anterior a esta, que tenga dibujos (propios o
 // compartidos visibles) en esa carta para esa hora válida. Las capas de una
 // hora vienen todas juntas (todas las corridas), así que no hay que pedir nada.
-let verFantasma = false;
+let verFantasma = false, cruzarCartas = false;
+try { cruzarCartas = localStorage.getItem("gfs-cruzar") === "si"; } catch (_) {}
 try { verFantasma = localStorage.getItem("gfs-fantasma") === "si"; } catch (_) {}
 function capaAnterior(prodClave, ts, soloMia = false) {
   const [base, clave] = prodClave.split("@");
@@ -5190,10 +5196,16 @@ async function pintarCapasGFS(recargar = false) {
     const comun = `${LAS4}@${prod.split("@")[1]}`, c4 = capasDe(comun, ts);
     const ds = [...otrasVisibles(prod, ts).map((o) => o.dibujo), ...otrasVisibles(comun, ts).map((o) => o.dibujo),
                 c4.mia?.dibujo, c.mia?.dibujo].filter((d) => d?.elementos?.length);
+    // Lo marcado en las otras cartas de la misma corrida y hora, tenue y debajo.
+    const cruzadas = cruzarCartas ? svgs.map((y) => y.dataset.capa).filter((k) => k !== x.dataset.capa && k.split("|")[1] === ts
+                       && k.split("|")[0].split("@")[1] === prod.split("@")[1])
+      .map((k) => { const o = k.split("|")[0], co = capasDe(o, ts);
+                    return unirDibujos([co.mia?.dibujo, ...otrasVisibles(o, ts).map((z) => z.dibujo)]); }).filter((d) => d?.elementos?.length) : [];
     const f0 = verFantasma ? capaAnterior(prod, ts) : null, f4 = verFantasma ? capaAnterior(comun, ts) : null;
     const f = f0 || f4 ? { clave: [f0?.clave, f4?.clave].filter(Boolean).sort().pop(), dibujo: unirDibujos([f0?.dibujo, f4?.dibujo]) } : null;
     x.setAttribute("viewBox", `0 0 ${DIB_ANCHO} ${ds[0]?.alto || f?.dibujo.alto || 750}`);
-    x.innerHTML = svgFantasma(f) + ds.map(contenidoDibujo).join("");       // el fantasma, debajo
+    x.innerHTML = svgFantasma(f) + cruzadas.map((d) => `<g class="de-otra-carta">${contenidoDibujo(d)}</g>`).join("")
+                + ds.map(contenidoDibujo).join("");       // el fantasma y lo de las otras, debajo
     const quienes = [...new Set([...(c.mia?.dibujo?.elementos?.length || c4.mia?.dibujo?.elementos?.length ? ["vos"] : []),
                                  ...otrasVisibles(prod, ts).map((o) => o.autor), ...otrasVisibles(comun, ts).map((o) => o.autor)])];
     const a = document.querySelector(`[data-capa-autores="${CSS.escape(x.dataset.capa)}"]`);
@@ -5314,6 +5326,12 @@ function iniciarPronosticoGFS() {
   $("#cpr-vista").addEventListener("change", (e) => { cpr.vista = e.target.value; mostrarPlazoGFS(); });
   $("#cpr-corrida").addEventListener("change", (e) => cargarPronosticoGFS(e.target.value || null));
   $("#cpr-fantasma").checked = verFantasma;
+  $("#cpr-cruzar").checked = cruzarCartas;
+  $("#cpr-cruzar").addEventListener("change", (e) => {
+    cruzarCartas = e.target.checked;
+    try { localStorage.setItem("gfs-cruzar", cruzarCartas ? "si" : "no"); } catch (_) {}
+    pintarCapasGFS();
+  });
   $("#cpr-las4").addEventListener("click", () => {
     const p = cpr.productos[0];
     if (p) abrirCartaPron(p.id, claveCorrida(cpr.inicio), cpr.plazos[cpr.i], true);
@@ -7338,11 +7356,49 @@ function aplicarSuperposicion() {
   sup.style.opacity = $("#c-super-op").value / 100;
   requestAnimationFrame(ubicarSVG);       // por si la barra se reacomodó al aparecer la transparencia
 }
+// ----- Ver lo marcado en OTRAS cartas de la misma hora (sin copiarlo) -----
+// Cada carta tiene su análisis (espesores: masas de aire; 850: el frente; 500:
+// la vaguada), pero se puede ver encima, tenue, lo marcado en las otras. Solo
+// cartas con el mismo mapa (grupoCarta): si no, las marcas caerían en otro lugar.
+let verOtrasCartas = new Set();         // ids "base" de las cartas elegidas (sin la corrida)
+try { verOtrasCartas = new Set(JSON.parse(localStorage.getItem("ver-otras-cartas") || "[]")); } catch (_) {}
+const baseCarta = (id) => String(id).split("@")[0];
+function dibujosDeCarta(c, ts) {          // lo mío y lo compartido visible de una carta a esa hora
+  const x = capasDe(c.id, ts);
+  return unirDibujos([c.dibujo, x.mia?.dibujo, ...otrasVisibles(c.id, ts).map((o) => o.dibujo)]);
+}
+function otrasConDibujos(p, ts) {
+  if (!p) return [];
+  return cartasVisor().filter((c) => c.id !== p.id && grupoCarta(c) === grupoCarta(p))
+    .map((c) => ({ c, d: dibujosDeCarta(c, ts) })).filter((x) => x.d?.elementos?.length);
+}
+const nombreCorto = (c) => (c.nivel || c.nombre || c.id).replace(/ \(GFS\)$/, "");
+function pintarOtrasCartas() {
+  const p = cartasVisor().find((c) => c.id === cartaVisor), caja = $("#c-otras-cartas");
+  const lista = conCapas() || p?.dibujo ? otrasConDibujos(p, dib.ts) : [];
+  caja.hidden = !lista.length;
+  caja.innerHTML = lista.length ? '<span class="tenue" title="Lo marcado en otras cartas de esta misma hora, encima y tenue (no se puede tocar desde acá)">👁 Ver también lo marcado en:</span>'
+    + lista.map(({ c, d }) => `<label class="en-linea" title="${esc(tituloCarta(c))} · ${d.elementos.length} marca${d.elementos.length === 1 ? "" : "s"}">
+        <input type="checkbox" data-ver-otra="${esc(baseCarta(c.id))}"${verOtrasCartas.has(baseCarta(c.id)) ? " checked" : ""}> ${esc(nombreCorto(c))}</label>`).join("") : "";
+}
+function svgOtrasCartas() {
+  const p = cartasVisor().find((c) => c.id === cartaVisor);
+  return otrasConDibujos(p, dib.ts).filter(({ c }) => verOtrasCartas.has(baseCarta(c.id)))
+    .map(({ d }) => `<g class="de-otra-carta">${contenidoDibujo(d)}</g>`).join("");
+}
+$("#c-otras-cartas").addEventListener("change", (e) => {
+  const x = e.target.closest("[data-ver-otra]");
+  if (!x) return;
+  if (x.checked) verOtrasCartas.add(x.dataset.verOtra); else verOtrasCartas.delete(x.dataset.verOtra);
+  try { localStorage.setItem("ver-otras-cartas", JSON.stringify([...verOtrasCartas])); } catch (_) {}
+  pintarDibujoVisor();
+});
+
 function pintarDibujoVisor() {
   const svg = $("#c-svg");
   svg.setAttribute("viewBox", `0 0 ${DIB_ANCHO} ${dib.alto}`);
   const f = visorPron && verFantasma && dib.producto ? capaAnterior(dib.producto, dib.ts) : null;
-  svg.innerHTML = svgFantasma(f) + contenidoDibujo(dib.base) + contenidoDibujo(dib.dibujo) + (dib.actual ? svgElemento(dib.actual) : "") + contenidoMedidas();
+  svg.innerHTML = svgFantasma(f) + svgOtrasCartas() + contenidoDibujo(dib.base) + contenidoDibujo(dib.dibujo) + (dib.actual ? svgElemento(dib.actual) : "") + contenidoMedidas();
 }
 function cargarDibujoVisor(p) {
   guardarDibujoYa();        // lo pendiente de la carta/hora anterior, antes de cambiar
@@ -7381,6 +7437,7 @@ function cargarDibujoVisor(p) {
   $("#c-copiar-ant").hidden = !ant;
   $("#c-fantasma-l").hidden = !visorPron;
   $("#c-las4-l").hidden = !visorPron || !conCapas();
+  pintarOtrasCartas();
   $("#c-las4").checked = !!(visorPron && dibujarLas4);
   $("#c-fantasma").checked = verFantasma;
   if (ant) $("#c-copiar-ant").textContent = `📋 Copiar lo mío de la corrida del ${fmtCorrida(fechaClave(ant.clave))}`;
