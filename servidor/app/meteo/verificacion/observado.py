@@ -1,11 +1,12 @@
 """
 Lo que REALMENTE pasó cada día, en los mismos términos en que se pronostica.
 
-El día es el día CIVIL en hora argentina (00 a 24 hs), salvo la MÍNIMA,
-que va de 21 a 21 hs (00 a 00 UTC), como la verifica el equipo: la menor de
+El día es el día CIVIL en hora argentina (00 a 24 hs), también para la
+MÍNIMA (MINIMA_CIVIL, por defecto). Con MINIMA_CIVIL = False la mínima va de
+21 a 21 hs (00 a 00 UTC), como la verificaba antes el equipo: la menor de
 los dos termómetros de mínima del SMN, el de las 12 UTC (21 a 09 hs, la
-madrugada) y el de las 00 UTC del día siguiente (09 a 21 hs: la mínima
-"nocturna" cuando pasa un frente frío de día). Ver temperaturas().
+madrugada) y el de las 00 UTC del día siguiente (09 a 21 hs). Ver
+temperaturas().
 
 Además de los valores del día se guarda el detalle por período (madrugada,
 mañana, tarde, noche) para poder verificar por período más adelante.
@@ -61,6 +62,9 @@ TRAZA_CUENTA = TRAZA_CUENTA_DEFECTO = True
 SUPERPOSICION_LLUVIA = SUPERPOSICION_LLUVIA_DEFECTO = 0.75
 # Los valores de arriba se pueden cambiar desde la página (Administración):
 # ver ajustes.py. Los *_DEFECTO son los de siempre.
+# ¿La mínima es la del día civil (00 a 24 hs, como la máxima)? Si no, de 21 a
+# 21 hs (los dos termómetros de mínima del SMN, como se verificaba antes).
+MINIMA_CIVIL = MINIMA_CIVIL_DEFECTO = True
 INTERVALO_EMA = timedelta(minutes=10)      # lo que suele abarcar cada lectura de lluvia de una EMA
 
 
@@ -111,7 +115,12 @@ def temperaturas(lecturas, extremos, dia):
     extremos: [(ts, 'tmax'|'tmin', °C)] de los grupos del SYNOP; cada uno
         vale para las 12 h anteriores a ts.
 
-    MÍNIMA: de 21 a 21 hs (ventana_minima), como la verifica el equipo: la
+    MÍNIMA con MINIMA_CIVIL (por defecto): del día civil (00 a 24 hs), con
+    el mismo cuidado que la máxima para los grupos del SYNOP que caen en
+    parte afuera (el de las 12 UTC cubre de 21 a 09 hs: vale solo si la
+    mínima fue dentro del día). Se guarda también la de 21 a 21 ("tmin_2121").
+
+    MÍNIMA sin MINIMA_CIVIL: de 21 a 21 hs (ventana_minima), como la verificaba el equipo: la
     menor entre los termómetros de mínima de las 12 UTC del día y de las
     00 UTC del día siguiente, y las lecturas de ese período (por si falta
     algún parte; las EMA no tienen termómetros). Los dos grupos caen enteros
@@ -138,6 +147,7 @@ def temperaturas(lecturas, extremos, dia):
     del_dia = [(t, v) for t, v in lecturas if inicio <= t < fin]
     v0, v1 = ventana_minima(dia)
     de_la_ventana = [(t, v) for t, v in lecturas if v0 < t <= v1]
+    civil = _minima_civil(lecturas, extremos, dia)
     if not del_dia and not de_la_ventana:
         return None
     completitud = _completitud([t for t, _ in del_dia], inicio, fin)
@@ -185,6 +195,11 @@ def temperaturas(lecturas, extremos, dia):
                                                  *((v0, v0 + timedelta(hours=12)) if 0 in mitades
                                                    else (v0 + timedelta(hours=12), v1))) >= 0.33))
     tmin_civil = min((v for _, v in del_dia), default=None)
+    tmin_2121 = tmin if tmin_ok else None
+    if MINIMA_CIVIL:                     # la del día civil reemplaza a la de 21 a 21
+        tmin_t, tmin, tmin_ok = civil["ts"], civil["valor"], civil["ok"]
+        fuente["tmin"] = civil["fuente"]
+        tmin_civil = tmin
 
     por_periodo = {}
     for nombre, a, b in PERIODOS:
@@ -193,18 +208,54 @@ def temperaturas(lecturas, extremos, dia):
             por_periodo[nombre] = {"min": min(vals), "max": max(vals), "media": round(sum(vals) / len(vals), 1)}
     # Una mínima de entre las 21 y las 24 del día anterior es de la noche
     # que lleva al día: cuenta como de la madrugada.
-    tmin_antes = tmin_t is not None and tmin_t <= inicio
+    tmin_antes = not MINIMA_CIVIL and tmin_t is not None and tmin_t <= inicio      # en el día civil, nunca
     return {
         "tmax": tmax, "tmax_hora": hora_local(tmax_t) if tmax_t else None,
         "tmin": tmin, "tmin_hora": hora_local(tmin_t) if tmin_t else None,
         # Cuándo fue (para el Día 1: si fue antes de publicar el pronóstico, ya se sabía).
         "tmin_ts": tmin_t.isoformat() if tmin_t else None,
         "tmin_periodo": None if tmin_t is None else ("madrugada" if tmin_antes else periodo_de(hora_local(tmin_t))),
-        "tmin_dia_anterior": tmin_antes, "tmin_civil": tmin_civil,
+        "tmin_dia_anterior": tmin_antes, "tmin_civil": tmin_civil, "tmin_2121": tmin_2121,
+        "tmin_ventana": "civil" if MINIMA_CIVIL else "21a21",
         "completitud": completitud, "fuente": fuente, "periodos": por_periodo,
         "tmax_ok": tmax is not None and (completitud >= COMPLETITUD_MINIMA or con_grupo["tmax"]),
         "tmin_ok": tmin is not None and tmin_ok,
     }
+
+
+def _minima_civil(lecturas, extremos, dia):
+    """La mínima del día civil (00 a 24 hs): la menor lectura del día y, de
+    los grupos 2sTTT del SYNOP (mínima de las 12 h anteriores), los que caen
+    dentro. Uno que cae en parte afuera (el de las 12 UTC: de 21 a 09 hs) vale
+    solo si la mínima fue DENTRO del día: la lectura más fría de su período
+    está dentro y el valor es más frío que todas las de afuera (como la
+    máxima). Sin lecturas de afuera para comprobarlo, vale si la mayor parte
+    de su período cae dentro. -> {"valor", "ts", "ok", "fuente"}"""
+    inicio, fin = limites(dia)
+    del_dia = [(t, v) for t, v in lecturas if inicio <= t < fin]
+    t_min, v_min = min(del_dia, key=lambda x: x[1]) if del_dia else (None, None)
+    fuente, con_grupo = "lecturas", False
+    for ts, tipo, valor in extremos:
+        desde = ts - timedelta(hours=HORAS_EXTREMO)
+        if tipo != "tmin" or ts <= inicio or desde >= fin:
+            continue
+        afuera = [(t, v) for t, v in lecturas if desde <= t < inicio or fin <= t <= ts]
+        horas_afuera = (max(inicio - desde, timedelta(0)) + max(ts - fin, timedelta(0))) / timedelta(hours=1)
+        if horas_afuera:
+            if len({t.replace(minute=0) for t, _ in afuera}) >= 0.6 * horas_afuera:
+                adentro = [v for t, v in del_dia if desde <= t <= ts]
+                if not (adentro and valor < min(v for _, v in afuera) - 0.05 and min(adentro) <= min(v for _, v in afuera)):
+                    continue
+            elif horas_afuera > HORAS_EXTREMO / 2:
+                continue        # sin lecturas para comprobar y casi todo afuera
+        con_grupo = True
+        if v_min is None or valor < v_min:
+            dentro = [(t, v) for t, v in del_dia if desde <= t <= ts]
+            v_min, fuente = valor, "synop"
+            t_min = min(dentro, key=lambda x: x[1])[0] if dentro else min(ts, fin - timedelta(seconds=1))
+    completitud = _completitud([t for t, _ in del_dia], inicio, fin)
+    return {"valor": v_min, "ts": t_min, "fuente": fuente,
+            "ok": v_min is not None and (completitud >= COMPLETITUD_MINIMA or con_grupo)}
 
 
 # ---------------------------------------------------------------------------
@@ -461,7 +512,7 @@ def filas_ciudad(ciudad, defs, estaciones, dia):
             t = obs(est_id).get("temp")
             if t and (t["tmax_ok"] or t["tmin_ok"]):
                 detalle = {k: t[k] for k in ("completitud", "fuente", "periodos", "tmax_hora", "tmin_hora",
-                                             "tmin_dia_anterior", "tmin_civil", "tmin_ts")}
+                                             "tmin_dia_anterior", "tmin_civil", "tmin_2121", "tmin_ventana", "tmin_ts")}
                 if t["tmax_ok"]:
                     filas.append((ciudad, dia, f"tmax_{ambito}", t["tmax"], None, est_id, detalle))
                 if t["tmin_ok"]:

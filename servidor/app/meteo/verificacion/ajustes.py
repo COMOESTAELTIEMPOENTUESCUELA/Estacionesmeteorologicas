@@ -30,6 +30,10 @@ PARAMETROS = [
      "Sí: alcanza con que el SYNOP informe lluvia o llovizna, aunque el pluviómetro marque solo traza (\"Ip\", menos de 0,1 mm). "
      "No: una llovizna que dejó solo traza cuenta como día sin precipitación (como la climatología del SMN, desde 0,1 mm).",
      0, 1, 1, "sí/no"),
+    ("minima_civil", "¿La mínima es la del día civil?",
+     "Sí: la mínima del día de 00 a 24 hs (hora argentina), igual que la máxima. "
+     "No: de 21 a 21 hs, con los dos termómetros de mínima del SMN (el de las 12 UTC y el de las 00 UTC del día siguiente), como se verificaba antes.",
+     0, 1, 1, "sí/no"),
     ("viento_leves", "Viento: tope de LEVES", "Viento medio horario máximo (km/h) hasta el que el día es LEVES.", 5, 60, 1, "km/h"),
     ("viento_moderados", "Viento: tope de MODERADOS", "Hasta acá, MODERADOS.", 5, 80, 1, "km/h"),
     ("viento_regulares", "Viento: tope de REGULARES", "Hasta acá, REGULARES; más, FUERTES.", 5, 120, 1, "km/h"),
@@ -43,6 +47,7 @@ def por_defecto():
             "completitud_viento": observado.COMPLETITUD_VIENTO_DEFECTO,
             "superposicion_lluvia": observado.SUPERPOSICION_LLUVIA_DEFECTO,
             "traza_cuenta": 1.0 if observado.TRAZA_CUENTA_DEFECTO else 0.0,
+            "minima_civil": 1.0 if observado.MINIMA_CIVIL_DEFECTO else 0.0,
             "viento_leves": v["LEVES"], "viento_moderados": v["MODERADOS"], "viento_regulares": v["REGULARES"]}
 
 
@@ -96,6 +101,7 @@ def aplicar(cambiados):
     observado.COMPLETITUD_VIENTO = v["completitud_viento"]
     observado.SUPERPOSICION_LLUVIA = v["superposicion_lluvia"]
     observado.TRAZA_CUENTA = bool(v["traza_cuenta"])
+    observado.MINIMA_CIVIL = bool(v["minima_civil"])
     observado.CATEGORIAS_VIENTO = (("LEVES", v["viento_leves"]), ("MODERADOS", v["viento_moderados"]),
                                    ("REGULARES", v["viento_regulares"]), ("FUERTES", math.inf))
     return v

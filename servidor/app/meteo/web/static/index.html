@@ -2248,7 +2248,7 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
         <a class="boton" id="f-v-csv" href="#">Descargar CSV</a>
       </div>
       <p class="ayuda">Pronósticos de Pronóstico UNLP contra lo observado en las estaciones. El día es el día civil
-        (00 a 24 hs), salvo la mínima, que va de 21 a 21 hs: la menor de los termómetros de mínima de las 12 UTC (madrugada) y de las 00 UTC (09 a 21 hs: la "nocturna"). Un día entra en la cuenta solo si hay pronóstico
+        (00 a 24 hs), también para la mínima (se puede cambiar a 21 a 21 hs, como se verificaba antes, en Administración). Un día entra en la cuenta solo si hay pronóstico
         Y observación completa (n = días comparados). "Plazo 1" = el día siguiente al del pronóstico (su "Día 2"), aunque se haya publicado la noche anterior.
         <b>Persistencia</b> = pronosticar "lo mismo que ayer"; la <b>destreza</b> dice cuánto menos se erra que con ella.</p>
       <p class="ayuda" id="v-nota"></p>
@@ -2344,7 +2344,8 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
         <div class="tabla-scroll"><table>
           <tr><th>Elemento</th><th>Observado</th><th>Pronosticado</th></tr>
           <tr><td>Máxima y mínima</td><td>Máxima: mayor valor del día (00 a 24 hs) entre las lecturas, más la máxima del SYNOP (grupo 1).
-            Mínima: menor valor de 21 a 21 hs entre los termómetros de mínima de las 12 y 00 UTC (grupo 2) y las lecturas.</td><td>Máx. y mín. urbana y suburbana</td></tr>
+            Mínima: menor valor del día civil (00 a 24 hs) entre las lecturas y los termómetros de mínima del SMN (grupo 2) que caen en el día;
+            el de las 12 UTC (21 a 09 hs) cuenta solo si la mínima fue después de las 00 hs. (Opción en Administración: de 21 a 21 hs.)</td><td>Máx. y mín. urbana y suburbana</td></tr>
           <tr><td>Día con precipitación</td><td>EMA: 0,1 mm o más. Sinóptica: algún reporte con tiempo presente de precipitación (llovizna con traza incluida),
             o una cantidad mayor que 0 cuyo período cae al menos 75 % dentro del día.</td><td>Algún período con lluvias, lloviznas, chaparrones, tormentas... (sin mirar la probabilidad, como la hoja)</td></tr>
           <tr><td>Dirección del viento</td><td>Sector de 8 rumbos más frecuente en los valores horarios, sin contar las calmas</td><td>Todas las direcciones nombradas; acierta si la observada está entre ellas</td></tr>
@@ -3171,7 +3172,7 @@ al lado a medida que pasan los días.</p>
 <p>Los pronósticos de Pronóstico UNLP contra lo observado. Se filtra por ciudad, fechas, versión (la original o la final con
 correcciones), cuándo se publicó y tipo de situación. Se descarga en CSV.</p>
 <ul>
-<li><b>Temperatura</b>: error medio en °C y <b>sesgo</b> (+ = se pronosticó de más). La mínima va de 21 a 21 hs.</li>
+<li><b>Temperatura</b>: error medio en °C y <b>sesgo</b> (+ = se pronosticó de más). La máxima y la mínima son las del día civil (00 a 24 hs, hora argentina).</li>
 <li><b>Precipitación</b>: si acertó «llueve / no llueve». Un día con «sí» pronosticado es el que tiene lluvias, lloviznas,
 tormentas… en algún período. La <b>traza</b> (menos de 0,1 mm) puede contar o no como lluvia: lo decide un coordinador.</li>
 <li><b>Viento</b>: acierta si la dirección predominante observada está entre las pronosticadas.</li>
@@ -8934,7 +8935,7 @@ async function cargarMisPronosticos() {
   $("#pf-nota").textContent = `${d.dias.length} días pronosticados del ${d.desde} al ${d.hasta} (firmas: ${d.usuario.firmas.join(", ")}). ` +
     "Se cuenta la versión vigente de cada pronóstico (si otro lo corrigió, ese día es de quien lo corrigió). Error medio absoluto (MAE) y sesgo en °C: " +
     "sesgo positivo = más calor del que hizo. Color del error: verde hasta 2 °C, amarillo hasta 4, rojo más de 4; el punto indica " +
-    "cuánto creerle según la cantidad de días (gris exploratorio, amarillo indicativo, verde robusto). Mismas cuentas que la pestaña Verificación (mínima de 21 a 21 hs).";
+    "cuánto creerle según la cantidad de días (gris exploratorio, amarillo indicativo, verde robusto). Mismas cuentas que la pestaña Verificación (máxima y mínima del día civil).";
   const n = (x, dec = 1) => (x === null || x === undefined ? "–" : num(x, dec));
   const plazos = Object.keys(d.resumen).sort((a, b) => a - b);
   const celdaT = (r) => r && r.n ? `${maeColor(r.mae)} <span class="tenue">(${r.sesgo > 0 ? "+" : ""}${n(r.sesgo)}, n=${r.n})</span> ${chipNivel(r.nivel)}` : "–";

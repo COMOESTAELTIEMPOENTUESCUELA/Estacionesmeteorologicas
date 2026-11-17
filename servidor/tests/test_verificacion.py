@@ -24,7 +24,8 @@ def horarias(valores, dia=DIA):
 # ---------------------------------------------------------------------------
 # Temperatura
 # ---------------------------------------------------------------------------
-def test_minima_nocturna_despues_de_un_frente():
+def test_minima_nocturna_despues_de_un_frente(monkeypatch):
+    monkeypatch.setattr(ob, "MINIMA_CIVIL", False)
     # Mañana templada (mín 14 a las 6), frente a la tarde: a las 21 hace 11 y
     # sigue bajando. La mínima del día va de 21 a 21 hs (la que el termómetro
     # de las 00 UTC registra); lo de después de las 21 es del día siguiente.
@@ -36,6 +37,10 @@ def test_minima_nocturna_despues_de_un_frente():
     assert r["tmin_civil"] == 9                          # la de 00 a 24 hs queda guardada para comparar
     assert r["periodos"]["madrugada"]["min"] == 14.0
     assert r["completitud"] == 1.0
+    # Con la mínima del DÍA CIVIL (por defecto): la de las 23 hs, después del frente.
+    monkeypatch.setattr(ob, "MINIMA_CIVIL", True)
+    r = ob.temperaturas(horarias(t), [], DIA)
+    assert (r["tmin"], r["tmin_hora"], r["tmin_periodo"], r["tmin_2121"], r["tmin_ventana"]) == (9, 23, "noche", 11, "civil")
 
 
 def test_extremo_synop_de_las_12utc_se_usa_si_ocurrio_dentro_del_dia():
@@ -46,7 +51,8 @@ def test_extremo_synop_de_las_12utc_se_usa_si_ocurrio_dentro_del_dia():
     assert r["tmin"] == 8.3 and r["fuente"]["tmin"] == "synop" and r["tmin_hora"] == 6
 
 
-def test_minima_de_la_noche_anterior_despues_de_las_21_es_de_hoy():
+def test_minima_de_la_noche_anterior_despues_de_las_21_es_de_hoy(monkeypatch):
+    monkeypatch.setattr(ob, "MINIMA_CIVIL", False)
     # A las 23 de ayer ya hacía 5 grados: el termómetro de mínima de las
     # 12 UTC (21 a 09 hs) la registra y es la mínima de HOY (convención del
     # equipo y del SMN: la noche que lleva al día). Cuenta como de la madrugada.
@@ -55,9 +61,15 @@ def test_minima_de_la_noche_anterior_despues_de_las_21_es_de_hoy():
     r = ob.temperaturas(lecturas, [(datetime(2026, 10, 13, 12, tzinfo=timezone.utc), "tmin", 5.0)], DIA)
     assert (r["tmin"], r["tmin_hora"], r["tmin_periodo"], r["tmin_dia_anterior"]) == (5.0, 23, "madrugada", True)
     assert r["tmin_civil"] == 7.0
+    # Día civil: lo de las 23 de ayer NO es de hoy (el termómetro de las 12 UTC
+    # la registró, pero las lecturas muestran que fue antes de las 00 hs).
+    monkeypatch.setattr(ob, "MINIMA_CIVIL", True)
+    r = ob.temperaturas(lecturas, [(datetime(2026, 10, 13, 12, tzinfo=timezone.utc), "tmin", 5.0)], DIA)
+    assert (r["tmin"], r["tmin_hora"], r["tmin_dia_anterior"], r["tmin_2121"]) == (7.0, 0, False, 5.0)
 
 
-def test_minima_de_la_madrugada_siguiente_no_cuenta_para_hoy():
+def test_minima_de_la_madrugada_siguiente_no_cuenta_para_hoy(monkeypatch):
+    monkeypatch.setattr(ob, "MINIMA_CIVIL", False)
     # Bahía Blanca, 25/10/2026 (SYNOP reales de Ogimet, horas UTC). La mínima
     # de 1,3 del parte de las 12 UTC del 26 (00 a 12 UTC) fue a la madrugada
     # del 26 (1,4 a las 08 UTC): no es del 25 aunque sea apenas más baja que
@@ -75,6 +87,12 @@ def test_minima_de_la_madrugada_siguiente_no_cuenta_para_hoy():
     # de las 00 UTC del 26 (7,6, a las 21 hs). La de 00 a 24 hs: 5,6 (23 hs).
     assert (r["tmin"], r["tmin_hora"], r["tmin_civil"]) == (7.6, 21, 5.6)
     # Y para el 26 sí cuenta (es su madrugada).
+    assert ob.temperaturas(lecturas, extremos, date(2026, 10, 26))["tmin"] == 1.3
+    # Día civil: el 25 es 5,6 a las 23 hs (el 1,3 de las 12 UTC del 26 fue a la
+    # madrugada del 26, no entre las 21 y las 24 del 25); el 26, 1,3.
+    monkeypatch.setattr(ob, "MINIMA_CIVIL", True)
+    r = ob.temperaturas(lecturas, extremos, dia)
+    assert (r["tmin"], r["tmin_hora"], r["tmin_2121"]) == (5.6, 23, 7.6)
     assert ob.temperaturas(lecturas, extremos, date(2026, 10, 26))["tmin"] == 1.3
 
 
