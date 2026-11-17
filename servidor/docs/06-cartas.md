@@ -413,6 +413,13 @@ lado del título quién dibujó (`✏️ vos, Ana`). Una corrida con dibujos no 
 borra a los 8 días (la ingesta la suma a las fijas) y el dibujo aparece en la
 Agenda el día válido, con un botón que abre esa carta y ese plazo.
 
+Cuando llega una corrida nueva, el dibujo queda en la suya (no se mueve). Para
+compararlo: **👻 Dibujo de la corrida anterior** (interruptor en Pronóstico GFS
+y en el visor, recordado en el navegador) muestra en gris, debajo, lo dibujado
+para esa misma hora en la corrida anterior más nueva que tenga dibujos (propios
+o compartidos visibles). En el visor, **📋 Copiar lo mío de la corrida…** trae
+a la capa propia lo que uno dibujó ahí (se puede deshacer con Ctrl+Z).
+
 ## Herramientas de análisis
 
 - **Dibujar** (visor grande, barra "Dibujar"): frentes frío, cálido,
