@@ -167,7 +167,7 @@ class Ingesta:
         """Corridas del GFS cuyas cartas de pronóstico NO se borran a los 8 días:
         - las fijadas a mano (📌) y las vueltas a dibujar a pedido;
         - las que usa alguna nota (la abrió desde el pronóstico GFS: su contexto
-          dice qué corrida);
+          dice qué corrida) y las que tienen dibujos (capas "carta@corrida");
         - con `gfs_fijar_pronosticos` (cartas.yaml, sí por omisión), la que había
           cuando se publicó cada pronóstico del grupo (la que compara «🌐 GFS»:
           puntos.corrida_al_publicar, que si esa corrida no se dibujó cae a la anterior).
@@ -187,6 +187,8 @@ class Ingesta:
                 self.conn.rollback()           # no dejar la transacción abierta (idle_in_transaction)
         consulta("SELECT corrida FROM gfs_corrida WHERE fijada OR estado IS NOT NULL", lambda t: t.astimezone(timezone.utc))
         consulta("SELECT DISTINCT contexto->>'corrida' FROM nota WHERE contexto->>'corrida' ~ '^[0-9]{10}$'", clave_a_corrida)
+        # Las que alguien dibujó (capa "carta@corrida"): el dibujo sin la carta no sirve.
+        consulta("SELECT DISTINCT split_part(producto, '@', 2) FROM carta_capa WHERE producto LIKE '%@%'", clave_a_corrida)
         if cfg.get("gfs_fijar_pronosticos", True):
             from ..cartas import puntos
             consulta("SELECT DISTINCT capturado FROM pronostico_emision WHERE capturado > now() - interval '400 days'",

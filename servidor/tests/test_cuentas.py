@@ -1156,3 +1156,48 @@ def test_admin_actividad_y_ultimo_uso(cliente, cuentas, monkeypatch):
     ingresar(cliente, cuentas, monkeypatch, "ana@gmail.com")
     v = cliente.get("/api/yo/admin/actividad").json()["visitas"]
     assert v[0]["total"] >= 2 and v[0]["sin_cuenta"] >= 1 and "Ana" in v[0]["quienes"]
+
+
+def test_capas_sobre_el_pronostico_gfs(cliente, cuentas, monkeypatch, tmp_path):
+    """Dibujar sobre una carta del pronóstico GFS: capa "carta@corrida" a la
+    hora válida (que tiene que ser un plazo de esa corrida), privada o
+    compartida como las de análisis; la corrida queda guardada (fija) y el
+    dibujo aparece en la agenda del día válido."""
+    from pathlib import Path
+    from meteo.ingesta import db as idb, tareas
+    from meteo.web import app as webapp
+    UTC = timezone.utc
+    monkeypatch.setattr(webapp, "CARTAS_CONFIG", str(Path(__file__).parent.parent / "config" / "cartas.yaml"))
+    monkeypatch.setattr(cuentas, "ARCHIVO_DIR", str(tmp_path))
+    d = {"ancho": 1000, "alto": 750, "elementos": [{"tipo": "frente", "clase": "frio", "lado": 1, "puntos": [[100, 100], [300, 300]]}]}
+    url = lambda prod, ts: f"/api/yo/capa?producto={prod}&ts={ts}"
+    try:
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "ana@gmail.com")
+        # La corrida del 01/02 00 UTC, +48 h -> válida el 03/02 00 UTC (el 02/02 a las 21 hs).
+        assert cliente.put(url("gfs_pro_mslp_jet@2026020100", "2026-02-03T00:00:00Z"), json={"dibujo": d, "compartida": True}, headers=X).json()["elementos"] == 1
+        assert cliente.put(url("gfs_pro_mslp_jet@2026020100", "2026-02-03T03:00:00Z"), json={"dibujo": d}, headers=X).status_code == 400   # no es un plazo
+        assert cliente.put(url("gfs_pro_mslp_jet@2026020100", "2026-01-31T00:00:00Z"), json={"dibujo": d}, headers=X).status_code == 400   # antes de la corrida
+        assert cliente.put(url("gfs_pro_nada@2026020100", "2026-02-03T00:00:00Z"), json={"dibujo": d}, headers=X).status_code == 404
+        assert cliente.put(url("gfs_pro_mslp_jet@2026020103", "2026-02-03T00:00:00Z"), json={"dibujo": d}, headers=X).status_code == 400
+        assert cliente.put(url("gfs_pro_ivt@2026020100", "2026-02-03T00:00:00Z"), json={"dibujo": d}, headers=X).json()["elementos"] == 1   # privada
+        # Beto ve la compartida, no la privada.
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "beto@gmail.com")
+        capas = cliente.get("/api/yo/capas", params={"ts": "2026-02-03T00:00:00Z"}).json()["capas"]
+        assert [(c["producto"], c["autor"], c["mia"]) for c in capas] == [("gfs_pro_mslp_jet@2026020100", "Ana", False)]
+        # La agenda del día válido (02/02, hora argentina) la muestra como del pronóstico, con su corrida y plazo.
+        a = cliente.get("/api/yo/agenda/dia", params={"fecha": "2026-02-02"}).json()["capas"]
+        assert [(c["corrida"], c["plazo"], c["base"], c["autor"]) for c in a] == [("2026020100", 48, "gfs_pro_mslp_jet", "Ana")]
+        # El estado de la corrida lo dice, y la ingesta no la borra.
+        assert "tiene 1 dibujo" in cliente.get("/api/yo/gfs/corrida", params={"corrida": "2026020100"}).json()["motivos"]
+        ing = tareas.Ingesta({"estaciones": []}, idb.conectar(DSN))
+        try:
+            assert datetime(2026, 2, 1, tzinfo=UTC) in ing.corridas_fijas({"gfs_fijar_pronosticos": False}, str(tmp_path))
+        finally:
+            ing.conn.close()
+    finally:
+        cliente.cookies.clear()
+        with cuentas._pools["e"].connection() as conn:
+            conn.execute("DELETE FROM carta_capa WHERE producto LIKE '%%@2026020100'")
+            conn.commit()

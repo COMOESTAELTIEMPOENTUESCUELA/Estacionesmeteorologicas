@@ -810,6 +810,9 @@ img.con-fondo { background-color: #fff !important; background-size: 100% 100%; b
 .cpr-grid .carta figcaption { font-size: 12.5px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cpr-grid .carta-img { overflow: hidden; border-radius: 6px; }
 .cpr-grid .cpr-lienzo { position: relative; transform-origin: 0 0; --inv: 1; }
+.cpr-dib { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+.cpr-dibujar { margin-left: 6px; }
+.cpr-autores { margin-left: 6px; font-size: 12px; color: var(--s7); font-weight: 600; }
 /* Sello con la fecha válida: solo con zoom (sin zoom, la fecha está en el título de la carta). */
 .cpr-sello { position: absolute; z-index: 3; display: none; flex-direction: column; cursor: move; touch-action: none; user-select: none;
   width: max-content; white-space: nowrap;      /* contra el borde derecho no se aprieta (sin esto se partía en 6 renglones) */
@@ -4936,6 +4939,7 @@ function ponerTsCarta(d) {
   $("#f-c-hora").value = String(d.getUTCHours());
 }
 function moverCarta(horas) {
+  if (visorPron && $("#c-dialogo").open) { moverPlazoVisor(horas); return; }
   ponerTsCarta(new Date(tsCarta().getTime() + horas * 3600e3));
   cargarCartas();
 }
@@ -5046,8 +5050,14 @@ function figuraGFS(k, url, titulo, inicio = cpr.inicio, plazo = cpr.plazos[cpr.i
     const [fx, fy] = aImagen(c.lon, c.lat);
     return `<div class="cpr-punto" style="left:${fx * 100}%;top:${fy * 100}%"><span>${esc(nom)}</span></div>`;
   }).join("") : "";
-  return `<figure class="carta"><figcaption>${titulo}${url ? ` <a href="${esc(url)}" target="_blank" rel="noopener" title="Abrir la imagen sola, en una pestaña nueva">↗</a>` : ""}</figcaption>
-    ${url ? `<div class="carta-img" data-grupo="gfs"><div class="cpr-lienzo"><img src="${esc(url)}" alt="${esc(p.nombre)}" draggable="false">${puntos}<div class="cruz" hidden></div></div>${selloGFS(inicio, plazo)}</div>`
+  // Los dibujos (capa "carta@corrida" a la hora válida): los pinta pintarCapasGFS.
+  const clave = claveCorrida(inicio), valida = new Date(+inicio + plazo * HORA).toISOString();
+  const dibujar = YO && url ? ` <button type="button" class="boton chico cpr-dibujar" data-cpr-dibujar="${esc(p.id)}" data-corrida="${clave}" data-plazo="${plazo}"
+      title="Dibujar sobre esta carta (frentes, centros, trazos…) en tu capa: privada, o compartida con el grupo">✏️ Dibujar</button>` : "";
+  return `<figure class="carta"><figcaption>${titulo}${url ? ` <a href="${esc(url)}" target="_blank" rel="noopener" title="Abrir la imagen sola, en una pestaña nueva">↗</a>` : ""}${dibujar}
+      <span class="cpr-autores" data-capa-autores="${esc(p.id)}@${clave}|${valida}"></span></figcaption>
+    ${url ? `<div class="carta-img" data-grupo="gfs"><div class="cpr-lienzo"><img src="${esc(url)}" alt="${esc(p.nombre)}" draggable="false">
+      <svg class="cpr-dib" data-capa="${esc(p.id)}@${clave}|${valida}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"></svg>${puntos}<div class="cruz" hidden></div></div>${selloGFS(inicio, plazo)}</div>`
           : '<div class="falta chica">No está guardada</div>'}</figure>`;
 }
 
@@ -5123,12 +5133,37 @@ function mostrarPlazoGFS() {
   g.classList.toggle("puntos", $("#cpr-ciudades").checked);
   g.innerHTML = html;
   aplicarZoomGFS();
+  pintarCapasGFS();
   marcarPlazoMeteograma();
   if (!verif) document.querySelectorAll("#cpr-dias button").forEach((b) =>
     b.classList.toggle("actual", fmtDia.format(validaGFS(cpr.plazos[Number(b.dataset.k)])) === fmtDia.format(validaGFS(plazo))));
   try { localStorage.setItem("gfs-vista", JSON.stringify({ vista: cpr.vista, a: cpr.a, b: cpr.b, delta: $("#cpr-delta").value,
     antic: $("#cpr-antic").value, ciudades: $("#cpr-ciudades").checked })); } catch (_) {}
 }
+
+// ----- Dibujos sobre las cartas del pronóstico -----
+// La capa propia y las compartidas por los demás (salvo las que se ocultaron
+// en el visor), encima de cada carta; con zoom se agrandan junto con ella.
+async function pintarCapasGFS(recargar = false) {
+  const svgs = [...document.querySelectorAll("#cpr-grid svg.cpr-dib")];
+  if (!svgs.length) return;
+  if (!conCapas()) { svgs.forEach((x) => (x.innerHTML = "")); return; }
+  const horas = [...new Set(svgs.map((x) => x.dataset.capa.split("|")[1]))];
+  await Promise.all(horas.filter((t) => recargar || !capasHora.has(t)).map((t) => cargarCapas(t)));
+  for (const x of svgs) {
+    const [prod, ts] = x.dataset.capa.split("|"), c = capasDe(prod, ts);
+    const ds = [...otrasVisibles(prod, ts).map((o) => o.dibujo), c.mia?.dibujo].filter((d) => d?.elementos?.length);
+    x.setAttribute("viewBox", `0 0 ${DIB_ANCHO} ${ds[0]?.alto || 750}`);
+    x.innerHTML = ds.map(contenidoDibujo).join("");
+    const quienes = [...(c.mia?.dibujo?.elementos?.length ? ["vos"] : []), ...otrasVisibles(prod, ts).map((o) => o.autor)];
+    const a = document.querySelector(`[data-capa-autores="${CSS.escape(x.dataset.capa)}"]`);
+    if (a) a.textContent = quienes.length ? `✏️ ${quienes.join(", ")}` : "";
+  }
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-cpr-dibujar]");
+  if (b) abrirCartaPron(b.dataset.cprDibujar, b.dataset.corrida, Number(b.dataset.plazo));
+});
 
 // ----- Zoom: el mismo en todas las cartas (comparten el marco) -----
 function aplicarZoomGFS() {
@@ -6474,6 +6509,36 @@ async function cargarPronoDia() {
 // punto que está bajo el cursor tiene que quedar bajo el cursor después.
 const zoom = { s: 1, x: 0, y: 0 };
 let cartaVisor = null;     // id del producto que se está viendo
+// Visor en MODO PRONÓSTICO GFS (✏️ en una carta del Pronóstico GFS): las cartas
+// de un plazo de una corrida. Cada capa se guarda como "carta@corrida" a la
+// hora válida, con el mismo sistema que las de análisis (privada o compartida).
+let visorPron = null;      // { inicio: Date (la corrida), plazo: horas } o null
+function cartasVisor() {
+  if (!visorPron) return cartasHora;
+  const { inicio, plazo } = visorPron, clave = claveCorrida(inicio);
+  return cpr.productos.map((p, k) => ({ id: `${p.id}@${clave}`, base: p.id, nombre: p.nombre, nivel: p.nivel,
+    grupo: "gfs_pro", fuente: "gfs_pronostico", url: urlGFS(k, inicio, plazo), dibujo: null })).filter((c) => c.url);
+}
+const tsVisor = () => visorPron ? new Date(+visorPron.inicio + visorPron.plazo * HORA) : tsCarta();
+async function abrirCartaPron(producto, clave, plazo) {
+  guardarDibujoYa();
+  visorPron = { inicio: new Date(Date.UTC(+clave.slice(0, 4), +clave.slice(4, 6) - 1, +clave.slice(6, 8), +clave.slice(8, 10))), plazo };
+  cartaVisor = `${producto}@${clave}`;
+  Object.assign(zoom, { s: 1, x: 0, y: 0 });
+  $("#c-anim-barra").hidden = true;                 // la animación es de las cartas de análisis
+  await cargarCapas(tsVisor());
+  if (!$("#c-dialogo").open) $("#c-dialogo").showModal();
+  mostrarEnVisor();
+}
+// En modo pronóstico, ‹ › del visor (y las flechas) cambian de plazo.
+function moverPlazoVisor(horas) {
+  const c = cpr.corridas.find((x) => +x.inicio === +visorPron.inicio), nuevo = visorPron.plazo + horas;
+  if (!c || !c.plazos.has(nuevo)) return;
+  guardarDibujoYa();
+  visorPron.plazo = nuevo;
+  if (+visorPron.inicio === +cpr.inicio && cpr.plazos.includes(nuevo)) cpr.i = cpr.plazos.indexOf(nuevo);   // al cerrar, el mismo plazo
+  cargarCapas(tsVisor()).then(mostrarEnVisor);
+}
 
 function aplicarZoom() {
   if (zoom.s <= 1) Object.assign(zoom, { s: 1, x: 0, y: 0 });
@@ -6499,9 +6564,11 @@ function mostrarEnVisor() {
   $("#c-estacion").hidden = true;
   if (animando()) pararAnimacion(false);
   if (!anim.preparando) { $("#c-anim-pos").disabled = true; $("#c-anim-pos").max = 0; $("#c-anim-estado").textContent = ""; }
-  const p = cartasHora.find((c) => c.id === cartaVisor);
+  const p = cartasVisor().find((c) => c.id === cartaVisor);
   const img = $("#c-vista img");
-  $("#c-dialogo-titulo").textContent = `${$("#c-titulo").textContent} — ${p ? tituloCarta(p) : "no archivada para esta hora"}`;
+  $("#c-dialogo-titulo").textContent = visorPron
+    ? `Pronóstico GFS · corrida del ${fmtCorrida(visorPron.inicio)} · +${visorPron.plazo} h · ${textoValida(tsVisor())} — ${p ? tituloCarta(p) : "no está guardada"}`
+    : `${$("#c-titulo").textContent} — ${p ? tituloCarta(p) : "no archivada para esta hora"}`;
   img.hidden = !p;
   if (!p) return;
   img.src = p.url;
@@ -6519,10 +6586,10 @@ function abrirCarta(id) {
   mostrarEnVisor();
 }
 function otraCarta(paso) {
-  if (!cartasHora.length) return;
+  if (!cartasVisor().length) return;
   guardarDibujoYa();
-  const i = cartasHora.findIndex((c) => c.id === cartaVisor);
-  cartaVisor = cartasHora[(i + paso + cartasHora.length) % cartasHora.length].id;
+  const lista = cartasVisor(), i = lista.findIndex((c) => c.id === cartaVisor);
+  cartaVisor = lista[(i + paso + lista.length) % lista.length].id;
   Object.assign(zoom, { s: 1, x: 0, y: 0 });
   mostrarEnVisor();
 }
@@ -7219,7 +7286,7 @@ function cargarDibujoVisor(p) {
   guardarDibujoYa();        // lo pendiente de la carta/hora anterior, antes de cambiar
   dib.centroElegido = -1;
   dib.producto = p.id;
-  dib.ts = tsCarta().toISOString();
+  dib.ts = tsVisor().toISOString();
   dib.compartida = false;
   dib.importarLocal = false;
   if (conCapas()) {                   // con sesión: abajo (fijo) el común y lo compartido; la propia para editar
@@ -7247,7 +7314,7 @@ function cargarDibujoVisor(p) {
   const listo = async () => {
     dib.alto = dib.dibujo?.alto || dib.base?.alto || Math.round(DIB_ANCHO * img.naturalHeight / img.naturalWidth) || 750;
     ubicarSVG();
-    await prepararMedidas(p.id);
+    await prepararMedidas(p.base || p.id);
     pintarDibujoVisor();
   };
   if (img.complete && img.naturalWidth) listo(); else img.addEventListener("load", listo, { once: true });
@@ -7395,7 +7462,7 @@ async function guardarDibujoYa() {
 // ----- descargar la carta con el dibujo -----
 const cargarImagen = (src) => new Promise((ok, mal) => { const i = new Image(); i.onload = () => ok(i); i.onerror = mal; i.src = src; });
 async function componerCarta(conDibujo = true) {
-  const p = cartasHora.find((c) => c.id === cartaVisor), img = $("#c-vista img");
+  const p = cartasVisor().find((c) => c.id === cartaVisor), img = $("#c-vista img");
   if (!p || !img.naturalWidth) return null;
   const w = img.naturalWidth, h = img.naturalHeight, lienzo = document.createElement("canvas");
   lienzo.width = w; lienzo.height = h + 34;
@@ -7409,11 +7476,11 @@ async function componerCarta(conDibujo = true) {
   }
   // Abajo, qué carta es y de qué hora (para la placa o una presentación).
   g.fillStyle = "#111827"; g.font = "600 16px system-ui, sans-serif"; g.textBaseline = "middle";
-  g.fillText(`${tituloCarta(p)} — ${$("#c-titulo").textContent}`, 10, h + 17);
+  g.fillText(`${tituloCarta(p)} — ${visorPron ? `GFS corrida ${fmtCorrida(visorPron.inicio)} +${visorPron.plazo} h · ${textoValida(tsVisor())}` : $("#c-titulo").textContent}`, 10, h + 17);
   return lienzo;
 }
 async function exportarPNG() {
-  const p = cartasHora.find((c) => c.id === cartaVisor), lienzo = await componerCarta();
+  const p = cartasVisor().find((c) => c.id === cartaVisor), lienzo = await componerCarta();
   if (!lienzo) return;
   lienzo.toBlob((b) => {
     const a = document.createElement("a");
@@ -7577,6 +7644,13 @@ function iniciarAnimacion() {
     }
   });
   $("#c-dialogo").addEventListener("close", () => { if (animando()) pararAnimacion(false); });
+  $("#c-dialogo").addEventListener("close", () => {
+    if (!visorPron) return;
+    visorPron = null;
+    $("#c-anim-barra").hidden = false;
+    mostrarPlazoGFS();
+    setTimeout(() => pintarCapasGFS(true), 700);      // después de que se guardó lo último
+  });
 }
 
 // ======================================================================
@@ -8059,6 +8133,7 @@ async function cargarCuenta() {
   // (solo si ya hay una fecha elegida: si no, las cartas todavía están arrancando y van a cargar las capas solas).
   if (YO && typeof cargadas !== "undefined" && cargadas.cartas && typeof cargarCartas === "function"
       && $("#f-c-fecha")?.value && !isNaN(tsCarta())) cargarCartas();
+  if (YO && typeof cpr !== "undefined" && cpr.plazos.length) mostrarPlazoGFS();      // el ✏️ y los dibujos del pronóstico
   const c = $("#cuenta");
   if (YO) {
     c.innerHTML = `<span>👤 ${esc(YO.nombre)}</span><button class="boton" id="cuenta-clave" title="${YO.tiene_clave ? "Cambiar mi contraseña" : "Ponerme una contraseña (para entrar sin Google)"}">🔑</button><button class="boton" id="cuenta-salir" title="Cerrar la sesión en este navegador">Salir</button>`;
@@ -9463,9 +9538,9 @@ async function abrirDiaAgenda(fecha) {
       <button class="boton chico" data-ag-panorama="${esc(c)}" title="Pronosticado contra observado ese día">📊 Panorama</button>
       ${situacionCiudad(o, fecha)}</div>`).join("");
   const capas = d.capas.map((c) => `<div class="ag-item"><b>${String(new Date(c.ts).getUTCHours()).padStart(2, "0")} UTC</b>
-      <span>${esc(c.nivel ? c.nivel + " · " : "")}${esc(c.nombre)}</span>
+      <span>${c.corrida ? `<b>Pronóstico GFS</b> (corrida ${esc(fmtCorrida(new Date(Date.UTC(+c.corrida.slice(0, 4), +c.corrida.slice(4, 6) - 1, +c.corrida.slice(6, 8), +c.corrida.slice(8, 10)))))}, +${c.plazo} h) · ` : ""}${esc(c.nivel ? c.nivel + " · " : "")}${esc(c.nombre)}</span>
       <span class="tenue">${quien(c)} · ${c.mia ? (c.compartida ? "👥 compartido" : "🔒 privado") : "compartido"} · ${c.elementos} elemento${c.elementos === 1 ? "" : "s"}</span>
-      <button class="boton chico" data-ag-carta="${esc(c.producto)}" data-ts="${esc(c.ts)}" title="Abrir esa carta a esa hora, con los dibujos">🗺️ Abrir la carta</button></div>`).join("");
+      <button class="boton chico" data-ag-carta="${esc(c.producto)}" data-ts="${esc(c.ts)}"${c.corrida ? ` data-corrida="${esc(c.corrida)}" data-plazo="${c.plazo}" data-base="${esc(c.base)}"` : ""} title="Abrir esa carta a esa hora, con los dibujos">🗺️ Abrir la carta</button></div>`).join("");
   const marcas = (d.marcas || []).map((m) => `<div class="ag-item"><b>${esc(fmtMarca(m).replace(/^\d+\/\d+,?\s*/, ""))}</b>
       <span>${esc(m.texto)}</span>
       <span class="tenue">${esc(m.ambito.replace(/^ciudad:/, "").replace(/^estacion:/, "estación "))} · ${m.mia ? (m.compartida ? "vos · 👥 compartida" : "vos · 🔒 privada") : esc(m.autor)}</span>
@@ -9676,6 +9751,13 @@ document.addEventListener("click", (e) => {
   const car = e.target.closest("[data-ag-cartas]");
   if (car) { volverAAgenda(); irACartas(`${car.dataset.agCartas}T${car.dataset.h || "12"}:00:00Z`); return; }
   const una = e.target.closest("[data-ag-carta]");
+  if (una && una.dataset.corrida) {                     // un dibujo sobre una carta del pronóstico GFS
+    volverAAgenda();
+    const { corrida, plazo, base } = una.dataset;
+    abrirContexto({ seccion: "gfs", corrida, plazo: Number(plazo), carta: base })
+      .then(() => { if (cpr.corridas.some((c) => claveCorrida(c.inicio) === corrida)) abrirCartaPron(base, corrida, Number(plazo)); });
+    return;
+  }
   if (una) { volverAAgenda(); abrirCartaEn(una.dataset.agCarta, una.dataset.ts); return; }
   const mov = e.target.closest("[data-ag-mover]");
   if (mov && agenda.dia) {
@@ -10370,6 +10452,13 @@ $("#c-anotar").addEventListener("click", () => {
   const t = tsCarta(); abrirNota({ fecha_evento: diaArg(t), contexto: { seccion: "analisis", ts: t.toISOString() } });
 });
 $("#c-anotar-visor").addEventListener("click", () => {
+  if (visorPron) {
+    const v = tsVisor(), base = cartaVisor.split("@")[0];
+    abrirNota({ fecha_evento: diaArg(v), etiquetas: etiquetasPorZona(puntosMarcados()),
+                contexto: { seccion: "gfs", corrida: claveCorrida(visorPron.inicio), plazo: visorPron.plazo, carta: base, ts: v.toISOString() } },
+              async () => ({ img: await componerCarta(false), elementos: capaDelVisor() }));
+    return;
+  }
   const t = tsCarta();
   const zonas = etiquetasPorZona(puntosMarcados());
   abrirNota({ fecha_evento: diaArg(t), etiquetas: zonas, contexto: { seccion: "analisis", ts: t.toISOString(), producto: cartaVisor } },

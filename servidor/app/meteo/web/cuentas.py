@@ -1216,15 +1216,23 @@ def agenda_del_dia(request: Request, fecha: date):
     u = requiere_usuario(request)
     notas = _notas_con_extras(u, ["(n.usuario_id = %s OR n.compartida)", f"{DIA_NOTA} = %s"], [u["id"], fecha], limite=100)
     from .app import _cartas_productos
-    productos = {p["id"]: p for p in _cartas_productos()}
+    productos = {p["id"]: p for p in _cartas_productos(con_pronosticos=True)}
     capas = []
     for c in _leer(f"""SELECT c.producto, c.ts, us.nombre AS autor, c.usuario_id = %s AS mia, c.compartida,
                               jsonb_array_length(c.dibujo -> 'elementos') AS elementos
                        FROM carta_capa c JOIN usuario us ON us.id = c.usuario_id
                        WHERE (c.usuario_id = %s OR (c.compartida AND us.activo)) AND {DIA_LOCAL % "c.ts"} = %s
                        ORDER BY c.ts, us.nombre""", (u["id"], u["id"], fecha)):
-        p = productos.get(c["producto"], {})
-        capas.append({**c, "nombre": p.get("nombre", c["producto"]), "nivel": p.get("nivel", "")})
+        base, _, corrida = c["producto"].partition("@")      # las del pronóstico GFS: "carta@corrida"
+        p = productos.get(base, {})
+        extra = {}
+        if corrida:
+            try:
+                plazo = int((c["ts"] - _clave_corrida(corrida)).total_seconds() // 3600)
+                extra = {"corrida": corrida, "plazo": plazo, "base": base}
+            except HTTPException:
+                continue
+        capas.append({**c, **extra, "nombre": p.get("nombre", c["producto"]), "nivel": p.get("nivel", "")})
     usuarios = {f: x for x in _leer("SELECT id, nombre, firmas FROM usuario WHERE activo") for f in x["firmas"]}
     pron = []
     for e in _leer("""SELECT ciudad, publicado_por, max(hora_emision) AS hora, bool_or(es_correccion) AS correccion
@@ -1471,6 +1479,22 @@ def _ts_carta(ts):
     return (t if t.tzinfo else t.replace(tzinfo=timezone.utc)).astimezone(timezone.utc)
 
 
+def _producto_capa(producto, t):
+    """La carta de una capa. Las de análisis: su id. Las del PRONÓSTICO GFS:
+    "gfs_pro_mslp_jet@AAAAMMDDHH" (la carta y la corrida), y t es la hora
+    válida, que tiene que ser un plazo de esa corrida (+0 a +384 h, cada 6 h)."""
+    from .app import _cartas_productos, _producto_valido
+    if "@" not in producto:
+        _producto_valido(producto)
+        return
+    base, _, clave = producto.partition("@")
+    if base not in {p["id"] for p in _cartas_productos(con_pronosticos=True) if p["fuente"] == "gfs_pronostico"}:
+        raise HTTPException(404, "carta desconocida")
+    horas = (t - _clave_corrida(clave)).total_seconds() / 3600
+    if not (0 <= horas <= 384 and horas % 6 == 0):
+        raise HTTPException(400, "esa hora no es un plazo de esa corrida")
+
+
 @router.get("/api/yo/capas")
 def capas_de_la_hora(request: Request, ts: str):
     """Las capas de una hora (todas las cartas): la propia (privada o no) y las
@@ -1490,10 +1514,10 @@ def capas_de_la_hora(request: Request, ts: str):
 async def guardar_capa(request: Request, producto: str, ts: str):
     """Guarda la capa propia de una carta y hora: {"dibujo": {...}, "compartida": bool}.
     Si queda vacía, se borra. Anda también en la copia pública (es de cada cuenta)."""
-    from .app import _producto_valido, _validar_dibujo
+    from .app import _validar_dibujo
     u = requiere_usuario(request)
-    _producto_valido(producto)
     t = _ts_carta(ts)
+    _producto_capa(producto, t)
     datos = await request.json()
     import json
     if len(json.dumps(datos.get("dibujo") or {})) > 400_000:
@@ -2105,12 +2129,16 @@ def _estado_corrida(t, u):
                      FROM gfs_corrida g LEFT JOIN usuario uf ON uf.id = g.fijada_por LEFT JOIN usuario up ON up.id = g.pedida_por
                      WHERE g.corrida = %s""", (t,)) or [{}])[0]
     clave = t.strftime("%Y%m%d%H")
+    dibujos = _leer("""SELECT count(*) AS n FROM carta_capa c JOIN usuario us ON us.id = c.usuario_id
+                       WHERE c.producto LIKE %s AND (c.usuario_id = %s OR (c.compartida AND us.activo))""",
+                    (f"%@{t:%Y%m%d%H}", u["id"]))[0]["n"]
     # Solo las notas que esta persona puede ver (las privadas ajenas igual la fijan, pero no se cuentan acá).
     notas = _leer("SELECT count(*) AS n FROM nota WHERE contexto->>'corrida' = %s AND (usuario_id = %s OR compartida)",
                   (clave, u["id"]))[0]["n"]
     pron = _pronosticos_con_corrida(t) if _fijar_pronosticos() else 0
     motivos = ([f"📌 fijada por {fila['fijada_por'] or 'alguien'}"] if fila.get("fijada") else []) \
         + ([f"la usa{'n' if notas > 1 else ''} {notas} nota{'s' if notas > 1 else ''}"] if notas else []) \
+        + ([f"tiene {dibujos} dibujo{'s' if dibujos > 1 else ''}"] if dibujos else []) \
         + ([f"había al publicar {pron} pronóstico{'s' if pron > 1 else ''}"] if pron else []) \
         + (["se pidió volver a dibujarla"] if fila.get("estado") else [])
     vieja = datetime.now(timezone.utc) - t > timedelta(days=GFS_CONSERVAR_DIAS)

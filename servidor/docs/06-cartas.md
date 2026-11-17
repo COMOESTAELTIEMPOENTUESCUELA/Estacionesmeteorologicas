@@ -400,6 +400,19 @@ igual desde cualquier compu, también desde la copia pública.
 - En la base: `carta_capa` (usuario, carta, hora, dibujo, compartida).
   `GET /api/yo/capas?ts=` y `PUT /api/yo/capa?producto=&ts=`.
 
+### Dibujar sobre las cartas del pronóstico GFS
+
+En Pronóstico GFS, **✏️ Dibujar** (en cada carta, con sesión) abre el mismo
+visor en modo pronóstico: las mismas herramientas y la misma capa propia,
+privada o compartida; ‹ › y las flechas cambian de plazo (no de hora), ▲ ▼ de
+carta. La capa se guarda como `producto@corrida` (ej. `gfs_pro_mslp_jet@2026111600`)
+a la hora válida; el servidor controla que la carta exista y que esa hora sea
+un plazo de esa corrida (`_producto_capa`). Los dibujos (el propio y los
+compartidos) se ven encima de las cartas en todas las vistas, con zoom, y al
+lado del título quién dibujó (`✏️ vos, Ana`). Una corrida con dibujos no se
+borra a los 8 días (la ingesta la suma a las fijas) y el dibujo aparece en la
+Agenda el día válido, con un botón que abre esa carta y ese plazo.
+
 ## Herramientas de análisis
 
 - **Dibujar** (visor grande, barra "Dibujar"): frentes frío, cálido,
