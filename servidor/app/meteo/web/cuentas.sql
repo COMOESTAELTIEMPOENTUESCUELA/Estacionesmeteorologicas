@@ -45,6 +45,11 @@ CREATE TABLE IF NOT EXISTS visita (
     primera    timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (dia, copia, huella)
 );
+-- La sal secreta de cada día para las huellas de las visitas (se borra a los 2 días).
+CREATE TABLE IF NOT EXISTS visita_sal (
+    dia date PRIMARY KEY,
+    sal text NOT NULL
+);
 
 -- Libreta: lo que cada uno vio, le llamó la atención, sus dudas y las
 -- preguntas para la reunión sinóptica. Con el contexto de dónde lo vio (qué

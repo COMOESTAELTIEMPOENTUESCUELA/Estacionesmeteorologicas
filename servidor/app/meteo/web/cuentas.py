@@ -1694,7 +1694,7 @@ def compartir_mensaje(request: Request, mid: int):
 # ---------------------------------------------------------------------------
 CODIGO_VERIFICACION = ("observado.py", "pronostico.py", "puntajes.py", "etiquetas.py", "ajustes.py")
 # Columnas que no se muestran nunca (huellas de contraseñas y sesiones).
-COLUMNAS_OCULTAS = {("usuario", "clave"), ("sesion", "huella")}
+COLUMNAS_OCULTAS = {("usuario", "clave"), ("sesion", "huella"), ("visita_sal", "sal")}
 FILAS_POR_PAGINA = 100
 
 
@@ -1711,14 +1711,11 @@ def registrar_visita(request: Request):
     que no se puede revertir; con cuenta, además quién es."""
     try:
         hoy = datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=-3))).date()
-        sal = _leer("SELECT valor->>'sal' AS sal FROM ajuste WHERE clave = 'visitas.sal' AND valor->>'dia' = %s", (str(hoy),))
+        sal = _leer("SELECT sal FROM visita_sal WHERE dia = %s", (hoy,))
         if not sal:                      # una sal nueva cada día: no se puede seguir a nadie entre días
-            nueva = secrets.token_hex(16)
-            _escribir("""INSERT INTO ajuste (clave, valor) VALUES ('visitas.sal', %s)
-                         ON CONFLICT (clave) DO UPDATE SET valor = CASE WHEN ajuste.valor->>'dia' = %s THEN ajuste.valor
-                                                                         ELSE EXCLUDED.valor END, actualizado = now()""",
-                      (Jsonb({"dia": str(hoy), "sal": nueva}), str(hoy)))
-            sal = _leer("SELECT valor->>'sal' AS sal FROM ajuste WHERE clave = 'visitas.sal'")
+            _escribir("INSERT INTO visita_sal (dia, sal) VALUES (%s, %s) ON CONFLICT (dia) DO NOTHING", (hoy, secrets.token_hex(16)))
+            _escribir("DELETE FROM visita_sal WHERE dia < %s", (hoy - timedelta(days=1),))   # la vieja ya no sirve: se borra
+            sal = _leer("SELECT sal FROM visita_sal WHERE dia = %s", (hoy,))
         ip = request.client.host if request.client else ""
         huella = hashlib.sha256(f"{sal[0]['sal']}|{ip}|{request.headers.get('user-agent', '')}".encode()).hexdigest()[:24]
         u = usuario_actual(request)
