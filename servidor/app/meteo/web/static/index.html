@@ -816,6 +816,10 @@ g.fantasma { opacity: .45; filter: grayscale(1); }
 /* Lo marcado en OTRA carta de la misma hora: con sus colores, pero tenue. */
 g.de-otra-carta { opacity: .5; }
 .c-otras-cartas { gap: 10px; flex-wrap: wrap; font-size: 13px; }
+.cpr-cruces { display: inline-flex; gap: 4px; flex-wrap: wrap; margin-left: 6px; vertical-align: middle; }
+.cpr-cruce { font: inherit; font-size: 11.5px; padding: 1px 8px; border-radius: 99px; cursor: pointer;
+  border: 1px solid var(--borde); background: transparent; color: var(--tinta-2); }
+.cpr-cruce[aria-pressed="true"] { background: color-mix(in srgb, var(--s7) 18%, transparent); border-color: var(--s7); color: var(--s7); font-weight: 600; }
 .cpr-dibujar { margin-left: 6px; }
 .cpr-autores { display: block; font-size: 12px; color: var(--s7); font-weight: 600; white-space: normal; }
 .cpr-autores:empty { display: none; }
@@ -2537,7 +2541,6 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
           <button class="boton" id="cpr-z0" title="Ver la carta entera (0)">⟲</button>
         </span>
         <label class="en-linea" title="Puntos en las ciudades del pronóstico del grupo (tecla C)"><input type="checkbox" id="cpr-ciudades" checked> Ciudades</label>
-        <label class="en-linea" id="cpr-l-cruzar" title="En cada carta, además, lo marcado en las otras tres (tenue): para ver todo junto sin copiar nada"><input type="checkbox" id="cpr-cruzar"> 🔀 En cada carta, lo marcado en las otras</label>
         <button type="button" class="boton chico" id="cpr-las4" hidden title="Dibujar una sola vez y que se vea en las cuatro cartas de este plazo (frentes, centros…)">✏️ Dibujar en las 4</button>
         <label class="en-linea" id="cpr-l-fantasma" title="Mostrar, en gris y transparente, lo dibujado (por vos o compartido) en la corrida anterior para esta misma hora: para ver cuánto cambió el modelo"><input type="checkbox" id="cpr-fantasma"> 👻 Dibujo de la corrida anterior</label>
         <button class="boton anotar" id="cpr-anotar" hidden title="Anotar en tu libreta algo de este plazo del pronóstico">📝 Anotar</button>
@@ -5073,6 +5076,7 @@ function figuraGFS(k, url, titulo, inicio = cpr.inicio, plazo = cpr.plazos[cpr.i
   const dibujar = YO && url ? ` <button type="button" class="boton chico cpr-dibujar" data-cpr-dibujar="${esc(p.id)}" data-corrida="${clave}" data-plazo="${plazo}"
       title="Dibujar sobre esta carta (frentes, centros, trazos…) en tu capa: privada, o compartida con el grupo">✏️ Dibujar</button>` : "";
   return `<figure class="carta"><figcaption>${titulo}${url ? ` <a href="${esc(url)}" target="_blank" rel="noopener" title="Abrir la imagen sola, en una pestaña nueva">↗</a>` : ""}${dibujar}
+      <span class="cpr-cruces" data-cruces="${esc(p.id)}@${clave}|${valida}"></span>
       <span class="cpr-autores" data-capa-autores="${esc(p.id)}@${clave}|${valida}"></span></figcaption>
     ${url ? `<div class="carta-img" data-grupo="gfs"><div class="cpr-lienzo"><img src="${esc(url)}" alt="${esc(p.nombre)}" draggable="false">
       <svg class="cpr-dib" data-capa="${esc(p.id)}@${clave}|${valida}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"></svg>${puntos}<div class="cruz" hidden></div></div>${selloGFS(inicio, plazo)}</div>`
@@ -5164,8 +5168,7 @@ function mostrarPlazoGFS() {
 // La corrida más nueva, anterior a esta, que tenga dibujos (propios o
 // compartidos visibles) en esa carta para esa hora válida. Las capas de una
 // hora vienen todas juntas (todas las corridas), así que no hay que pedir nada.
-let verFantasma = false, cruzarCartas = false;
-try { cruzarCartas = localStorage.getItem("gfs-cruzar") === "si"; } catch (_) {}
+let verFantasma = false;
 try { verFantasma = localStorage.getItem("gfs-fantasma") === "si"; } catch (_) {}
 function capaAnterior(prodClave, ts, soloMia = false) {
   const [base, clave] = prodClave.split("@");
@@ -5196,11 +5199,20 @@ async function pintarCapasGFS(recargar = false) {
     const comun = `${LAS4}@${prod.split("@")[1]}`, c4 = capasDe(comun, ts);
     const ds = [...otrasVisibles(prod, ts).map((o) => o.dibujo), ...otrasVisibles(comun, ts).map((o) => o.dibujo),
                 c4.mia?.dibujo, c.mia?.dibujo].filter((d) => d?.elementos?.length);
-    // Lo marcado en las otras cartas de la misma corrida y hora, tenue y debajo.
-    const cruzadas = cruzarCartas ? svgs.map((y) => y.dataset.capa).filter((k) => k !== x.dataset.capa && k.split("|")[1] === ts
+    // Las otras cartas de la misma corrida y hora que tienen marcas: un botón 👁 cada una, arriba
+    // de esta carta; las prendidas se ven acá, tenues y debajo.
+    const otras = svgs.map((y) => y.dataset.capa).filter((k) => k !== x.dataset.capa && k.split("|")[1] === ts
                        && k.split("|")[0].split("@")[1] === prod.split("@")[1])
       .map((k) => { const o = k.split("|")[0], co = capasDe(o, ts);
-                    return unirDibujos([co.mia?.dibujo, ...otrasVisibles(o, ts).map((z) => z.dibujo)]); }).filter((d) => d?.elementos?.length) : [];
+                    return { o, d: unirDibujos([co.mia?.dibujo, ...otrasVisibles(o, ts).map((z) => z.dibujo)]) }; })
+      .filter((z) => z.d?.elementos?.length);
+    const cruzadas = otras.filter((z) => veEn(prod, z.o)).map((z) => z.d);
+    const sel = document.querySelector(`[data-cruces="${CSS.escape(x.dataset.capa)}"]`);
+    if (sel) sel.innerHTML = otras.map((z) => {
+      const pr = cpr.productos.find((q) => q.id === baseCarta(z.o)), nom = (pr?.nivel || baseCarta(z.o)).split(" y ")[0];
+      return `<button type="button" class="cpr-cruce" data-cruce-destino="${esc(prod)}" data-cruce-origen="${esc(z.o)}" aria-pressed="${veEn(prod, z.o)}"
+        title="${veEn(prod, z.o) ? "Ocultar" : "Mostrar"} en esta carta lo marcado en «${esc(pr ? tituloCarta(pr) : z.o)}»">👁 ${esc(nom)}</button>`;
+    }).join("");
     const f0 = verFantasma ? capaAnterior(prod, ts) : null, f4 = verFantasma ? capaAnterior(comun, ts) : null;
     const f = f0 || f4 ? { clave: [f0?.clave, f4?.clave].filter(Boolean).sort().pop(), dibujo: unirDibujos([f0?.dibujo, f4?.dibujo]) } : null;
     x.setAttribute("viewBox", `0 0 ${DIB_ANCHO} ${ds[0]?.alto || f?.dibujo.alto || 750}`);
@@ -5213,6 +5225,12 @@ async function pintarCapasGFS(recargar = false) {
                             f ? `👻 corrida del ${fmtCorrida(fechaClave(f.clave))}` : ""].filter(Boolean).join(" · ");
   }
 }
+document.addEventListener("click", (e) => {
+  const x = e.target.closest("[data-cruce-destino]");
+  if (!x) return;
+  cambiarCruce(x.dataset.cruceDestino, x.dataset.cruceOrigen, x.getAttribute("aria-pressed") !== "true");
+  pintarCapasGFS();
+});
 document.addEventListener("click", (e) => {
   const b = e.target.closest("[data-cpr-dibujar]");
   if (b) abrirCartaPron(b.dataset.cprDibujar, b.dataset.corrida, Number(b.dataset.plazo), false);     // solo esa carta
@@ -5326,12 +5344,7 @@ function iniciarPronosticoGFS() {
   $("#cpr-vista").addEventListener("change", (e) => { cpr.vista = e.target.value; mostrarPlazoGFS(); });
   $("#cpr-corrida").addEventListener("change", (e) => cargarPronosticoGFS(e.target.value || null));
   $("#cpr-fantasma").checked = verFantasma;
-  $("#cpr-cruzar").checked = cruzarCartas;
-  $("#cpr-cruzar").addEventListener("change", (e) => {
-    cruzarCartas = e.target.checked;
-    try { localStorage.setItem("gfs-cruzar", cruzarCartas ? "si" : "no"); } catch (_) {}
-    pintarCapasGFS();
-  });
+
   $("#cpr-las4").addEventListener("click", () => {
     const p = cpr.productos[0];
     if (p) abrirCartaPron(p.id, claveCorrida(cpr.inicio), cpr.plazos[cpr.i], true);
@@ -7360,9 +7373,18 @@ function aplicarSuperposicion() {
 // Cada carta tiene su análisis (espesores: masas de aire; 850: el frente; 500:
 // la vaguada), pero se puede ver encima, tenue, lo marcado en las otras. Solo
 // cartas con el mismo mapa (grupoCarta): si no, las marcas caerían en otro lugar.
-let verOtrasCartas = new Set();         // ids "base" de las cartas elegidas (sin la corrida)
-try { verOtrasCartas = new Set(JSON.parse(localStorage.getItem("ver-otras-cartas") || "[]")); } catch (_) {}
+// Por carta: qué otras cartas se ven encima de ella ({destino: [orígenes]}, ids sin la corrida).
+// Es la misma elección en el visor y en «Las 4 juntas», y se recuerda en el navegador.
+let cruces = {};
+try { cruces = JSON.parse(localStorage.getItem("cruces-cartas") || "{}") || {}; } catch (_) {}
 const baseCarta = (id) => String(id).split("@")[0];
+const veEn = (destino, origen) => (cruces[baseCarta(destino)] || []).includes(baseCarta(origen));
+function cambiarCruce(destino, origen, ver) {
+  const d = baseCarta(destino), o = baseCarta(origen), l = new Set(cruces[d] || []);
+  if (ver) l.add(o); else l.delete(o);
+  cruces[d] = [...l];
+  try { localStorage.setItem("cruces-cartas", JSON.stringify(cruces)); } catch (_) {}
+}
 function dibujosDeCarta(c, ts) {          // lo mío y lo compartido visible de una carta a esa hora
   const x = capasDe(c.id, ts);
   return unirDibujos([c.dibujo, x.mia?.dibujo, ...otrasVisibles(c.id, ts).map((o) => o.dibujo)]);
@@ -7379,18 +7401,17 @@ function pintarOtrasCartas() {
   caja.hidden = !lista.length;
   caja.innerHTML = lista.length ? '<span class="tenue" title="Lo marcado en otras cartas de esta misma hora, encima y tenue (no se puede tocar desde acá)">👁 Ver también lo marcado en:</span>'
     + lista.map(({ c, d }) => `<label class="en-linea" title="${esc(tituloCarta(c))} · ${d.elementos.length} marca${d.elementos.length === 1 ? "" : "s"}">
-        <input type="checkbox" data-ver-otra="${esc(baseCarta(c.id))}"${verOtrasCartas.has(baseCarta(c.id)) ? " checked" : ""}> ${esc(nombreCorto(c))}</label>`).join("") : "";
+        <input type="checkbox" data-ver-otra="${esc(baseCarta(c.id))}"${veEn(p.id, c.id) ? " checked" : ""}> ${esc(nombreCorto(c))}</label>`).join("") : "";
 }
 function svgOtrasCartas() {
   const p = cartasVisor().find((c) => c.id === cartaVisor);
-  return otrasConDibujos(p, dib.ts).filter(({ c }) => verOtrasCartas.has(baseCarta(c.id)))
+  return otrasConDibujos(p, dib.ts).filter(({ c }) => veEn(p.id, c.id))
     .map(({ d }) => `<g class="de-otra-carta">${contenidoDibujo(d)}</g>`).join("");
 }
 $("#c-otras-cartas").addEventListener("change", (e) => {
   const x = e.target.closest("[data-ver-otra]");
   if (!x) return;
-  if (x.checked) verOtrasCartas.add(x.dataset.verOtra); else verOtrasCartas.delete(x.dataset.verOtra);
-  try { localStorage.setItem("ver-otras-cartas", JSON.stringify([...verOtrasCartas])); } catch (_) {}
+  cambiarCruce(cartaVisor, x.dataset.verOtra, x.checked);
   pintarDibujoVisor();
 });
 

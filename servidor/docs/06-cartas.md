@@ -424,8 +424,10 @@ visor así. Privada o compartida, con fantasma, copiar y agenda, como las demás
 análisis, pero en el visor «👁 Ver también lo marcado en:» ofrece las otras
 cartas de esa misma hora que tienen dibujos y el mismo mapa (`grupoCarta`), y
 las muestra tenues debajo (no se pueden tocar desde ahí). Anda en Pronóstico y
-en Diagnóstico; la elección se recuerda en el navegador. En «Las 4 juntas»,
-«🔀 En cada carta, lo marcado en las otras» hace lo mismo en la grilla.
+en Diagnóstico. En «Las 4 juntas», arriba de cada carta hay un botón «👁 …» por
+cada otra carta con marcas a esa hora: se elige carta por carta (ej. en 850 hPa
+ver lo de Superficie, en 500 hPa no). La elección es por carta de destino
+(`cruces-cartas` en el navegador) y es la misma en el visor y en la grilla.
 
 Cuando llega una corrida nueva, el dibujo queda en la suya (no se mueve). Para
 compararlo: **👻 Dibujo de la corrida anterior** (interruptor en Pronóstico GFS
