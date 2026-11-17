@@ -338,6 +338,10 @@ SYNOP (mapas de Ogimet). Se recuerda en el navegador. El grupo sale de la
   (sale a los 350 ms con el mouse; en el celular, manteniendo apretado medio
   segundo, y ese toque no activa el botón). Para explicar un botón nuevo alcanza
   con ponerle `title="…"`.
+- **Sello de fecha con zoom** (Pronóstico GFS): al acercar las cartas, cada una
+  muestra para cuándo vale (hora argentina, UTC y plazo) en un sello que no se
+  agranda. Se arrastra a donde no tape (se mueve igual en todas y queda
+  recordado en el navegador); doble clic lo vuelve a la esquina.
 - **Atrás y adelante del navegador**: cada cambio de sección, parte, pestaña
   de Diagnóstico o vista del Grupo suma un paso al historial (`anotarLugar`),
   así «atrás» vuelve al lugar anterior y a la misma altura de la página, en vez
