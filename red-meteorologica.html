@@ -995,6 +995,15 @@
             return respuestas.flatMap(d => d.feeds || []);
         }
 
+        // La EMA Verde (EP N°23) solo resetea field4 cuando logra enviar con éxito a
+        // ThingSpeak. Si estuvo desconectada un buen rato (WiFi caída, etc.), el primer
+        // envío exitoso manda de golpe TODO lo acumulado durante el corte -que puede ser
+        // de varios días-, no la lluvia de un solo intervalo de ~60s. Una sola lectura
+        // de field4 tan grande no puede ser lluvia real de ese instante (con el
+        // calibrado de 0.816mm por pulso haría falta una tromba sin precedentes), así
+        // que se descarta en vez de sumarla, en los tres lugares que suman field4.
+        const LLUVIA_SALTO_SOSPECHOSO_MM = 10;
+
         // Acumulado de lluvia de los últimos `dias` días (1 = solo hoy), y de paso la
         // mínima/máxima de temperatura de HOY (aunque el período pedido sea más largo).
         // Para dias=1, "convencion" define si el día arranca a las 00 (calendario) o a
@@ -1033,6 +1042,7 @@
             feeds.forEach(f => {
                 let v = parseFloat(f[rainField]);
                 if (isNaN(v) || v < 0) return;
+                if (rainField === 'field4' && v > LLUVIA_SALTO_SOSPECHOSO_MM) return; // salto de reconexión, no lluvia real
                 // Igual que en la Comparación de Pluviómetros: cada lectura con pulso
                 // (valor > 0) cuenta como un ciclo completo del pluviómetro y suma el
                 // multiplicador fijo, sin escalar por la magnitud cruda del campo.
@@ -2350,7 +2360,7 @@
                 const ws = isObservatorio ? parseFloat(f.field7) : null;
 
                 let v = parseFloat(f[rainField]);
-                if (!isNaN(v) && v >= 0) {
+                if (!isNaN(v) && v >= 0 && !(rainField === 'field4' && v > LLUVIA_SALTO_SOSPECHOSO_MM)) {
                     if (estacion.rainMult) v = v > 0 ? estacion.rainMult : 0;
                     lluviaAcumulada += v;
                 }
@@ -2688,7 +2698,7 @@
                 } else if (variableId === 'rain') {
                     const rainField = isEmaVerde ? 'field4' : 'field5';
                     let v = parseFloat(f[rainField]);
-                    if (!isNaN(v) && v >= 0) {
+                    if (!isNaN(v) && v >= 0 && !(rainField === 'field4' && v > LLUVIA_SALTO_SOSPECHOSO_MM)) {
                         if (estacion.rainMult) v = v > 0 ? estacion.rainMult : 0;
                         lluviaAcumulada += v;
                     }

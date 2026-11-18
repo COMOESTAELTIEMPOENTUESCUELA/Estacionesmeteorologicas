@@ -186,6 +186,12 @@
     // recorte deja de tener efecto solo.
     const NO_CONTAR_ANTES_DE = "2026-11-07";
 
+    // field4 solo se resetea cuando el envío a ThingSpeak es exitoso. Si la estación
+    // estuvo desconectada un buen rato, el primer envío exitoso manda de golpe todo lo
+    // acumulado durante el corte (puede ser de varios días), no la lluvia de un solo
+    // intervalo de ~60s. Se descarta esa lectura en vez de sumarla como lluvia real.
+    const LLUVIA_SALTO_SOSPECHOSO_MM = 10;
+
     const graficos = { temp: null, hum: null, pres: null, rain: null };
 
     const pad = (n) => n.toString().padStart(2, '0');
@@ -278,6 +284,7 @@
         feeds.forEach(f => {
             const v = parseFloat(f.field4);
             if (isNaN(v) || v < 0) return;
+            if (v > LLUVIA_SALTO_SOSPECHOSO_MM) return; // salto de reconexión, no lluvia real
             total += v;
             horas.push(formatearEtiquetaFecha(new Date(f.created_at), incluirFecha));
             curva.push(+total.toFixed(2));
