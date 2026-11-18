@@ -125,9 +125,9 @@ def test_wunderground_serie_real_los_talas_07_10():
         hh, mm = (int(x) for x in hhmm.split(":"))
         lecturas.append((datetime(2026, 10, 7, hh, mm, tzinfo=HORA_ARG), acum))
     res = wunderground.precip_por_intervalo(lecturas)
-    # El total es el máximo del día; las bajaditas de un vuelco (9,40 -> 8,89 que
-    # se mantiene 2 h; 42,42 -> 41,91 al final) NO se cuentan como reinicios.
-    assert round(sum(v for _, v, _ in res), 2) == 42.42
+    # El total es el ÚLTIMO acumulado (41,91): la subida a 42,42 que se deshizo
+    # al final no se cuenta. Las bajaditas de un vuelco no son reinicios.
+    assert round(sum(v for _, v, _ in res), 2) == 41.91
     assert max(v for _, v, _ in res) < 3.0                # ningún "salto" imposible
     assert all(q == 0 for _, _, q in res)                 # el ruido de un vuelco no es sospechoso
 
@@ -147,11 +147,36 @@ def test_wunderground_reinicio_real_fuera_de_hora():
     assert round(sum(v for _, v, _ in res), 2) == 4.0       # 3 antes + 1 después del reinicio
 
 
-def test_wunderground_pulsos_que_vuelven_a_cero_quedan_sospechosos():
+def test_wunderground_pulsos_que_vuelven_a_cero_no_cuentan():
     # Patrón real de Los Talas (10/10/2026): el acumulado sube a 0,25 y vuelve a 0.
     t0 = datetime(2026, 10, 10, 8, 40, tzinfo=timezone.utc)  # 05:40 hora argentina
     res = wunderground.precip_por_intervalo(_serie(t0, [0.0, 0.25, 0.0, 0.0, 0.25, 0.0]))
-    assert [(v, q) for _, v, q in res if v > 0] == [(0.25, 3)]
+    assert all(v == 0 for _, v, _ in res)
+
+
+# Serie REAL de la ES7 (ILOSTA2), 17/11/2026: la tarjeta de Wunderground
+# terminó en 8,89 mm; con el máximo dábamos 10,2.
+ES7_17_11 = [
+    ("00:04", 0.0), ("03:24", 0.0), ("03:29", 0.25), ("03:34", 0.0), ("03:39", 0.0), ("03:44", 0.0),
+    ("03:49", 0.0), ("03:59", 0.25), ("04:04", 0.0), ("04:09", 0.0), ("04:14", 0.0), ("04:19", 0.51),
+    ("04:24", 1.02), ("04:49", 2.03), ("05:04", 2.29), ("05:09", 2.03), ("05:34", 2.29), ("05:39", 3.05),
+    ("05:44", 3.3), ("05:49", 3.05), ("12:00", 3.05), ("21:59", 4.57), ("22:04", 7.62), ("22:09", 9.91),
+    ("22:14", 8.89), ("22:19", 8.89),
+]
+
+
+def test_wunderground_serie_real_es7_17_11_ultimo_valor():
+    lecturas = []
+    for hhmm, acum in ES7_17_11:
+        hh, mm = (int(x) for x in hhmm.split(":"))
+        lecturas.append((datetime(2026, 11, 17, hh, mm, tzinfo=HORA_ARG), acum))
+    res = wunderground.precip_por_intervalo(lecturas)
+    por_hora = {ts.strftime("%H:%M"): v for ts, v, _ in res}
+    assert round(sum(por_hora.values()), 2) == 8.89          # = el último valor
+    assert round(sum(v for h, v in por_hora.items() if h < "06:00"), 2) == 3.05
+    assert por_hora["03:29"] == 0 and por_hora["05:44"] == 0  # subidas que se deshicieron
+    assert por_hora["22:09"] == 1.27                          # 9,91 era en realidad 8,89
+    assert all(q == 0 for _, _, q in res)
 
 
 def test_wunderground_cada_lectura_genera_una_fila():

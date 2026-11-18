@@ -27,53 +27,72 @@ URL_24H = "https://api.weather.com/v2/pws/observations/all/1day"
 def precip_por_intervalo(acumulados, lecturas_para_confirmar=3):
     """[(ts, acumulado_del_día)] ordenados -> [(ts, lluvia_del_intervalo, qc)].
 
-    Técnica del MÁXIMO ACUMULADO: solo cuenta como lluvia nueva lo que supera
-    el máximo acumulado visto hasta ese momento del día. Así el total del día
-    es el mayor acumulado que informó la estación, que es lo que muestra
-    Wunderground en su propio resumen diario.
+    Técnica del ÚLTIMO VALOR (el «mínimo hacia adelante»): un pluviómetro de
+    vuelcos no puede des-llover, así que si el acumulado sube y después baja,
+    la subida no era real. El acumulado verdadero en cada momento es el menor
+    de los que informa la estación desde ese momento hasta el final del tramo:
 
-    Fallas reales del contador que esto resuelve (Los Talas y ES7, oct/2026):
-    - Bajadas de un vuelco: 9,40 -> 8,89 y se queda ahí dos horas. Es ruido
-      del contador, no un reinicio: se ignora.
-    - Un "0" suelto en medio de la tormenta (20 -> 0 -> 20,5): se ignora.
-    - El acumulado sube y vuelve a 0 enseguida (0 -> 0,25 -> 0): no se sabe si
-      fue un vuelco real o un pulso falso: queda marcado como sospechoso.
+        informado:   3,05  3,30  3,05  ...  7,62  9,91  8,89
+        verdadero:   3,05  3,05  3,05  ...  7,62  8,89  8,89
 
-    Reinicio real = el acumulado cae a casi 0 (<= 0,3 mm o < 5 % del máximo)
-    y se queda abajo `lecturas_para_confirmar` lecturas, o pasa a medianoche.
-    Si hubo una caída a casi 0 fuera de la medianoche, el contador se comportó
-    raro ese día: toda su lluvia queda con qc = 3 (se guarda igual).
+    y la lluvia de cada lectura es la diferencia entre verdaderos seguidos. El
+    total del día es el ÚLTIMO acumulado que informó la estación (lo que muestra
+    la tarjeta de Wunderground), no el máximo. Mientras el día está en curso,
+    una subida falsa se cuenta hasta que la estación la corrige; como cada
+    consulta recalcula el día entero, al bajar se descuenta sola.
+
+    Fallas reales del contador (Los Talas y ES7, oct-nov/2026):
+    - Subidas que se deshacen: 9,91 -> 8,89 y se queda ahí: no se cuentan.
+    - El acumulado sube un vuelco y vuelve a 0 (0 -> 0,25 -> 0): no se cuenta.
+    - Un "0" suelto en medio de la tormenta (20 -> 0 -> 20,5): se ignora la
+      lectura (si no, el «mínimo hacia adelante» borraría todo lo anterior).
+
+    Reinicio real = el acumulado cae a casi 0 (<= 0,3 mm o < 5 % del máximo) y
+    se queda abajo `lecturas_para_confirmar` lecturas habiendo acumulado más de
+    un vuelco antes, o pasa a medianoche. Cada tramo entre reinicios se cuenta
+    por separado. Si hubo un reinicio o un 0 suelto fuera de la medianoche, el
+    contador se comportó raro ese día: su lluvia queda con qc = 3 (se guarda).
     """
     datos = [(ts, a) for ts, a in acumulados if a is not None]
-    salida = []
+    # 1) Partir en tramos entre reinicios y descartar los ceros sueltos.
+    tramos, ignoradas = [[]], set()
     maximo = None
     inestable = False
     for i, (ts, acum) in enumerate(datos):
         local = ts.astimezone(HORA_ARG)
         cerca_medianoche = local.hour == 0 and local.minute < 20
-        if maximo is None:
-            # Primer dato del día: es la línea de base, no se sabe desde cuándo
-            # acumula. (Se puede perder la lluvia de los primeros minutos.) Se
-            # guarda como 0 para que, al reprocesar, pise cualquier valor viejo.
-            maximo = acum
-            salida.append((ts, 0.0))
-            continue
-        if acum < maximo - 1e-9:
-            casi_cero = acum <= max(0.3, 0.05 * maximo)
-            if casi_cero and not cerca_medianoche:
-                inestable = True
+        if maximo is not None and acum < maximo - 1e-9 and acum <= max(0.3, 0.05 * maximo):
             siguientes = [a for _, a in datos[i + 1:i + 1 + lecturas_para_confirmar]]
-            reinicio = casi_cero and (cerca_medianoche or all(a < maximo - 1e-9 for a in siguientes))
-            if reinicio:
-                maximo = acum
-                salida.append((ts, round(acum, 2)))   # lo que llovió desde el reinicio
-            else:
-                salida.append((ts, 0.0))              # ruido del contador: se ignora
-            continue
-        salida.append((ts, round(acum - maximo, 2)))
-        maximo = acum
+            if cerca_medianoche:
+                tramos.append([])
+                maximo = None
+            elif maximo > 0.3 and all(a < maximo - 1e-9 for a in siguientes):
+                tramos.append([])                 # la consola se reinició
+                maximo = None
+                inestable = True
+            elif maximo > 0.3:
+                ignoradas.add(i)                  # cero suelto: se ignora
+                inestable = True
+                continue
+            # (si antes había un solo vuelco, la bajada se resuelve abajo)
+        tramos[-1].append(i)
+        maximo = acum if maximo is None else max(maximo, acum)
+
+    # 2) En cada tramo, el verdadero es el mínimo desde ahí hasta el final.
+    lluvia = {i: 0.0 for i in range(len(datos))}
+    for n, tramo in enumerate(t for t in tramos if t):
+        verdadero, minimo = {}, None
+        for i in reversed(tramo):
+            minimo = datos[i][1] if minimo is None else min(minimo, datos[i][1])
+            verdadero[i] = minimo
+        # El primer tramo del día arranca de su línea de base (no se sabe desde
+        # cuándo acumula); uno que empieza en un reinicio arranca de 0.
+        anterior = verdadero[tramo[0]] if n == 0 else 0.0
+        for i in tramo:
+            lluvia[i] = round(max(0.0, verdadero[i] - anterior), 2)
+            anterior = verdadero[i]
     qc = 3 if inestable else 0
-    return [(ts, v, qc if v > 0 else 0) for ts, v in salida]
+    return [(ts, lluvia[i], qc if lluvia[i] > 0 else 0) for i, (ts, _) in enumerate(datos)]
 
 
 def parsear_dia(datos, estacion_id):

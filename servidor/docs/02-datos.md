@@ -114,7 +114,7 @@ de 9 a 9 (hora argentina) al día de la lectura, como el SMN.
 |---|---|
 | 0 | Sin controlar |
 | 1 | Pasó el control de rango físico |
-| 3 | Sospechoso. Hoy: lluvia de Wunderground registrada justo antes de que la estación "borre" su acumulado fuera de la medianoche (patrón 0 → 0,25 → 0, visto en Los Talas). Se suma igual, pero la tabla de lluvia lo marca con ⚠ y la columna `mm_sospechosos` permite excluirlo. Más adelante: saltos, persistencia, comparación con vecinas. |
+| 3 | Sospechoso. Hoy: lluvia de Wunderground de un día en que la estación "borró" su acumulado fuera de la medianoche (reinicio de la consola o un 0 suelto en medio de la tormenta). Se suma igual, pero la tabla de lluvia lo marca con ⚠ y la columna `mm_sospechosos` permite excluirlo. Más adelante: saltos, persistencia, comparación con vecinas. |
 | 4 | Malo: fuera de los límites físicos de la tabla `variable` |
 
 Nada se borra. Las vistas de análisis excluyen `qc = 4`; los `qc = 3` se
@@ -281,3 +281,17 @@ débil ≤ 2, moderada ≤ 15, fuerte ≤ 30, muy fuerte ≤ 60, torrencial más
 (`INTENSIDAD_PP` en `web/app.py`). `GET /api/lluvia/periodos?dia=AAAA-MM-DD`.
 Ojo: la «lluvia de hoy» del mapa y la tabla de días son del día pluviométrico
 (09 a 09), no del civil.
+
+
+## Lluvia de las EMAs de Wunderground: el «último valor»
+
+Wunderground manda el acumulado del día (se reinicia a medianoche) y la lluvia
+de cada lectura es la diferencia entre acumulados. El contador de algunas EMAs
+(ES7, Los Talas) sube y después baja (p. ej. 9,91 → 8,89), algo imposible en un
+pluviómetro de vuelcos. Criterio (desde nov/2026): **la subida que se deshace no
+era real**; el acumulado verdadero en cada momento es el menor de los que la
+estación informa de ahí en adelante, y el total del día es el último valor (lo
+que muestra la tarjeta de Wunderground). Un 0 suelto en medio de la lluvia se
+ignora y un reinicio de la consola (cae a ~0 y se queda) separa tramos.
+Para recalcular días viejos con este criterio:
+`python -m meteo.ingesta historico wunderground --desde AAAA-MM-DD --hasta AAAA-MM-DD`.
