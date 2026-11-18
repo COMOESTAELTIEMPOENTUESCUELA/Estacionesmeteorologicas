@@ -588,7 +588,16 @@
             // es solo un recorte de la ventana de días (ver fetchFeedsVariosDias): dentro
             // de unos días, "última semana" ya no va a llegar hasta el 6/11 de por sí, y
             // este recorte deja de tener efecto solo, sin que haga falta sacarlo.
+            // cortarLluviaDesde: la estación estuvo caída ~9 días (hasta el 18/11) y al
+            // reconectarse largó el backlog de pulsos sin enviar en varias tandas
+            // repartidas a lo largo de varias horas, no en un solo salto -el filtro de
+            // LLUVIA_SALTO_SOSPECHOSO_MM no alcanza a frenar eso-. No hay forma de
+            // separar ese backlog de la lluvia real de hoy, así que se corta: no se
+            // cuenta nada de lluvia anterior a este instante. Igual que noContarAntesDe,
+            // esto deja de tener efecto solo en cuanto "hoy"/"la semana" avancen más
+            // allá de este momento, sin que haga falta sacarlo.
             { id: "2218686", key: "O85A0DJ31L8MQZ6F", isEmaVerde: true, noContarAntesDe: "2026-11-07",
+              cortarLluviaDesde: "2026-11-18T15:50:00",
               n: "EP N°23", loc: "Magdalena (EMA Verde)", c: [-35.0254, -57.7529], clr: "#22c55e", live: true, img: "imagenes/escuela23.jpg" },
             // Daza sacada del mapa: la estación se dio de baja (fuera de operatividad).
             // { source: "wunderground", wuId: "ILAPLA66", wuKey: "470147c769f6493f8147c769f6693fd9",
@@ -1008,7 +1017,7 @@
         // mínima/máxima de temperatura de HOY (aunque el período pedido sea más largo).
         // Para dias=1, "convencion" define si el día arranca a las 00 (calendario) o a
         // las 9 (meteorológico); para la semana siempre se usa el día calendario.
-        async function datosDelPeriodoTS(canales, rainField, rainMult, dias, convencion, noContarAntesDe) {
+        async function datosDelPeriodoTS(canales, rainField, rainMult, dias, convencion, noContarAntesDe, cortarLluviaDesde) {
             let feeds;
             if (dias > 1) {
                 feeds = await fetchFeedsVariosDias(canales, dias, noContarAntesDe);
@@ -1036,6 +1045,12 @@
                 });
             }
 
+            // Corte puntual por estación (ver comentario junto a cortarLluviaDesde en la
+            // config de la estación): no cuenta lluvia anterior a este instante. Solo
+            // afecta la lluvia -temp/hum/pres de esos registros siguen siendo válidos,
+            // así que no se descartan los feeds enteros, solo su aporte a la lluvia-.
+            const corteLluvia = cortarLluviaDesde ? new Date(cortarLluviaDesde) : null;
+
             const incluirFecha = dias > 1;
             let total = 0;
             const horas = [], curva = [];
@@ -1043,6 +1058,7 @@
                 let v = parseFloat(f[rainField]);
                 if (isNaN(v) || v < 0) return;
                 if (rainField === 'field4' && v > LLUVIA_SALTO_SOSPECHOSO_MM) return; // salto de reconexión, no lluvia real
+                if (corteLluvia && new Date(f.created_at) < corteLluvia) return;
                 // Igual que en la Comparación de Pluviómetros: cada lectura con pulso
                 // (valor > 0) cuenta como un ciclo completo del pluviómetro y suma el
                 // multiplicador fijo, sin escalar por la magnitud cruda del campo.
@@ -1152,7 +1168,7 @@
                 }
                 const canales = estacion.channels || [{ id: estacion.id, key: estacion.key }];
                 const rainField = estacion.isEmaVerde ? 'field4' : 'field5';
-                const datosSemana = await datosDelPeriodoTS(canales, rainField, estacion.rainMult, 7, 'calendario', estacion.noContarAntesDe);
+                const datosSemana = await datosDelPeriodoTS(canales, rainField, estacion.rainMult, 7, 'calendario', estacion.noContarAntesDe, estacion.cortarLluviaDesde);
                 return datosSemana.total;
             } catch (e) {
                 console.error('No se pudo obtener la lluvia semanal de', estacion.n, e);
@@ -1208,7 +1224,7 @@
                         const paramResultados = periodo === 'semana' ? 'days=7' : 'days=1';
                         return fetch(`https://api.thingspeak.com/channels/${ch.id}/feeds.json?${paramResultados}${apiKeyParam}`).then(r => r.json());
                     })),
-                    datosDelPeriodoTS(canales, rainField, estacion.rainMult, dias, convencionLluvia, estacion.noContarAntesDe)
+                    datosDelPeriodoTS(canales, rainField, estacion.rainMult, dias, convencionLluvia, estacion.noContarAntesDe, estacion.cortarLluviaDesde)
                 ]);
 
                 let feeds = respuestas.flatMap(d => d.feeds || []);
@@ -2350,6 +2366,7 @@
             const isObservatorio = channelId === '2823820';
             const isEmaVerde = !!estacion.isEmaVerde;
             const rainField = isEmaVerde ? 'field4' : 'field5';
+            const corteLluvia = estacion.cortarLluviaDesde ? new Date(estacion.cortarLluviaDesde) : null;
 
             let lluviaAcumulada = 0;
             return feeds.map(f => {
@@ -2359,8 +2376,11 @@
                 const p = parseFloat(f.field6);
                 const ws = isObservatorio ? parseFloat(f.field7) : null;
 
+                // El corte solo afecta la lluvia (temp/hum/pres de ese registro siguen
+                // siendo datos válidos, aunque el pluviómetro esté con el backlog).
                 let v = parseFloat(f[rainField]);
-                if (!isNaN(v) && v >= 0 && !(rainField === 'field4' && v > LLUVIA_SALTO_SOSPECHOSO_MM)) {
+                if (!isNaN(v) && v >= 0 && !(rainField === 'field4' && v > LLUVIA_SALTO_SOSPECHOSO_MM)
+                    && !(corteLluvia && new Date(f.created_at) < corteLluvia)) {
                     if (estacion.rainMult) v = v > 0 ? estacion.rainMult : 0;
                     lluviaAcumulada += v;
                 }
@@ -2698,7 +2718,8 @@
                 } else if (variableId === 'rain') {
                     const rainField = isEmaVerde ? 'field4' : 'field5';
                     let v = parseFloat(f[rainField]);
-                    if (!isNaN(v) && v >= 0 && !(rainField === 'field4' && v > LLUVIA_SALTO_SOSPECHOSO_MM)) {
+                    const antesDelCorte = estacion.cortarLluviaDesde && x < new Date(estacion.cortarLluviaDesde).getTime();
+                    if (!isNaN(v) && v >= 0 && !(rainField === 'field4' && v > LLUVIA_SALTO_SOSPECHOSO_MM) && !antesDelCorte) {
                         if (estacion.rainMult) v = v > 0 ? estacion.rainMult : 0;
                         lluviaAcumulada += v;
                     }
