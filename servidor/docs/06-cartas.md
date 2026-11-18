@@ -420,6 +420,14 @@ se dibuja (con ▲ ▼ se ve el dibujo común sobre cada carta; la otra capa pro
 queda abajo, fija); en la vista «Las 4 juntas», «✏️ Dibujar en las 4» abre el
 visor así. Privada o compartida, con fantasma, copiar y agenda, como las demás.
 
+**Dibujar directamente en la grilla** («✏️ Dibujar acá», en Pronóstico GFS):
+la barra de herramientas del visor (`#c-herr`) se muda arriba de las cartas
+(`#cpr-herr`, fija al bajar) y se dibuja en cualquiera de ellas sin abrir el
+visor; cada trazo va a la capa propia de la carta donde se hizo (la activa,
+con borde). Ctrl+Z, compartir, «👁» y el zoom andan igual. «✓ Listo» devuelve
+la barra al visor. El motor de dibujo usa `dib.img`/`dib.svg` (la carta
+activa) en vez del visor cuando `dib.enGrilla`.
+
 **Ver lo marcado en otras cartas** (sin copiarlo): cada carta tiene su
 análisis, pero en el visor «👁 Ver también lo marcado en:» ofrece las otras
 cartas de esa misma hora que tienen dibujos y el mismo mapa (`grupoCarta`), y

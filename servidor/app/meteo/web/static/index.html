@@ -811,6 +811,15 @@ img.con-fondo { background-color: #fff !important; background-size: 100% 100%; b
 .cpr-grid .carta-img { overflow: hidden; border-radius: 6px; }
 .cpr-grid .cpr-lienzo { position: relative; transform-origin: 0 0; --inv: 1; }
 .cpr-dib { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+.cpr-herr { position: sticky; top: var(--alto-cab, 0px); z-index: 20; margin: 6px 0; }
+/* La barra del visor, mudada arriba de la grilla: con el mismo fondo oscuro que en el visor. */
+.cpr-herr .barra { flex-wrap: wrap; gap: 6px; padding: 8px 10px; border-radius: 10px; background: #111827; color: #e5e7eb;
+  border: 1px solid #1f2937; box-shadow: 0 6px 18px rgba(0,0,0,.25); }
+.cpr-herr .barra .tenue, .cpr-herr .barra label { color: #cbd5e1; }
+body.cpr-dibujando .cpr-herr #c-exportar, body.cpr-dibujando .cpr-herr #c-las4-l, body.cpr-dibujando .cpr-herr #c-copiar-ant,
+body.cpr-dibujando .cpr-herr #c-fantasma-l { display: none !important; }
+.cpr-grid.dibujando .carta-img { cursor: crosshair; touch-action: none; }
+.cpr-grid figure.dib-activa .carta-img { outline: 3px solid var(--acento); outline-offset: 2px; border-radius: 6px; }
 /* El dibujo de la corrida anterior: gris y transparente, debajo del de esta. */
 g.fantasma { opacity: .45; filter: grayscale(1); }
 /* Lo marcado en OTRA carta de la misma hora: con sus colores, pero tenue. */
@@ -2541,6 +2550,7 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
           <button class="boton" id="cpr-z0" title="Ver la carta entera (0)">⟲</button>
         </span>
         <label class="en-linea" title="Puntos en las ciudades del pronóstico del grupo (tecla C)"><input type="checkbox" id="cpr-ciudades" checked> Ciudades</label>
+        <button type="button" class="boton chico primario" id="cpr-dibujar" hidden title="Dibujar directamente en estas cartas, con la barra de herramientas del visor: cada trazo va a la carta donde lo hacés">✏️ Dibujar acá</button>
         <button type="button" class="boton chico" id="cpr-las4" hidden title="Dibujar una sola vez y que se vea en las cuatro cartas de este plazo (frentes, centros…)">✏️ Dibujar en las 4</button>
         <label class="en-linea" id="cpr-l-fantasma" title="Mostrar, en gris y transparente, lo dibujado (por vos o compartido) en la corrida anterior para esta misma hora: para ver cuánto cambió el modelo"><input type="checkbox" id="cpr-fantasma"> 👻 Dibujo de la corrida anterior</label>
         <button class="boton anotar" id="cpr-anotar" hidden title="Anotar en tu libreta algo de este plazo del pronóstico">📝 Anotar</button>
@@ -2552,6 +2562,7 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
         <kbd>Shift</kbd>+<kbd>←</kbd> <kbd>→</kbd> 24 h · <kbd>Inicio</kbd> <kbd>Fin</kbd> · <kbd>Espacio</kbd> animar ·
         <kbd>1</kbd>–<kbd>4</kbd> elegir carta · <kbd>↑</kbd> <kbd>↓</kbd> cambiar carta · <kbd>V</kbd> vista ·
         <kbd>+</kbd> <kbd>−</kbd> <kbd>0</kbd> zoom (o <kbd>Ctrl</kbd> + rueda, doble clic; arrastrar para mover) · <kbd>C</kbd> ciudades</p>
+      <div class="cpr-herr" id="cpr-herr" hidden></div>
       <div class="cartas-grid cpr-grid" id="cpr-grid"></div>
       <p class="ayuda cpr-pos" id="cpr-pos">&nbsp;</p>
     </div>
@@ -5153,9 +5164,11 @@ function mostrarPlazoGFS() {
   const g = $("#cpr-grid");
   g.className = `cartas-grid cpr-grid${v === "una" ? " una" : ""}`;
   g.classList.toggle("puntos", $("#cpr-ciudades").checked);
+  if (cprDib.activo) { guardarDibujoYa(); Object.assign(dib, { img: null, svg: null, producto: null }); cprDib.fig = null; }
   g.innerHTML = html;
   aplicarZoomGFS();
   pintarCapasGFS();
+  $("#cpr-dibujar").hidden = !YO;
   $("#cpr-las4").hidden = !YO || v !== "cuatro";
   marcarPlazoMeteograma();
   if (!verif) document.querySelectorAll("#cpr-dias button").forEach((b) =>
@@ -5235,6 +5248,98 @@ document.addEventListener("click", (e) => {
   const b = e.target.closest("[data-cpr-dibujar]");
   if (b) abrirCartaPron(b.dataset.cprDibujar, b.dataset.corrida, Number(b.dataset.plazo), false);     // solo esa carta
 });
+
+// ----- Dibujar directamente en la grilla (las 4 juntas): una sola barra de herramientas -----
+// La barra del visor se muda arriba de la grilla; cada trazo va a la capa de la
+// carta donde se hizo (la "activa", resaltada). Al terminar, la barra vuelve al visor.
+const cprDib = { activo: false, lugar: null, fig: null };
+function entrarDibujoGrilla() {
+  if (cprDib.activo || !conCapas()) return;
+  if ($("#c-dialogo").open) $("#c-dialogo").close();
+  const barra = $("#c-herr");
+  cprDib.lugar = { padre: barra.parentNode, sig: barra.nextSibling };
+  $("#cpr-herr").appendChild(barra);
+  $("#cpr-herr").hidden = false;
+  cprDib.activo = true;
+  document.body.classList.add("cpr-dibujando");
+  $("#cpr-dibujar").textContent = "✓ Listo";
+  $("#c-dib-estado").textContent = "Elegí una herramienta y dibujá en cualquiera de las cartas";
+  elegirHerramienta("trazo");
+}
+function salirDibujoGrilla() {
+  if (!cprDib.activo) return;
+  guardarDibujoYa();
+  elegirHerramienta("mover");
+  const { padre, sig } = cprDib.lugar;
+  padre.insertBefore($("#c-herr"), sig);
+  $("#cpr-herr").hidden = true;
+  Object.assign(cprDib, { activo: false, fig: null });
+  Object.assign(dib, { enGrilla: false, img: null, svg: null, producto: null });
+  document.body.classList.remove("cpr-dibujando");
+  $("#cpr-dibujar").textContent = "✏️ Dibujar acá";
+  document.querySelectorAll("#cpr-grid figure.dib-activa").forEach((f) => f.classList.remove("dib-activa"));
+  pintarCapasGFS(true);
+}
+// La carta donde se toca pasa a ser la activa: su capa propia es la que se edita.
+function activarFiguraGrilla(fig) {
+  const svg = fig.querySelector("svg.cpr-dib"), img = fig.querySelector(".cpr-lienzo img");
+  if (!svg || !img) return false;
+  if (cprDib.fig === fig && dib.svg === svg) return true;
+  guardarDibujoYa();
+  const [prod, ts] = svg.dataset.capa.split("|"), c = capasDe(prod, ts);
+  Object.assign(dib, { enGrilla: true, img, svg, producto: prod, ts, centroElegido: -1, historia: [], actual: null,
+                       dibujo: c.mia ? JSON.parse(JSON.stringify(c.mia.dibujo)) : null, compartida: !!c.mia?.compartida, base: null,
+                       alto: c.mia?.dibujo?.alto || Math.round(DIB_ANCHO * img.naturalHeight / img.naturalWidth) || 750 });
+  cprDib.fig = fig;
+  document.querySelectorAll("#cpr-grid figure").forEach((f) => f.classList.toggle("dib-activa", f === fig));
+  pintarControlesCapas();
+  const pr = cpr.productos.find((q) => q.id === baseCarta(prod));
+  $("#c-dib-estado").textContent = `dibujando en: ${pr ? (pr.nivel || pr.nombre) : prod} · ${dib.compartida ? "compartido" : "privado"}`;
+  return true;
+}
+// Mientras se dibuja: la capa propia de la carta activa se ve al instante (y el trazo en curso).
+function pintarDibujoGrilla() {
+  if (!dib.svg) return;
+  const clave = new Date(dib.ts).toISOString(), porCarta = capasHora.get(clave) || {};
+  capasHora.set(clave, porCarta);
+  const x = porCarta[dib.producto] || (porCarta[dib.producto] = { mia: null, otras: [] });
+  x.mia = dib.dibujo?.elementos?.length ? { dibujo: dib.dibujo, compartida: !!dib.compartida } : null;
+  const svg = dib.svg, actual = dib.actual;
+  pintarCapasGFS().then(() => { if (actual && dib.svg === svg) svg.insertAdjacentHTML("beforeend", svgElemento(actual)); });
+}
+function iniciarDibujoGrilla() {
+  const g = $("#cpr-grid");
+  let tocando = null;
+  g.addEventListener("pointerdown", (e) => {
+    if (!cprDib.activo || dib.herr === "mover" || e.button > 0) return;
+    const fig = e.target.closest("figure"), caja = e.target.closest(".carta-img");
+    if (!fig || !caja || e.target.closest(".cpr-sello")) return;
+    e.stopPropagation(); e.preventDefault();          // no mueve la carta: dibuja
+    if (!activarFiguraGrilla(fig)) return;
+    caja.setPointerCapture?.(e.pointerId);
+    tocando = e.pointerId;
+    empezarDibujo(e);
+  }, true);
+  g.addEventListener("pointermove", (e) => {
+    if (!cprDib.activo || tocando !== e.pointerId) return;
+    if (dib.actual) seguirDibujo(e);
+    else if (dib.arrastreEl) {
+      const a = dib.arrastreEl, p = aLienzo(e), dx = p[0] - a.p0[0], dy = p[1] - a.p0[1], el = dib.dibujo.elementos[a.i];
+      if (a.orig.puntos) el.puntos = a.orig.puntos.map(([x, y]) => [r1(x + dx), r1(y + dy)]);
+      else { el.x = r1(a.orig.x + dx); el.y = r1(a.orig.y + dy); }
+      pintarDibujoVisor();
+    }
+  });
+  const soltar = (e) => {
+    if (tocando !== e.pointerId) return;
+    tocando = null;
+    if (dib.actual) terminarDibujo();
+    if (dib.arrastreEl) { dib.arrastreEl = null; programarGuardado(); }
+  };
+  g.addEventListener("pointerup", soltar);
+  g.addEventListener("pointercancel", soltar);
+  $("#cpr-dibujar").addEventListener("click", () => (cprDib.activo ? salirDibujoGrilla() : entrarDibujoGrilla()));
+}
 
 // ----- Zoom: el mismo en todas las cartas (comparten el marco) -----
 function aplicarZoomGFS() {
@@ -5324,6 +5429,7 @@ function teclaGFS(e) {
 }
 
 function iniciarPronosticoGFS() {
+  iniciarDibujoGrilla();
   try {
     const g = JSON.parse(localStorage.getItem("gfs-vista") || "null");
     if (g && VISTAS_GFS.includes(g.vista)) {
@@ -6612,6 +6718,7 @@ const tsVisor = () => visorPron ? new Date(+visorPron.inicio + visorPron.plazo *
 const LAS4 = "gfs_pro_las4";
 let dibujarLas4 = false;
 async function abrirCartaPron(producto, clave, plazo, las4 = null) {
+  salirDibujoGrilla();
   guardarDibujoYa();
   if (las4 !== null) dibujarLas4 = las4;
   visorPron = { inicio: new Date(Date.UTC(+clave.slice(0, 4), +clave.slice(4, 6) - 1, +clave.slice(6, 8), +clave.slice(8, 10))), plazo };
@@ -6671,6 +6778,7 @@ function mostrarEnVisor() {
   armarSuperposicion(p);
 }
 function abrirCarta(id) {
+  if (typeof salirDibujoGrilla === "function") salirDibujoGrilla();
   guardarDibujoYa();
   cartaVisor = id;
   Object.assign(zoom, { s: 1, x: 0, y: 0 });
@@ -7416,6 +7524,7 @@ $("#c-otras-cartas").addEventListener("change", (e) => {
 });
 
 function pintarDibujoVisor() {
+  if (dib.enGrilla) { pintarDibujoGrilla(); return; }
   const svg = $("#c-svg");
   svg.setAttribute("viewBox", `0 0 ${DIB_ANCHO} ${dib.alto}`);
   const f = visorPron && verFantasma && dib.producto ? capaAnterior(dib.producto, dib.ts) : null;
@@ -7492,8 +7601,9 @@ $("#c-copiar-ant").addEventListener("click", () => {
   cambiarDibujo((el) => el.push(...copia));          // se puede deshacer (Ctrl+Z) y se guarda solo
   pintarDibujoVisor();
 });
+const imgDib = () => dib.img || $("#c-vista img");     // la carta donde se dibuja (visor o grilla)
 function aLienzo(e) {
-  const r = $("#c-vista img").getBoundingClientRect();
+  const r = imgDib().getBoundingClientRect();
   return [r1((e.clientX - r.left) / r.width * DIB_ANCHO), r1((e.clientY - r.top) / r.height * dib.alto)];
 }
 function cambiarDibujo(cambio) {
@@ -7506,7 +7616,7 @@ function cambiarDibujo(cambio) {
 }
 // El elemento más cercano a donde se tocó (para borrar o dar vuelta).
 function elementoEn(punto, filtro = () => true) {
-  const r = $("#c-vista img").getBoundingClientRect();
+  const r = imgDib().getBoundingClientRect();
   const tolerancia = 14 * DIB_ANCHO / r.width;          // ~14 px de pantalla
   let mejor = -1, dmin = tolerancia;
   (dib.dibujo?.elementos || []).forEach((e, i) => {
@@ -7528,7 +7638,7 @@ function empezarDibujo(e) {
   else if (h === "simbolo") cambiarDibujo((el) => el.push({ tipo: "simbolo", simbolo: $("#c-simbolo").value, x: p[0], y: p[1], tam: Math.round(+$("#c-tam").value * 0.8) }));
   else if (h === "mover_el") {
     // El elemento más cercano (las letras y símbolos grandes, en cualquier parte).
-    const r = $("#c-vista img").getBoundingClientRect(), tol = 22 * DIB_ANCHO / r.width;
+    const r = imgDib().getBoundingClientRect(), tol = 22 * DIB_ANCHO / r.width;
     let mejor = -1, dmin = Infinity;
     (dib.dibujo?.elementos || []).forEach((x, i) => {
       const radio = ["centro", "simbolo"].includes(x.tipo) ? Math.max(tol, (+x.tam || 40) * 0.6) : tol;
@@ -7545,7 +7655,7 @@ function empezarDibujo(e) {
   else if (h === "A" || h === "B") {
     // Tocar una A o B que ya está la elige (para cambiarle el tamaño); si no, se pone una nueva.
     // (una letra grande se puede tocar en cualquier parte, no solo en el centro)
-    const r = $("#c-vista img").getBoundingClientRect(), tol = 14 * DIB_ANCHO / r.width;
+    const r = imgDib().getBoundingClientRect(), tol = 14 * DIB_ANCHO / r.width;
     const i = (dib.dibujo?.elementos || []).findIndex((x) => x.tipo === "centro" && Math.hypot(x.x - p[0], x.y - p[1]) <= Math.max(tol, (+x.tam || 46) * 0.55));
     if (i >= 0) { dib.centroElegido = i; $("#c-tam").value = +dib.dibujo.elementos[i].tam || 46; }
     else cambiarDibujo((el) => { el.push({ tipo: "centro", letra: h, x: p[0], y: p[1], tam: +$("#c-tam").value }); dib.centroElegido = el.length - 1; });
@@ -7670,8 +7780,9 @@ function elegirHerramienta(h) {
   $("#c-l-tam").hidden = !["A", "B", "simbolo"].includes(h);
   $("#c-simbolo").hidden = h !== "simbolo";
   if (typeof dibujarResultados === "function") dibujarResultados();
-  document.querySelectorAll("#c-dialogo .herr").forEach((b) => b.classList.toggle("activa", b.dataset.herr === h));
+  document.querySelectorAll("#c-herr .herr").forEach((b) => b.classList.toggle("activa", b.dataset.herr === h));
   $("#c-vista").classList.toggle("dibujando", h !== "mover");
+  $("#cpr-grid")?.classList.toggle("dibujando", cprDib.activo && h !== "mover");
 }
 function iniciarHerramientas() {
   // En la copia pública cada uno dibuja lo suyo (se guarda en su navegador).
@@ -7725,7 +7836,7 @@ function iniciarHerramientas() {
     if (b && !b.closest("[hidden]")) { e.preventDefault(); b.click(); }
   });
   document.addEventListener("keydown", (e) => {
-    if ($("#c-dialogo").open && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); deshacerDibujo(); }
+    if (($("#c-dialogo").open || cprDib.activo) && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); deshacerDibujo(); }
     if ($("#c-dialogo").open && med.actual && e.key === "Enter") { e.preventDefault(); terminarMedida(); }
     if ($("#c-dialogo").open && med.actual && e.key === "Escape") { e.preventDefault(); med.actual = null; pintarDibujoVisor(); dibujarResultados(); }
   });
