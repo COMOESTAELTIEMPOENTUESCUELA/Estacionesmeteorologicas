@@ -9370,7 +9370,7 @@ function dibujarGrupo() {
     .sort((a, b) => (b.r.tmin_urbana?.n || 0) - (a.r.tmin_urbana?.n || 0));
   $("#pf-grupo-tabla").innerHTML = `<tr><th>Firma</th><th>Usuario</th><th>Días</th><th>Mínima: error medio <small class="tenue">(sesgo)</small></th>
       <th>Máxima</th><th>Lluvia: aciertos</th><th>Viento: dirección</th><th></th></tr>` +
-    (filas.length ? filas.map(({ p, r }) => `<tr><td><b>${esc(p.firma)}</b></td><td>${p.usuario ? esc(p.usuario.nombre) : '<span class="tenue">sin usuario</span>'}</td>
+    (filas.length ? filas.map(({ p, r }) => `<tr><td><b>${esc((p.firmas || [p.firma]).join(" · "))}</b></td><td>${p.usuario ? esc(p.usuario.nombre) : '<span class="tenue">sin usuario</span>'}</td>
         <td>${r.tmin_urbana?.n || r.tmax_urbana?.n || 0}</td><td>${t(r.tmin_urbana)}</td><td>${t(r.tmax_urbana)}</td>
         <td>${r.pp && r.pp.n ? `${Math.round(100 * r.pp.pc)} %` : "–"}</td>
         <td>${r.viento_dir && r.viento_dir.n ? `${r.viento_dir.pct} %` : "–"}</td>

@@ -485,11 +485,17 @@ def pronosticos_del_grupo(request: Request, desde: date | None = None, hasta: da
     vigentes = _vigentes(desde, hasta)
     todas = _pares(vigentes, desde, hasta)
     usuarios = {f: x for x in _leer("SELECT id, nombre, firmas FROM usuario WHERE activo") for f in x["firmas"]}
-    salida = []
+    # Una fila por PERSONA: las firmas de un mismo usuario («Mate» y «Matias»)
+    # se juntan; una firma sin usuario va sola.
+    grupos = {}
     for firma in sorted({f["pronosticador"] for f in todas if f["pronosticador"]}):
-        filas = [f for f in todas if f["pronosticador"] == firma]
         us = usuarios.get(firma)
-        salida.append({"firma": firma, "usuario": {"id": us["id"], "nombre": us["nombre"]} if us else None,
+        grupos.setdefault(("u", us["id"]) if us else ("f", firma), (us, []))[1].append(firma)
+    salida = []
+    for us, firmas in grupos.values():
+        filas = [f for f in todas if f["pronosticador"] in firmas]
+        salida.append({"firma": firmas[0], "firmas": firmas,
+                       "usuario": {"id": us["id"], "nombre": us["nombre"]} if us else None,
                        "dias": len(filas), "emisiones": len({(f["ciudad"], f["fecha_emision"]) for f in filas}),
                        "resumen": puntajes.resumen(filas)})
     return {"desde": desde, "hasta": hasta, "pronosticadores": salida}
@@ -1981,16 +1987,133 @@ def claves_iniciales(conn, todos=False):
     return 0
 
 
+def _normal(firma):
+    """«Matías », «matias» y «MATIAS» son la misma firma mal tipeada."""
+    import unicodedata
+    sin_tildes = "".join(c for c in unicodedata.normalize("NFD", firma) if unicodedata.category(c) != "Mn")
+    return " ".join(sin_tildes.lower().split())
+
+
+def _firmas_cargadas(conn):
+    """Cada firma de los pronósticos: cuántos publicó, desde y hasta cuándo, y de quién es."""
+    duenios = {f: u["nombre"] for u in conn.execute("SELECT nombre, firmas FROM usuario") for f in u["firmas"]}
+    filas = conn.execute("""SELECT publicado_por AS firma, count(*) AS n, min(fecha_pronostico) AS desde,
+                                   max(fecha_pronostico) AS hasta
+                            FROM pronostico_emision WHERE coalesce(trim(publicado_por), '') <> ''
+                            GROUP BY 1 ORDER BY 2 DESC""").fetchall()
+    return [{**f, "duenio": duenios.get(f["firma"])} for f in filas]
+
+
+def listar_firmas(conn):
+    filas = _firmas_cargadas(conn)
+    parecidas = {}
+    for f in filas:
+        parecidas.setdefault(_normal(f["firma"]), []).append(f["firma"])
+    print(f"{'Firma':20} {'Pronósticos':>11}  {'Desde':10}  {'Hasta':10}  Cuenta")
+    for f in filas:
+        otras = [x for x in parecidas[_normal(f["firma"])] if x != f["firma"]]
+        print(f"{f['firma'][:20]:20} {f['n']:>11}  {f['desde']!s:10}  {f['hasta']!s:10}  {f['duenio'] or '-'}"
+              + (f"   (¿igual a {', '.join(otras)}?)" if otras else ""))
+    return 0
+
+
+def _usuario_libre(conn, nombre):
+    import unicodedata
+    base = "".join(c for c in unicodedata.normalize("NFD", nombre.lower()) if c.isalnum() and c.isascii()) or "usuario"
+    candidato, i = base, 2
+    while conn.execute("SELECT 1 FROM usuario WHERE lower(nombre_usuario) = %s OR email = %s",
+                       (candidato, f"{candidato}@sin-mail.invalid")).fetchone():
+        candidato, i = f"{base}{i}", i + 1
+    return candidato
+
+
+def alta_firmas(conn, juntar=(), excluir=(), rol="pronosticador", probar=False):
+    """Una cuenta por PERSONA para cada firma de los pronósticos que todavía no
+    tiene: las firmas que solo difieren en mayúsculas, tildes o espacios van
+    juntas, y --juntar "Matias,Mate" junta las que uno sabe que son la misma
+    persona (si alguna ya tiene cuenta, las otras se le suman a esa cuenta).
+    Cada cuenta nueva sale con un nombre de usuario para entrar sin mail y una
+    contraseña temporal DISTINTA, que se imprime una sola vez. El mail queda
+    provisorio (usuario@sin-mail.invalid): con el real, «cuentas mail» lo
+    cambia y desde ahí también puede entrar con Google."""
+    filas = _firmas_cargadas(conn)
+    usos = {f["firma"]: f["n"] for f in filas}
+    excluir = {_normal(x) for x in excluir}
+    # Grupos: primero por firma normalizada, después los --juntar.
+    grupo_de = {}
+    for f in filas:
+        if _normal(f["firma"]) not in excluir:
+            grupo_de[f["firma"]] = _normal(f["firma"])
+    for lista in juntar:
+        nombres = [x.strip() for x in lista.split(",") if x.strip()]
+        claves = {_normal(x) for x in nombres}
+        destino = _normal(nombres[0])
+        for firma, g in list(grupo_de.items()):
+            if g in claves:
+                grupo_de[firma] = destino
+        for x in nombres:                      # una firma de --juntar que todavía no publicó nada
+            grupo_de.setdefault(x, destino)
+    grupos = {}
+    for firma, g in grupo_de.items():
+        grupos.setdefault(g, []).append(firma)
+    preferido = {_normal(l.split(",")[0]): l.split(",")[0].strip() for l in juntar}
+
+    cuentas = conn.execute("SELECT id, nombre, firmas FROM usuario").fetchall()
+    duenio = {f: u for u in cuentas for f in u["firmas"]}
+    nuevas, sumadas = [], []
+    for g, firmas in grupos.items():
+        firmas.sort(key=lambda f: -usos.get(f, 0))
+        ya = next((duenio[f] for f in firmas if f in duenio), None)
+        if ya:
+            faltan = [f for f in firmas if f not in ya["firmas"]]
+            if faltan:
+                sumadas.append((ya["nombre"], faltan))
+                if not probar:
+                    conn.execute("UPDATE usuario SET firmas = firmas || %s WHERE id = %s", (faltan, ya["id"]))
+            continue
+        nombre = preferido.get(g, firmas[0])
+        usuario = _usuario_libre(conn, nombre)
+        nuevas.append((nombre, usuario, firmas))
+        if not probar:
+            conn.execute("""INSERT INTO usuario (email, nombre, rol, firmas, nombre_usuario)
+                            VALUES (%s, %s, %s, %s, %s)""", (f"{usuario}@sin-mail.invalid", nombre, rol, firmas, usuario))
+
+    for nombre, faltan in sumadas:
+        print(f"{'(prueba) ' if probar else ''}a la cuenta de {nombre} se le suman las firmas: {', '.join(faltan)}")
+    if not nuevas:
+        print("No hay firmas sin cuenta." if not sumadas else "")
+        return 0
+    print(f"\n{'Nombre':16} {'Usuario':14} {'Firmas':28} Contraseña temporal")
+    for nombre, usuario, firmas in nuevas:
+        clave = "(se genera al correrlo sin --probar)"
+        if not probar:
+            clave = clave_al_azar()
+            conn.execute("UPDATE usuario SET clave = %s, clave_temporal = true WHERE nombre_usuario = %s",
+                         (huella_clave(clave), usuario))
+        print(f"{nombre[:16]:16} {usuario:14} {', '.join(firmas)[:28]:28} {clave}")
+    if probar:
+        print("\nEs una PRUEBA: no se cambió nada. Si está bien, correlo igual sin --probar.")
+    else:
+        print(f"\n{len(nuevas)} cuentas nuevas. Se entra con el USUARIO (sin mail) y la contraseña; al entrar,")
+        print("la página pide elegir una propia. Las contraseñas no quedan guardadas: pasale a cada uno la suya")
+        print("por un canal privado (si se pierde una: «cuentas clave --email usuario@sin-mail.invalid»).")
+    return 0
+
+
 def main(argv=None):
     """docker compose exec web python -m meteo.web.cuentas agregar --email ... --nombre ... [--firma Mate] [--rol coordinador]
     docker compose exec web python -m meteo.web.cuentas listar
     docker compose exec web python -m meteo.web.cuentas desactivar --email ...
-    docker compose exec web python -m meteo.web.cuentas claves-iniciales   (una clave temporal a cada uno que no tenga)"""
+    docker compose exec web python -m meteo.web.cuentas claves-iniciales   (una clave temporal a cada uno que no tenga)
+    docker compose exec web python -m meteo.web.cuentas firmas            (las firmas de los pronósticos y de quién son)
+    docker compose exec web python -m meteo.web.cuentas alta-firmas [--juntar "Matias,Mate"] [--excluir "Equipo FCAG"] [--probar]
+    docker compose exec web python -m meteo.web.cuentas mail --email viejo@... --nuevo nuevo@..."""
     import psycopg
     from psycopg.rows import dict_row
     ap = argparse.ArgumentParser(prog="python -m meteo.web.cuentas", description=main.__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("comando", choices=["agregar", "listar", "desactivar", "activar", "clave", "claves-iniciales"])
+    ap.add_argument("comando", choices=["agregar", "listar", "desactivar", "activar", "clave", "claves-iniciales",
+                                            "firmas", "alta-firmas", "mail"])
     ap.add_argument("--email")
     ap.add_argument("--nombre")
     ap.add_argument("--rol", choices=["pronosticador", "coordinador", "admin"], default="pronosticador")
@@ -2003,6 +2126,12 @@ def main(argv=None):
                     help="con 'claves-iniciales': también a los que ya tienen clave (se la reemplaza)")
     ap.add_argument("--elegir", action="store_true",
                     help="con 'clave': escribir vos la contraseña (la pide sin mostrarla) en vez de generarla al azar")
+    ap.add_argument("--juntar", action="append", default=[],
+                    help='con alta-firmas: firmas de la MISMA persona, separadas por coma ("Matias,Mate"); se repite')
+    ap.add_argument("--excluir", action="append", default=[],
+                    help='con alta-firmas: firma que no es una persona ("Equipo FCAG"); se repite')
+    ap.add_argument("--probar", action="store_true", help="con alta-firmas: mostrar qué haría sin cambiar nada")
+    ap.add_argument("--nuevo", help="con mail: el mail nuevo")
     a = ap.parse_args(argv)
     dsn = os.environ.get("DATABASE_URL", "postgresql://meteo:meteo@db:5432/meteo")
     with psycopg.connect(dsn, row_factory=dict_row) as conn:
@@ -2015,6 +2144,20 @@ def main(argv=None):
             return
         if a.comando == "claves-iniciales":
             return claves_iniciales(conn, todos=a.todos)
+        if a.comando == "firmas":
+            return listar_firmas(conn)
+        if a.comando == "alta-firmas":
+            return alta_firmas(conn, a.juntar, a.excluir, a.rol, a.probar)
+        if a.comando == "mail":
+            if not (a.email and a.nuevo):
+                ap.error("mail necesita --email (el actual) y --nuevo")
+            nuevo = a.nuevo.strip().lower()
+            if conn.execute("SELECT 1 FROM usuario WHERE email = %s", (nuevo,)).fetchone():
+                print(f"{nuevo} ya es de otra cuenta")
+                return 1
+            n = conn.execute("UPDATE usuario SET email = %s WHERE email = %s", (nuevo, a.email.strip().lower())).rowcount
+            print(f"listo: ahora es {nuevo} (puede entrar también con Google)" if n else "no existe ese mail")
+            return 0 if n else 1
         if not a.email:
             ap.error("falta --email")
         email = a.email.strip().lower()

@@ -1206,3 +1206,58 @@ def test_capas_sobre_el_pronostico_gfs(cliente, cuentas, monkeypatch, tmp_path):
         with cuentas._pools["e"].connection() as conn:
             conn.execute("DELETE FROM carta_capa WHERE producto LIKE '%%@2026020100'")
             conn.commit()
+
+
+def test_alta_de_firmas_juntando_las_de_la_misma_persona(cliente, cuentas, monkeypatch, capsys):
+    """Una cuenta por persona para las firmas sin cuenta: «Zoe» y «zoé » se
+    juntan solas, «Teodoro» y «Teo» porque se lo pedimos, «Equipo Test» no es
+    una persona. Cada una con usuario y contraseña temporal distinta; la tabla
+    del grupo muestra una fila por persona."""
+    m = cuentas
+    firmas = (("Zoe", "2026-10-10"), ("zoé ", "2026-10-11"), ("Teodoro", "2026-10-10"), ("Teo", "2026-10-11"),
+              ("Equipo Test", "2026-10-10"), ("AnaP2", "2026-10-12"))
+    with m._pools["e"].connection() as conn:
+        for por, fecha in firmas:
+            eid = conn.execute("""INSERT INTO pronostico_emision (ciudad, fecha_pronostico, publicado_por, contenido, huella, capturado)
+                                  VALUES ('Ciudad Alta', %s, %s, '{}', %s, %s) RETURNING id""",
+                               (fecha, por, f"alta-{por}", fecha + " 08:00Z")).fetchone()["id"]
+            conn.execute("""INSERT INTO pronostico_dia (emision_id, fecha, plazo_dias, temp_min, temp_max, periodos)
+                            VALUES (%s, %s, 0, 10, 20, '[]')""", (eid, fecha))
+            conn.execute("""INSERT INTO verif_observado (ciudad, fecha, elemento, valor, categoria, estacion_id, detalle)
+                            VALUES ('Ciudad Alta', %s, 'tmin_urbana', 9, 'madrugada', 'omm_87593', '{}') ON CONFLICT DO NOTHING""", (fecha,))
+        conn.commit()
+    try:
+        opciones = ["--juntar", "Teodoro,Teo", "--juntar", "AnaP,AnaP2", "--excluir", "Equipo Test"]
+        m.main(["alta-firmas", "--probar"] + opciones)
+        assert "PRUEBA" in capsys.readouterr().out
+        assert not m._leer("SELECT 1 FROM usuario WHERE nombre_usuario IN ('zoe', 'teodoro')")
+        m.main(["alta-firmas"] + opciones)
+        salida = capsys.readouterr().out
+        assert "a la cuenta de Ana se le suman las firmas: AnaP2" in salida
+        cuentas_nuevas = {u["nombre_usuario"]: u for u in m._leer(
+            "SELECT nombre, nombre_usuario, firmas, email, clave_temporal FROM usuario WHERE email LIKE '%%@sin-mail.invalid'")}
+        assert sorted(cuentas_nuevas["zoe"]["firmas"]) == ["Zoe", "zoé "]
+        assert cuentas_nuevas["teodoro"]["nombre"] == "Teodoro" and sorted(cuentas_nuevas["teodoro"]["firmas"]) == ["Teo", "Teodoro"]
+        assert not any("Equipo Test" in u["firmas"] for u in cuentas_nuevas.values())
+        assert all(u["clave_temporal"] for u in cuentas_nuevas.values())
+        clave = next(l for l in salida.splitlines() if l.startswith("Teodoro")).split()[-1]
+        r = cliente.post("/auth/clave", json={"email": "teodoro", "clave": clave}, headers=X)
+        assert r.status_code == 200 and r.json()["temporal"]
+        # Correrlo de nuevo no duplica nada.
+        m.main(["alta-firmas"] + opciones)
+        assert "No hay firmas sin cuenta" in capsys.readouterr().out
+        # El mail real se pone después.
+        assert m.main(["mail", "--email", "teodoro@sin-mail.invalid", "--nuevo", "Teo@Gmail.com"]) == 0
+        # Una fila por persona en la tabla del grupo.
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "coord@gmail.com")
+        g = cliente.get("/api/yo/pronosticos/grupo?desde=2026-10-01&hasta=2026-10-31").json()["pronosticadores"]
+        teo = [x for x in g if x["usuario"] and x["usuario"]["nombre"] == "Teodoro"]
+        assert len(teo) == 1 and sorted(teo[0]["firmas"]) == ["Teo", "Teodoro"] and teo[0]["dias"] == 2
+        assert [x for x in g if x["firma"] == "Equipo Test"][0]["usuario"] is None
+    finally:
+        with m._pools["e"].connection() as conn:
+            conn.execute("DELETE FROM usuario WHERE email LIKE '%@sin-mail.invalid' OR email = 'teo@gmail.com'")
+            conn.execute("DELETE FROM pronostico_emision WHERE huella LIKE 'alta-%'")
+            conn.execute("DELETE FROM verif_observado WHERE ciudad = 'Ciudad Alta'")
+            conn.commit()

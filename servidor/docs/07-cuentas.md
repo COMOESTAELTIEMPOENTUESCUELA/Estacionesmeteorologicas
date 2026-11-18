@@ -377,3 +377,24 @@ todos y marca preguntas tratadas) y `admin` (además puede borrar cualquier nota
 ## Pendiente
 
 - Adjuntos en las notas: PDF de bibliografía y videos como links (las imágenes ya se pueden pegar).
+
+
+## Cuentas para todas las firmas de una vez
+
+```
+docker compose exec web python -m meteo.web.cuentas firmas
+docker compose exec web python -m meteo.web.cuentas alta-firmas --juntar "Matias,Mate" --excluir "Equipo FCAG" --probar
+docker compose exec web python -m meteo.web.cuentas alta-firmas --juntar "Matias,Mate" --excluir "Equipo FCAG"
+docker compose exec web python -m meteo.web.cuentas mail --email matias@sin-mail.invalid --nuevo su.mail@gmail.com
+```
+
+`firmas` lista cada firma de los pronósticos, cuántos publicó y de quién es (y
+avisa las que solo difieren en mayúsculas, tildes o espacios). `alta-firmas`
+crea UNA cuenta por persona para las firmas sin cuenta: junta solas las que
+solo difieren en eso y, con `--juntar`, las que uno sabe que son de la misma
+persona (si una ya tiene cuenta, las otras se le suman). Cada cuenta sale con
+un nombre de usuario para entrar sin mail y una contraseña temporal distinta,
+que se imprime una sola vez. El mail queda provisorio (`usuario@sin-mail.invalid`,
+dominio reservado que no existe); con `mail` se pone el real y desde ahí puede
+entrar también con Google. La tabla del grupo (Perfil → Grupo) muestra una
+fila por persona, con todas sus firmas.
