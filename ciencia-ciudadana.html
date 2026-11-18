@@ -720,6 +720,10 @@
                 (d.feeds || []).forEach(function(f) {
                     let v = parseFloat(f[rainField]);
                     if (isNaN(v) || v < 0) return;
+                    // field4 (EMA Verde) solo se resetea cuando el envío a ThingSpeak es
+                    // exitoso: tras un corte largo, el primer envío manda de golpe todo lo
+                    // acumulado (no la lluvia de un solo intervalo), así que se descarta.
+                    if (rainField === 'field4' && v > 10) return;
                     if (estacion.rainMult) {
                         // Pluviómetro de cazoleta (EMA Violeta): cada lectura > 0 es UN
                         // volcado de la cazoleta (0.68mm fijos), no una magnitud a escalar.
