@@ -667,3 +667,49 @@ def test_revisar_ema(cliente, capsys):
     finally:
         with web.pool_escritura.connection() as c:
             c.execute("DELETE FROM observacion WHERE estacion_id IN ('ema_verde', 'omm_87593') AND ts > %s", (t0 - timedelta(hours=1),))
+
+
+def test_lluvia_por_periodos_e_intensidad(cliente):
+    """Día civil por períodos; máximo en 1 h (ventana corrida) para todas; el
+    pico de 10 min solo donde hay dato cada 15 min o menos."""
+    from datetime import date, datetime, timedelta, timezone
+    from meteo.web.app import pool_escritura
+    ar = timezone(timedelta(hours=-3))
+    t = lambda h, m=0: datetime(2026, 3, 10, h, m, tzinfo=ar)
+    with pool_escritura.connection() as conn:
+        for e in ("test_ll10", "test_ll60"):
+            conn.execute("INSERT INTO estacion (id, nombre, tipo, fuente) VALUES (%s, %s, 'ema', 'manual') ON CONFLICT (id) DO NOTHING",
+                         (e, "Cada 10 min" if e == "test_ll10" else "Cada hora"))
+            conn.execute("DELETE FROM observacion WHERE estacion_id = %s", (e,))
+        filas = []
+        for k in range(24 * 6):                                   # cada 10 min, todo el día
+            ts = t(0) + timedelta(minutes=10 * k)
+            filas.append((ts, "test_ll10", "temp", 20.0))
+            mm = 0.0
+            if t(15, 10) <= ts <= t(15, 40):
+                mm = 5.0                                          # 4 × 5 mm en 40 min: 20 mm en 1 h; 5 mm en 10 min = 30 mm/h
+            elif ts == t(3, 0):
+                mm = 1.0
+            filas.append((ts, "test_ll10", "precip", mm))
+        for h in range(24):                                       # cada hora
+            filas.append((t(h), "test_ll60", "temp", 18.0))
+            filas.append((t(h), "test_ll60", "precip", 8.0 if h in (20, 21) else 0.0))
+        filas.append((t(0) - timedelta(minutes=30), "test_ll60", "precip", 50.0))      # del día anterior: no cuenta
+        for ts, est, var, v in filas:
+            conn.execute("INSERT INTO observacion (ts, estacion_id, variable, valor) VALUES (%s, %s, %s, %s)", (ts, est, var, v))
+        conn.commit()
+        try:
+            d = cliente.get("/api/lluvia/periodos", params={"dia": "2026-03-10"}).json()
+            e = {x["estacion"]: x for x in d["estaciones"]}
+            a, b = e["test_ll10"], e["test_ll60"]
+            assert a["periodos"] == [1.0, 0, 20.0, 0] and a["total"] == 21.0
+            assert a["max_1h"] == 20.0 and a["categoria"] == "fuerte" and a["cada_min"] == 10
+            assert a["pico_10min"] == 30.0 and a["categoria_pico"] == "fuerte"
+            assert b["periodos"] == [0, 0, 0, 16.0] and b["total"] == 16.0 and b["max_1h"] == 8.0 and b["categoria"] == "moderada"
+            assert b["pico_10min"] is None and b["cada_min"] == 60             # cada hora: sin pico de 10 min
+            assert d["hoy"] is False and a["ultima_hora"] is None
+            assert cliente.get("/api/lluvia/periodos", params={"dia": "2020-01-01"}).status_code == 400
+        finally:
+            conn.execute("DELETE FROM observacion WHERE estacion_id IN ('test_ll10', 'test_ll60')")
+            conn.execute("DELETE FROM estacion WHERE id IN ('test_ll10', 'test_ll60')")
+            conn.commit()

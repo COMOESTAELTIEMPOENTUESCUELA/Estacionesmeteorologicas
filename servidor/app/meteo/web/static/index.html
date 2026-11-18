@@ -1057,6 +1057,13 @@ g.de-otra-carta { opacity: .5; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #globito { background: #f1f5f9; color: #0f172a; } }
 :root[data-theme="dark"] #globito { background: #f1f5f9; color: #0f172a; }
 .sin-comprobar { font-size: 11px; color: var(--tinta-2); white-space: nowrap; cursor: help; border-bottom: 1px dotted var(--tenue); }
+.lp-tabla td, .lp-tabla th { white-space: nowrap; }
+.lp-int { display: inline-block; font-size: 11px; font-weight: 600; padding: 0 7px; border-radius: 99px; margin-left: 4px; }
+.lp-int.i1 { background: color-mix(in srgb, var(--s1) 15%, transparent); color: var(--s1); }
+.lp-int.i2 { background: color-mix(in srgb, var(--s3) 18%, transparent); color: var(--s3); }
+.lp-int.i3 { background: color-mix(in srgb, var(--s4) 22%, transparent); color: var(--s4); }
+.lp-int.i4 { background: color-mix(in srgb, var(--s2) 22%, transparent); color: var(--s2); }
+.lp-int.i5 { background: color-mix(in srgb, var(--s8) 25%, transparent); color: var(--s8); }
 .corr-elegir { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
 .corr-estado { margin: 12px 0 4px; padding: 10px 12px; border: 1px solid var(--borde); border-radius: 10px; background: var(--superficie); font-size: 14px; line-height: 1.5; min-height: 2.5em; }
 .corr-estado .barra { height: 6px; border-radius: 3px; background: var(--borde); margin-top: 6px; overflow: hidden; }
@@ -2132,7 +2139,7 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
         <button type="button" data-v="hum" title="La última humedad relativa de cada estación">💧 Humedad</button>
         <button type="button" data-v="pres" title="La última presión al nivel del mar (hPa) de cada estación; «est.» = solo la tiene a la altura de la estación (no se compara con las demás)">Presión</button>
         <button type="button" data-v="viento" title="Viento: la flecha apunta hacia donde va, la velocidad en km/h y de dónde viene; el color dice si es leve, moderado, regular o fuerte">💨 Viento</button>
-        <button type="button" data-v="lluvia" title="La lluvia acumulada hoy (desde las 0 hs de Argentina) en cada estación">🌧 Lluvia hoy</button>
+        <button type="button" data-v="lluvia" title="La lluvia del día pluviométrico en curso (desde las 09 hs de Argentina) en cada estación">🌧 Lluvia hoy</button>
       </div>
       <span class="tenue" id="mapa-var-nota"></span>
     </div>
@@ -2222,7 +2229,20 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
 
   <!-- ============================ LLUVIA ============================ -->
   <section id="tab-lluvia" hidden>
-    <div class="tarjeta">
+    <div class="tarjeta" id="lp">
+      <div class="filtros">
+        <h2 style="margin:0;font-size:18px;flex:1 1 260px">Lluvia por períodos e intensidad</h2>
+        <label>Día <input type="date" id="lp-dia" title="El día civil (00 a 24 hs, hora argentina)"></label>
+        <button type="button" class="boton" id="lp-actualizar" title="Volver a pedir los datos (las EMAs llegan cada 15 min; la red municipal, cada 1 h)">↻ Actualizar</button>
+      </div>
+      <div class="tabla-scroll" style="max-height:none"><table class="verif lp-tabla" id="lp-tabla"></table></div>
+      <p class="ayuda" id="lp-nota">Día civil (00 a 24 hs, hora argentina), en los períodos del pronóstico. <b>Máx. en 1 h</b>: lo más que llovió en
+        cualquier hora seguida (no de reloj), en mm/h: se compara entre todas las estaciones. <b>Pico</b>: lo caído en 10 minutos ×6 (mm/h),
+        solo en estaciones con dato cada 15 min o menos (en las que informan cada hora daría un número falso). Intensidad (mm/h):
+        débil hasta 2 · moderada 2 a 15 · fuerte 15 a 30 · muy fuerte 30 a 60 · torrencial más de 60 (referencia de AEMET).
+        Los pluviómetros de cazoleta subestiman con lluvia muy intensa.</p>
+    </div>
+    <div class="tarjeta" style="margin-top:16px">
       <div class="filtros">
         <span class="periodo" id="p-lluvia"></span>
         <label>Mostrar
@@ -8054,7 +8074,34 @@ try { ocultasLluvia = new Set(JSON.parse(localStorage.getItem("lluvia-ocultas") 
 const guardarOcultas = () => { try { localStorage.setItem("lluvia-ocultas", JSON.stringify([...ocultasLluvia])); } catch (_) {} };
 let origenesLluvia = new Map(), diasLluvia = [];
 
+// ----- Lluvia por períodos e intensidad (día civil) -----
+const CLASE_INTENSIDAD = { "débil": "i1", moderada: "i2", fuerte: "i3", "muy fuerte": "i4", torrencial: "i5" };
+const chipIntensidad = (c) => c ? `<span class="lp-int ${CLASE_INTENSIDAD[c] || ""}">${esc(c)}</span>` : "";
+async function cargarLluviaPeriodos() {
+  const dia = $("#lp-dia").value || hoyArg();
+  if (!$("#lp-dia").value) { $("#lp-dia").value = dia; $("#lp-dia").max = hoyArg(); }
+  $("#lp-tabla").innerHTML = '<tr><td class="tenue">Cargando…</td></tr>';
+  let d;
+  try { d = await api(`/api/lluvia/periodos?dia=${dia}`); }
+  catch (err) { $("#lp-tabla").innerHTML = `<tr><td class="tenue">${esc(err.message)}</td></tr>`; return; }
+  if (!d.estaciones.length) { $("#lp-tabla").innerHTML = `<tr><td class="tenue">Ninguna estación registró lluvia ${d.hoy ? "hoy (por ahora)" : "ese día"}.</td></tr>`; return; }
+  const n = (v) => v ? num(v) : '<span class="tenue">0</span>';
+  const hora = (t) => t ? new Date(t).toLocaleTimeString("es-AR", { timeZone: "America/Argentina/Buenos_Aires", hour: "2-digit", minute: "2-digit" }) : "";
+  $("#lp-tabla").innerHTML = `<tr><th>Estación</th><th title="Madrugada">00-06</th><th title="Mañana">06-12</th><th title="Tarde">12-18</th><th title="Noche">18-24</th>
+      <th>Total</th>${d.hoy ? '<th title="Lo que llovió en los últimos 60 minutos">Última hora</th>' : ""}<th title="Lo más que llovió en una hora seguida (mm/h)">Máx. en 1 h</th>
+      <th title="Lo caído en 10 minutos ×6 (mm/h), en estaciones con dato cada 15 min o menos">Pico (10 min)</th><th title="Cada cuántos minutos informa la estación">Dato cada</th></tr>`
+    + d.estaciones.map((e) => `<tr><td style="text-align:left"><b>${esc(e.nombre)}</b>${e.red === "municipio" ? ' <small class="tenue">municipal</small>' : ""}</td>
+      ${e.periodos.map((p) => `<td>${n(p)}</td>`).join("")}<td><b>${num(e.total)}</b></td>
+      ${d.hoy ? `<td>${e.ultima_hora ? `<b>${num(e.ultima_hora)}</b>` : '<span class="tenue">–</span>'}</td>` : ""}
+      <td title="Hasta las ${esc(hora(e.max_1h_hasta))}">${num(e.max_1h)} ${chipIntensidad(e.categoria)}</td>
+      <td>${e.pico_10min !== null ? `${num(e.pico_10min)} ${chipIntensidad(e.categoria_pico)}` : '<span class="tenue" title="La estación informa cada hora (o con huecos): no se puede medir un pico de 10 minutos">–</span>'}</td>
+      <td class="tenue">${e.cada_min ? `${e.cada_min} min` : "–"}</td></tr>`).join("");
+}
+$("#lp-dia").addEventListener("change", cargarLluviaPeriodos);
+$("#lp-actualizar").addEventListener("click", cargarLluviaPeriodos);
+
 async function cargarLluvia() {
+  cargarLluviaPeriodos();
   if (!periodoLluvia) {
     periodoLluvia = controlPeriodo($("#p-lluvia"), { ultimos: [[7, "Últimos 7 días"], [14, "Últimos 14 días"],
       [31, "Últimos 31 días"], [90, "Últimos 90 días"]], porDefecto: 14, maxDias: 366, alCambiar: cargarLluvia });

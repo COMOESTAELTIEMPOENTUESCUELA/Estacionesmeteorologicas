@@ -265,3 +265,19 @@ comparación hora a hora con La Plata Aero y la EMA Violeta (sesgo, error medio,
 correlación, el sesgo de la temperatura según la hora del día y las máximas y
 mínimas diarias). Opciones: `--desde 2026-11-04` (desde la instalación) y
 `--refs omm_87593,bavio` (contra qué estaciones comparar).
+
+
+## Lluvia por períodos e intensidad (Ahora → Lluvia diaria)
+
+Arriba de la tabla de días pluviométricos, una tarjeta con la lluvia de un día
+CIVIL (00 a 24 hs, hora argentina; hoy por defecto) por estación, en los
+períodos del pronóstico (00-06, 06-12, 12-18, 18-24), el total, lo de la última
+hora (solo hoy), la **intensidad máxima en 1 h** (la mayor cantidad en
+cualquier ventana de 60 minutos seguidos: mm/h comparables entre todas las
+estaciones) y el **pico en 10 min** (×6, en mm/h), este solo en estaciones con
+dato cada 15 minutos o menos (en las que informan cada hora, como la red
+municipal, daría un número falso). Categorías (mm/h, referencia de AEMET):
+débil ≤ 2, moderada ≤ 15, fuerte ≤ 30, muy fuerte ≤ 60, torrencial más
+(`INTENSIDAD_PP` en `web/app.py`). `GET /api/lluvia/periodos?dia=AAAA-MM-DD`.
+Ojo: la «lluvia de hoy» del mapa y la tabla de días son del día pluviométrico
+(09 a 09), no del civil.

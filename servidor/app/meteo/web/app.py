@@ -372,6 +372,73 @@ def lluvia(dias: int = 14, desde: date | None = None, hasta: date | None = None,
     return _json(filas)
 
 
+# Intensidad de la lluvia: umbrales en mm/h (referencia de AEMET; se pueden ajustar).
+INTENSIDAD_PP = ((2, "débil"), (15, "moderada"), (30, "fuerte"), (60, "muy fuerte"), (float("inf"), "torrencial"))
+
+
+def categoria_intensidad(mm_h):
+    if mm_h is None or mm_h <= 0:
+        return None
+    return next(n for tope, n in INTENSIDAD_PP if mm_h <= tope)
+
+
+@app.get("/api/lluvia/periodos")
+def lluvia_periodos(dia: date | None = None):
+    """La lluvia de un día CIVIL (00 a 24 hs, hora argentina; hoy si no se dice)
+    por estación: por período (madrugada, mañana, tarde, noche, como en el
+    pronóstico), el total, la intensidad máxima en 1 h (la mayor cantidad en
+    cualquier ventana de 60 min seguidos, en mm/h: comparable entre estaciones)
+    y el pico en 10 min (×6, en mm/h; solo con datos cada 15 min o menos: si
+    no, daría un número falso). Hoy, además, lo de la última hora."""
+    from zoneinfo import ZoneInfo
+    hoy = datetime.now(ZoneInfo(TZ_AR)).date()
+    dia = dia or hoy
+    if (hoy - dia).days > 366 or dia > hoy:
+        raise HTTPException(400, "un día del último año")
+    filas = consultar(f"""
+        WITH lim AS (SELECT (%s::date::timestamp AT TIME ZONE '{TZ_AR}') AS t0,
+                            ((%s::date + 1)::timestamp AT TIME ZONE '{TZ_AR}') AS t1),
+        pp AS (
+          SELECT o.estacion_id, o.ts, o.valor,
+                 extract(hour FROM o.ts AT TIME ZONE '{TZ_AR}')::int AS h,
+                 sum(o.valor) OVER (PARTITION BY o.estacion_id ORDER BY o.ts
+                                    RANGE BETWEEN interval '59 minutes' PRECEDING AND CURRENT ROW) AS en_1h,
+                 sum(o.valor) OVER (PARTITION BY o.estacion_id ORDER BY o.ts
+                                    RANGE BETWEEN interval '9 minutes' PRECEDING AND CURRENT ROW) AS en_10min
+          FROM observacion o, lim
+          WHERE o.variable = 'precip' AND o.qc <> 4 AND o.ts > lim.t0 - interval '1 hour' AND o.ts <= lim.t1),
+        cada AS (
+          SELECT o.estacion_id, extract(epoch FROM max(o.ts) - min(o.ts)) / 60 / nullif(count(*) - 1, 0) AS cada_min
+          FROM observacion o, lim WHERE o.variable = 'temp' AND o.ts > lim.t0 AND o.ts <= lim.t1 GROUP BY 1)
+        SELECT pp.estacion_id, e.nombre, e.tipo, e.red, c.cada_min,
+               sum(valor) FILTER (WHERE ts > lim.t0 AND h < 6) AS p1, sum(valor) FILTER (WHERE ts > lim.t0 AND h >= 6 AND h < 12) AS p2,
+               sum(valor) FILTER (WHERE ts > lim.t0 AND h >= 12 AND h < 18) AS p3, sum(valor) FILTER (WHERE ts > lim.t0 AND h >= 18) AS p4,
+               sum(valor) FILTER (WHERE ts > lim.t0) AS total,
+               max(en_1h) FILTER (WHERE ts > lim.t0) AS max_1h,
+               (array_agg(ts ORDER BY en_1h DESC) FILTER (WHERE ts > lim.t0))[1] AS max_1h_hasta,
+               max(en_10min) FILTER (WHERE ts > lim.t0) AS max_10min,
+               sum(valor) FILTER (WHERE ts > now() - interval '1 hour') AS ultima_hora,
+               max(ts) AS ultimo
+        FROM pp JOIN estacion e ON e.id = pp.estacion_id CROSS JOIN lim LEFT JOIN cada c ON c.estacion_id = pp.estacion_id
+        GROUP BY pp.estacion_id, e.nombre, e.tipo, e.red, c.cada_min
+        ORDER BY total DESC NULLS LAST, e.nombre""", (dia, dia))
+    r = lambda x: None if x is None else round(float(x), 1)
+    salida = []
+    for f in filas:
+        if not f["total"]:
+            continue
+        cada = round(float(f["cada_min"])) if f["cada_min"] else None
+        pico = r(f["max_10min"] * 6) if f["max_10min"] is not None and cada and cada <= 15 else None
+        salida.append({"estacion": f["estacion_id"], "nombre": f["nombre"], "tipo": f["tipo"], "red": f["red"],
+                       "periodos": [r(f["p1"]) or 0, r(f["p2"]) or 0, r(f["p3"]) or 0, r(f["p4"]) or 0],
+                       "total": r(f["total"]), "max_1h": r(f["max_1h"]), "max_1h_hasta": _iso(f["max_1h_hasta"]),
+                       "categoria": categoria_intensidad(r(f["max_1h"])), "pico_10min": pico,
+                       "categoria_pico": categoria_intensidad(pico), "cada_min": cada,
+                       "ultima_hora": r(f["ultima_hora"]) if dia == hoy else None, "ultimo": _iso(f["ultimo"])})
+    return {"dia": dia, "hoy": dia == hoy, "umbrales": [[t if t != float("inf") else None, n] for t, n in INTENSIDAD_PP],
+            "estaciones": salida}
+
+
 # ---------------------------------------------------------------------------
 # Estado de la ingesta
 # ---------------------------------------------------------------------------
