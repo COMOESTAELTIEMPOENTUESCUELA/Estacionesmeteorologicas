@@ -192,6 +192,14 @@
     // intervalo de ~60s. Se descarta esa lectura en vez de sumarla como lluvia real.
     const LLUVIA_SALTO_SOSPECHOSO_MM = 10;
 
+    // La estación estuvo caída ~9 días (hasta el 18/11) y al reconectarse largó el
+    // backlog de pulsos sin enviar en varias tandas repartidas a lo largo de varias
+    // horas, no en un solo salto -LLUVIA_SALTO_SOSPECHOSO_MM no alcanza a frenar eso-.
+    // No hay forma de separar ese backlog de la lluvia real de hoy, así que se corta:
+    // no se cuenta nada de lluvia anterior a este instante. Deja de tener efecto solo
+    // en cuanto "hoy"/"la semana" avancen más allá de este momento.
+    const CORTAR_LLUVIA_DESDE = "2026-11-18T15:50:00";
+
     const graficos = { temp: null, hum: null, pres: null, rain: null };
 
     const pad = (n) => n.toString().padStart(2, '0');
@@ -285,6 +293,7 @@
             const v = parseFloat(f.field4);
             if (isNaN(v) || v < 0) return;
             if (v > LLUVIA_SALTO_SOSPECHOSO_MM) return; // salto de reconexión, no lluvia real
+            if (new Date(f.created_at) < new Date(CORTAR_LLUVIA_DESDE)) return;
             total += v;
             horas.push(formatearEtiquetaFecha(new Date(f.created_at), incluirFecha));
             curva.push(+total.toFixed(2));

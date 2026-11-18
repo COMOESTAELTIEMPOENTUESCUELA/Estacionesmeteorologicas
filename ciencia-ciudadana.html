@@ -685,7 +685,12 @@
             { id: "2823820", key: "FFI1HK80ZKDNS6V8", n: "Observatorio (Campbell)", c: [-34.908364, -57.933164], live: true },
             // El equipo de la EMA Verde se trasladó de la Facultad a la EP N°23 (Bavío).
             // Se muestra como "EP N°23": es la estación de la escuela, cambió el equipo.
-            { id: "2218686", key: "O85A0DJ31L8MQZ6F", isEmaVerde: true, n: "EP N°23", c: [-35.0254, -57.7529], live: true },
+            // cortarLluviaDesde: la estación estuvo caída ~9 días (hasta el 18/11) y al
+            // reconectarse largó el backlog de pulsos sin enviar en varias tandas a lo
+            // largo de varias horas. No se puede separar de la lluvia real de hoy, así
+            // que no se cuenta nada anterior a este instante (ver red-meteorologica.html).
+            { id: "2218686", key: "O85A0DJ31L8MQZ6F", isEmaVerde: true, n: "EP N°23", c: [-35.0254, -57.7529], live: true,
+              cortarLluviaDesde: "2026-11-18T15:50:00" },
             // Daza sacada del mapa: la estación se dio de baja (fuera de operatividad).
             // { source: "wunderground", wuId: "ILAPLA66", wuKey: "470147c769f6493f8147c769f6693fd9",
             //   n: "Daza", c: [-34.9091, -57.9325], live: true },
@@ -724,6 +729,7 @@
                     // exitoso: tras un corte largo, el primer envío manda de golpe todo lo
                     // acumulado (no la lluvia de un solo intervalo), así que se descarta.
                     if (rainField === 'field4' && v > 10) return;
+                    if (estacion.cortarLluviaDesde && new Date(f.created_at) < new Date(estacion.cortarLluviaDesde)) return;
                     if (estacion.rainMult) {
                         // Pluviómetro de cazoleta (EMA Violeta): cada lectura > 0 es UN
                         // volcado de la cazoleta (0.68mm fijos), no una magnitud a escalar.
