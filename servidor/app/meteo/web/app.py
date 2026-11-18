@@ -98,6 +98,9 @@ from . import cuentas  # noqa: E402
 
 cuentas.configurar(pool, pool_escritura)
 app.include_router(cuentas.router)
+from . import avisos  # noqa: E402  (la 🔔 y los avisos al celular)
+
+app.include_router(avisos.router)
 
 
 # ---------------------------------------------------------------------------

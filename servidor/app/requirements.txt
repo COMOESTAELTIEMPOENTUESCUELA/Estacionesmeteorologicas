@@ -24,5 +24,9 @@ eccodes==2.41.0
 # Miniaturas de las cartas (ya venía con matplotlib; se fija por usarla directo)
 pillow==11.0.0
 
+# Avisos al celular (Web Push): cifrado y firma VAPID
+pywebpush==2.5.0
+py-vapid==1.9.6
+
 # Tests
 pytest==8.3.4

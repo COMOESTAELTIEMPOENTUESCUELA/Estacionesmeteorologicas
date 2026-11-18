@@ -398,3 +398,23 @@ que se imprime una sola vez. El mail queda provisorio (`usuario@sin-mail.invalid
 dominio reservado que no existe); con `mail` se pone el real y desde ahí puede
 entrar también con Google. La tabla del grupo (Perfil → Grupo) muestra una
 fila por persona, con todas sus firmas.
+
+
+## Avisos (la 🔔) y avisos al celular
+
+La 🔔 de arriba avisa, a la persona afectada (nunca a quien lo hizo), cuando:
+comentan o reaccionan a una nota o a un pronóstico suyo, responden un
+comentario suyo, le escriben en una conversación o un coordinador trata su
+pregunta en la reunión. Los parecidos se juntan mientras no se leyeron («Leo y
+Beto comentaron tu nota»). Tocar un aviso lleva a esa publicación sola (o al
+chat) y lo marca leído. Código: `web/avisos.py`; tablas `notificacion`,
+`push_suscripcion` y `push_clave`.
+
+**Al celular (Web Push):** desde la 🔔, «📱 Avisarme en este dispositivo». Solo
+desde la dirección https (la copia de Tailscale Funnel), no desde
+http://IP:8080. En Android anda desde el navegador; en iPhone hay que instalar la
+página en la pantalla de inicio (iOS 16.4 o más) y abrirla desde ese ícono. La
+clave VAPID del servidor se crea sola la primera vez (tabla `push_clave`; la
+privada no se muestra en la pestaña Tablas). Por seguridad solo se aceptan
+direcciones de los servicios de avisos de Google, Apple, Mozilla y Microsoft.
+El servidor tiene que poder salir a internet hacia esos servicios.

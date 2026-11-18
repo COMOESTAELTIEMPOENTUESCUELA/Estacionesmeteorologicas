@@ -178,6 +178,30 @@ td.nw { white-space: nowrap; }
 .causas-total { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 12px; }
 .causas-total .chip { font-size: 13px; padding: 3px 10px; }
 .cuenta { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 13px; }
+/* ----- Avisos (la 🔔) ----- */
+.avisos-btn { position: relative; }
+.avisos-n { position: absolute; top: -6px; right: -6px; background: #dc2626; color: #fff; font-size: 10.5px; font-weight: 700;
+  border-radius: 99px; min-width: 17px; height: 17px; line-height: 17px; padding: 0 4px; text-align: center; }
+.avisos-panel { position: fixed; top: 58px; right: 12px; z-index: 60; width: min(380px, calc(100vw - 24px)); max-height: min(70vh, 560px);
+  display: flex; flex-direction: column; background: var(--superficie); color: var(--tinta); border: 1px solid var(--borde);
+  border-radius: 12px; box-shadow: 0 12px 32px rgba(0,0,0,.28); overflow: hidden; }
+.avisos-panel .av-cab { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--borde); }
+.avisos-panel .av-cab b { flex: 1; font-size: 15px; }
+.avisos-panel .av-lista { overflow-y: auto; flex: 1; }
+.avisos-panel .av-item { display: flex; gap: 10px; width: 100%; text-align: left; padding: 10px 12px; border: 0;
+  border-bottom: 1px solid var(--borde); background: none; color: inherit; font: inherit; font-size: 13.5px; cursor: pointer; }
+.avisos-panel .av-item:hover, .avisos-panel .av-item:focus-visible { background: color-mix(in srgb, var(--acento) 8%, transparent); }
+.avisos-panel .av-item.nueva { background: color-mix(in srgb, var(--acento) 12%, transparent); }
+.avisos-panel .av-item { position: relative; padding-right: 28px; }
+.avisos-panel .av-item.nueva::after { content: ""; position: absolute; right: 12px; top: 16px; width: 8px; height: 8px;
+  border-radius: 50%; background: var(--acento); }
+.avisos-panel .av-ico { font-size: 18px; line-height: 1.2; }
+.avisos-panel .av-txt small { display: block; color: var(--tinta-2); font-size: 12px; margin-top: 2px; }
+.avisos-panel .av-pie { padding: 10px 12px; border-top: 1px solid var(--borde); font-size: 12.5px; color: var(--tinta-2);
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.red-solo { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 10px; padding: 8px 12px; border-radius: 10px;
+  background: color-mix(in srgb, var(--acento) 12%, transparent); font-size: 13.5px; }
+@media (max-width: 640px) { .avisos-panel { top: 52px; right: 8px; } }
 #d-nota { width: min(600px, 94vw); border: 1px solid var(--borde); border-radius: 12px; background: var(--superficie); color: var(--tinta); padding: 18px; }
 #d-nota::backdrop { background: rgba(0,0,0,.45); }
 #d-nota form { display: flex; flex-direction: column; gap: 10px; }
@@ -2910,6 +2934,7 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
             <input type="search" id="mf-buscar" placeholder="Buscar (texto, persona, #etiqueta, ciudad)…" style="flex:1 1 180px;min-width:140px">
             <label class="en-linea" id="lb-l-todas" hidden title="Solo administradores"><input type="checkbox" id="lb-todas"> Incluir las privadas de todos</label>
           </div>
+          <div class="red-solo" id="red-solo" hidden>🔔 Te muestro solo lo del aviso. <button class="boton chico" id="red-solo-todo" title="Volver a ver todo lo último del grupo">Ver todo el Inicio</button></div>
           <div id="red-feed" class="red-feed"></div>
           <button class="boton red-mas" id="red-mas" hidden title="Cargar lo publicado en las semanas anteriores">Ver días anteriores</button>
         </div>
@@ -8482,6 +8507,7 @@ function marcarBarraAbajo() {
 }
 $("#barra-abajo").addEventListener("click", (e) => {
   const b = e.target.closest("[data-ir]"); if (!b) return;
+  red.solo = null;
   const v = b.dataset.ir;
   if (v === "cartas") abrir("cartas");
   else if (v === "publicar") {
@@ -8491,6 +8517,144 @@ $("#barra-abajo").addEventListener("click", (e) => {
   setTimeout(marcarBarraAbajo, 60);
 });
 if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("/sw.js").catch(() => {});
+
+// ======================================================================
+// AVISOS: la 🔔 (comentarios, reacciones, mensajes, preguntas respondidas)
+// y los avisos al celular (Web Push). El servidor arma el texto; acá se
+// muestran, se marcan leídos y, al tocar uno, se va a lo que avisa.
+// ======================================================================
+const avisos = { datos: null, abierto: false, reloj: null };
+const ICONO_AVISO = { comentario: "💬", respuesta: "↩️", reaccion: "👍", mensaje: "✉️", reunion: "🗓️" };
+function iniciarAvisos() {
+  if (!$("#avisos-panel")) {
+    document.body.insertAdjacentHTML("beforeend", `<div class="avisos-panel" id="avisos-panel" role="dialog" aria-label="Avisos" hidden>
+      <div class="av-cab"><b>🔔 Avisos</b><button class="boton chico" id="av-leidas" title="Marcar todos los avisos como leídos">Marcar todo leído</button>
+        <button class="boton chico" id="av-cerrar" title="Cerrar" aria-label="Cerrar">✕</button></div>
+      <div class="av-lista" id="av-lista"></div><div class="av-pie" id="av-pie"></div></div>`);
+    $("#av-cerrar").addEventListener("click", () => alternarAvisos(false));
+    $("#av-leidas").addEventListener("click", async () => {
+      await apiEnviar("/api/yo/avisos/leidas", "POST", {}).catch(() => {});
+      cargarAvisos();
+    });
+    $("#av-lista").addEventListener("click", (e) => { const b = e.target.closest("[data-aviso]"); if (b) abrirAviso(Number(b.dataset.aviso)); });
+    $("#av-pie").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-push]"); if (!b) return;
+      ({ activar: activarPush, desactivar: desactivarPush, probar: probarPush })[b.dataset.push]();
+    });
+    // Un clic afuera o Esc lo cierra.
+    document.addEventListener("click", (e) => { if (avisos.abierto && !e.target.closest("#avisos-panel, #avisos-btn")) alternarAvisos(false); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && avisos.abierto) alternarAvisos(false); });
+    // Tocaron un aviso del celular con la página ya abierta.
+    navigator.serviceWorker?.addEventListener("message", (e) => { if (e.data?.aviso) irAlHashAviso(new URL(e.data.aviso).hash); });
+    addEventListener("hashchange", () => irAlHashAviso(location.hash));
+  }
+  cargarAvisos().then(() => irAlHashAviso(location.hash));
+  clearInterval(avisos.reloj);
+  avisos.reloj = setInterval(() => { if (!document.hidden) cargarAvisos(); }, 60000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) cargarAvisos(); });
+}
+async function cargarAvisos() {
+  try { avisos.datos = await api("/api/yo/avisos"); } catch (_) { return; }
+  const n = avisos.datos.no_leidas;
+  $("#avisos-n").hidden = !n;
+  $("#avisos-n").textContent = n > 99 ? "99+" : n;
+  $("#avisos-btn").title = n ? `${n} aviso${n > 1 ? "s" : ""} sin leer` : "Avisos: comentarios, reacciones, mensajes y preguntas respondidas";
+  if ("setAppBadge" in navigator) (n ? navigator.setAppBadge(n) : navigator.clearAppBadge()).catch(() => {});
+  if (avisos.abierto) dibujarAvisos();
+}
+function alternarAvisos(abrirlo = !avisos.abierto) {
+  avisos.abierto = abrirlo;
+  $("#avisos-panel").hidden = !abrirlo;
+  $("#avisos-btn").setAttribute("aria-expanded", abrirlo);
+  if (abrirlo) { dibujarAvisos(); cargarAvisos(); }
+}
+function dibujarAvisos() {
+  const d = avisos.datos || { items: [] };
+  $("#av-leidas").hidden = !d.no_leidas;
+  $("#av-lista").innerHTML = d.items.length ? d.items.map((a) => `<button class="av-item${a.leida ? "" : " nueva"}" data-aviso="${a.id}">
+      <span class="av-ico" aria-hidden="true">${ICONO_AVISO[a.tipo] || "🔔"}</span>
+      <span class="av-txt">${esc(a.texto)}<small>${hace(a.creada)}</small></span></button>`).join("")
+    : '<p class="tenue" style="padding:14px">No tenés avisos. Te avisa cuando comentan o reaccionan a lo tuyo, te escriben o responden tu pregunta.</p>';
+  dibujarEstadoPush();
+}
+async function abrirAviso(id) {
+  const a = (avisos.datos?.items || []).find((x) => x.id === id);
+  if (!a) return;
+  alternarAvisos(false);
+  if (!a.leida) { a.leida = true; apiEnviar("/api/yo/avisos/leidas", "POST", { ids: [id] }).then(cargarAvisos).catch(() => {}); }
+  irAlAviso(a.enlace || {});
+}
+async function irAlAviso(enlace) {
+  if (enlace.chat) {
+    irRed("chat");
+    for (let i = 0; i < 50 && !red.listo; i++) await new Promise((r) => setTimeout(r, 100));
+    await cargarChats();
+    abrirConv(Number(enlace.chat));
+  } else if (enlace.objeto) {
+    red.solo = enlace.objeto;       // cargarInicio muestra solo esa publicación
+    irRed("inicio");
+  }
+}
+// "#aviso-123": viene de tocar el aviso en el celular.
+async function irAlHashAviso(hash) {
+  const m = /^#aviso-(\d+)$/.exec(hash || "");
+  if (!m || !YO) return;
+  history.replaceState(history.state, "", location.pathname + location.search + "#grupo");
+  if (Number(m[1]) === 0) return;                         // el aviso de prueba
+  if (!avisos.datos?.items.some((a) => a.id === Number(m[1]))) await cargarAvisos();
+  abrirAviso(Number(m[1]));
+}
+
+// ----- Avisos al celular (Web Push) -----
+function motivoSinPush() {
+  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  if (location.protocol !== "https:") return "Los avisos al celular solo andan desde la dirección segura (https://…), no desde la de la casa.";
+  if (!("serviceWorker" in navigator) || !("PushManager" in window) || !window.Notification) {
+    return ios ? "En iPhone: instalá la página (Compartir → «Agregar a inicio») y abrila desde ese ícono; ahí aparece la opción."
+               : "Este navegador no permite avisos.";
+  }
+  if (Notification.permission === "denied") return "Bloqueaste los avisos para esta página: habilitalos en la configuración del navegador (el candado al lado de la dirección).";
+  if (!avisos.datos?.clave_push) return "El servidor todavía no tiene los avisos al celular configurados.";
+  return "";
+}
+async function suscripcionActual() {
+  try { return await (await navigator.serviceWorker.ready).pushManager.getSubscription(); } catch (_) { return null; }
+}
+async function dibujarEstadoPush() {
+  const pie = $("#av-pie"), motivo = motivoSinPush();
+  if (motivo) { pie.innerHTML = `📱 ${esc(motivo)}`; return; }
+  const sub = await suscripcionActual();
+  pie.innerHTML = sub
+    ? `📱 Este dispositivo recibe avisos. <button class="boton chico" data-push="probar" title="Mandar un aviso de prueba a este dispositivo">Probar</button>
+       <button class="boton chico" data-push="desactivar" title="Dejar de recibir avisos en este dispositivo">Desactivar</button>`
+    : `<button class="boton chico primario" data-push="activar" title="Recibir los avisos en este dispositivo aunque la página esté cerrada">📱 Avisarme en este dispositivo</button>
+       <span>aunque la página esté cerrada</span>`;
+}
+function bytesDeClave(b64) {
+  const s = atob(b64.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - (b64.length % 4)) % 4));
+  return Uint8Array.from(s, (c) => c.charCodeAt(0));
+}
+async function activarPush() {
+  try {
+    if (await Notification.requestPermission() !== "granted") { dibujarEstadoPush(); return; }
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: bytesDeClave(avisos.datos.clave_push) });
+    await apiEnviar("/api/yo/avisos/celular", "POST", sub.toJSON());
+  } catch (ex) { alert(`No se pudo activar: ${ex.message}`); }
+  dibujarEstadoPush();
+}
+async function desactivarPush() {
+  const sub = await suscripcionActual();
+  if (sub) {
+    await apiEnviar("/api/yo/avisos/celular", "DELETE", { endpoint: sub.endpoint }).catch(() => {});
+    await sub.unsubscribe().catch(() => {});
+  }
+  dibujarEstadoPush();
+}
+async function probarPush() {
+  try { await apiEnviar("/api/yo/avisos/probar", "POST", {}); alert("Listo: en unos segundos tiene que llegar el aviso de prueba."); }
+  catch (ex) { alert(ex.message); }
+}
 
 // ----- "Ver como pronosticador" (una cookie que el servidor usa para BAJARte los permisos) -----
 function verComo(prender) {
@@ -8560,9 +8724,11 @@ async function cargarCuenta() {
   if (YO && typeof cpr !== "undefined" && cpr.plazos.length) mostrarPlazoGFS();      // el ✏️ y los dibujos del pronóstico
   const c = $("#cuenta");
   if (YO) {
-    c.innerHTML = `<span>👤 ${esc(YO.nombre)}</span><button class="boton" id="cuenta-clave" title="${YO.tiene_clave ? "Cambiar mi contraseña" : "Ponerme una contraseña (para entrar sin Google)"}">🔑</button><button class="boton" id="cuenta-salir" title="Cerrar la sesión en este navegador">Salir</button>`;
+    c.innerHTML = `<button class="boton avisos-btn" id="avisos-btn" title="Avisos: comentarios, reacciones, mensajes y preguntas respondidas" aria-label="Avisos" aria-expanded="false">🔔<b class="avisos-n" id="avisos-n" hidden></b></button><span>👤 ${esc(YO.nombre)}</span><button class="boton" id="cuenta-clave" title="${YO.tiene_clave ? "Cambiar mi contraseña" : "Ponerme una contraseña (para entrar sin Google)"}">🔑</button><button class="boton" id="cuenta-salir" title="Cerrar la sesión en este navegador">Salir</button>`;
     $("#cuenta-salir").addEventListener("click", async () => { await apiEnviar("/auth/salir", "POST"); location.hash = ""; location.reload(); });
     $("#cuenta-clave").addEventListener("click", () => abrirCambioClave(false));
+    $("#avisos-btn").addEventListener("click", (e) => { e.stopPropagation(); alternarAvisos(); });
+    iniciarAvisos();
     // Administradores y coordinadores: ver la página como la ve un pronosticador.
     if (YO.rol_real) {
       document.body.insertAdjacentHTML("afterbegin", `<div class="ver-como" role="status">👁 Estás viendo la página <b>como un pronosticador</b>
@@ -8985,6 +9151,12 @@ async function cargarFeed(estado, params, dest, boton, vacio, mas = false) {
 }
 const paramsInicio = () => ($("#lb-todas").checked && !$("#lb-l-todas").hidden ? { todas: "true" } : {});
 async function cargarInicio(mas = false) {
+  $("#red-solo").hidden = !red.solo;
+  if (red.solo) {          // vino de un aviso: solo esa publicación
+    await cargarFeed(red.inicio, { objeto: red.solo }, "#red-feed", "#red-mas", "Esa publicación ya no está (se borró o dejó de ser compartida).");
+    $("#red-mas").hidden = true;
+    return;
+  }
   await cargarFeed(red.inicio, paramsInicio(), "#red-feed", "#red-mas",
     "Todavía no hay nada. Escribí arriba lo que viste, o usá los botones 📝 Anotar de Cartas", mas);
   dibujarAyer();
@@ -9852,6 +10024,7 @@ async function cargarFilas() {
 // ----- Navegación entre secciones -----
 function verRed(v, cargar = true) {
   red.vista = v;
+  if (v !== "inicio") red.solo = null;
   setTimeout(() => anotarLugar(), 0);
   setTimeout(marcarBarraAbajo, 0);
   document.querySelectorAll("#red-nav button").forEach((b) => b.classList.toggle("activa", b.dataset.rv === v));
@@ -10257,7 +10430,8 @@ async function datosComposer() {
 async function iniciarPerfil() {
   $("#red-yo").innerHTML = `${avatar(YO.nombre, "grande", YO.id)}<span><b>${esc(YO.nombre)}</b><small>${esc({ admin: "administrador", coordinador: "coordinador", pronosticador: "pronosticador" }[YO.rol] || "")}</small></span>`;
   $("#mc-avatar").outerHTML = avatar(YO.nombre, "grande", YO.id).replace(/^<(img|span) class="/, '<$1 id="mc-avatar" class="');
-  $("#red-nav").addEventListener("click", (e) => { const b = e.target.closest("[data-rv]"); if (b) verRed(b.dataset.rv); });
+  $("#red-nav").addEventListener("click", (e) => { const b = e.target.closest("[data-rv]"); if (b) { red.solo = null; verRed(b.dataset.rv); } });
+  $("#red-solo-todo").addEventListener("click", () => { red.solo = null; cargarInicio(); });
   $("#red-yo").addEventListener("click", () => verRed("perfil"));
   $("#rv-b-metricas").hidden = !esCoord();
   $("#rv-b-admin").hidden = YO.rol !== "admin";

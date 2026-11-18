@@ -704,6 +704,8 @@ async def reaccionar(request: Request):
         raise HTTPException(404, "No existe o no lo podés ver")
     if not _escribir("DELETE FROM reaccion WHERE objeto = %s AND usuario_id = %s AND tipo = %s RETURNING 1", (objeto, u["id"], tipo)):
         _escribir("INSERT INTO reaccion (objeto, usuario_id, tipo) VALUES (%s, %s, %s)", (objeto, u["id"], tipo))
+        from . import avisos
+        avisos.notificar(avisos.dueño_de(objeto), "reaccion", f"reac:{objeto}", {"objeto": objeto}, u["id"])
     return _reacciones(u, [objeto]).get(objeto, {"conteo": {}, "mias": [], "quienes": {}})
 
 
@@ -717,8 +719,10 @@ async def comentar_pronostico(request: Request):
     if not objeto.startswith("pron|") or not _existe_objeto(u, objeto):
         raise HTTPException(404, "Ese pronóstico no existe")
     responde = _responde_a(datos, "SELECT 1 FROM comentario_pronostico WHERE id = %s AND objeto = %s", objeto)
-    return _escribir("INSERT INTO comentario_pronostico (objeto, usuario_id, texto, responde_a) VALUES (%s, %s, %s, %s) RETURNING id",
+    fila = _escribir("INSERT INTO comentario_pronostico (objeto, usuario_id, texto, responde_a) VALUES (%s, %s, %s, %s) RETURNING id",
                      (objeto, u["id"], texto, responde))[0]
+    _avisar_comentario(u, objeto, texto, responde, "SELECT usuario_id FROM comentario_pronostico WHERE id = %s")
+    return fila
 
 
 @router.delete("/api/yo/pronostico/comentarios/{comentario_id}")
@@ -1007,11 +1011,15 @@ def un_pronostico(request: Request, objeto: str):
 
 
 @router.get("/api/yo/muro")
-def muro(request: Request, hasta: date | None = None, dias: int = 7, autor_id: int | None = None, firma: str = ""):
+def muro(request: Request, hasta: date | None = None, dias: int = 7, autor_id: int | None = None, firma: str = "",
+         objeto: str = ""):
     """El inicio de la red: notas compartidas (y las propias) y pronósticos
     publicados, con lo observado, de `dias` días hasta `hasta` (lo más nuevo
-    primero). Con autor_id (o firma), solo lo de esa persona."""
+    primero). Con autor_id (o firma), solo lo de esa persona. Con objeto
+    ("nota:5" o "pron|ciudad|fecha|firma"), solo esa publicación (al tocar un aviso)."""
     u = requiere_usuario(request)
+    if objeto:
+        return _muro_uno(u, objeto)
     hasta = hasta or HOY_ARG()
     dias = max(1, min(dias, 31))
     desde = hasta - timedelta(days=dias - 1)
@@ -1050,6 +1058,27 @@ def muro(request: Request, hasta: date | None = None, dias: int = 7, autor_id: i
     return {"desde": desde, "hasta": hasta, "items": items,
             "siguiente": (desde - timedelta(days=1)) if mas_viejo and mas_viejo < desde else None}
 
+
+
+def _muro_uno(u, objeto):
+    items = []
+    if objeto.startswith("nota:") and objeto[5:].isdigit():
+        for n in _notas_con_extras(u, ["(n.usuario_id = %s OR n.compartida)", "n.id = %s"], [u["id"], int(objeto[5:])], limite=1):
+            items.append({"tipo": "nota", "ts": n["creada"], "nota": n})
+    else:
+        partes = objeto.split("|")
+        try:
+            fecha = date.fromisoformat(partes[2]) if len(partes) == 4 and partes[0] == "pron" else None
+        except ValueError:
+            fecha = None
+        if fecha:
+            emisiones = _leer("""
+                SELECT ciudad, fecha_pronostico, publicado_por, max(capturado) AS capturado, bool_or(es_correccion) AS correccion
+                FROM pronostico_emision WHERE ciudad = %s AND fecha_pronostico = %s AND publicado_por = %s
+                GROUP BY 1, 2, 3""", (partes[1], fecha, partes[3]))
+            if emisiones:
+                items = _armar_pronosticos(u, emisiones, fecha, fecha)
+    return {"desde": None, "hasta": None, "items": items, "siguiente": None}
 
 
 @router.get("/api/yo/dia")
@@ -1427,6 +1456,10 @@ async def tratar_en_reunion(nota_id: int, request: Request):
                       (estado, tratada, tratada, respuesta, tratada, u["id"], nota_id, u["id"], es_coordinador(u)))
     if not filas:
         raise HTTPException(404, "No existe, no es compartida o no la podés modificar")
+    if tratada:
+        from . import avisos
+        avisos.notificar(avisos.dueño_de(f"nota:{nota_id}"), "reunion", f"reunion:{nota_id}", {"objeto": f"nota:{nota_id}"},
+                         u["id"], respuesta or "")
     return filas[0]
 
 
@@ -1442,8 +1475,24 @@ async def comentar(nota_id: int, request: Request):
                  (nota_id, u["id"], u["rol"] == "admin")):
         raise HTTPException(404, "No existe o no la podés ver")
     responde = _responde_a(datos, "SELECT 1 FROM nota_comentario WHERE id = %s AND nota_id = %s", nota_id)
-    return _escribir("INSERT INTO nota_comentario (nota_id, usuario_id, texto, responde_a) VALUES (%s, %s, %s, %s) RETURNING id",
+    fila = _escribir("INSERT INTO nota_comentario (nota_id, usuario_id, texto, responde_a) VALUES (%s, %s, %s, %s) RETURNING id",
                      (nota_id, u["id"], texto, responde))[0]
+    _avisar_comentario(u, f"nota:{nota_id}", texto, responde, "SELECT usuario_id FROM nota_comentario WHERE id = %s")
+    return fila
+
+
+def _avisar_comentario(u, objeto, texto, responde, sql_autor):
+    """Avisa al autor de la nota o del pronóstico y, si es una respuesta, al
+    autor del comentario respondido (una sola vez si es la misma persona)."""
+    from . import avisos
+    dueño = avisos.dueño_de(objeto)
+    respondido = None
+    if responde:
+        f = _leer(sql_autor, (responde,))
+        respondido = f[0]["usuario_id"] if f else None
+    if respondido and respondido != dueño:
+        avisos.notificar(respondido, "respuesta", f"resp:{objeto}", {"objeto": objeto}, u["id"], texto)
+    avisos.notificar(dueño, "comentario", f"coment:{objeto}", {"objeto": objeto}, u["id"], texto)
 
 
 def _responde_a(datos, sql, dueño):
@@ -1681,6 +1730,8 @@ def mensajes(request: Request, cid: int, desde: int = 0):
     if filas:
         _escribir("UPDATE conversacion_miembro SET leido_hasta = greatest(leido_hasta, %s) WHERE conversacion_id = %s AND usuario_id = %s",
                   (filas[-1]["id"], cid, u["id"]))
+        from . import avisos
+        avisos.leer_chat(u["id"], cid)
     return filas
 
 
@@ -1701,6 +1752,11 @@ async def mandar_mensaje(request: Request, cid: int):
     mid = _escribir("INSERT INTO mensaje (conversacion_id, usuario_id, texto, adjunto) VALUES (%s, %s, %s, %s) RETURNING id",
                     (cid, u["id"], texto, adjunto))[0]["id"]
     _escribir("UPDATE conversacion_miembro SET leido_hasta = %s WHERE conversacion_id = %s AND usuario_id = %s", (mid, cid, u["id"]))
+    from . import avisos
+    conv = _leer("SELECT tipo, nombre FROM conversacion WHERE id = %s", (cid,))[0]
+    enlace = {"chat": cid, "nombre": conv["nombre"] if conv["tipo"] != "privada" else None}
+    for m in _leer("SELECT usuario_id FROM conversacion_miembro WHERE conversacion_id = %s AND usuario_id <> %s", (cid, u["id"])):
+        avisos.notificar(m["usuario_id"], "mensaje", f"chat:{cid}", enlace, u["id"], texto or "🌡️ un pronóstico")
     return {"id": mid}
 
 
@@ -1729,7 +1785,8 @@ def compartir_mensaje(request: Request, mid: int):
 # ---------------------------------------------------------------------------
 CODIGO_VERIFICACION = ("observado.py", "pronostico.py", "puntajes.py", "etiquetas.py", "ajustes.py")
 # Columnas que no se muestran nunca (huellas de contraseñas y sesiones).
-COLUMNAS_OCULTAS = {("usuario", "clave"), ("sesion", "huella"), ("visita_sal", "sal")}
+COLUMNAS_OCULTAS = {("usuario", "clave"), ("sesion", "huella"), ("visita_sal", "sal"), ("push_clave", "privada"),
+                    ("push_suscripcion", "auth"), ("push_suscripcion", "p256dh")}
 FILAS_POR_PAGINA = 100
 
 

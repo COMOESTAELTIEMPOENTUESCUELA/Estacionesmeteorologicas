@@ -252,3 +252,35 @@ CREATE TABLE IF NOT EXISTS gfs_corrida (
     error       text,
     actualizada timestamptz NOT NULL DEFAULT now()
 );
+
+-- Avisos (la 🔔): uno por persona y "cosa" mientras no lo leyó (clave), con
+-- quiénes lo provocaron (actores, el último al final). Ver avisos.py.
+CREATE TABLE IF NOT EXISTS notificacion (
+    id         serial PRIMARY KEY,
+    usuario_id int NOT NULL REFERENCES usuario(id) ON DELETE CASCADE,
+    tipo       text NOT NULL,
+    clave      text NOT NULL,
+    enlace     jsonb NOT NULL DEFAULT '{}',
+    actores    int[] NOT NULL DEFAULT '{}',
+    extracto   text NOT NULL DEFAULT '',
+    creada     timestamptz NOT NULL DEFAULT now(),
+    leida      boolean NOT NULL DEFAULT false
+);
+CREATE UNIQUE INDEX IF NOT EXISTS notificacion_abierta ON notificacion (usuario_id, clave) WHERE NOT leida;
+CREATE INDEX IF NOT EXISTS notificacion_usuario ON notificacion (usuario_id, creada DESC);
+-- Los celulares/navegadores que pidieron avisos (Web Push).
+CREATE TABLE IF NOT EXISTS push_suscripcion (
+    id         serial PRIMARY KEY,
+    usuario_id int NOT NULL REFERENCES usuario(id) ON DELETE CASCADE,
+    endpoint   text NOT NULL UNIQUE,
+    p256dh     text NOT NULL,
+    auth       text NOT NULL,
+    agente     text,
+    creada     timestamptz NOT NULL DEFAULT now()
+);
+-- La clave VAPID del servidor (se crea sola; la privada no se muestra en la pestaña Tablas).
+CREATE TABLE IF NOT EXISTS push_clave (
+    id      int PRIMARY KEY CHECK (id = 1),
+    privada text NOT NULL,
+    publica text NOT NULL
+);

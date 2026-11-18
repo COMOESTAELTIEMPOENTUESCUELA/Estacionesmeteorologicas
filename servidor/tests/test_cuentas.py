@@ -1261,3 +1261,97 @@ def test_alta_de_firmas_juntando_las_de_la_misma_persona(cliente, cuentas, monke
             conn.execute("DELETE FROM pronostico_emision WHERE huella LIKE 'alta-%'")
             conn.execute("DELETE FROM verif_observado WHERE ciudad = 'Ciudad Alta'")
             conn.commit()
+
+
+def test_avisos_campanita_y_celular(cliente, cuentas, monkeypatch):
+    """La 🔔: comentarios y reacciones a lo mío (juntados), respuestas a mis
+    comentarios, mensajes y preguntas tratadas; nunca por lo que hice yo. Los
+    avisos al celular solo a servicios de avisos reales, y se borra la
+    suscripción que el celular dio de baja."""
+    from meteo.web import avisos
+    m = cuentas
+
+    class Ahora:                     # mandar al celular en el momento (en la página va en otro hilo)
+        def submit(self, f, *a):
+            f(*a)
+    monkeypatch.setattr(avisos, "_envios", Ahora())
+    enviados = []
+    import pywebpush
+
+    class Respuesta:
+        status_code = 410
+
+    def webpush_falso(sub, datos, **k):
+        enviados.append((sub["endpoint"], json.loads(datos)))
+        if "viejo" in sub["endpoint"]:
+            raise pywebpush.WebPushException("se fue", response=Respuesta())
+    monkeypatch.setattr(pywebpush, "webpush", webpush_falso)
+    ids = {r["email"]: r["id"] for r in m._leer("SELECT id, email FROM usuario WHERE email IN ('ana@gmail.com','beto@gmail.com','coord@gmail.com')")}
+    with m._pools["e"].connection() as conn:
+        eid = conn.execute("""INSERT INTO pronostico_emision (ciudad, fecha_pronostico, publicado_por, contenido, huella, capturado)
+                              VALUES ('Ciudad Aviso', '2026-10-10', 'AnaP', '{}', 'aviso-pron', '2026-10-10 08:00Z') RETURNING id""").fetchone()["id"]
+        conn.execute("INSERT INTO pronostico_dia (emision_id, fecha, plazo_dias, temp_min, temp_max, periodos) VALUES (%s, '2026-10-10', 0, 10, 20, '[]')", (eid,))
+        conn.commit()
+    try:
+        # Ana: una pregunta compartida y su celular.
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "ana@gmail.com")
+        nid = cliente.post("/api/yo/notas", json={"tipo": "pregunta", "texto": "¿Por qué falló el GFS?", "compartida": True},
+                           headers=X).json()["id"]
+        assert cliente.post("/api/yo/avisos/celular", json={"endpoint": "https://10.0.0.5/x", "keys": {"p256dh": "a", "auth": "b"}},
+                            headers=X).status_code == 400                       # no es un servicio de avisos: no
+        for ep in ("https://fcm.googleapis.com/fcm/send/nuevo", "https://web.push.apple.com/viejo"):
+            assert cliente.post("/api/yo/avisos/celular", json={"endpoint": ep, "keys": {"p256dh": "a", "auth": "b"}},
+                                headers=X).status_code == 200
+        cliente.post(f"/api/yo/notas/{nid}/comentarios", json={"texto": "yo misma"}, headers=X)
+        d = cliente.get("/api/yo/avisos").json()
+        assert d["no_leidas"] == 0 and d["clave_push"]                         # lo propio no avisa
+        # Beto y el coordinador comentan; Beto reacciona al pronóstico y le escribe.
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "beto@gmail.com")
+        cb = cliente.post(f"/api/yo/notas/{nid}/comentarios", json={"texto": "Por la convección"}, headers=X).json()["id"]
+        cliente.post("/api/yo/reacciones", json={"objeto": "pron|Ciudad Aviso|2026-10-10|AnaP", "tipo": "aplauso"}, headers=X)
+        chat = cliente.post("/api/yo/chats", json={"miembros": [ids["ana@gmail.com"]]}, headers=X).json()["id"]
+        cliente.post(f"/api/yo/chats/{chat}/mensajes", json={"texto": "¿Viste la vaguada?"}, headers=X)
+        cliente.post(f"/api/yo/chats/{chat}/mensajes", json={"texto": "¿Y el frente?"}, headers=X)
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "coord@gmail.com")
+        cliente.post(f"/api/yo/notas/{nid}/comentarios", json={"texto": "Lo vemos el jueves", "responde_a": cb}, headers=X)
+        cliente.put(f"/api/yo/notas/{nid}/reunion", json={"estado": "tratada", "respuesta": "Faltaban datos"}, headers=X)
+        # Lo que ve Ana.
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "ana@gmail.com")
+        d = cliente.get("/api/yo/avisos").json()
+        textos = {a["tipo"]: a["texto"] for a in d["items"]}
+        assert d["no_leidas"] == 4                                              # 2 comentarios juntos, reacción, chat, reunión
+        assert textos["comentario"].startswith("Coord y Beto comentaron tu nota")
+        assert textos["reaccion"] == "Beto reaccionó a tu pronóstico de Ciudad Aviso del 10/10"
+        assert textos["mensaje"] == "Beto: «¿Y el frente?»"
+        assert textos["reunion"] == "Coord trató tu pregunta en la reunión: «Faltaban datos»"
+        # Al celular: cada aviso, y la suscripción vieja (410) se borró.
+        assert {e for e, _ in enviados} == {"https://fcm.googleapis.com/fcm/send/nuevo", "https://web.push.apple.com/viejo"}
+        assert [x["endpoint"] for x in m._leer("SELECT endpoint FROM push_suscripcion WHERE usuario_id = %s", (ids["ana@gmail.com"],))] \
+            == ["https://fcm.googleapis.com/fcm/send/nuevo"]
+        assert enviados[-1][1]["url"].startswith("/#aviso-") and enviados[-1][1]["texto"].startswith("Coord trató")
+        # Tocar un aviso lleva a esa publicación sola.
+        uno = cliente.get(f"/api/yo/muro?objeto=nota:{nid}").json()["items"]
+        assert [i["nota"]["id"] for i in uno] == [nid]
+        pron = cliente.get("/api/yo/muro", params={"objeto": "pron|Ciudad Aviso|2026-10-10|AnaP"}).json()["items"]
+        assert [i["firma"] for i in pron] == ["AnaP"]
+        # Leer el chat marca su aviso; "marcar todo" el resto.
+        cliente.get(f"/api/yo/chats/{chat}/mensajes")
+        assert cliente.get("/api/yo/avisos").json()["no_leidas"] == 3
+        cliente.post("/api/yo/avisos/leidas", json={}, headers=X)
+        assert cliente.get("/api/yo/avisos").json()["no_leidas"] == 0
+        # Beto recibió la respuesta del coordinador a su comentario.
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "beto@gmail.com")
+        assert [a["texto"] for a in cliente.get("/api/yo/avisos").json()["items"]] == ["Coord respondió tu comentario: «Lo vemos el jueves»"]
+        # Nadie ve la clave privada en la pestaña Tablas.
+        assert ("push_clave", "privada") in m.COLUMNAS_OCULTAS
+    finally:
+        with m._pools["e"].connection() as conn:
+            conn.execute("DELETE FROM pronostico_emision WHERE huella = 'aviso-pron'")
+            conn.execute("DELETE FROM conversacion WHERE id IN (SELECT conversacion_id FROM conversacion_miembro WHERE usuario_id = %s)",
+                         (ids["ana@gmail.com"],))
+            conn.commit()
