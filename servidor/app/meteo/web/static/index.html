@@ -811,6 +811,9 @@ img.con-fondo { background-color: #fff !important; background-size: 100% 100%; b
 .cpr-grid .carta-img { overflow: hidden; border-radius: 6px; }
 .cpr-grid .cpr-lienzo { position: relative; transform-origin: 0 0; --inv: 1; }
 .cpr-dib { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+.cpr-flujo { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+.cpr-grid:not(.flujo) .cpr-flujo { display: none; }
+.cpr-grid.flujo .cpr-lienzo img { opacity: .62; }      /* la carta atenuada: el flujo resalta */
 .cpr-herr { position: sticky; top: var(--alto-cab, 0px); z-index: 20; margin: 6px 0; }
 /* La barra del visor, mudada arriba de la grilla: con el mismo fondo oscuro que en el visor. */
 .cpr-herr .barra { flex-wrap: wrap; gap: 6px; padding: 8px 10px; border-radius: 10px; background: #111827; color: #e5e7eb;
@@ -2550,6 +2553,8 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
           <button class="boton" id="cpr-z0" title="Ver la carta entera (0)">⟲</button>
         </span>
         <label class="en-linea" title="Puntos en las ciudades del pronóstico del grupo (tecla C)"><input type="checkbox" id="cpr-ciudades" checked> Ciudades</label>
+        <label class="en-linea" id="cpr-l-flujo" title="Animar el viento encima de cada carta (como Windy): Superficie y chorro en 250 hPa, θe en 850, IVT en 700 y vorticidad en 500. Apagado no se baja ni se dibuja nada (para que ande rápido)."><input type="checkbox" id="cpr-flujo"> 🌬️ Flujo</label>
+        <span class="tenue" id="cpr-flujo-estado" style="font-size:12px"></span>
         <button type="button" class="boton chico primario" id="cpr-dibujar" hidden title="Dibujar directamente en estas cartas, con la barra de herramientas del visor: cada trazo va a la carta donde lo hacés">✏️ Dibujar acá</button>
         <button type="button" class="boton chico" id="cpr-las4" hidden title="Dibujar una sola vez y que se vea en las cuatro cartas de este plazo (frentes, centros…)">✏️ Dibujar en las 4</button>
         <label class="en-linea" id="cpr-l-fantasma" title="Mostrar, en gris y transparente, lo dibujado (por vos o compartido) en la corrida anterior para esta misma hora: para ver cuánto cambió el modelo"><input type="checkbox" id="cpr-fantasma"> 👻 Dibujo de la corrida anterior</label>
@@ -5090,6 +5095,7 @@ function figuraGFS(k, url, titulo, inicio = cpr.inicio, plazo = cpr.plazos[cpr.i
       <span class="cpr-cruces" data-cruces="${esc(p.id)}@${clave}|${valida}"></span>
       <span class="cpr-autores" data-capa-autores="${esc(p.id)}@${clave}|${valida}"></span></figcaption>
     ${url ? `<div class="carta-img" data-grupo="gfs"><div class="cpr-lienzo"><img src="${esc(url)}" alt="${esc(p.nombre)}" draggable="false">
+      <canvas class="cpr-flujo" data-flujo="${clave}|${plazo}|${NIVEL_FLUJO[p.id.replace(/^gfs_pro_/, "")] || "850"}"></canvas>
       <svg class="cpr-dib" data-capa="${esc(p.id)}@${clave}|${valida}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"></svg>${puntos}<div class="cruz" hidden></div></div>${selloGFS(inicio, plazo)}</div>`
           : '<div class="falta chica">No está guardada</div>'}</figure>`;
 }
@@ -5169,6 +5175,7 @@ function mostrarPlazoGFS() {
   aplicarZoomGFS();
   pintarCapasGFS();
   $("#cpr-dibujar").hidden = !YO;
+  iniciarFlujo();
   $("#cpr-las4").hidden = !YO || v !== "cuatro";
   marcarPlazoMeteograma();
   if (!verif) document.querySelectorAll("#cpr-dias button").forEach((b) =>
@@ -5248,6 +5255,86 @@ document.addEventListener("click", (e) => {
   const b = e.target.closest("[data-cpr-dibujar]");
   if (b) abrirCartaPron(b.dataset.cprDibujar, b.dataset.corrida, Number(b.dataset.plazo), false);     // solo esa carta
 });
+
+// ----- Flujo del viento animado (partículas, como Windy) -----
+// El servidor guarda, por corrida y plazo, una grilla chica del viento (cartas/viento.py):
+// /cartas-img/_pronostico/_viento/<corrida>/grilla.json y f048.bin (int8, m/s:
+// [nivel][u, v][lat][lon]). Cada carta anima su nivel. Apagado (por defecto) no se
+// pide ni se dibuja nada; se pausa solo si la tarjeta o la pestaña no están a la vista.
+const NIVEL_FLUJO = { mslp_jet: "250", "850_thetae": "850", ivt: "700", "500_vort": "500" };
+const flujo = { on: false, cache: new Map(), lienzos: [], raf: null, gen: 0 };
+try { flujo.on = localStorage.getItem("gfs-flujo") === "si"; } catch (_) {}
+async function datosFlujo(clave, plazo) {
+  const k = `${clave}|${plazo}`;
+  if (!flujo.cache.has(k)) flujo.cache.set(k, (async () => {
+    const base = `/cartas-img/_pronostico/_viento/${clave}/`;
+    const [g, b] = await Promise.all([fetch(base + "grilla.json").then((r) => (r.ok ? r.json() : null)),
+                                      fetch(base + `f${String(plazo).padStart(3, "0")}.bin`).then((r) => (r.ok ? r.arrayBuffer() : null))]);
+    return g && b ? { g, d: new Int8Array(b) } : null;
+  })().catch(() => null));
+  if (flujo.cache.size > 80) flujo.cache.delete(flujo.cache.keys().next().value);
+  return flujo.cache.get(k);
+}
+function vientoEn(V, nivel, lon, lat) {        // bilineal; null afuera de la grilla
+  const g = V.g, fi = (lat - g.lat0) / g.dlat, fj = (lon - g.lon0) / g.dlon;
+  if (fi < 0 || fj < 0 || fi > g.nlat - 1 || fj > g.nlon - 1) return null;
+  const i = Math.min(g.nlat - 2, fi | 0), j = Math.min(g.nlon - 2, fj | 0), a = fi - i, b = fj - j, n = g.nlat * g.nlon;
+  const k = g.niveles.indexOf(nivel), m = (o) => {
+    const q = (o + i * g.nlon + j);
+    return V.d[q] * (1 - a) * (1 - b) + V.d[q + 1] * (1 - a) * b + V.d[q + g.nlon] * a * (1 - b) + V.d[q + g.nlon + 1] * a * b;
+  };
+  return [m((k * 2) * n), m((k * 2 + 1) * n)];
+}
+const colorFlujo = (s) => s < 5 ? "rgba(255,255,255,0.55)" : s < 15 ? "rgba(255,255,255,0.95)" : s < 25 ? "rgba(255,225,70,1)" : s < 40 ? "rgba(255,120,50,1)" : "rgba(255,60,140,1)";
+async function iniciarFlujo() {
+  cancelAnimationFrame(flujo.raf);
+  const gen = ++flujo.gen;
+  flujo.lienzos = [];
+  $("#cpr-grid").classList.toggle("flujo", flujo.on);
+  $("#cpr-flujo-estado").textContent = "";
+  if (!flujo.on || !cpr.marco) return;
+  const cvs = [...document.querySelectorAll("#cpr-grid canvas.cpr-flujo")];
+  const cuantas = innerWidth < 700 ? 450 : 1000;                 // menos partículas en el celular
+  let sinDatos = 0;
+  for (const cv of cvs) {
+    const [clave, plazo, nivel] = cv.dataset.flujo.split("|");
+    const V = await datosFlujo(clave, Number(plazo));
+    if (gen !== flujo.gen) return;                                 // mientras, se cambió de plazo
+    if (!V) { sinDatos++; continue; }
+    const k = devicePixelRatio || 1, w = cv.offsetWidth, h = cv.offsetHeight;
+    if (!w || !h) continue;
+    cv.width = Math.round(w * k); cv.height = Math.round(h * k);
+    const g = V.g, nueva = () => ({ lon: g.lon0 + Math.random() * (g.nlon - 1) * g.dlon, lat: g.lat0 + Math.random() * (g.nlat - 1) * g.dlat, edad: Math.random() * 90 | 0 });
+    flujo.lienzos.push({ cv, ctx: cv.getContext("2d"), V, nivel, k, parts: Array.from({ length: cuantas }, nueva), nueva });
+  }
+  if (sinDatos) $("#cpr-flujo-estado").textContent = flujo.lienzos.length ? "" : "sin viento guardado para esta corrida (se guarda desde esta versión)";
+  const caja = cpr.marco.caja;
+  const cuadro = () => {
+    if (gen !== flujo.gen) return;
+    flujo.raf = requestAnimationFrame(cuadro);
+    if (document.hidden || !$("#cpr").offsetParent) return;        // no se ve: no se gasta
+    for (const L of flujo.lienzos) {
+      const { ctx, cv, V, nivel, k } = L, W = cv.width, H = cv.height;
+      ctx.globalCompositeOperation = "destination-in"; ctx.fillStyle = "rgba(0,0,0,0.95)"; ctx.fillRect(0, 0, W, H);
+      ctx.globalCompositeOperation = "source-over"; ctx.lineCap = "round";
+      for (const p of L.parts) {
+        const w = vientoEn(V, nivel, p.lon, p.lat);
+        if (!w || ++p.edad > 110) { Object.assign(p, L.nueva(), { edad: 0 }); continue; }
+        const [fx0, fy0] = aImagen(p.lon, p.lat);
+        const c = Math.max(0.2, Math.cos(p.lat * Math.PI / 180));
+        p.lon += w[0] * 1800 / (111320 * c); p.lat += w[1] * 1800 / 110540;
+        const [fx1, fy1] = aImagen(p.lon, p.lat);
+        if (fx0 < caja[0] || fx0 > caja[2] || fy0 < caja[1] || fy0 > caja[3] || fx1 < caja[0] || fx1 > caja[2] || fy1 < caja[1] || fy1 > caja[3]) continue;
+        ctx.beginPath(); ctx.moveTo(fx0 * W, fy0 * H); ctx.lineTo(fx1 * W, fy1 * H);
+        ctx.strokeStyle = "rgba(10,15,25,0.5)"; ctx.lineWidth = 3 * k; ctx.stroke();
+        ctx.strokeStyle = colorFlujo(Math.hypot(w[0], w[1])); ctx.lineWidth = 1.5 * k; ctx.stroke();
+      }
+    }
+  };
+  if (flujo.lienzos.length) cuadro();
+}
+let relojFlujo = null;
+addEventListener("resize", () => { if (!flujo.on) return; clearTimeout(relojFlujo); relojFlujo = setTimeout(iniciarFlujo, 300); });
 
 // ----- Dibujar directamente en la grilla (las 4 juntas): una sola barra de herramientas -----
 // La barra del visor se muda arriba de la grilla; cada trazo va a la capa de la
@@ -5450,6 +5537,12 @@ function iniciarPronosticoGFS() {
   $("#cpr-vista").addEventListener("change", (e) => { cpr.vista = e.target.value; mostrarPlazoGFS(); });
   $("#cpr-corrida").addEventListener("change", (e) => cargarPronosticoGFS(e.target.value || null));
   $("#cpr-fantasma").checked = verFantasma;
+  $("#cpr-flujo").checked = flujo.on;
+  $("#cpr-flujo").addEventListener("change", (e) => {
+    flujo.on = e.target.checked;
+    try { localStorage.setItem("gfs-flujo", flujo.on ? "si" : "no"); } catch (_) {}
+    iniciarFlujo();
+  });
 
   $("#cpr-las4").addEventListener("click", () => {
     const p = cpr.productos[0];

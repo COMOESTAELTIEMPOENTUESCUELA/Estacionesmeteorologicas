@@ -413,6 +413,7 @@ def _correr_pronostico_gfs(productos, raiz, sesion, ahora=None, analisis=(), fij
             campos = _bajar_gfs(inicio, eb.PEDIDOS | puntos.PEDIDOS_PRONOSTICO, eb.REGION, sesion, plazo=plazo)
             valores[plazo] = {c: {k: v for k, v in x.items() if k != "perfil"} for c, x in puntos.extraer(campos).items()}
             imagenes = eb.dibujar(campos, inicio, plazo)
+            _guardar_viento(raiz, inicio, plazo, campos)
             if plazo == 0:
                 for p in analisis:
                     if p.get("carta") in imagenes and not archivo.existe(raiz, p["id"], inicio):
@@ -436,6 +437,8 @@ def _correr_pronostico_gfs(productos, raiz, sesion, ahora=None, analisis=(), fij
         pronostico.publicar(raiz, p["id"], tmps[p["id"]], inicio, cuadros[p["id"]],
                             conservar=conservar, ahora=ahora, extra=extra, fijas=quedan)
     puntos.guardar_pronostico(raiz, inicio, valores, conservar=conservar_puntos, ahora=ahora, fijas=quedan)
+    from . import viento
+    viento.limpiar(raiz, (ahora or datetime.now(timezone.utc)) - conservar, quedan)      # el viento, como las cartas
     log.info("cartas: pronóstico GFS de la corrida %s listo (%d plazos)", inicio, len(eb.PLAZOS))
     return len(eb.PLAZOS) * len(productos)
 
@@ -483,6 +486,7 @@ def dibujar_pedida(cfg, raiz, sesion, inicio, plazo_pref=0, max_plazos=PLAZOS_PO
                 campos = _bajar_gfs(inicio, eb.PEDIDOS | puntos.PEDIDOS_PRONOSTICO, eb.REGION, sesion, plazo=plazo)
                 valores[plazo] = {c: {k: v for k, v in x.items() if k != "perfil"} for c, x in puntos.extraer(campos).items()}
                 imagenes = eb.dibujar(campos, inicio, plazo)
+                _guardar_viento(raiz, inicio, plazo, campos)
                 if plazo == 0:
                     for p in analisis:
                         if p.get("carta") in imagenes and not archivo.existe(raiz, p["id"], inicio):
@@ -501,6 +505,15 @@ def dibujar_pedida(cfg, raiz, sesion, inicio, plazo_pref=0, max_plazos=PLAZOS_PO
                 puntos.guardar_pronostico(raiz, inicio, valores)
                 log.info("cartas: corrida pedida %s, +%d h dibujado", inicio, plazo)
     return min(len(h) for h in hechos.values()), len(eb.PLAZOS)
+
+
+def _guardar_viento(raiz, inicio, plazo, campos):
+    """El viento del plazo para animarlo en la página (viento.py). Si falla, las cartas siguen igual."""
+    from . import viento
+    try:
+        viento.guardar(raiz, inicio, plazo, campos)
+    except Exception as ex:
+        log.warning("cartas: no se pudo guardar el viento de %s +%d h: %s", inicio, plazo, str(ex)[:120])
 
 
 GFS_HORAS_ATRAS = 48      # el análisis sale ~4 h después de la hora; si la PC estuvo apagada, se recupera

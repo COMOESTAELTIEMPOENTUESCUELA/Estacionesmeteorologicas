@@ -420,6 +420,16 @@ se dibuja (con ▲ ▼ se ve el dibujo común sobre cada carta; la otra capa pro
 queda abajo, fija); en la vista «Las 4 juntas», «✏️ Dibujar en las 4» abre el
 visor así. Privada o compartida, con fantasma, copiar y agenda, como las demás.
 
+**🌬️ Flujo** (interruptor en Pronóstico GFS, apagado por defecto y recordado
+en el navegador): partículas que siguen el viento encima de cada carta, como
+Windy. Superficie y chorro en 250 hPa, θe en 850, IVT en 700 y vorticidad en
+500. Al dibujar cada plazo el servidor guarda una grilla chica del viento
+(`cartas/viento.py`: cada 1,5°, int8 en m/s, ~72 KB por plazo, ~2,4 MB por
+corrida) en `_pronostico/_viento/<corrida>/`, que se borra con la corrida
+(salvo las fijadas). Apagado no se pide ni se dibuja nada; prendido, se pausa
+solo si la tarjeta o la pestaña no se ven, y en el celular usa menos
+partículas. Las corridas dibujadas antes de esta versión no tienen viento.
+
 **Dibujar directamente en la grilla** («✏️ Dibujar acá», en Pronóstico GFS):
 la barra de herramientas del visor (`#c-herr`) se muda arriba de las cartas
 (`#cpr-herr`, fija al bajar) y se dibuja en cualquiera de ellas sin abrir el

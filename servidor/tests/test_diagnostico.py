@@ -450,3 +450,29 @@ def test_corrida_redibujada_sobrevive_a_la_siguiente_publicacion(tmp_path):
     assert any(d["inicio"].startswith("2026-10-20") and d.get("redibujada") for d in pronostico.corridas(tmp_path, "g"))
     siguiente(actual + timedelta(hours=12), set())
     assert not (pronostico.carpeta(tmp_path, "g") / nom).exists()
+
+
+def test_viento_para_animar(tmp_path):
+    """Por plazo, una grilla chica del viento (cada 1,5°, int8 en m/s) para animar
+    las cartas; se borra con la corrida salvo las fijadas."""
+    from meteo.cartas import viento
+    from meteo.cartas.gfs import Campo
+    lat, lon = np.arange(25, -80.1, -0.5), np.arange(-150, 40.1, 0.5)
+    la, lo = np.meshgrid(lat, lon, indexing="ij")
+    campos = {}
+    for k, n in enumerate(viento.NIVELES):
+        campos[("UGRD", f"{n} mb")] = Campo(lat, lon, 10.0 + k + 0 * la)
+        campos[("VGRD", f"{n} mb")] = Campo(lat, lon, -200.0 + 0 * la)          # se recorta a -127
+    ini = datetime(2026, 11, 1, 0, tzinfo=UTC)
+    assert viento.guardar(tmp_path, ini, 48, campos)
+    d = viento.carpeta(tmp_path, ini)
+    g = __import__("json").loads((d / "grilla.json").read_text())
+    assert (g["nlat"], g["nlon"], g["dlat"], g["dlon"], g["niveles"]) == (71, 127, -1.5, 1.5, ["250", "500", "700", "850"])
+    b = np.frombuffer((d / "f048.bin").read_bytes(), dtype=np.int8).reshape(4, 2, 71, 127)
+    assert b[0, 0, 0, 0] == 10 and b[3, 0, 5, 5] == 13 and b[2, 1, 0, 0] == -127
+    assert not viento.guardar(tmp_path, ini, 54, {("UGRD", "850 mb"): campos[("UGRD", "850 mb")]})   # faltan niveles
+    viejo = datetime(2026, 10, 1, 0, tzinfo=UTC)
+    assert viento.guardar(tmp_path, viejo, 0, campos)
+    assert viento.limpiar(tmp_path, datetime(2026, 10, 20, tzinfo=UTC), fijas={viejo}) == 0      # fijada: queda
+    assert viento.limpiar(tmp_path, datetime(2026, 10, 20, tzinfo=UTC)) == 1
+    assert not viento.carpeta(tmp_path, viejo).exists() and d.exists()
