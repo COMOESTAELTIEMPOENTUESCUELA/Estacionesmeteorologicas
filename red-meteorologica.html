@@ -2535,6 +2535,11 @@
 
         // ─── COMPARADOR DE ESTACIONES POR VARIABLE (acceso oculto) ──────────────
         const CLAVE_COMPARADOR = 'Maraton';
+        // Si entre dos lecturas consecutivas de una estación hay más de este hueco
+        // (ej. una estación caída varios días), no se dibuja una línea recta uniendo
+        // los dos puntos -esa recta sugiere falsamente una subida/bajada gradual que
+        // nunca pasó-, se corta la línea en su lugar.
+        const UMBRAL_HUECO_COMPARADOR_MS = 3 * 60 * 60 * 1000; // 3 horas
         let comparadorAutenticado = false;
         let variableComparadorActual = 'temp';
         let variableComparador2Actual = null; // variable opcional a superponer (eje derecho)
@@ -2866,7 +2871,7 @@
                 pointRadius: 2,
                 pointHoverRadius: 6,
                 tension: 0.3,
-                spanGaps: true,
+                spanGaps: UMBRAL_HUECO_COMPARADOR_MS,
                 yAxisID: 'y'
             }));
 
@@ -2886,7 +2891,7 @@
                         pointRadius: 0,
                         pointHoverRadius: 5,
                         tension: 0.3,
-                        spanGaps: true,
+                        spanGaps: UMBRAL_HUECO_COMPARADOR_MS,
                         yAxisID: 'y1'
                     });
                 });
