@@ -596,8 +596,13 @@
             // cuenta nada de lluvia anterior a este instante. Igual que noContarAntesDe,
             // esto deja de tener efecto solo en cuanto "hoy"/"la semana" avancen más
             // allá de este momento, sin que haga falta sacarlo.
+            // ocultarPresion: se mudó de la Facultad a la escuela (Magdalena) a inicios
+            // de noviembre y desde entonces la presión muestra un patrón de sierra
+            // sospechoso (ver comparador: parece seguir su propia temperatura, no la
+            // presión regional real) — posible sensor dañado en la mudanza o mal
+            // expuesto al sol en el nuevo montaje. Se oculta hasta confirmar in situ.
             { id: "2218686", key: "O85A0DJ31L8MQZ6F", isEmaVerde: true, noContarAntesDe: "2026-11-07",
-              cortarLluviaDesde: "2026-11-18T15:50:00",
+              cortarLluviaDesde: "2026-11-18T15:50:00", ocultarPresion: true,
               n: "EP N°23", loc: "Magdalena (EMA Verde)", c: [-35.0254, -57.7529], clr: "#22c55e", live: true, img: "imagenes/escuela23.jpg" },
             // Daza sacada del mapa: la estación se dio de baja (fuera de operatividad).
             // { source: "wunderground", wuId: "ILAPLA66", wuKey: "470147c769f6493f8147c769f6693fd9",
@@ -1844,8 +1849,10 @@
             const valor = p.valorActual ? p.valorActual[v.id] : null;
 
             // Las estaciones sin dato de esta variable, caídas o fuera de servicio no
-            // se muestran en el mapa expandido (el dato estaría desactualizado).
-            if (p.caida || valor === null) {
+            // se muestran en el mapa expandido (el dato estaría desactualizado). Las
+            // marcadas con ocultarPresion tampoco se muestran al ver "Presión" (el
+            // dato crudo sigue disponible en el panel de administrador).
+            if (p.caida || valor === null || (v.id === 'pres' && p.ocultarPresion)) {
                 mapaExpandido.removeLayer(marker);
                 return;
             }
@@ -2717,7 +2724,7 @@
                 } else if (variableId === 'hum') {
                     y = parseFloat(f[isObservatorio ? 'field4' : 'field2']);
                 } else if (variableId === 'pres') {
-                    y = parseFloat(f.field6);
+                    y = estacion.ocultarPresion ? null : parseFloat(f.field6);
                 } else if (variableId === 'wind') {
                     y = isObservatorio ? parseFloat(f.field7) : null;
                 } else if (variableId === 'rain') {
