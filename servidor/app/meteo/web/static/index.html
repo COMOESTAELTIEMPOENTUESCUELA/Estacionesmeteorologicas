@@ -2127,6 +2127,7 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
     <span id="letra-val" aria-live="polite">100 %</span>
     <button type="button" id="letra-mas" title="Agrandar la letra" aria-label="Agrandar la letra">A+</button>
   </div>
+  <a class="boton tema" id="sinoptica-btn" href="/sinoptica/" hidden title="Laboratorio sinóptico: los términos de las ecuaciones de la materia con el GFS (solo en este visor, no en la copia pública)">🎓</a>
   <button class="boton tema" id="ayuda-btn" title="Cómo funciona la plataforma: qué hay en cada sección y qué significa cada cosa">❓</button>
   <button class="boton tema" id="tema" title="Tema: automático (el del sistema)">🌓</button>
   <div class="cuenta" id="cuenta"></div>
@@ -11125,7 +11126,7 @@ async function abrirContexto(c) {
 // Copia pública de las cartas (WEB_MODO=cartas): solo esa pestaña. El
 // servidor igual rechaza todo lo demás; esto es para que la página no lo pida.
 (async () => {
-  try { MODO_WEB = (await api("/api/modo")).modo; } catch (_) {}
+  try { const m = await api("/api/modo"); MODO_WEB = m.modo; $("#sinoptica-btn").hidden = !m.sinoptica; } catch (_) {}
   if (MODO_WEB === "cartas") {
     document.querySelectorAll("#nav-principal button").forEach((b) => (b.hidden = !["analisis", "pronostico"].includes(b.dataset.grupo)));
     $("#h1-txt").textContent = "Meteo UNLP · Cartas";

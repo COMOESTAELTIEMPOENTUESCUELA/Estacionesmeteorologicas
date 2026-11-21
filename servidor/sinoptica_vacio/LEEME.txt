@@ -1,0 +1,2 @@
+Carpeta vacía: se monta en /sinoptica cuando SINOPTICA_DIR no está en .env
+(ver docker-compose.yml). No poner nada acá.

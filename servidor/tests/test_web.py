@@ -205,7 +205,7 @@ def test_modo_cartas_solo_expone_las_cartas(cliente, monkeypatch):
     panel del pronóstico (con quién pronosticó); todo lo demás, 404."""
     from meteo.web import app as web
     monkeypatch.setattr(web, "WEB_MODO", "cartas")
-    assert cliente.get("/api/modo").json() == {"modo": "cartas"}
+    assert cliente.get("/api/modo").json() == {"modo": "cartas", "sinoptica": False}
     for ruta in ("/", "/api/cartas/disponibles", "/api/cartas?ts=2026-10-12T12:00Z",
                  "/api/verificacion/dia?fecha=2026-10-10", "/vendor/chart-4.4.1.umd.js",
                  "/api/cartas/estaciones-omm", "/placa.html", "/placa/Tmax.png"):
@@ -713,3 +713,38 @@ def test_lluvia_por_periodos_e_intensidad(cliente):
             conn.execute("DELETE FROM observacion WHERE estacion_id IN ('test_ll10', 'test_ll60')")
             conn.execute("DELETE FROM estacion WHERE id IN ('test_ll10', 'test_ll60')")
             conn.commit()
+
+
+def test_laboratorio_sinoptico_solo_www_y_salidas(cliente, monkeypatch, tmp_path):
+    """/sinoptica/ sirve la página (www/) y las cartas (salidas/) del
+    laboratorio y NADA más de esa carpeta (ni con ../ ni con enlaces
+    simbólicos); en la copia pública no existe."""
+    from meteo.web import app as web
+    lab = tmp_path / "sinoptica_lab"
+    (lab / "www").mkdir(parents=True)
+    (lab / "salidas" / "2026112100").mkdir(parents=True)
+    (lab / "www" / "index.html").write_text("<h1>Laboratorio</h1>")
+    (lab / "salidas" / "indice.json").write_text("[]")
+    (lab / "salidas" / "2026112100" / "U3-1.png").write_bytes(b"\x89PNG")
+    (lab / "config.yaml").write_text("secreto: si")
+    (lab / "www" / "enlace").symlink_to(lab / "config.yaml")
+    monkeypatch.setattr(web, "SINOPTICA_DIR", lab)
+    assert cliente.get("/api/modo").json()["sinoptica"] is True
+    assert cliente.get("/sinoptica", follow_redirects=False).headers["location"] == "/sinoptica/"
+    r = cliente.get("/sinoptica/")
+    assert r.status_code == 200 and "Laboratorio" in r.text
+    r = cliente.get("/sinoptica/salidas/indice.json")
+    assert r.status_code == 200 and r.headers["cache-control"] == "no-store"
+    assert cliente.get("/sinoptica/salidas/2026112100/U3-1.png").status_code == 200
+    for intento in ("/sinoptica/config.yaml", "/sinoptica/%2e%2e/config.yaml", "/sinoptica/salidas/%2e%2e/config.yaml",
+                    "/sinoptica/enlace", "/sinoptica/salidas/no-existe.png"):
+        assert cliente.get(intento).status_code == 404, intento
+    # Sin la carpeta (o sin la página adentro): no hay botón ni ruta.
+    monkeypatch.setattr(web, "SINOPTICA_DIR", tmp_path / "nada")
+    assert cliente.get("/api/modo").json()["sinoptica"] is False
+    assert cliente.get("/sinoptica/").status_code == 404
+    # En la copia pública, nunca.
+    monkeypatch.setattr(web, "SINOPTICA_DIR", lab)
+    monkeypatch.setattr(web, "WEB_MODO", "cartas")
+    assert cliente.get("/sinoptica/").status_code == 404
+    assert cliente.get("/api/modo").json()["sinoptica"] is False

@@ -82,6 +82,10 @@ services:
     volumes:
       - ./config:/config:ro
       - ${ARCHIVO_DIR:-./datos/archivo}:/archivo:ro       # solo lectura: la web no escribe
+      # Laboratorio sinóptico (proyecto aparte, uso personal): en .env,
+      # SINOPTICA_DIR=/home/USUARIO/sinoptica_lab. Sin eso, monta una carpeta
+      # vacía y el botón no aparece. NO se monta en la copia pública (web-cartas).
+      - ${SINOPTICA_DIR:-./sinoptica_vacio}:/sinoptica:ro
     ports:
       - "${WEB_PUERTO:-8080}:8080"
 

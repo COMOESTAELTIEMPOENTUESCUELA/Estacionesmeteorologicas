@@ -38,7 +38,7 @@ from pathlib import Path
 
 import yaml
 from fastapi import Body, FastAPI, HTTPException, Query, Request
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
@@ -799,9 +799,51 @@ def observaciones_del_dia(request: Request, ciudad: str, fecha: date):
 @app.get("/api/modo")
 def modo(request: Request):
     """"completo" (el visualizador privado) o "cartas" (la copia pública).
-    La página lo pide una vez al cargar: ahí se cuenta la visita (Administración → Actividad)."""
+    La página lo pide una vez al cargar: ahí se cuenta la visita (Administración → Actividad).
+    sinoptica: si está el laboratorio sinóptico (para mostrar su botón)."""
     cuentas.registrar_visita(request)
-    return {"modo": WEB_MODO}
+    return {"modo": WEB_MODO, "sinoptica": sinoptica_disponible()}
+
+
+# ---------------------------------------------------------------------------
+# Laboratorio sinóptico (uso personal del administrador)
+# ---------------------------------------------------------------------------
+# Lo genera un proyecto aparte (~/sinoptica_lab, con su propio entorno y su
+# cron). docker-compose monta esa carpeta en SOLO LECTURA en el servicio "web"
+# (NO en la copia pública). De ahí se sirven solo dos subcarpetas: www/ (la
+# página) y salidas/ (las cartas); el código, la configuración y el entorno
+# no. En la copia pública (modo cartas) no existe, y además la protege
+# permitido(). Queda detrás de la contraseña del visor (WEB_USUARIO/WEB_CLAVE).
+SINOPTICA_DIR = Path(os.environ.get("SINOPTICA_DIR", "/sinoptica"))
+
+
+def sinoptica_disponible():
+    return WEB_MODO != "cartas" and (SINOPTICA_DIR / "www" / "index.html").is_file()
+
+
+@app.get("/sinoptica", include_in_schema=False)
+def sinoptica_raiz():
+    if not sinoptica_disponible():
+        raise HTTPException(404)
+    return RedirectResponse("/sinoptica/")
+
+
+@app.get("/sinoptica/{ruta:path}", include_in_schema=False)
+def sinoptica(ruta: str):
+    if not sinoptica_disponible():
+        raise HTTPException(404)
+    if ruta.startswith("salidas/"):
+        base, rel = SINOPTICA_DIR / "salidas", ruta[len("salidas/"):]
+    else:
+        base, rel = SINOPTICA_DIR / "www", ruta or "index.html"
+    base = base.resolve()
+    archivo = (base / rel).resolve()
+    # Nada fuera de esas dos carpetas (ni con "../", ni con enlaces simbólicos).
+    if not archivo.is_relative_to(base) or not archivo.is_file() or archivo.name.startswith("."):
+        raise HTTPException(404)
+    # El estado y el índice cambian con cada corrida: que el navegador no los guarde.
+    cabeceras = {"Cache-Control": "no-store"} if archivo.suffix in (".json", ".txt", ".html") else {}
+    return FileResponse(archivo, headers=cabeceras)
 
 
 @app.get("/api/verificacion/dia")
