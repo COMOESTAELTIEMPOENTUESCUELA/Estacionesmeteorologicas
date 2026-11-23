@@ -309,3 +309,16 @@ visor lee por `/sinoptica/salidas/riesgo/` (montado en solo lectura; ver
 (puntos cada 500 m dentro de cada cuenca; cada uno toma la estación más cercana
 con dato; las que midieron 0 mm cuentan) con `/api/estaciones` y
 `/api/lluvia/periodos` (última hora, hoy, día pluviométrico u otro día).
+
+Capas opcionales (cada casilla aparece solo si el laboratorio generó su archivo):
+
+- **Peligrosidad hídrica** (`peligrosidad.geojson`): manchas de inundación de la
+  Municipalidad en 4 niveles (baja `#fde047`, moderada `#fb923c`, alta `#ef4444`,
+  muy alta `#7f1d1d`), con leyenda. Con la capa prendida las cuencas quedan solo
+  con el borde. La ficha de un punto dice el nivel máximo que lo contiene.
+  Apagada por defecto.
+- **Cauces** (`cauces.geojson`): arroyos, canales y zanjones de OpenStreetMap
+  (© colaboradores de OSM, licencia ODbL), bajados con Overpass por
+  `riesgo.py cauces`. El nombre aparece al pasar el mouse.
+
+Lo que se prende y apaga se recuerda en el navegador (`cu-capas`).

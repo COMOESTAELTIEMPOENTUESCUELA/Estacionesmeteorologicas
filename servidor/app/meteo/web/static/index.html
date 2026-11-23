@@ -338,6 +338,9 @@ dialog { max-height: calc(100dvh / var(--zoom, 1) - 16px); max-width: calc(100vw
 .cu-chip { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; border: 1px solid rgba(0,0,0,.2); }
 .cu-lbl { background: rgba(15,23,42,.85) !important; color: #fff !important; border: 0 !important; border-radius: 4px; padding: 0 4px !important; font: 600 11px/1.4 system-ui !important; box-shadow: none !important; }
 .cu-lbl::before { display: none; }
+.cu-ley { background: var(--superficie); color: var(--tinta); padding: 6px 8px; border-radius: 8px; font-size: 12px; line-height: 1.6; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+.cu-ley i { display: inline-block; width: 12px; height: 12px; margin-right: 5px; vertical-align: -2px; border-radius: 2px; }
+.cu-pel-chip { display: inline-block; padding: 1px 8px; border-radius: 99px; font-weight: 700; font-size: 12.5px; color: #111; }
 @media (max-width: 760px) { .cu-cuerpo { grid-template-columns: 1fr; } .cu-mapa-caja { position: static; order: -1; } #cu-mapa { height: 55vh; } .cu-panel { max-height: none; } }
 /* ----- Reportes del grupo sobre las cartas (notas con ubicación) ----- */
 #c-rep { position: absolute; left: 0; top: 0; transform-origin: 0 0; pointer-events: none; }
@@ -2353,7 +2356,11 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
         <p class="tenue" id="cu-fuente" style="margin-top:0">Datos: Municipalidad de La Plata, PRRI 2026 · uso personal</p>
         <input type="search" id="cu-buscar" placeholder="Buscar barrio: nombre o código (La Loma, VR-B06…)" autocomplete="off">
         <div class="cu-res" id="cu-res"></div>
-        <p class="ayuda">Tocá cualquier punto del mapa: te dice en qué barrio y cuenca cae, con su protocolo.</p>
+        <p class="ayuda">Tocá cualquier punto del mapa: te dice en qué barrio y cuenca cae, su peligrosidad hídrica y el protocolo.</p>
+        <div class="fila" id="cu-capas">
+          <label class="en-linea" id="cu-l-pel" hidden title="Manchas de inundación de la Municipalidad, por nivel"><input type="checkbox" id="cu-pel"> Peligrosidad hídrica</label>
+          <label class="en-linea" id="cu-l-cau" hidden title="Arroyos, canales y zanjones (© OpenStreetMap)"><input type="checkbox" id="cu-cau" checked> Cauces</label>
+        </div>
         <div id="cu-ficha"></div>
         <h3>Lluvia por cuenca <small class="tenue">(Thiessen)</small></h3>
         <div class="fila">
@@ -8723,7 +8730,36 @@ if ("serviceWorker" in navigator && location.protocol === "https:") navigator.se
 // Las capas las prepara el laboratorio (estudio/riesgo.py preparar) y se leen
 // por /sinoptica/salidas/riesgo/ (solo en el visor completo).
 // ======================================================================
-const CU = { base: "/sinoptica/salidas/riesgo/", barrios: null, cuencas: null, muestras: null, mapa: null, capaB: null, capaC: null, capaE: null, capaP: null, sel: null };
+const CU = { base: "/sinoptica/salidas/riesgo/", barrios: null, cuencas: null, muestras: null, mapa: null, capaB: null, capaC: null, capaE: null, capaP: null, sel: null,
+             pel: null, cau: null, capaPel: null, capaCau: null, ley: null, res: null };
+// Peligrosidad hídrica (Municipalidad): un color por nivel, de amarillo a bordó.
+const CU_PEL = { 1: ["Baja", "#fde047"], 2: ["Moderada", "#fb923c"], 3: ["Alta", "#ef4444"], 4: ["Muy alta", "#7f1d1d"] };
+function cuNivelPel(lon, lat) {
+  if (!CU.pel) return null;
+  const n = CU.pel.features.filter((f) => cuEnGeom(lon, lat, f.geometry)).map((f) => +f.properties.nivel || 0);
+  return n.length ? Math.max(...n) : 0;
+}
+const cuChipPel = (n) => n == null ? "" : n ? `<span class="cu-pel-chip" style="background:${CU_PEL[n][1]};${n >= 3 ? "color:#fff" : ""}">${CU_PEL[n][0]}</span>` : '<span class="tenue">fuera de las manchas</span>';
+function cuCapas() {
+  try { localStorage.setItem("cu-capas", JSON.stringify({ pel: $("#cu-pel").checked, cau: $("#cu-cau").checked })); } catch (_) {}
+  if (CU.capaPel) { CU.capaPel.remove(); CU.capaPel = null; }
+  if (CU.capaCau) { CU.capaCau.remove(); CU.capaCau = null; }
+  if (CU.ley) { CU.ley.remove(); CU.ley = null; }
+  if (CU.pel && $("#cu-pel").checked) {
+    CU.capaPel = L.geoJSON(CU.pel, { pane: "cu-pel", interactive: false,
+      style: (f) => ({ stroke: false, fillColor: (CU_PEL[f.properties.nivel] || [, "#999"])[1], fillOpacity: 0.55 }) }).addTo(CU.mapa);
+    CU.ley = L.control({ position: "bottomleft" });
+    CU.ley.onAdd = () => { const d = L.DomUtil.create("div", "cu-ley");
+      d.innerHTML = "<b>Peligrosidad hídrica</b><br>" + [1, 2, 3, 4].map((n) => `<i style="background:${CU_PEL[n][1]}"></i>${CU_PEL[n][0]}`).join("<br>"); return d; };
+    CU.ley.addTo(CU.mapa);
+  }
+  if (CU.cau && $("#cu-cau").checked) {
+    CU.capaCau = L.geoJSON(CU.cau, { pane: "cu-cau",
+      style: (f) => ({ color: "#0284c7", weight: f.properties.nombre ? 2.4 : 1.2, opacity: 0.9 }),
+      onEachFeature: (f, capa) => { if (f.properties.nombre) capa.bindTooltip(esc(f.properties.nombre), { sticky: true }); } }).addTo(CU.mapa);
+  }
+  if (CU.res !== null) cuPintarCuencas(CU.res);         // con la peligrosidad prendida, las cuencas quedan solo con el borde
+}
 const CU_CORTES = [0.2, 1, 5, 10, 20, 40, 80];
 const CU_COLORES = ["#e0f2fe", "#93c5fd", "#3b82f6", "#1d4ed8", "#7c3aed", "#c026d3", "#e11d48"];
 // Sin dato: gris; menos de 0,2 mm: casi blanco; después, un color por cada corte superado.
@@ -8752,16 +8788,25 @@ async function iniciarCuencas() {
   $("#cu-paso").textContent = CU.muestras.paso_m;
   CU.mapa = L.map("cu-mapa", { preferCanvas: true }).setView([-34.95, -57.98], 11);
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 17, attribution: "© OpenStreetMap · Municipalidad de La Plata (PRRI 2026)" }).addTo(CU.mapa);
+  CU.mapa.createPane("cu-pel"); CU.mapa.getPane("cu-pel").style.zIndex = 410;
   CU.mapa.createPane("cu-barrios"); CU.mapa.getPane("cu-barrios").style.zIndex = 420;
+  CU.mapa.createPane("cu-cau"); CU.mapa.getPane("cu-cau").style.zIndex = 430;
+  // Capas opcionales: si el laboratorio no las preparó, su casilla no aparece.
+  [CU.pel, CU.cau] = await Promise.all(["peligrosidad.geojson", "cauces.geojson"].map((n) => api(CU.base + n).catch(() => null)));
+  $("#cu-l-pel").hidden = !CU.pel; $("#cu-l-cau").hidden = !CU.cau;
+  try { const c = JSON.parse(localStorage.getItem("cu-capas") || "{}"); if ("pel" in c) $("#cu-pel").checked = c.pel; if ("cau" in c) $("#cu-cau").checked = c.cau; } catch (_) {}
+  ["#cu-pel", "#cu-cau"].forEach((x) => $(x).addEventListener("change", cuCapas));
   cuPintarCuencas(null);
   CU.capaB = L.geoJSON(CU.barrios, { pane: "cu-barrios", style: { color: "#334155", weight: 0.7, fillOpacity: 0 },
     onEachFeature: (f, capa) => { capa.on("click", (e) => { L.DomEvent.stopPropagation(e); cuElegir(f, e.latlng); }); capa.bindTooltip(`${esc(f.properties.id)} · ${esc(f.properties.nombre)}`, { sticky: true }); } }).addTo(CU.mapa);
   CU.mapa.fitBounds(CU.capaC.getBounds(), { padding: [10, 10] });
+  cuCapas();
   CU.mapa.on("click", (e) => {
     const f = cuDonde(e.latlng.lng, e.latlng.lat, CU.barrios);
     if (f) return cuElegir(f, e.latlng);
-    const c = cuDonde(e.latlng.lng, e.latlng.lat, CU.cuencas);
-    $("#cu-ficha").innerHTML = `<div class="cu-ficha">Ese punto no cae en ningún barrio${c ? `; cuenca <b>${esc(c.properties.nombre)}</b>` : " ni en las cuencas del partido"}.</div>`;
+    const c = cuDonde(e.latlng.lng, e.latlng.lat, CU.cuencas), pel = cuNivelPel(e.latlng.lng, e.latlng.lat);
+    $("#cu-ficha").innerHTML = `<div class="cu-ficha">Ese punto no cae en ningún barrio${c ? `; cuenca <b>${esc(c.properties.nombre)}</b>` : " ni en las cuencas del partido"}.
+      ${pel != null ? `<div style="margin-top:6px">Peligrosidad hídrica: ${cuChipPel(pel)}</div>` : ""}</div>`;
   });
   $("#cu-dia").value = diaArg(Date.now() - 24 * HORA);
   ["#cu-modo", "#cu-dia", "#cu-puntos"].forEach((s) => $(s).addEventListener("change", cuLluvia));
@@ -8771,7 +8816,8 @@ async function iniciarCuencas() {
 function cuPintarCuencas(res) {
   if (CU.capaC) CU.capaC.remove();
   CU.capaC = L.geoJSON(CU.cuencas, {
-    style: (f) => ({ color: "#0f172a", weight: 2, fillColor: res ? cuColor(res[f.properties.id]?.mm) : "#38bdf8", fillOpacity: res ? 0.55 : 0.15 }),
+    style: (f) => ({ color: "#0f172a", weight: 2, fillColor: res ? cuColor(res[f.properties.id]?.mm) : "#38bdf8",
+                     fillOpacity: CU.capaPel ? 0 : res ? 0.55 : 0.15 }),
     onEachFeature: (f, capa) => {
       const r = res?.[f.properties.id];
       capa.bindTooltip(`<b>${esc(f.properties.nombre)}</b><br>${f.properties.km2} km²${r ? `<br>${cuFmt(r.mm)} mm` : ""}`, { sticky: true });
@@ -8783,8 +8829,10 @@ function cuElegir(f, latlng) {
   if (CU.sel) CU.capaB.resetStyle(CU.sel);
   CU.capaB.eachLayer((c) => { if (c.feature === f) { CU.sel = c; c.setStyle({ color: "#e11d48", weight: 3, fillOpacity: 0.12, fillColor: "#e11d48" }); } });
   const p = f.properties, cuenca = latlng ? cuDonde(latlng.lng, latlng.lat, CU.cuencas)?.properties.nombre : null;
+  const pel = latlng ? cuNivelPel(latlng.lng, latlng.lat) : null;
   $("#cu-ficha").innerHTML = `<div class="cu-ficha"><div class="tenue">${esc(p.id)} · delegación ${esc(p.delegacion_2026 || "–")}</div>
     <h4>${esc(p.nombre)}</h4><div class="tenue">Cuenca ${esc(p.cuenca || cuenca || "–")}${p.superficie_km2 ? ` · ${(+p.superficie_km2).toFixed(2)} km²` : ""}</div>
+    ${pel != null ? `<div style="margin-top:6px">Peligrosidad hídrica en este punto: ${cuChipPel(pel)}</div>` : ""}
     <dl>${[["evitar", "⛔ Evitar"], ["circulacion", "🚗 Circular por"], ["punto_encuentro", "📍 Punto de encuentro"], ["observaciones", "Observaciones"], ["caracteristicas", "Características"]]
       .filter(([k]) => p[k]).map(([k, t]) => `<dt>${t}</dt><dd>${esc(String(p[k]).replace(/--/g, " · "))}</dd>`).join("")}</dl></div>`;
 }
@@ -8841,6 +8889,7 @@ async function cuLluvia() {
     const pesos = Object.entries(cuenta).map(([id, c]) => ({ id, w: c / lista.length, mm: mm[id] })).sort((a, b) => b.w - a.w);
     res[cid] = { mm: pesos.reduce((s2, p) => s2 + p.w * p.mm, 0), pesos };
   }
+  CU.res = res;
   cuPintarCuencas(res);
   if (CU.capaP) CU.capaP.remove();
   if ($("#cu-puntos").checked) {
