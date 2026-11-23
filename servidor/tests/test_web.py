@@ -754,3 +754,27 @@ def test_laboratorio_sinoptico_solo_www_y_salidas(cliente, monkeypatch, tmp_path
     assert cliente.get("/sinoptica/").status_code == 404
     assert cliente.get("/api/modo").json()["sinoptica"] is False
     assert cliente.get("/api/modo").json()["riesgo"] is False
+
+
+def test_estaciones_dice_cuales_miden_lluvia(cliente):
+    """mide_lluvia: hubo dato de lluvia en los últimos 3 días (aunque sea 0 mm).
+    Para promediar por cuenca: las que marcan 0 cuentan; las sin pluviómetro, no."""
+    from datetime import datetime, timedelta, timezone
+    from meteo.web.app import pool_escritura
+    ahora = datetime.now(timezone.utc)
+    with pool_escritura.connection() as conn:
+        for e in ("test_conpluvio", "test_sinpluvio"):
+            conn.execute("INSERT INTO estacion (id, nombre, tipo, fuente, lat, lon) VALUES (%s, %s, 'ema', 'manual', -34.9, -57.9) ON CONFLICT (id) DO NOTHING", (e, e))
+            conn.execute("DELETE FROM observacion WHERE estacion_id = %s", (e,))
+        conn.execute("INSERT INTO observacion (ts, estacion_id, variable, valor) VALUES (%s, 'test_conpluvio', 'precip', 0), (%s, 'test_conpluvio', 'temp', 20), (%s, 'test_sinpluvio', 'temp', 21)",
+                     (ahora - timedelta(hours=1), ahora - timedelta(hours=1), ahora - timedelta(hours=1)))
+        conn.commit()
+    try:
+        est = {e["id"]: e for e in cliente.get("/api/estaciones").json()}
+        assert est["test_conpluvio"]["mide_lluvia"] is True           # midió 0 mm: cuenta
+        assert est["test_sinpluvio"]["mide_lluvia"] is False
+    finally:
+        with pool_escritura.connection() as conn:
+            conn.execute("DELETE FROM observacion WHERE estacion_id IN ('test_conpluvio', 'test_sinpluvio')")
+            conn.execute("DELETE FROM estacion WHERE id IN ('test_conpluvio', 'test_sinpluvio')")
+            conn.commit()

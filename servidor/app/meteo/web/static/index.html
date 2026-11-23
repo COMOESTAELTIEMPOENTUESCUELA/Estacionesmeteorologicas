@@ -8805,8 +8805,8 @@ async function cuLluvia() {
   const modo = $("#cu-modo").value, ahora = Date.now();
   $("#cu-dia-caja").hidden = modo !== "dia";      // (el portal le agrega un 📅 al lado: se oculta la caja entera)
   try { ESTACIONES = await api("/api/estaciones"); } catch (_) { $("#cu-nota").textContent = "No se pudieron leer las estaciones."; return; }
-  // Las que miden lluvia (dato de "precip" en los últimos 3 días) y tienen coordenadas.
-  let base = ESTACIONES.filter((e) => e.lat != null && e.lon != null && e.activa !== false && e.valores?.precip);
+  // Las que miden lluvia (el servidor: dato de "precip" en los últimos 3 días) y tienen coordenadas.
+  let base = ESTACIONES.filter((e) => e.lat != null && e.lon != null && e.activa !== false && e.mide_lluvia);
   const mm = {};
   if (modo === "pluvio") {
     base = base.filter((e) => e.ultimo && ahora - Date.parse(e.ultimo) < 3 * HORA);

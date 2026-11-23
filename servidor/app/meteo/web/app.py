@@ -256,7 +256,12 @@ def estaciones():
           AND dia_pluviometrico(ts) = dia_pluviometrico(now())
         GROUP BY 1""")
 
-    por_est = {e["id"]: {**e, "ultimo": None, "valores": {}, "lluvia_hoy": None} for e in est}
+    # Las que midieron lluvia en los últimos 3 días (para promediar por cuenca: las
+    # que marcan 0 mm también cuentan, pero no las que no tienen pluviómetro).
+    con_lluvia = {f["estacion_id"] for f in consultar("""
+        SELECT DISTINCT estacion_id FROM observacion
+        WHERE variable = 'precip' AND ts > now() - interval '3 days'""")}
+    por_est = {e["id"]: {**e, "ultimo": None, "valores": {}, "lluvia_hoy": None, "mide_lluvia": e["id"] in con_lluvia} for e in est}
     for f in ultimo_ts:
         if f["estacion_id"] in por_est:
             por_est[f["estacion_id"]]["ultimo"] = _iso(f["ts"])
