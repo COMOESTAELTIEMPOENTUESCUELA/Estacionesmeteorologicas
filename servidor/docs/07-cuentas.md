@@ -425,7 +425,12 @@ El servidor tiene que poder salir a internet hacia esos servicios.
 Una publicación puede llevar **dónde y cuándo** se vio lo que cuenta (botón 📍
 en el cuadro de publicar o en la nota completa): con el **GPS del celular** (solo
 desde la dirección https) o **tocando el mapa**, y la hora en que se vio (por
-defecto, ahora; se puede contar algo de días atrás). Se guarda en el contexto de
+defecto, ahora; se puede contar algo de días atrás). El mapa tiene un **buscador**:
+mientras se escribe, las estaciones de la plataforma y lugares de referencia; con
+Enter, OpenStreetMap (Nominatim: solo con Enter y como mucho una búsqueda por
+segundo, como pide su regla de uso; lo escrito se le manda a OpenStreetMap).
+Las publicaciones viejas se ubican editándolas (✏️): la hora que se propone es
+la de la carta desde donde se escribieron o la de la publicación. Se guarda en el contexto de
 la nota (`lat`, `lon` con 4 decimales, `visto` en UTC; se validan rangos y fecha).
 
 En el visor de cartas (análisis, satélite, rayos...), **📝 Reportes** muestra en

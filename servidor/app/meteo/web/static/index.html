@@ -338,6 +338,15 @@ dialog { max-height: calc(100dvh / var(--zoom, 1) - 16px); max-width: calc(100vw
 .c-rep-pop .txt { white-space: pre-wrap; }
 #d-ubic { width: min(620px, calc(100vw - 24px)); }
 #u-mapa { height: min(360px, 50vh); border-radius: 10px; margin: 8px 0; }
+.u-buscar { position: relative; margin-top: 8px; }
+.u-buscar input { width: 100%; box-sizing: border-box; font: inherit; padding: 7px 10px; border: 1px solid var(--borde); border-radius: 8px;
+  background: var(--superficie); color: var(--tinta); }
+#u-res { position: absolute; z-index: 1000; left: 0; right: 0; top: calc(100% + 2px); background: var(--superficie); border: 1px solid var(--borde);
+  border-radius: 8px; box-shadow: 0 8px 20px rgba(0,0,0,.25); max-height: 260px; overflow: auto; }
+#u-res button { display: block; width: 100%; text-align: left; border: 0; background: none; color: inherit; font: inherit; font-size: 14px; padding: 7px 10px; cursor: pointer; }
+#u-res button:hover, #u-res button:focus-visible { background: color-mix(in srgb, var(--acento) 12%, transparent); }
+#u-res button small { color: var(--tinta-2); display: block; font-size: 12px; }
+#u-res .u-mas { color: var(--acento); }
 .ubic-fila { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 14px; }
 .ubic-nota { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 4px 12px 8px; font-size: 13px; color: var(--tinta-2); }
 .d-chico h2 { margin: 0 0 6px; font-size: 20px; }
@@ -3125,6 +3134,9 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
   <p class="tenue" style="margin:0">Así tu publicación aparece sobre las cartas y el satélite de esa hora, en ese lugar.</p>
   <div class="ubic-fila" style="margin-top:8px"><button type="button" class="boton" id="u-gps" title="Usar la ubicación del celular (pide permiso)">📡 Mi ubicación (GPS)</button>
     <span class="tenue" id="u-estado">o tocá el lugar en el mapa</span></div>
+  <div class="u-buscar"><input type="search" id="u-buscar" autocomplete="off" placeholder="Buscar un lugar: ciudad, barrio, estación… (Enter busca en todo el mapa)"
+      title="Mientras escribís, las estaciones y lugares que ya conoce la plataforma; con Enter (o «Buscar en OpenStreetMap») cualquier lugar">
+    <div id="u-res" hidden></div></div>
   <div id="u-mapa"></div>
   <label class="ubic-fila">¿Cuándo lo viste? <input type="datetime-local" id="u-visto"> <span class="tenue">(hora argentina)</span></label>
   <div class="acciones" style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
@@ -11151,6 +11163,7 @@ function elegirUbicacion(inicial) {
   $("#u-visto").value = aLocalInput(inicial?.visto || Date.now());
   $("#u-estado").textContent = "o tocá el lugar en el mapa";
   $("#u-listo").disabled = !ubicSel.punto;
+  $("#u-buscar").value = ""; $("#u-res").hidden = true;
   d.showModal();
   if (!ubicSel.mapa) {
     ubicSel.mapa = L.map("u-mapa", { zoomSnap: 0.5 }).setView([-35.5, -60], 5);
@@ -11164,6 +11177,66 @@ function elegirUbicacion(inicial) {
   }, 50);
   return new Promise((res) => (ubicSel.resolver = res));
 }
+// ----- Buscador de lugares -----
+// 1) Al escribir: estaciones de la plataforma y lugares conocidos (al instante, sin salir a internet).
+// 2) Con Enter: OpenStreetMap (Nominatim), cualquier lugar de la región. Su regla de uso pide no
+//    buscar a cada tecla: por eso solo con Enter o el botón, y como mucho una búsqueda por segundo.
+let lugaresLocales = null, ultimaOSM = 0;
+async function cargarLugaresLocales() {
+  if (lugaresLocales) return lugaresLocales;
+  const lista = Object.entries(LUGARES).map(([n, [lon, lat]]) => ({ nombre: n.charAt(0).toUpperCase() + n.slice(1), detalle: "lugar de referencia", lat, lon }));
+  try {
+    if (!ESTACIONES.length) ESTACIONES = await api("/api/estaciones");
+    for (const e of ESTACIONES) if (e.lat != null && e.lon != null)
+      lista.push({ nombre: e.nombre, detalle: `estación${e.localidad ? " · " + e.localidad : ""}`, lat: +e.lat, lon: +e.lon });
+  } catch (_) {}            // en la copia pública no están las estaciones: quedan los lugares de referencia
+  return (lugaresLocales = lista);
+}
+function mostrarResultados(items, conMas) {
+  const caja = $("#u-res");
+  caja.innerHTML = items.map((x, i) => `<button type="button" data-u-i="${i}">${esc(x.nombre)}<small>${esc(x.detalle)}</small></button>`).join("")
+    + (conMas ? `<button type="button" class="u-mas" data-u-osm>🔎 Buscar «${esc($("#u-buscar").value.trim())}» en OpenStreetMap (Enter)</button>` : "");
+  caja._items = items;
+  caja.hidden = !caja.innerHTML;
+}
+$("#u-buscar").addEventListener("input", async (e) => {
+  const q = sinTilde(e.target.value);
+  if (q.length < 2) { $("#u-res").hidden = true; return; }
+  const lista = await cargarLugaresLocales();
+  const hits = lista.filter((x) => sinTilde(x.nombre + " " + x.detalle).includes(q)).slice(0, 8);
+  mostrarResultados(hits, true);
+});
+async function buscarOSM() {
+  const q = $("#u-buscar").value.trim();
+  if (q.length < 2) return;
+  const espera = 1100 - (Date.now() - ultimaOSM);
+  if (espera > 0) await new Promise((r) => setTimeout(r, espera));
+  ultimaOSM = Date.now();
+  mostrarResultados([{ nombre: "Buscando…", detalle: "OpenStreetMap", lat: null }], false);
+  try {
+    const url = "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=8&accept-language=es&countrycodes=ar,uy,cl,py,bo,br&q=" + encodeURIComponent(q);
+    const r = await fetch(url, { headers: { Accept: "application/json" } });
+    if (!r.ok) throw new Error(r.status);
+    const datos = await r.json();
+    mostrarResultados(datos.map((x) => ({ nombre: x.name || x.display_name.split(",")[0], detalle: x.display_name, lat: +x.lat, lon: +x.lon })), false);
+    if (!datos.length) mostrarResultados([{ nombre: "No se encontró", detalle: "Probá con otro nombre, o tocá el mapa", lat: null }], false);
+  } catch (_) { mostrarResultados([{ nombre: "No se pudo buscar", detalle: "Sin conexión con OpenStreetMap: tocá el lugar en el mapa", lat: null }], false); }
+}
+$("#u-buscar").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); buscarOSM(); }
+  if (e.key === "Escape" && !$("#u-res").hidden) { e.preventDefault(); e.stopPropagation(); $("#u-res").hidden = true; }
+});
+$("#u-res").addEventListener("click", (e) => {
+  if (e.target.closest("[data-u-osm]")) { buscarOSM(); return; }
+  const b = e.target.closest("[data-u-i]"); if (!b) return;
+  const x = $("#u-res")._items[Number(b.dataset.uI)];
+  if (!x || x.lat == null) return;
+  ponerPunto([x.lat, x.lon], x.nombre);
+  ubicSel.mapa.setView([x.lat, x.lon], 11);
+  $("#u-res").hidden = true;
+  $("#u-buscar").value = x.nombre;
+});
+
 function ponerPunto(ll, como) {
   ubicSel.punto = ll;
   if (ubicSel.marca) ubicSel.marca.setLatLng(ll); else ubicSel.marca = L.marker(ll).addTo(ubicSel.mapa);
@@ -11198,7 +11271,9 @@ function pintarUbicNota() {
 }
 $("#n-ubic").addEventListener("click", async () => {
   const f = $("#f-nota"), c = JSON.parse(f.dataset.contexto || "{}");
-  const u = await elegirUbicacion(c);
+  // Hora que se propone: la que ya tenía; si no, la de la carta desde donde se escribió;
+  // si no, la de la publicación (al editar una vieja); si es nueva, ahora.
+  const u = await elegirUbicacion({ ...c, visto: c.visto || c.ts || notaEditando?.creada });
   if (!u) return;
   f.dataset.contexto = JSON.stringify({ ...c, ...u });
   pintarUbicNota();
