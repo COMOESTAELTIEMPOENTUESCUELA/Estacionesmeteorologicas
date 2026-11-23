@@ -713,6 +713,10 @@ img.con-fondo { background-color: #fff !important; background-size: 100% 100%; b
 #c-dialogo[open] { display: flex; flex-direction: column; gap: 6px; }
 #c-dialogo .barra { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 #c-dialogo .barra .boton { padding: 4px 10px; }
+/* Herramientas ocultas (botón 🛠️): la carta usa casi todo el alto */
+#c-dialogo.sin-herr :is(#c-herr, #c-medir-barra, #c-m-res, #c-anim-barra) { display: none !important; }
+#c-herr-ver[aria-pressed="false"] { opacity: .7; }
+#c-dialogo .c-rep-l { gap: 4px; }
 #c-dialogo-titulo { margin: 0; flex: 1 1 260px; font-size: 14px; }
 #c-vista { flex: 1; min-height: 0; overflow: hidden; position: relative; display: flex; align-items: center; justify-content: center;
   touch-action: none; cursor: grab; border-radius: 6px; background: var(--plano); }
@@ -2801,6 +2805,11 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
         <button class="boton" id="c-d-alejar" title="Alejar">−</button>
         <button class="boton" id="c-d-acercar" title="Acercar">+</button>
         <button class="boton" id="c-d-ajustar" title="Ver entera">Entera</button>
+        <label class="en-linea c-rep-l" id="c-rep-l" hidden title="Lo que el grupo publicó con ubicación (📍) cerca de la hora de esta carta: aparece en el lugar donde lo vio">📝
+          <select id="c-rep-vent" aria-label="Reportes del grupo"><option value="0">sin reportes</option><option value="1">reportes ±1 h</option><option value="3" selected>reportes ±3 h</option>
+            <option value="6">reportes ±6 h</option><option value="12">reportes ±12 h</option></select>
+          <span class="tenue" id="c-rep-n"></span></label>
+        <button class="boton" id="c-herr-ver" aria-pressed="true" title="Mostrar u ocultar las herramientas (dibujar, medir, animar, superponer): ocultas, la carta usa casi todo el alto (atajo: H)">🛠️</button>
         <button class="boton anotar" id="c-anotar-visor" hidden title="Anotar en tu libreta algo de esta carta">📝 Anotar</button>
         <button class="boton" id="c-cerrar">Cerrar</button>
       </div>
@@ -2869,10 +2878,6 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
         <label class="en-linea" title="Poner otra carta de la misma proyección encima, con transparencia">Superponer
           <select id="c-super-sel"><option value="">(nada)</option></select></label>
         <input type="range" id="c-super-op" min="10" max="90" value="50" title="Transparencia de la carta superpuesta" style="width:90px" hidden>
-        <label class="en-linea" id="c-rep-l" hidden title="Lo que el grupo publicó con ubicación (📍) cerca de la hora de esta carta: aparece en el lugar donde lo vio">📝 Reportes
-          <select id="c-rep-vent"><option value="0">no</option><option value="1">±1 h</option><option value="3" selected>±3 h</option>
-            <option value="6">±6 h</option><option value="12">±12 h</option></select></label>
-        <span class="tenue" id="c-rep-n"></span>
       </div>
       <div id="c-estacion" class="c-estacion" hidden></div>
       <div id="c-vista"><img alt="" draggable="false"><img id="c-super" alt="" draggable="false" hidden><svg id="c-svg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none"></svg><div id="c-rep"></div>
@@ -6969,11 +6974,33 @@ function mostrarEnVisor() {
   cargarDibujoVisor(p);
   armarSuperposicion(p);
 }
+// ----- Mostrar u ocultar las herramientas del visor -----
+// En pantallas bajas (una notebook, el navegador con barras) las cuatro filas de
+// herramientas le dejaban a la carta una franja: ahí arrancan ocultas. Queda guardado.
+function herramientasVisor(ver) {
+  if (ver === undefined) {
+    let guardado = null;
+    try { guardado = localStorage.getItem("visor-herramientas"); } catch (_) {}
+    ver = guardado !== null ? guardado === "1" : window.innerHeight >= 820;
+  } else { try { localStorage.setItem("visor-herramientas", ver ? "1" : "0"); } catch (_) {} }
+  $("#c-dialogo").classList.toggle("sin-herr", !ver);
+  $("#c-herr-ver").setAttribute("aria-pressed", ver);
+  $("#c-herr-ver").title = (ver ? "Ocultar" : "Mostrar") + " las herramientas (dibujar, medir, animar, superponer)" + (ver ? ": la carta usa casi todo el alto" : "") + " (atajo: H)";
+  requestAnimationFrame(ubicarSVG);
+}
+$("#c-herr-ver").addEventListener("click", () => herramientasVisor($("#c-dialogo").classList.contains("sin-herr")));
+$("#c-dialogo").addEventListener("keydown", (e) => {
+  if ((e.key === "h" || e.key === "H") && !e.ctrlKey && !e.metaKey && !e.altKey && !e.target.closest("input, textarea, select")) {
+    herramientasVisor($("#c-dialogo").classList.contains("sin-herr"));
+  }
+});
+
 function abrirCarta(id) {
   if (typeof salirDibujoGrilla === "function") salirDibujoGrilla();
   guardarDibujoYa();
   cartaVisor = id;
   Object.assign(zoom, { s: 1, x: 0, y: 0 });
+  herramientasVisor();
   $("#c-dialogo").showModal();
   mostrarEnVisor();
 }
@@ -8086,7 +8113,11 @@ function iniciarHerramientas() {
     if (["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)) return;
     const h = ATAJOS[e.key.toLowerCase()];
     const b = h && document.querySelector(`#c-dialogo [data-herr="${h}"]`);
-    if (b && !b.closest("[hidden]")) { e.preventDefault(); b.click(); }
+    if (b && !b.closest("[hidden]")) {
+      e.preventDefault();
+      if ($("#c-dialogo").classList.contains("sin-herr")) herramientasVisor(true);   // con las herramientas ocultas: se muestran
+      b.click();
+    }
   });
   document.addEventListener("keydown", (e) => {
     if (($("#c-dialogo").open || cprDib.activo) && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); deshacerDibujo(); }
