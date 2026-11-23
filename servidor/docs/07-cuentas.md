@@ -418,3 +418,19 @@ clave VAPID del servidor se crea sola la primera vez (tabla `push_clave`; la
 privada no se muestra en la pestaña Tablas). Por seguridad solo se aceptan
 direcciones de los servicios de avisos de Google, Apple, Mozilla y Microsoft.
 El servidor tiene que poder salir a internet hacia esos servicios.
+
+
+## Reportes con ubicación sobre las cartas
+
+Una publicación puede llevar **dónde y cuándo** se vio lo que cuenta (botón 📍
+en el cuadro de publicar o en la nota completa): con el **GPS del celular** (solo
+desde la dirección https) o **tocando el mapa**, y la hora en que se vio (por
+defecto, ahora; se puede contar algo de días atrás). Se guarda en el contexto de
+la nota (`lat`, `lon` con 4 decimales, `visto` en UTC; se validan rangos y fecha).
+
+En el visor de cartas (análisis, satélite, rayos...), **📝 Reportes** muestra en
+su lugar las publicaciones vistas cerca de la hora de la carta (±1, ±3 —por
+defecto—, ±6 o ±12 h): pin azul las propias, rojo las del grupo; tocando uno se
+lee el texto. Usa las mismas coordenadas de cada carta que las medidas (las del
+satélite de NOAA, después de calibrarlo). Solo se ven las compartidas y las
+propias. `GET /api/yo/notas/mapa?desde=&hasta=` (por la hora en que se vio).

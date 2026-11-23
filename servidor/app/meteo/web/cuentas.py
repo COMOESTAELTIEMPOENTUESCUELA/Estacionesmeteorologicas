@@ -72,7 +72,9 @@ TIPOS_NOTA = ("vi", "llamo_atencion", "duda", "pregunta")
 # Del contexto de una nota solo se guardan estas claves (texto o número corto).
 CLAVES_CONTEXTO = ("ts", "producto", "corrida", "plazo", "carta", "vista", "ciudad", "desde", "hasta", "seccion",
                    "para",          # "para": el día pronosticado del que habla la nota (AAAA-MM-DD)
-                   "pron")          # "pron": un pronóstico publicado que la nota trae adjunto (desde un mensaje)          # "para": el día pronosticado del que habla la nota (AAAA-MM-DD)
+                   "pron",          # "pron": un pronóstico publicado que la nota trae adjunto (desde un mensaje)
+                   "lat", "lon",    # dónde se vio (GPS del celular o tocando el mapa): se ve sobre las cartas
+                   "visto")         # cuándo se vio (ISO, UTC); si no está, cuenta la hora de la nota          # "para": el día pronosticado del que habla la nota (AAAA-MM-DD)
 # La imagen pegada a una nota ("pizarra"): lo que manda la página (data URL
 # PNG/JPEG/WebP) se abre con Pillow y se vuelve a codificar en WebP, así se
 # guarda siempre una imagen limpia y chica, sin importar lo que llegó.
@@ -513,6 +515,27 @@ def usuarios(request: Request):
 # ---------------------------------------------------------------------------
 # Libreta
 # ---------------------------------------------------------------------------
+def _limpiar_ubicacion(contexto):
+    """lat/lon: números en rango (4 decimales, ~10 m; van juntos o no van).
+    visto: una fecha y hora ISO válida, guardada en UTC."""
+    c = dict(contexto)
+    try:
+        lat, lon = float(c.pop("lat")), float(c.pop("lon"))
+        if -90 <= lat <= 90 and -180 <= lon <= 180:
+            c["lat"], c["lon"] = round(lat, 4), round(lon, 4)
+    except (KeyError, TypeError, ValueError):
+        pass
+    if "visto" in c:
+        try:
+            t = datetime.fromisoformat(str(c.pop("visto")).replace("Z", "+00:00"))
+            if t.tzinfo is None:
+                t = t.replace(tzinfo=timezone(timedelta(hours=-3)))      # sin zona: hora argentina
+            c["visto"] = t.astimezone(timezone.utc).isoformat(timespec="minutes")
+        except ValueError:
+            pass
+    return c
+
+
 def _limpiar_nota(datos):
     tipo = datos.get("tipo", "vi")
     if tipo not in TIPOS_NOTA:
@@ -523,6 +546,7 @@ def _limpiar_nota(datos):
     etiquetas = [str(e).strip().lower()[:30] for e in (datos.get("etiquetas") or []) if str(e).strip()][:10]
     contexto = {k: v for k, v in (datos.get("contexto") or {}).items()
                 if k in CLAVES_CONTEXTO and isinstance(v, (str, int, float)) and len(str(v)) <= 60}
+    contexto = _limpiar_ubicacion(contexto)
     fecha = datos.get("fecha_evento")
     try:
         fecha = date.fromisoformat(fecha) if fecha else None
@@ -1421,6 +1445,30 @@ async def editar_nota(nota_id: int, request: Request):
         raise HTTPException(404, "No existe o no es tuya")
     _guardar_imagen(nota_id, imagen)
     return filas[0]
+
+
+@router.get("/api/yo/notas/mapa")
+def notas_en_el_mapa(request: Request, desde: datetime, hasta: datetime):
+    """Las notas CON UBICACIÓN que la persona puede ver (las suyas y las
+    compartidas) cuya hora (la de "visto", o la de la nota) cae entre desde y
+    hasta: se dibujan sobre las cartas y el satélite de esa hora."""
+    u = requiere_usuario(request)
+    desde, hasta = (t if t.tzinfo else t.replace(tzinfo=timezone.utc) for t in (desde, hasta))
+    if hasta < desde or hasta - desde > timedelta(days=3):
+        raise HTTPException(400, "Rango inválido (hasta 3 días)")
+    # Por la hora en que SE VIO (no la de escribirla: se suele contar después).
+    # "visto" se guarda siempre validado (_limpiar_ubicacion), así que el ::timestamptz no falla.
+    filas = _leer("""
+        SELECT * FROM (
+          SELECT n.id, n.usuario_id, us.nombre AS autor, n.tipo, n.texto, n.contexto, n.compartida,
+                 (ni.nota_id IS NOT NULL) AS con_imagen,
+                 coalesce((n.contexto ->> 'visto')::timestamptz, n.creada) AS cuando
+          FROM nota n JOIN usuario us ON us.id = n.usuario_id LEFT JOIN nota_imagen ni ON ni.nota_id = n.id
+          WHERE (n.usuario_id = %s OR n.compartida) AND n.contexto ? 'lat' AND n.contexto ? 'lon') x
+        WHERE cuando BETWEEN %s AND %s ORDER BY cuando LIMIT 500""", (u["id"], desde, hasta))
+    return [{"id": f["id"], "autor": f["autor"], "autor_id": f["usuario_id"], "mia": f["usuario_id"] == u["id"],
+             "tipo": f["tipo"], "texto": f["texto"][:400], "lat": f["contexto"]["lat"], "lon": f["contexto"]["lon"],
+             "cuando": f["cuando"], "compartida": f["compartida"], "con_imagen": f["con_imagen"]} for f in filas]
 
 
 @router.get("/api/yo/notas/{nota_id}/imagen")

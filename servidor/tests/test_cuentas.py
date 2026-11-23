@@ -1355,3 +1355,49 @@ def test_avisos_campanita_y_celular(cliente, cuentas, monkeypatch):
             conn.execute("DELETE FROM conversacion WHERE id IN (SELECT conversacion_id FROM conversacion_miembro WHERE usuario_id = %s)",
                          (ids["ana@gmail.com"],))
             conn.commit()
+
+
+def test_notas_con_ubicacion_sobre_las_cartas(cliente, cuentas, monkeypatch):
+    """Una nota puede llevar dónde (lat/lon) y cuándo (visto) se vio; se
+    valida y se devuelve para dibujarla sobre las cartas de esa hora. Las
+    privadas de otros no aparecen."""
+    m = cuentas
+    cliente.cookies.clear()
+    ingresar(cliente, cuentas, monkeypatch, "ana@gmail.com")
+    ahora = datetime.now(timezone.utc).replace(second=0, microsecond=0)
+    visto = (ahora - timedelta(hours=1)).isoformat()
+    n1 = cliente.post("/api/yo/notas", headers=X, json={"tipo": "vi", "texto": "Tormenta con granizo en Ensenada", "compartida": True,
+                      "contexto": {"lat": -34.86123456, "lon": -57.9, "visto": visto}}).json()["id"]
+    n2 = cliente.post("/api/yo/notas", headers=X, json={"tipo": "vi", "texto": "Solo mía", "compartida": False,
+                      "contexto": {"lat": -35.0, "lon": -58.0}}).json()["id"]
+    # Basura: fuera de rango, sin lon, hora inválida -> se descarta sin romper la nota
+    n3 = cliente.post("/api/yo/notas", headers=X, json={"tipo": "vi", "texto": "Mal cargada", "compartida": True,
+                      "contexto": {"lat": 123, "lon": -58, "visto": "ayer"}}).json()["id"]
+    n4 = cliente.post("/api/yo/notas", headers=X, json={"tipo": "vi", "texto": "Hora local", "compartida": True,
+                      "contexto": {"lat": -34.9, "lon": -57.95, "visto": "2026-11-21T14:30"}}).json()["id"]
+    try:
+        ctx = {r["id"]: r["contexto"] for r in m._leer("SELECT id, contexto FROM nota WHERE id = ANY(%s)", ([n1, n3, n4],))}
+        assert ctx[n1]["lat"] == -34.8612 and ctx[n1]["lon"] == -57.9                   # 4 decimales (~10 m)
+        assert "lat" not in ctx[n3] and "lon" not in ctx[n3] and "visto" not in ctx[n3]
+        assert ctx[n4]["visto"] == "2026-11-21T17:30+00:00"                               # sin zona = hora argentina
+        rango = {"desde": (ahora - timedelta(hours=3)).isoformat(), "hasta": (ahora + timedelta(hours=3)).isoformat()}
+        mias = {r["id"]: r for r in cliente.get("/api/yo/notas/mapa", params=rango).json()}
+        assert {n1, n2} <= set(mias) and n3 not in mias
+        assert mias[n1]["cuando"].startswith(visto[:16]) and mias[n1]["autor"] == "Ana"
+        # Fuera de la ventana (visto hace 1 h; la ventana termina 2 h antes)
+        lejos = {"desde": (ahora - timedelta(hours=6)).isoformat(), "hasta": (ahora - timedelta(hours=2)).isoformat()}
+        assert n1 not in {r["id"] for r in cliente.get("/api/yo/notas/mapa", params=lejos).json()}
+        # Otro usuario: ve la compartida, no la privada de Ana
+        cliente.cookies.clear()
+        ingresar(cliente, cuentas, monkeypatch, "beto@gmail.com")
+        de_beto = {r["id"] for r in cliente.get("/api/yo/notas/mapa", params=rango).json()}
+        assert n1 in de_beto and n2 not in de_beto
+        # Contada DESPUÉS de verla (n4: escrita hoy, vista el 21/11 14:30): aparece en esa hora, no en la de hoy
+        de_entonces = {r["id"] for r in cliente.get("/api/yo/notas/mapa", params={"desde": "2026-11-21T15:00:00Z", "hasta": "2026-11-21T20:00:00Z"}).json()}
+        assert n4 in de_entonces and n1 not in de_entonces
+        # Rango absurdo
+        assert cliente.get("/api/yo/notas/mapa", params={"desde": rango["desde"], "hasta": (ahora + timedelta(days=9)).isoformat()}).status_code == 400
+    finally:
+        with m._pools["e"].connection() as conn:
+            conn.execute("DELETE FROM nota WHERE id = ANY(%s)", ([n1, n2, n3, n4],))
+            conn.commit()

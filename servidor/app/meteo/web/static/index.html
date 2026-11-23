@@ -322,6 +322,24 @@ dialog { max-height: calc(100dvh / var(--zoom, 1) - 16px); max-width: calc(100vw
 .ver-como .boton { background: #fff; }
 /* Diálogos chicos: ingresar y cambiar la contraseña */
 .d-chico { width: min(380px, calc(100vw - 32px)); }
+/* ----- Reportes del grupo sobre las cartas (notas con ubicación) ----- */
+#c-rep { position: absolute; left: 0; top: 0; transform-origin: 0 0; pointer-events: none; }
+#c-rep .rep { position: absolute; pointer-events: auto; border: 0; background: none; padding: 0; cursor: pointer;
+  transform: translate(-50%, -100%) scale(var(--zi, 1)); transform-origin: 50% 100%; display: flex; flex-direction: column; align-items: center; }
+#c-rep .rep b { width: 28px; height: 28px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: #e11d48; border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgba(0,0,0,.5); display: grid; place-items: center; }
+#c-rep .rep b i { transform: rotate(45deg); font-style: normal; font-size: 14px; }
+#c-rep .rep.mia b { background: #2563eb; }
+#c-rep .rep span { margin-top: 3px; font: 600 10.5px/1.2 system-ui, sans-serif; color: #fff; background: rgba(15,23,42,.85); border-radius: 4px; padding: 1px 5px; white-space: nowrap; }
+.c-rep-pop { position: absolute; z-index: 5; right: 12px; bottom: 12px; width: min(360px, calc(100% - 24px)); max-height: 50%; overflow: auto;
+  background: var(--superficie); color: var(--tinta); border: 1px solid var(--borde); border-radius: 12px; padding: 10px 12px; box-shadow: 0 10px 30px rgba(0,0,0,.4); font-size: 14px; }
+.c-rep-pop .cab { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+.c-rep-pop .cab button { margin-left: auto; }
+.c-rep-pop .txt { white-space: pre-wrap; }
+#d-ubic { width: min(620px, calc(100vw - 24px)); }
+#u-mapa { height: min(360px, 50vh); border-radius: 10px; margin: 8px 0; }
+.ubic-fila { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 14px; }
+.ubic-nota { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 4px 12px 8px; font-size: 13px; color: var(--tinta-2); }
 .d-chico h2 { margin: 0 0 6px; font-size: 20px; }
 .d-chico label { display: block; margin: 10px 0; font-size: 14px; }
 .d-chico input:not([type=checkbox]) { display: block; width: 100%; margin-top: 4px; padding: 8px 10px; font: inherit; box-sizing: border-box; }
@@ -2842,9 +2860,14 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
         <label class="en-linea" title="Poner otra carta de la misma proyección encima, con transparencia">Superponer
           <select id="c-super-sel"><option value="">(nada)</option></select></label>
         <input type="range" id="c-super-op" min="10" max="90" value="50" title="Transparencia de la carta superpuesta" style="width:90px" hidden>
+        <label class="en-linea" id="c-rep-l" hidden title="Lo que el grupo publicó con ubicación (📍) cerca de la hora de esta carta: aparece en el lugar donde lo vio">📝 Reportes
+          <select id="c-rep-vent"><option value="0">no</option><option value="1">±1 h</option><option value="3" selected>±3 h</option>
+            <option value="6">±6 h</option><option value="12">±12 h</option></select></label>
+        <span class="tenue" id="c-rep-n"></span>
       </div>
       <div id="c-estacion" class="c-estacion" hidden></div>
-      <div id="c-vista"><img alt="" draggable="false"><img id="c-super" alt="" draggable="false" hidden><svg id="c-svg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none"></svg></div>
+      <div id="c-vista"><img alt="" draggable="false"><img id="c-super" alt="" draggable="false" hidden><svg id="c-svg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none"></svg><div id="c-rep"></div>
+        <div class="c-rep-pop" id="c-rep-pop" hidden></div></div>
     </dialog>
   </section>
 
@@ -2926,6 +2949,8 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
               <input type="text" id="mc-etiquetas" list="lb-sugeridas" placeholder="#etiquetas, separadas por coma" class="crece" style="min-width:140px">
               <label class="en-linea" title="La ven solo vos y los administradores"><input type="checkbox" id="mc-priv"> 🔒 Privada</label>
               <button class="boton" id="mc-pegar" title="Pegar el link que copiaste (por ejemplo de Instagram: Compartir → Copiar enlace)">📋 Pegar link</button>
+              <button class="boton" id="mc-ubic" title="Dónde y cuándo lo viste (GPS o tocando el mapa): aparece sobre las cartas y el satélite de esa hora">📍</button>
+              <span class="tenue" id="mc-ubic-txt" hidden></span>
               <button class="boton" id="mc-mas" title="Con fecha, imagen para marcar encima…">🖼️</button>
               <button class="boton primario" id="mc-publicar">Publicar</button>
             </div>
@@ -3095,6 +3120,17 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
     <div id="ing-google-caja"><p class="d-o">o</p><a class="boton" id="ing-google" style="display:block;text-align:center">Ingresar con Google</a></div>
   </form>
 </dialog>
+<dialog id="d-ubic">
+  <h2 style="margin:0 0 4px">📍 ¿Dónde y cuándo lo viste?</h2>
+  <p class="tenue" style="margin:0">Así tu publicación aparece sobre las cartas y el satélite de esa hora, en ese lugar.</p>
+  <div class="ubic-fila" style="margin-top:8px"><button type="button" class="boton" id="u-gps" title="Usar la ubicación del celular (pide permiso)">📡 Mi ubicación (GPS)</button>
+    <span class="tenue" id="u-estado">o tocá el lugar en el mapa</span></div>
+  <div id="u-mapa"></div>
+  <label class="ubic-fila">¿Cuándo lo viste? <input type="datetime-local" id="u-visto"> <span class="tenue">(hora argentina)</span></label>
+  <div class="acciones" style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+    <button type="button" class="boton" id="u-cancelar">Cancelar</button><button type="button" class="boton primario" id="u-listo" disabled>Listo</button></div>
+</dialog>
+
 <dialog id="d-clave" class="d-chico">
   <form id="f-clave">
     <h2>Cambiar la contraseña</h2>
@@ -3426,6 +3462,9 @@ noches radiativas.</li>
       <label class="boton chico" style="flex-direction:row;cursor:pointer">📎 Subir una imagen<input type="file" id="d-nota-archivo" accept="image/png,image/jpeg,image/webp" hidden></label>
       <span class="tenue">Queda en la nota para que la vean quienes la ven (si es compartida, todo el grupo).</span>
     </div>
+    <div class="ubic-fila"><span>📍 <span id="n-ubic-txt">Sin ubicación</span></span>
+      <button type="button" class="boton chico" id="n-ubic" title="Dónde y cuándo lo viste: aparece sobre las cartas y el satélite de esa hora">Agregar dónde y cuándo</button>
+      <button type="button" class="boton chico" id="n-ubic-quitar" hidden title="Sacarle la ubicación">✕</button></div>
     <label class="marca"><input type="checkbox" name="compartida"> Compartir con el grupo <span class="tenue">(si no, la ven solo vos y los administradores; las preguntas para la reunión se comparten siempre)</span></label>
     <p class="d-inc-err" id="d-nota-err" hidden></p>
     <div class="acciones">
@@ -6884,6 +6923,8 @@ function aplicarZoom() {
   $("#c-vista img").style.transform = t;
   $("#c-svg").style.transform = t;        // el dibujo se mueve junto con la carta
   $("#c-super").style.transform = t;      // y la carta superpuesta también
+  $("#c-rep").style.transform = t;        // y los reportes del grupo (que no crecen con el zoom: --zi)
+  $("#c-rep").style.setProperty("--zi", 1 / zoom.s);
 }
 function zoomEn(factor, clientX, clientY) {
   const img = $("#c-vista img"), r = img.getBoundingClientRect();
@@ -7591,6 +7632,7 @@ function ubicarSVG() {
                  width: ri.width / hz / zoom.s + "px", height: ri.height / hz / zoom.s + "px" };
   Object.assign($("#c-svg").style, caja);
   Object.assign($("#c-super").style, caja);
+  Object.assign($("#c-rep").style, caja);
 }
 // Si la carta cambia de tamaño o de lugar (las barras de arriba pasan a dos
 // líneas, se achica la ventana, se gira el celular), el dibujo y la carta
@@ -7717,9 +7759,69 @@ function cargarDibujoVisor(p) {
     ubicarSVG();
     await prepararMedidas(p.base || p.id);
     pintarDibujoVisor();
+    pintarReportes();
   };
   if (img.complete && img.naturalWidth) listo(); else img.addEventListener("load", listo, { once: true });
 }
+// ----- Reportes del grupo: las notas con ubicación cerca de la hora de la carta -----
+const ICONO_TIPO = { vi: "👀", llamo_atencion: "⚡", duda: "🤔", pregunta: "❓" };
+const rep = { lista: [], clave: "", vent: 3 };
+try { const v = localStorage.getItem("reportes-ventana"); if (v !== null) rep.vent = Number(v); } catch (_) {}
+$("#c-rep-vent").value = String(rep.vent);
+async function pintarReportes() {
+  const cont = $("#c-rep"), n = $("#c-rep-n");
+  cont.innerHTML = "";
+  $("#c-rep-pop").hidden = true;
+  $("#c-rep-l").hidden = !YO;
+  if (!YO || !rep.vent || !$("#c-dialogo").open) { n.textContent = ""; return; }
+  if (!GEO.proy) { n.textContent = "esta carta no tiene coordenadas (calibrala con 📍 Calibrar)"; return; }
+  const t = tsVisor(), desde = new Date(+t - rep.vent * HORA).toISOString(), hasta = new Date(+t + rep.vent * HORA).toISOString();
+  const clave = desde + hasta;
+  if (clave !== rep.clave) {
+    rep.clave = clave;
+    try { rep.lista = await api(`/api/yo/notas/mapa?desde=${encodeURIComponent(desde)}&hasta=${encodeURIComponent(hasta)}`); }
+    catch (_) { rep.lista = []; }
+    if (clave !== rep.clave) return;             // mientras tanto se cambió de hora
+  }
+  let adentro = 0;
+  for (const r of rep.lista) {
+    const [fx, fy] = GEO.proy.aImg(r.lon, r.lat);
+    if (!(fx >= 0 && fx <= 1 && fy >= 0 && fy <= 1)) continue;
+    adentro++;
+    const hora = fmtHoraArg(r.cuando).split(" ")[1];
+    cont.insertAdjacentHTML("beforeend", `<button class="rep${r.mia ? " mia" : ""}" data-rep="${r.id}" style="left:${fx * 100}%;top:${fy * 100}%"
+      title="${esc(`${r.mia ? "Vos" : r.autor} · ${fmtHoraArg(r.cuando)}\n${r.texto.slice(0, 120)}`)}"><b><i>${ICONO_TIPO[r.tipo] || "📝"}</i></b><span>${esc(hora)} ${esc(r.mia ? "vos" : r.autor.split(" ")[0])}</span></button>`);
+  }
+  const fuera = rep.lista.length - adentro;
+  n.textContent = rep.lista.length ? `${adentro} en esta carta${fuera ? ` · ${fuera} fuera del mapa` : ""}` : "ninguno en ese rango";
+}
+$("#c-rep-vent").addEventListener("change", (e) => {
+  rep.vent = Number(e.target.value); rep.clave = "";
+  try { localStorage.setItem("reportes-ventana", rep.vent); } catch (_) {}
+  pintarReportes();
+});
+// Tocar un reporte: su texto en un cuadrito (sin arrastrar ni dibujar la carta).
+$("#c-rep").addEventListener("pointerdown", (e) => { if (e.target.closest(".rep")) e.stopPropagation(); });
+$("#c-rep").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-rep]"); if (!b) return;
+  e.stopPropagation();
+  const r = rep.lista.find((x) => x.id === Number(b.dataset.rep)); if (!r) return;
+  const pop = $("#c-rep-pop");
+  pop.innerHTML = `<div class="cab">${avatar(r.autor, "", r.autor_id)}<b>${r.mia ? "Vos" : esc(r.autor)}</b>
+      <span class="tenue">${esc(ICONO_TIPO[r.tipo] || "")} ${esc(fmtHoraArg(r.cuando))}</span>
+      <button class="boton chico" data-rep-cerrar title="Cerrar">✕</button></div>
+    <div class="txt">${textoConEnlaces(r.texto)}</div>
+    <div class="tenue" style="margin-top:6px">📍 ${esc(fmtGrado(r.lat, "N", "S"))} ${esc(fmtGrado(r.lon, "E", "O"))}${r.con_imagen ? " · tiene imagen" : ""}
+      · <a href="#" data-rep-ver="${r.id}">ver la publicación completa</a></div>`;
+  pop.hidden = false;
+});
+$("#c-rep-pop").addEventListener("pointerdown", (e) => e.stopPropagation());
+$("#c-rep-pop").addEventListener("click", (e) => {
+  if (e.target.closest("[data-rep-cerrar]")) { $("#c-rep-pop").hidden = true; return; }
+  const v = e.target.closest("[data-rep-ver]");
+  if (v) { e.preventDefault(); $("#c-dialogo").close(); red.solo = `nota:${v.dataset.repVer}`; irRed("inicio"); }
+});
+
 $("#c-las4").addEventListener("change", (e) => {
   guardarDibujoYa();
   dibujarLas4 = e.target.checked;
@@ -8904,7 +9006,11 @@ function tarjetaNota(nt, reunion = false) {
   // Estilo "Instagram": cabecera (avatar, nombre, dónde), la imagen de borde a
   // borde, la barra de reacciones y acciones, y abajo el texto con el nombre en negrita.
   const puede = nt.mia || esCoord();
-  const conCtx = Object.keys(nt.contexto || {}).length;
+  const conCtx = Object.keys(sinUbic(nt.contexto)).length;
+  const u = nt.contexto || {};
+  const ubic = u.lat !== undefined ? `<div class="ubic-nota">📍 ${esc(fmtGrado(u.lat, "N", "S"))} ${esc(fmtGrado(u.lon, "E", "O"))}
+      · visto ${esc(fmtHoraArg(u.visto || nt.creada))}
+      <button class="boton chico" data-acc="ubic" title="Abrir las cartas y el satélite de esa hora: la publicación aparece en el mapa">🛰️ Ver en las cartas</button></div>` : "";
   const capa = nt.capa?.elementos?.length ? `<svg viewBox="0 0 ${+nt.capa.ancho || DIB_ANCHO} ${+nt.capa.alto || 750}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">${nt.capa.elementos.map(svgElemento).join("")}</svg>` : "";
   const img = nt.captura && capa ? `<div class="img con-capa${capasApagadas.has(nt.id) ? " sin-capa" : ""}"><a href="${esc(nt.captura)}" target="_blank" rel="noopener" title="Ver la imagen grande (sin el dibujo)"><img src="${esc(nt.captura)}" loading="lazy" alt="Imagen de la nota"></a>${capa}
       <button class="capa-ver" data-capa="${nt.id}" title="Prender o apagar el dibujo para ver la carta original">👁 ${capasApagadas.has(nt.id) ? "Mostrar dibujo" : "Ocultar dibujo"}</button><span>✏️ pizarra</span></div>`
@@ -8930,6 +9036,7 @@ function tarjetaNota(nt, reunion = false) {
         <span class="lb-tipo ${esc(nt.tipo)}" title="${esc(NOMBRE_TIPO[nt.tipo] || "")}">${esc(TIPO_CORTO[nt.tipo] || nt.tipo)}</span>${nt.compartida ? "" : '<span title="Privada: la ven el autor y los administradores">🔒</span>'}</span></div>
     ${nt.contexto?.para ? `<div class="para-dia"><span>📅 Para el <b>${esc(diaCorto(nt.contexto.para))}</b> <small>(${relativoDia(nt.contexto.para)})</small></span>
       <button class="boton chico" data-acc="abrir" title="Las cartas del pronóstico GFS que había cuando se escribió, para ese día">🗺️ Cartas del pronóstico</button></div>` : ""}
+    ${ubic}
     ${img}
     ${nt.contexto?.pron ? `<div class="chat-pron" data-pron-embed="${esc(nt.contexto.pron)}">${embedPron(nt.contexto.pron)}</div>` : ""}
     ${bloqueVideos(nt.texto)}
@@ -10421,10 +10528,16 @@ const relativoDia = (fecha) => {
   const n = Math.round((Date.parse(fecha) - Date.parse(diaArg(Date.now()))) / 864e5);
   return n === 0 ? "hoy" : n === 1 ? "mañana" : n === -1 ? "ayer" : n > 1 ? `en ${n} días` : `hace ${-n} días`;
 };
+let mcUbic = null;          // dónde y cuándo (📍 del cuadro de publicar)
+function pintarMcUbic() {
+  $("#mc-ubic-txt").hidden = !mcUbic;
+  $("#mc-ubic-txt").textContent = mcUbic ? textoUbic(mcUbic) : "";
+  $("#mc-ubic").classList.toggle("primario", !!mcUbic);
+}
 async function datosComposer() {
   const tipo = $("#mc-tipo").value, k = Number($("#mc-para").value || 0);
   const fecha = sumarDias(diaArg(Date.now()), k);
-  return { tipo, texto: $("#mc-texto").value.trim(), fecha_evento: fecha, contexto: k ? await contextoPara(fecha) : {},
+  return { tipo, texto: $("#mc-texto").value.trim(), fecha_evento: fecha, contexto: { ...(k ? await contextoPara(fecha) : {}), ...(mcUbic || {}) },
     etiquetas: $("#mc-etiquetas").value.split(",").map((x) => x.trim().replace(/^#/, "")).filter(Boolean),
     compartida: tipo === "pregunta" || !$("#mc-priv").checked };
 }
@@ -10466,12 +10579,16 @@ async function iniciarPerfil() {
     $("#mc-publicar").disabled = true;
     try {
       await apiEnviar("/api/yo/notas", "POST", await datosComposer());
-      $("#mc-texto").value = ""; $("#mc-etiquetas").value = ""; $("#mc-para").value = "0"; cargarLibreta();
+      $("#mc-texto").value = ""; $("#mc-etiquetas").value = ""; $("#mc-para").value = "0"; mcUbic = null; pintarMcUbic(); cargarLibreta();
     }
     catch (err) { alert(`No se pudo guardar: ${err.message}`); }
     finally { $("#mc-publicar").disabled = false; }
   });
   $("#mc-mas").addEventListener("click", async () => abrirNota(await datosComposer()));
+  $("#mc-ubic").addEventListener("click", async () => {
+    const u = await elegirUbicacion(mcUbic);
+    if (u) { mcUbic = u; pintarMcUbic(); }
+  });
   $("#mc-pegar").addEventListener("click", async () => {
     let t = "";
     try { t = await navigator.clipboard.readText(); } catch (_) {}
@@ -10806,6 +10923,11 @@ async function accionRed(e) {
     mostrarNotaFlotante(nt);
     abrirContexto(nt.contexto);
   }
+  if (b.dataset.acc === "ubic") {
+    volverRed = { obj: `nota:${id}`, vista: red.vista, scroll: window.scrollY };
+    $("#red-volver").textContent = "← Volver a la nota";
+    irACartas(nt.contexto.visto || nt.creada);
+  }
   if (b.dataset.acc === "editar") abrirNota(nt);
   if (b.dataset.acc === "borrar" && confirm("¿Borrar esta nota?")) { await apiEnviar(`/api/yo/notas/${id}`, "DELETE"); cargarLibreta(); }
   if (b.dataset.acc === "estado") await moverPregunta(nt, b.dataset.estado);
@@ -10995,7 +11117,10 @@ async function componerGFS() {
 
 // ----- La nota (nueva o editar) -----
 let notaEditando = null;
+const CLAVES_UBIC = ["lat", "lon", "visto"];
+const sinUbic = (c) => Object.fromEntries(Object.entries(c || {}).filter(([k]) => !CLAVES_UBIC.includes(k)));
 function describirContexto(c) {
+  c = sinUbic(c);
   if (!c || !Object.keys(c).length) return "Sin carta asociada.";
   const t = c.ts ? new Date(c.ts) : null;
   const cuando = t ? `${fmtCartaTitulo.format(t)}, ${String(t.getUTCHours()).padStart(2, "0")} UTC` : "";
@@ -11009,6 +11134,81 @@ function describirContexto(c) {
   const nombre = c.producto ? (cartasHora.find((x) => x.id === c.producto) ? tituloCarta(cartasHora.find((x) => x.id === c.producto)) : NOMBRES[c.producto] || c.producto) : "";
   return `Cartas de análisis · ${cuando}${nombre ? " · " + nombre : ""}`;
 }
+// ======================================================================
+// DÓNDE Y CUÁNDO LO VISTE: una nota puede llevar lat/lon (GPS del celular o
+// tocando el mapa) y la hora en que se vio. Con eso aparece sobre las cartas
+// y el satélite de esa hora (📝 Reportes en el visor).
+// ======================================================================
+const fmtHoraArg = (iso) => { const d = new Date(new Date(iso) - 3 * HORA), p = (n) => String(n).padStart(2, "0");
+  return `${p(d.getUTCDate())}/${p(d.getUTCMonth() + 1)} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())} h`; };
+const aLocalInput = (t) => new Date(+new Date(t) - 3 * HORA).toISOString().slice(0, 16);          // para <input datetime-local> (hora argentina)
+const deLocalInput = (v) => new Date(v + ":00-03:00").toISOString();
+const textoUbic = (u) => u && u.lat !== undefined ? `${fmtGrado(u.lat, "N", "S")} ${fmtGrado(u.lon, "E", "O")} · ${fmtHoraArg(u.visto || Date.now())}` : "Sin ubicación";
+const ubicSel = { mapa: null, marca: null, punto: null, resolver: null };
+function elegirUbicacion(inicial) {
+  const d = $("#d-ubic");
+  ubicSel.punto = inicial && inicial.lat !== undefined ? [inicial.lat, inicial.lon] : null;
+  $("#u-visto").value = aLocalInput(inicial?.visto || Date.now());
+  $("#u-estado").textContent = "o tocá el lugar en el mapa";
+  $("#u-listo").disabled = !ubicSel.punto;
+  d.showModal();
+  if (!ubicSel.mapa) {
+    ubicSel.mapa = L.map("u-mapa", { zoomSnap: 0.5 }).setView([-35.5, -60], 5);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 14, attribution: "© OpenStreetMap" }).addTo(ubicSel.mapa);
+    ubicSel.mapa.on("click", (e) => ponerPunto([e.latlng.lat, e.latlng.lng], "elegido en el mapa"));
+  }
+  setTimeout(() => {
+    ubicSel.mapa.invalidateSize();
+    if (ubicSel.punto) { ponerPunto(ubicSel.punto); ubicSel.mapa.setView(ubicSel.punto, 8); }
+    else if (ubicSel.marca) { ubicSel.marca.remove(); ubicSel.marca = null; }
+  }, 50);
+  return new Promise((res) => (ubicSel.resolver = res));
+}
+function ponerPunto(ll, como) {
+  ubicSel.punto = ll;
+  if (ubicSel.marca) ubicSel.marca.setLatLng(ll); else ubicSel.marca = L.marker(ll).addTo(ubicSel.mapa);
+  if (como) $("#u-estado").textContent = `${fmtGrado(ll[0], "N", "S")} ${fmtGrado(ll[1], "E", "O")} · ${como}`;
+  $("#u-listo").disabled = false;
+}
+function cerrarUbic(valor) { $("#d-ubic").close(); const r = ubicSel.resolver; ubicSel.resolver = null; if (r) r(valor); }
+$("#u-gps").addEventListener("click", () => {
+  if (!navigator.geolocation) { $("#u-estado").textContent = "Este navegador no da la ubicación: tocá el mapa."; return; }
+  if (!window.isSecureContext) { $("#u-estado").textContent = "El GPS solo anda desde la dirección segura (https): tocá el mapa."; return; }
+  $("#u-estado").textContent = "Buscando la ubicación…";
+  navigator.geolocation.getCurrentPosition((pos) => {
+    const ll = [pos.coords.latitude, pos.coords.longitude];
+    ponerPunto(ll, `GPS (±${Math.round(pos.coords.accuracy)} m)`);
+    ubicSel.mapa.setView(ll, 10);
+  }, (err) => { $("#u-estado").textContent = err.code === 1 ? "No diste permiso para la ubicación: tocá el mapa." : "No se pudo obtener la ubicación: tocá el mapa."; },
+  { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
+});
+$("#u-cancelar").addEventListener("click", () => cerrarUbic(null));
+$("#d-ubic").addEventListener("cancel", (e) => { e.preventDefault(); cerrarUbic(null); });
+$("#u-listo").addEventListener("click", () => {
+  if (!ubicSel.punto) return;
+  const v = $("#u-visto").value;
+  cerrarUbic({ lat: +ubicSel.punto[0].toFixed(4), lon: +ubicSel.punto[1].toFixed(4), visto: v ? deLocalInput(v) : new Date().toISOString() });
+});
+// En la nota completa: la ubicación vive en el contexto del formulario.
+function pintarUbicNota() {
+  const c = JSON.parse($("#f-nota").dataset.contexto || "{}");
+  $("#n-ubic-txt").textContent = textoUbic(c);
+  $("#n-ubic").textContent = c.lat !== undefined ? "Cambiar" : "Agregar dónde y cuándo";
+  $("#n-ubic-quitar").hidden = c.lat === undefined;
+}
+$("#n-ubic").addEventListener("click", async () => {
+  const f = $("#f-nota"), c = JSON.parse(f.dataset.contexto || "{}");
+  const u = await elegirUbicacion(c);
+  if (!u) return;
+  f.dataset.contexto = JSON.stringify({ ...c, ...u });
+  pintarUbicNota();
+});
+$("#n-ubic-quitar").addEventListener("click", () => {
+  const f = $("#f-nota");
+  f.dataset.contexto = JSON.stringify(sinUbic(JSON.parse(f.dataset.contexto || "{}")));
+  pintarUbicNota();
+});
+
 function abrirNota(nt, fuente = null) {
   notaEditando = nt.id ? nt : null;
   Object.assign(piz, { base: null, elementos: [], historia: [], actual: null, cambio: false, quitar: false, fuente });
@@ -11025,6 +11225,7 @@ function abrirNota(nt, fuente = null) {
   f.compartida.checked = !!nt.compartida;
   f.dataset.contexto = JSON.stringify(nt.contexto || {});
   $("#d-nota-ctx").textContent = describirContexto(nt.contexto);
+  pintarUbicNota();
   $("#d-nota-err").hidden = true;
   $("#d-nota").showModal();
   f.texto.focus();
