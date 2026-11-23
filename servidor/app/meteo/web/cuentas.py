@@ -1467,7 +1467,7 @@ def notas_en_el_mapa(request: Request, desde: datetime, hasta: datetime):
           WHERE (n.usuario_id = %s OR n.compartida) AND n.contexto ? 'lat' AND n.contexto ? 'lon') x
         WHERE cuando BETWEEN %s AND %s ORDER BY cuando LIMIT 500""", (u["id"], desde, hasta))
     return [{"id": f["id"], "autor": f["autor"], "autor_id": f["usuario_id"], "mia": f["usuario_id"] == u["id"],
-             "tipo": f["tipo"], "texto": f["texto"][:400], "lat": f["contexto"]["lat"], "lon": f["contexto"]["lon"],
+             "tipo": f["tipo"], "texto": f["texto"][:3000], "lat": f["contexto"]["lat"], "lon": f["contexto"]["lon"],
              "cuando": f["cuando"], "compartida": f["compartida"], "con_imagen": f["con_imagen"]} for f in filas]
 
 

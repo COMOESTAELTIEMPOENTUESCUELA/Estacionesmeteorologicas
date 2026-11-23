@@ -433,9 +433,11 @@ Las publicaciones viejas se ubican editándolas (✏️): la hora que se propone
 la de la carta desde donde se escribieron o la de la publicación. Se guarda en el contexto de
 la nota (`lat`, `lon` con 4 decimales, `visto` en UTC; se validan rangos y fecha).
 
-En el visor de cartas (análisis, satélite, rayos...), **📝 Reportes** muestra en
-su lugar las publicaciones vistas cerca de la hora de la carta (±1, ±3 —por
-defecto—, ±6 o ±12 h): pin azul las propias, rojo las del grupo; tocando uno se
-lee el texto. Usa las mismas coordenadas de cada carta que las medidas (las del
+En el visor de cartas (análisis, satélite, rayos...), el botón **📝** de arriba
+muestra en su lugar las publicaciones vistas cerca de la hora de la carta (±1,
+±3 —por defecto—, ±6 o ±12 h). Arranca **apagado**; si hay reportes cerca de
+esa hora, titila y muestra cuántos. Pin azul las propias, rojo las del grupo
+(📷 si tienen imagen, 🎬 si tienen video); tocando uno se ve la publicación ahí
+mismo, con la imagen y el video (YouTube, Instagram, TikTok, X...) listos. Usa las mismas coordenadas de cada carta que las medidas (las del
 satélite de NOAA, después de calibrarlo). Solo se ven las compartidas y las
 propias. `GET /api/yo/notas/mapa?desde=&hasta=` (por la hora en que se vio).

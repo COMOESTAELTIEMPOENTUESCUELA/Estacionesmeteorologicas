@@ -331,7 +331,7 @@ dialog { max-height: calc(100dvh / var(--zoom, 1) - 16px); max-width: calc(100vw
 #c-rep .rep b i { transform: rotate(45deg); font-style: normal; font-size: 14px; }
 #c-rep .rep.mia b { background: #2563eb; }
 #c-rep .rep span { margin-top: 3px; font: 600 10.5px/1.2 system-ui, sans-serif; color: #fff; background: rgba(15,23,42,.85); border-radius: 4px; padding: 1px 5px; white-space: nowrap; }
-.c-rep-pop { position: absolute; z-index: 5; right: 12px; bottom: 12px; width: min(360px, calc(100% - 24px)); max-height: 50%; overflow: auto;
+.c-rep-pop { position: absolute; z-index: 5; right: 12px; bottom: 12px; width: min(480px, calc(100% - 24px)); max-height: calc(100% - 24px); overflow: auto;
   background: var(--superficie); color: var(--tinta); border: 1px solid var(--borde); border-radius: 12px; padding: 10px 12px; box-shadow: 0 10px 30px rgba(0,0,0,.4); font-size: 14px; }
 .c-rep-pop .cab { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
 .c-rep-pop .cab button { margin-left: auto; }
@@ -713,10 +713,17 @@ img.con-fondo { background-color: #fff !important; background-size: 100% 100%; b
 #c-dialogo[open] { display: flex; flex-direction: column; gap: 6px; }
 #c-dialogo .barra { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 #c-dialogo .barra .boton { padding: 4px 10px; }
-/* Herramientas ocultas (botón 🛠️): la carta usa casi todo el alto */
-#c-dialogo.sin-herr :is(#c-herr, #c-medir-barra, #c-m-res, #c-anim-barra) { display: none !important; }
-#c-herr-ver[aria-pressed="false"] { opacity: .7; }
-#c-dialogo .c-rep-l { gap: 4px; }
+#c-dialogo .c-rep-l { display: inline-flex; gap: 4px; align-items: center; }
+#c-rep-btn b { display: inline-block; min-width: 18px; padding: 0 5px; border-radius: 99px; background: #e11d48; color: #fff; font-size: 11.5px; text-align: center; }
+#c-rep-btn b:empty { display: none; }
+#c-rep-btn[aria-pressed="true"] { background: var(--ins-amarillo, #facc15) !important; color: #17212b !important; }
+/* Hay reportes cerca de esta hora y están apagados: el botón titila para invitar a verlos */
+#c-rep-btn.brilla { animation: brillo-rep 1.6s ease-in-out infinite; border-color: #e11d48 !important; }
+@keyframes brillo-rep { 0%, 100% { box-shadow: 0 0 0 0 rgba(225, 29, 72, .0); } 50% { box-shadow: 0 0 0 5px rgba(225, 29, 72, .45), 0 0 14px rgba(225, 29, 72, .6); } }
+@media (prefers-reduced-motion: reduce) { #c-rep-btn.brilla { animation: none; box-shadow: 0 0 0 3px rgba(225, 29, 72, .55); } }
+.c-rep-pop .rep-img { display: block; margin: 8px 0 4px; }
+.c-rep-pop .rep-img img { width: 100%; max-height: 46vh; object-fit: contain; border-radius: 8px; background: #000; display: block; }
+.c-rep-pop .embed iframe { width: 100%; border: 0; border-radius: 8px; }
 #c-dialogo-titulo { margin: 0; flex: 1 1 260px; font-size: 14px; }
 #c-vista { flex: 1; min-height: 0; overflow: hidden; position: relative; display: flex; align-items: center; justify-content: center;
   touch-action: none; cursor: grab; border-radius: 6px; background: var(--plano); }
@@ -2805,11 +2812,10 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
         <button class="boton" id="c-d-alejar" title="Alejar">−</button>
         <button class="boton" id="c-d-acercar" title="Acercar">+</button>
         <button class="boton" id="c-d-ajustar" title="Ver entera">Entera</button>
-        <label class="en-linea c-rep-l" id="c-rep-l" hidden title="Lo que el grupo publicó con ubicación (📍) cerca de la hora de esta carta: aparece en el lugar donde lo vio">📝
-          <select id="c-rep-vent" aria-label="Reportes del grupo"><option value="0">sin reportes</option><option value="1">reportes ±1 h</option><option value="3" selected>reportes ±3 h</option>
-            <option value="6">reportes ±6 h</option><option value="12">reportes ±12 h</option></select>
-          <span class="tenue" id="c-rep-n"></span></label>
-        <button class="boton" id="c-herr-ver" aria-pressed="true" title="Mostrar u ocultar las herramientas (dibujar, medir, animar, superponer): ocultas, la carta usa casi todo el alto (atajo: H)">🛠️</button>
+        <span class="c-rep-l" id="c-rep-l" hidden>
+          <button class="boton c-rep-btn" id="c-rep-btn" aria-pressed="false" title="Reportes del grupo: ver en el mapa lo que se publicó con ubicación (📍) cerca de la hora de esta carta" aria-label="Reportes del grupo">📝<b id="c-rep-n"></b></button>
+          <select id="c-rep-vent" hidden aria-label="Cuántas horas alrededor de la carta" title="Cuántas horas antes y después de la hora de la carta">
+            <option value="1">±1 h</option><option value="3" selected>±3 h</option><option value="6">±6 h</option><option value="12">±12 h</option></select></span>
         <button class="boton anotar" id="c-anotar-visor" hidden title="Anotar en tu libreta algo de esta carta">📝 Anotar</button>
         <button class="boton" id="c-cerrar">Cerrar</button>
       </div>
@@ -6966,7 +6972,10 @@ function mostrarEnVisor() {
     ? `Pronóstico GFS · corrida del ${fmtCorrida(visorPron.inicio)} · +${visorPron.plazo} h · ${textoValida(tsVisor())} — ${p ? tituloCarta(p) : "no está guardada"}${dibujarLas4 ? " · ✏️ dibujando en las 4 cartas" : ""}`
     : `${$("#c-titulo").textContent} — ${p ? tituloCarta(p) : "no archivada para esta hora"}`;
   img.hidden = !p;
-  if (!p) return;
+  if (!p) {                                   // sin carta a esta hora: tampoco reportes (no los de la hora anterior)
+    $("#c-rep").innerHTML = ""; $("#c-rep-pop").hidden = true; $("#c-rep-n").textContent = ""; $("#c-rep-btn").classList.remove("brilla");
+    return;
+  }
   img.src = p.url;
   img.className = p.fondo ? "con-fondo" : "";
   img.style.backgroundImage = p.fondo ? `url('${p.fondo}')` : "";
@@ -6974,33 +6983,12 @@ function mostrarEnVisor() {
   cargarDibujoVisor(p);
   armarSuperposicion(p);
 }
-// ----- Mostrar u ocultar las herramientas del visor -----
-// En pantallas bajas (una notebook, el navegador con barras) las cuatro filas de
-// herramientas le dejaban a la carta una franja: ahí arrancan ocultas. Queda guardado.
-function herramientasVisor(ver) {
-  if (ver === undefined) {
-    let guardado = null;
-    try { guardado = localStorage.getItem("visor-herramientas"); } catch (_) {}
-    ver = guardado !== null ? guardado === "1" : window.innerHeight >= 820;
-  } else { try { localStorage.setItem("visor-herramientas", ver ? "1" : "0"); } catch (_) {} }
-  $("#c-dialogo").classList.toggle("sin-herr", !ver);
-  $("#c-herr-ver").setAttribute("aria-pressed", ver);
-  $("#c-herr-ver").title = (ver ? "Ocultar" : "Mostrar") + " las herramientas (dibujar, medir, animar, superponer)" + (ver ? ": la carta usa casi todo el alto" : "") + " (atajo: H)";
-  requestAnimationFrame(ubicarSVG);
-}
-$("#c-herr-ver").addEventListener("click", () => herramientasVisor($("#c-dialogo").classList.contains("sin-herr")));
-$("#c-dialogo").addEventListener("keydown", (e) => {
-  if ((e.key === "h" || e.key === "H") && !e.ctrlKey && !e.metaKey && !e.altKey && !e.target.closest("input, textarea, select")) {
-    herramientasVisor($("#c-dialogo").classList.contains("sin-herr"));
-  }
-});
-
 function abrirCarta(id) {
   if (typeof salirDibujoGrilla === "function") salirDibujoGrilla();
   guardarDibujoYa();
   cartaVisor = id;
   Object.assign(zoom, { s: 1, x: 0, y: 0 });
-  herramientasVisor();
+  rep.ver = false;                       // los reportes arrancan apagados (el botón avisa si hay)
   $("#c-dialogo").showModal();
   mostrarEnVisor();
 }
@@ -7803,17 +7791,20 @@ function cargarDibujoVisor(p) {
   if (img.complete && img.naturalWidth) listo(); else img.addEventListener("load", listo, { once: true });
 }
 // ----- Reportes del grupo: las notas con ubicación cerca de la hora de la carta -----
+// Apagados por defecto (cada vez que se abre el visor). Si hay alguno cerca de la
+// hora de la carta, el botón 📝 titila y muestra cuántos: tocándolo aparecen.
 const ICONO_TIPO = { vi: "👀", llamo_atencion: "⚡", duda: "🤔", pregunta: "❓" };
-const rep = { lista: [], clave: "", vent: 3 };
-try { const v = localStorage.getItem("reportes-ventana"); if (v !== null) rep.vent = Number(v); } catch (_) {}
+const rep = { lista: [], clave: "", vent: 3, ver: false };
+try { const v = Number(localStorage.getItem("reportes-horas")); if ([1, 3, 6, 12].includes(v)) rep.vent = v; } catch (_) {}
 $("#c-rep-vent").value = String(rep.vent);
 async function pintarReportes() {
-  const cont = $("#c-rep"), n = $("#c-rep-n");
+  const cont = $("#c-rep"), n = $("#c-rep-n"), btn = $("#c-rep-btn");
   cont.innerHTML = "";
   $("#c-rep-pop").hidden = true;
   $("#c-rep-l").hidden = !YO;
-  if (!YO || !rep.vent || !$("#c-dialogo").open) { n.textContent = ""; return; }
-  if (!GEO.proy) { n.textContent = "esta carta no tiene coordenadas (calibrala con 📍 Calibrar)"; return; }
+  btn.setAttribute("aria-pressed", rep.ver);
+  $("#c-rep-vent").hidden = !rep.ver;
+  if (!YO || !$("#c-dialogo").open) return;
   const t = tsVisor(), desde = new Date(+t - rep.vent * HORA).toISOString(), hasta = new Date(+t + rep.vent * HORA).toISOString();
   const clave = desde + hasta;
   if (clave !== rep.clave) {
@@ -7822,41 +7813,52 @@ async function pintarReportes() {
     catch (_) { rep.lista = []; }
     if (clave !== rep.clave) return;             // mientras tanto se cambió de hora
   }
-  let adentro = 0;
-  for (const r of rep.lista) {
-    const [fx, fy] = GEO.proy.aImg(r.lon, r.lat);
-    if (!(fx >= 0 && fx <= 1 && fy >= 0 && fy <= 1)) continue;
-    adentro++;
+  // Cuáles caen dentro de esta carta (con sus coordenadas).
+  const adentro = GEO.proy ? rep.lista.map((r) => [r, GEO.proy.aImg(r.lon, r.lat)]).filter(([, [fx, fy]]) => fx >= 0 && fx <= 1 && fy >= 0 && fy <= 1) : [];
+  n.textContent = adentro.length || "";
+  btn.classList.toggle("brilla", !rep.ver && adentro.length > 0);
+  btn.title = !GEO.proy ? "Esta carta no tiene coordenadas: calibrala con 📍 Calibrar para ver los reportes"
+    : adentro.length ? `${adentro.length} reporte${adentro.length > 1 ? "s" : ""} del grupo cerca de esta hora (±${rep.vent} h)${rep.ver ? " — tocá para ocultarlos" : " — tocá para verlos en el mapa"}`
+    : `Sin reportes con ubicación entre ${rep.vent} h antes y después de esta carta`;
+  if (!rep.ver) return;
+  for (const [r, [fx, fy]] of adentro) {
     const hora = fmtHoraArg(r.cuando).split(" ")[1];
     cont.insertAdjacentHTML("beforeend", `<button class="rep${r.mia ? " mia" : ""}" data-rep="${r.id}" style="left:${fx * 100}%;top:${fy * 100}%"
-      title="${esc(`${r.mia ? "Vos" : r.autor} · ${fmtHoraArg(r.cuando)}\n${r.texto.slice(0, 120)}`)}"><b><i>${ICONO_TIPO[r.tipo] || "📝"}</i></b><span>${esc(hora)} ${esc(r.mia ? "vos" : r.autor.split(" ")[0])}</span></button>`);
+      title="${esc(`${r.mia ? "Vos" : r.autor} · ${fmtHoraArg(r.cuando)}\n${r.texto.slice(0, 120)}`)}"><b><i>${r.con_imagen ? "📷" : videosDe(r.texto).length ? "🎬" : ICONO_TIPO[r.tipo] || "📝"}</i></b><span>${esc(hora)} ${esc(r.mia ? "vos" : r.autor.split(" ")[0])}</span></button>`);
   }
-  const fuera = rep.lista.length - adentro;
-  n.textContent = rep.lista.length ? `${adentro} en esta carta${fuera ? ` · ${fuera} fuera del mapa` : ""}` : "ninguno en ese rango";
 }
+$("#c-rep-btn").addEventListener("click", () => { rep.ver = !rep.ver; pintarReportes(); });
 $("#c-rep-vent").addEventListener("change", (e) => {
   rep.vent = Number(e.target.value); rep.clave = "";
-  try { localStorage.setItem("reportes-ventana", rep.vent); } catch (_) {}
+  try { localStorage.setItem("reportes-horas", rep.vent); } catch (_) {}
   pintarReportes();
 });
-// Tocar un reporte: su texto en un cuadrito (sin arrastrar ni dibujar la carta).
+// Tocar un reporte: la publicación ahí mismo, con su imagen y sus videos (sin arrastrar ni dibujar la carta).
 $("#c-rep").addEventListener("pointerdown", (e) => { if (e.target.closest(".rep")) e.stopPropagation(); });
 $("#c-rep").addEventListener("click", (e) => {
   const b = e.target.closest("[data-rep]"); if (!b) return;
   e.stopPropagation();
   const r = rep.lista.find((x) => x.id === Number(b.dataset.rep)); if (!r) return;
-  const pop = $("#c-rep-pop");
+  const pop = $("#c-rep-pop"), imagen = `/api/yo/notas/${r.id}/imagen`;
+  const videos = videosDe(r.texto);
+  // El texto sin los links de los videos (ya se ven abajo).
+  let texto = r.texto;
+  for (const v of videos) texto = texto.replace(v.url, "");
   pop.innerHTML = `<div class="cab">${avatar(r.autor, "", r.autor_id)}<b>${r.mia ? "Vos" : esc(r.autor)}</b>
       <span class="tenue">${esc(ICONO_TIPO[r.tipo] || "")} ${esc(fmtHoraArg(r.cuando))}</span>
       <button class="boton chico" data-rep-cerrar title="Cerrar">✕</button></div>
-    <div class="txt">${textoConEnlaces(r.texto)}</div>
-    <div class="tenue" style="margin-top:6px">📍 ${esc(fmtGrado(r.lat, "N", "S"))} ${esc(fmtGrado(r.lon, "E", "O"))}${r.con_imagen ? " · tiene imagen" : ""}
-      · <a href="#" data-rep-ver="${r.id}">ver la publicación completa</a></div>`;
+    ${texto.trim() ? `<div class="txt">${textoConEnlaces(texto.trim())}</div>` : ""}
+    ${r.con_imagen ? `<a class="rep-img" href="${imagen}" target="_blank" rel="noopener" title="Ver la imagen grande"><img src="${imagen}" alt="Imagen de la publicación"></a>` : ""}
+    ${videos.map((v) => `<div class="embed${v.vertical ? " vertical" : ""}" style="--c:${v.color}">${iframeVideo(v)}
+      <a class="embed-ir" href="${esc(v.url)}" target="_blank" rel="noopener noreferrer">Abrir en ${esc(v.nombre)} ↗</a></div>`).join("")}
+    <div class="tenue" style="margin-top:6px">📍 ${esc(fmtGrado(r.lat, "N", "S"))} ${esc(fmtGrado(r.lon, "E", "O"))}
+      · <a href="#" data-rep-ver="${r.id}">ver la publicación completa (comentarios, reacciones)</a></div>`;
   pop.hidden = false;
+  pop.scrollTop = 0;
 });
 $("#c-rep-pop").addEventListener("pointerdown", (e) => e.stopPropagation());
 $("#c-rep-pop").addEventListener("click", (e) => {
-  if (e.target.closest("[data-rep-cerrar]")) { $("#c-rep-pop").hidden = true; return; }
+  if (e.target.closest("[data-rep-cerrar]")) { $("#c-rep-pop").hidden = true; $("#c-rep-pop").innerHTML = ""; return; }
   const v = e.target.closest("[data-rep-ver]");
   if (v) { e.preventDefault(); $("#c-dialogo").close(); red.solo = `nota:${v.dataset.repVer}`; irRed("inicio"); }
 });
@@ -8115,7 +8117,6 @@ function iniciarHerramientas() {
     const b = h && document.querySelector(`#c-dialogo [data-herr="${h}"]`);
     if (b && !b.closest("[hidden]")) {
       e.preventDefault();
-      if ($("#c-dialogo").classList.contains("sin-herr")) herramientasVisor(true);   // con las herramientas ocultas: se muestran
       b.click();
     }
   });
