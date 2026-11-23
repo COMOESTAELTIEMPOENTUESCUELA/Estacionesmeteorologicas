@@ -322,6 +322,23 @@ dialog { max-height: calc(100dvh / var(--zoom, 1) - 16px); max-width: calc(100vw
 .ver-como .boton { background: #fff; }
 /* Diálogos chicos: ingresar y cambiar la contraseña */
 .d-chico { width: min(380px, calc(100vw - 32px)); }
+/* ----- Ahora → Cuencas (estudio personal) ----- */
+.cu-cuerpo { display: grid; grid-template-columns: minmax(300px, 400px) 1fr; gap: 14px; align-items: start; }
+.cu-panel { max-height: calc(100vh - 170px); overflow: auto; }
+.cu-panel input[type=search] { width: 100%; box-sizing: border-box; }
+.cu-mapa-caja { padding: 0; overflow: hidden; position: sticky; top: calc(var(--alto-cab, 0px) + 8px); }
+#cu-mapa { height: calc(100vh - 170px); min-height: 420px; }
+.cu-res button { display: block; width: 100%; text-align: left; border: 0; border-bottom: 1px solid var(--borde); background: none; color: inherit; font: inherit; padding: 6px 4px; cursor: pointer; }
+.cu-res button:hover { background: color-mix(in srgb, var(--acento) 10%, transparent); }
+.cu-ficha { border: 1px solid var(--borde); border-radius: 10px; padding: 10px 12px; margin: 8px 0; }
+.cu-ficha h4 { margin: 0 0 2px; font-size: 16px; }
+.cu-ficha dt { font-weight: 700; font-size: 12px; text-transform: uppercase; color: var(--tinta-2); margin-top: 8px; }
+.cu-ficha dd { margin: 2px 0 0; }
+#cu-tabla td.num { text-align: right; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cu-chip { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; border: 1px solid rgba(0,0,0,.2); }
+.cu-lbl { background: rgba(15,23,42,.85) !important; color: #fff !important; border: 0 !important; border-radius: 4px; padding: 0 4px !important; font: 600 11px/1.4 system-ui !important; box-shadow: none !important; }
+.cu-lbl::before { display: none; }
+@media (max-width: 760px) { .cu-cuerpo { grid-template-columns: 1fr; } .cu-mapa-caja { position: static; order: -1; } #cu-mapa { height: 55vh; } .cu-panel { max-height: none; } }
 /* ----- Reportes del grupo sobre las cartas (notas con ubicación) ----- */
 #c-rep { position: absolute; left: 0; top: 0; transform-origin: 0 0; pointer-events: none; }
 #c-rep .rep { position: absolute; pointer-events: auto; border: 0; background: none; padding: 0; cursor: pointer;
@@ -2325,6 +2342,37 @@ body.modo-pro .switch-modo { border-color: var(--acento); color: var(--acento); 
     </div>
   </section>
 
+  <!-- ===================== CUENCAS (estudio personal) =====================
+       Barrios, cuencas y protocolos de inundación de la Municipalidad de La Plata
+       (PRRI 2026), con la lluvia de las estaciones por cuenca. Solo en el visor
+       completo y solo si el laboratorio preparó las capas (ver /api/modo: riesgo). -->
+  <section id="tab-cuencas" hidden>
+    <div class="cu-cuerpo">
+      <aside class="tarjeta cu-panel">
+        <h2 style="margin-top:0">Cuencas y barrios</h2>
+        <p class="tenue" id="cu-fuente" style="margin-top:0">Datos: Municipalidad de La Plata, PRRI 2026 · uso personal</p>
+        <input type="search" id="cu-buscar" placeholder="Buscar barrio: nombre o código (La Loma, VR-B06…)" autocomplete="off">
+        <div class="cu-res" id="cu-res"></div>
+        <p class="ayuda">Tocá cualquier punto del mapa: te dice en qué barrio y cuenca cae, con su protocolo.</p>
+        <div id="cu-ficha"></div>
+        <h3>Lluvia por cuenca <small class="tenue">(Thiessen)</small></h3>
+        <div class="fila">
+          <select id="cu-modo" title="Qué lluvia promediar en cada cuenca">
+            <option value="hora">Última hora</option><option value="hoy" selected>Hoy (00 a 24 h)</option>
+            <option value="pluvio">Día pluviométrico (desde las 9 h)</option><option value="dia">Otro día…</option></select>
+          <span id="cu-dia-caja" hidden><input type="date" id="cu-dia"></span>
+          <label class="en-linea" title="Cada punto de la cuenca, del color de la estación más cercana con dato: son los polígonos de Thiessen"><input type="checkbox" id="cu-puntos"> ver los puntos</label>
+        </div>
+        <p class="tenue" id="cu-nota"></p>
+        <div class="tabla-scroll" style="max-height:none"><table id="cu-tabla"></table></div>
+        <p class="ayuda"><b>Cómo se calcula.</b> Cada cuenca está llena de puntos cada <span id="cu-paso">500</span> m; cada punto toma la
+          lluvia de la estación más cercana <i>que tenga dato</i>, y el porcentaje de puntos de cada estación es su peso en la cuenca
+          (polígonos de Thiessen). Las que midieron 0 mm también cuentan; si una no reporta, sus puntos pasan solos a la siguiente.</p>
+      </aside>
+      <div class="tarjeta cu-mapa-caja"><div id="cu-mapa"></div></div>
+    </div>
+  </section>
+
   <!-- ========================= VERIFICACIÓN ========================= -->
   <section id="tab-verif" hidden>
     <div class="tarjeta">
@@ -3626,9 +3674,10 @@ function abrir(tab) {
   pestanaActual = tab;
   document.querySelectorAll("main > section").forEach((s) => (s.hidden = s.id !== `tab-${tab}`));
   if (tab === "mapa") setTimeout(medirMapa, 30);
+  if (tab === "cuencas" && CU.mapa) setTimeout(() => CU.mapa.invalidateSize(), 30);
   setTimeout(() => { if (typeof marcarBarraAbajo === "function") marcarBarraAbajo(); }, 0);
   setTimeout(marcarNav, 0);
-  if (!cargadas[tab]) { cargadas[tab] = true; ({ emas: iniciarEmas, smn: iniciarSmn, series: iniciarSeries, lluvia: cargarLluvia, verif: iniciarVerif, cartas: iniciarCartas, perfil: iniciarPerfil, estado: () => { cargarEstado(); iniciarBitacora().catch((e) => { $("#tabla-disp").innerHTML = `<tr><td>Error: ${esc(e.message)}</td></tr>`; }); } }[tab] || (() => {}))(); }
+  if (!cargadas[tab]) { cargadas[tab] = true; ({ emas: iniciarEmas, smn: iniciarSmn, series: iniciarSeries, lluvia: cargarLluvia, cuencas: iniciarCuencas, verif: iniciarVerif, cartas: iniciarCartas, perfil: iniciarPerfil, estado: () => { cargarEstado(); iniciarBitacora().catch((e) => { $("#tabla-disp").innerHTML = `<tr><td>Error: ${esc(e.message)}</td></tr>`; }); } }[tab] || (() => {}))(); }
 }
 // ----- Las 5 secciones y sus partes -----
 // Por debajo siguen las mismas pestañas de siempre (tab-mapa, tab-cartas...):
@@ -3664,7 +3713,10 @@ function grupoActual() {
 }
 function irGrupo(g, parte) {
   const G = GRUPOS[g] || GRUPOS.ahora;
-  if (g === "ahora") abrir(parte || ultimaAhora);
+  if (g === "ahora") {
+    const p = parte || ultimaAhora;
+    abrir(GRUPOS.ahora.partes.some(([k]) => k === p) ? p : "mapa");   // p. ej. «Cuencas» recordada en un visor que no la tiene
+  }
   else if (G.tab === "cartas") { abrir("cartas"); verSeccionCartas(G.vista || parte || ultimaPron); }
   else abrir(G.tab);
 }
@@ -8666,6 +8718,144 @@ $("#barra-abajo").addEventListener("click", (e) => {
 if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("/sw.js").catch(() => {});
 
 // ======================================================================
+// AHORA → CUENCAS (estudio personal): barrios, cuencas y protocolos de la
+// Municipalidad (PRRI 2026) y la lluvia de las estaciones por cuenca.
+// Las capas las prepara el laboratorio (estudio/riesgo.py preparar) y se leen
+// por /sinoptica/salidas/riesgo/ (solo en el visor completo).
+// ======================================================================
+const CU = { base: "/sinoptica/salidas/riesgo/", barrios: null, cuencas: null, muestras: null, mapa: null, capaB: null, capaC: null, capaE: null, capaP: null, sel: null };
+const CU_CORTES = [0.2, 1, 5, 10, 20, 40, 80];
+const CU_COLORES = ["#e0f2fe", "#93c5fd", "#3b82f6", "#1d4ed8", "#7c3aed", "#c026d3", "#e11d48"];
+// Sin dato: gris; menos de 0,2 mm: casi blanco; después, un color por cada corte superado.
+const cuColor = (mm) => mm == null ? "#9ca3af" : mm < CU_CORTES[0] ? "#f8fafc" : CU_COLORES[CU_CORTES.filter((c) => mm >= c).length - 1];
+const cuFmt = (v) => v == null ? "–" : v.toLocaleString("es-AR", { maximumFractionDigits: 1, minimumFractionDigits: 1 });
+// Punto en polígono: un rayo hacia la derecha; si cruza una cantidad impar de bordes, está adentro.
+function cuEnAnillo(x, y, a) {
+  let adentro = false;
+  for (let i = 0, j = a.length - 1; i < a.length; j = i++) {
+    const [xi, yi] = a[i], [xj, yj] = a[j];
+    if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) adentro = !adentro;
+  }
+  return adentro;
+}
+function cuEnGeom(lon, lat, g) {
+  const polis = g.type === "Polygon" ? [g.coordinates] : g.type === "MultiPolygon" ? g.coordinates : [];
+  return polis.some((p) => cuEnAnillo(lon, lat, p[0]) && !p.slice(1).some((h) => cuEnAnillo(lon, lat, h)));    // el 1.º anillo es el borde; los demás, agujeros
+}
+const cuDonde = (lon, lat, fc) => fc.features.find((f) => cuEnGeom(lon, lat, f.geometry)) || null;
+
+async function iniciarCuencas() {
+  try {
+    [CU.barrios, CU.cuencas, CU.muestras] = await Promise.all(["barrios.geojson", "cuencas.geojson", "muestras.json"].map((n) => api(CU.base + n)));
+  } catch (_) { $("#cu-nota").textContent = "No se pudieron leer las capas: en el servidor, cd ~/sinoptica_lab && .venv/bin/python estudio/riesgo.py preparar"; return; }
+  try { $("#cu-fuente").textContent = (await api(CU.base + "fuente.json")).fuente + " · uso personal"; } catch (_) {}
+  $("#cu-paso").textContent = CU.muestras.paso_m;
+  CU.mapa = L.map("cu-mapa", { preferCanvas: true }).setView([-34.95, -57.98], 11);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 17, attribution: "© OpenStreetMap · Municipalidad de La Plata (PRRI 2026)" }).addTo(CU.mapa);
+  CU.mapa.createPane("cu-barrios"); CU.mapa.getPane("cu-barrios").style.zIndex = 420;
+  cuPintarCuencas(null);
+  CU.capaB = L.geoJSON(CU.barrios, { pane: "cu-barrios", style: { color: "#334155", weight: 0.7, fillOpacity: 0 },
+    onEachFeature: (f, capa) => { capa.on("click", (e) => { L.DomEvent.stopPropagation(e); cuElegir(f, e.latlng); }); capa.bindTooltip(`${esc(f.properties.id)} · ${esc(f.properties.nombre)}`, { sticky: true }); } }).addTo(CU.mapa);
+  CU.mapa.fitBounds(CU.capaC.getBounds(), { padding: [10, 10] });
+  CU.mapa.on("click", (e) => {
+    const f = cuDonde(e.latlng.lng, e.latlng.lat, CU.barrios);
+    if (f) return cuElegir(f, e.latlng);
+    const c = cuDonde(e.latlng.lng, e.latlng.lat, CU.cuencas);
+    $("#cu-ficha").innerHTML = `<div class="cu-ficha">Ese punto no cae en ningún barrio${c ? `; cuenca <b>${esc(c.properties.nombre)}</b>` : " ni en las cuencas del partido"}.</div>`;
+  });
+  $("#cu-dia").value = diaArg(Date.now() - 24 * HORA);
+  ["#cu-modo", "#cu-dia", "#cu-puntos"].forEach((s) => $(s).addEventListener("change", cuLluvia));
+  setInterval(() => { if (pestanaActual === "cuencas" && !document.hidden && $("#cu-modo").value !== "dia") cuLluvia(); }, 5 * 60e3);   // en vivo
+  await cuLluvia();
+}
+function cuPintarCuencas(res) {
+  if (CU.capaC) CU.capaC.remove();
+  CU.capaC = L.geoJSON(CU.cuencas, {
+    style: (f) => ({ color: "#0f172a", weight: 2, fillColor: res ? cuColor(res[f.properties.id]?.mm) : "#38bdf8", fillOpacity: res ? 0.55 : 0.15 }),
+    onEachFeature: (f, capa) => {
+      const r = res?.[f.properties.id];
+      capa.bindTooltip(`<b>${esc(f.properties.nombre)}</b><br>${f.properties.km2} km²${r ? `<br>${cuFmt(r.mm)} mm` : ""}`, { sticky: true });
+    },
+  }).addTo(CU.mapa);
+  CU.capaC.bringToBack();
+}
+function cuElegir(f, latlng) {
+  if (CU.sel) CU.capaB.resetStyle(CU.sel);
+  CU.capaB.eachLayer((c) => { if (c.feature === f) { CU.sel = c; c.setStyle({ color: "#e11d48", weight: 3, fillOpacity: 0.12, fillColor: "#e11d48" }); } });
+  const p = f.properties, cuenca = latlng ? cuDonde(latlng.lng, latlng.lat, CU.cuencas)?.properties.nombre : null;
+  $("#cu-ficha").innerHTML = `<div class="cu-ficha"><div class="tenue">${esc(p.id)} · delegación ${esc(p.delegacion_2026 || "–")}</div>
+    <h4>${esc(p.nombre)}</h4><div class="tenue">Cuenca ${esc(p.cuenca || cuenca || "–")}${p.superficie_km2 ? ` · ${(+p.superficie_km2).toFixed(2)} km²` : ""}</div>
+    <dl>${[["evitar", "⛔ Evitar"], ["circulacion", "🚗 Circular por"], ["punto_encuentro", "📍 Punto de encuentro"], ["observaciones", "Observaciones"], ["caracteristicas", "Características"]]
+      .filter(([k]) => p[k]).map(([k, t]) => `<dt>${t}</dt><dd>${esc(String(p[k]).replace(/--/g, " · "))}</dd>`).join("")}</dl></div>`;
+}
+$("#cu-buscar").addEventListener("input", (e) => {
+  const q = sinTilde(e.target.value);
+  if (!CU.barrios || q.length < 2) { $("#cu-res").innerHTML = ""; return; }
+  const hits = CU.barrios.features.map((f, i) => [f, i]).filter(([f]) => sinTilde(`${f.properties.id} ${f.properties.nombre}`).includes(q)).slice(0, 12);
+  $("#cu-res").innerHTML = hits.map(([f, i]) => `<button data-cu="${i}">${esc(f.properties.id)} · <b>${esc(f.properties.nombre)}</b> <span class="tenue">${esc(f.properties.cuenca || "")}</span></button>`).join("")
+    || '<p class="tenue">Ningún barrio con ese nombre.</p>';
+});
+$("#cu-res").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-cu]"); if (!b) return;
+  const f = CU.barrios.features[+b.dataset.cu], caja = L.geoJSON(f).getBounds();
+  CU.mapa.fitBounds(caja, { maxZoom: 15 });
+  cuElegir(f, caja.getCenter());
+});
+async function cuLluvia() {
+  const modo = $("#cu-modo").value, ahora = Date.now();
+  $("#cu-dia-caja").hidden = modo !== "dia";      // (el portal le agrega un 📅 al lado: se oculta la caja entera)
+  try { ESTACIONES = await api("/api/estaciones"); } catch (_) { $("#cu-nota").textContent = "No se pudieron leer las estaciones."; return; }
+  // Las que miden lluvia (dato de "precip" en los últimos 3 días) y tienen coordenadas.
+  let base = ESTACIONES.filter((e) => e.lat != null && e.lon != null && e.activa !== false && e.valores?.precip);
+  const mm = {};
+  if (modo === "pluvio") {
+    base = base.filter((e) => e.ultimo && ahora - Date.parse(e.ultimo) < 3 * HORA);
+    base.forEach((e) => (mm[e.id] = e.lluvia_hoy ?? 0));
+    $("#cu-nota").textContent = "Desde las 9 h de hoy (día pluviométrico); estaciones que reportaron en las últimas 3 h.";
+  } else {
+    const dia = modo === "dia" ? $("#cu-dia").value : "";
+    if (modo === "dia" && !dia) { $("#cu-nota").textContent = "Elegí el día."; return; }
+    const r = await api("/api/lluvia/periodos" + (dia ? `?dia=${dia}` : ""));
+    const llovio = Object.fromEntries(r.estaciones.map((x) => [x.estacion, x]));        // solo vienen las que tuvieron lluvia
+    if (!dia) base = base.filter((e) => e.ultimo && ahora - Date.parse(e.ultimo) < 3 * HORA);   // hoy: un 0 tiene que ser "no llovió", no "no mandó"
+    base.forEach((e) => (mm[e.id] = modo === "hora" ? (llovio[e.id]?.ultima_hora ?? 0) : (llovio[e.id]?.total ?? 0)));
+    $("#cu-nota").textContent = modo === "hora" ? "Lo que llovió en los últimos 60 minutos." : `Día civil ${r.dia} (00 a 24 h, hora argentina).`
+      + (dia ? " Ojo: en un día pasado, una estación sin datos ese día cuenta como 0 mm." : "");
+  }
+  if (CU.capaE) CU.capaE.remove();
+  CU.capaE = L.layerGroup(base.map((e) => L.circleMarker([e.lat, e.lon], { radius: 6, color: "#0f172a", weight: 1.5, fillColor: cuColor(mm[e.id]), fillOpacity: 1 })
+    .bindTooltip(cuFmt(mm[e.id]), { permanent: true, direction: "right", className: "cu-lbl", offset: [6, 0] })
+    .bindPopup(`<b>${esc(e.nombre)}</b><br>${cuFmt(mm[e.id])} mm`))).addTo(CU.mapa);
+  // Thiessen por muestreo (distancia aproximada: a esta escala alcanza con x · cos(lat)).
+  const cosLat = Math.cos(-34.95 * RAD), res = {}, pts = [];
+  for (const [cid, lista] of Object.entries(CU.muestras.cuencas)) {
+    const cuenta = {};
+    for (const [lon, lat] of lista) {
+      let mejor = null, dmin = Infinity;
+      for (const e of base) { const dx = (lon - e.lon) * cosLat, dy = lat - e.lat, d = dx * dx + dy * dy; if (d < dmin) { dmin = d; mejor = e; } }
+      if (!mejor) continue;
+      cuenta[mejor.id] = (cuenta[mejor.id] || 0) + 1;
+      pts.push([lat, lon, mejor.id]);
+    }
+    if (!lista.length || !base.length) { res[cid] = null; continue; }
+    const pesos = Object.entries(cuenta).map(([id, c]) => ({ id, w: c / lista.length, mm: mm[id] })).sort((a, b) => b.w - a.w);
+    res[cid] = { mm: pesos.reduce((s2, p) => s2 + p.w * p.mm, 0), pesos };
+  }
+  cuPintarCuencas(res);
+  if (CU.capaP) CU.capaP.remove();
+  if ($("#cu-puntos").checked) {
+    const paleta = ["#ef4444", "#f59e0b", "#10b981", "#3b82f6", "#8b5cf6", "#ec4899", "#14b8a6", "#84cc16", "#f97316", "#6366f1"];
+    const color = Object.fromEntries(base.map((e, i) => [e.id, paleta[i % paleta.length]]));
+    CU.capaP = L.layerGroup(pts.map(([lat, lon, id]) => L.circleMarker([lat, lon], { radius: 2, stroke: false, fillColor: color[id], fillOpacity: 0.8 }))).addTo(CU.mapa);
+  }
+  const nombre = Object.fromEntries(base.map((e) => [e.id, e.nombre]));
+  const filas = CU.cuencas.features.map((f) => [f.properties, res[f.properties.id]]).sort((a, b) => (b[1]?.mm ?? -1) - (a[1]?.mm ?? -1));
+  $("#cu-tabla").innerHTML = `<tr><th>Cuenca</th><th style="text-align:right">mm</th><th>Pesan más</th></tr>` + filas.map(([p, r]) => `<tr>
+      <td><span class="cu-chip" style="background:${cuColor(r?.mm)}"></span>${esc(p.nombre_corto || p.nombre)}</td><td class="num">${cuFmt(r?.mm)}</td>
+      <td class="tenue">${r ? r.pesos.slice(0, 3).map((x) => `${esc(nombre[x.id])} ${Math.round(x.w * 100)} %`).join(" · ") : "sin estaciones"}</td></tr>`).join("");
+}
+
+// ======================================================================
 // AVISOS: la 🔔 (comentarios, reacciones, mensajes, preguntas respondidas)
 // y los avisos al celular (Web Push). El servidor arma el texto; acá se
 // muestran, se marcan leídos y, al tocar uno, se va a lo que avisa.
@@ -11434,7 +11624,14 @@ async function abrirContexto(c) {
 // Copia pública de las cartas (WEB_MODO=cartas): solo esa pestaña. El
 // servidor igual rechaza todo lo demás; esto es para que la página no lo pida.
 (async () => {
-  try { const m = await api("/api/modo"); MODO_WEB = m.modo; $("#sinoptica-btn").hidden = !m.sinoptica; } catch (_) {}
+  try {
+    const m = await api("/api/modo"); MODO_WEB = m.modo; $("#sinoptica-btn").hidden = !m.sinoptica;
+    if (m.riesgo) {                     // Ahora → Cuencas (estudio personal; solo en el visor completo)
+      GRUPOS.ahora.partes.splice(4, 0, ["cuencas", "Cuencas"]);
+      VIEJOS.cuencas = "ahora";
+      AYUDA_PARTES.cuencas = "Barrios, cuencas y protocolos de inundación (Municipalidad de La Plata), con la lluvia de las estaciones por cuenca";
+    }
+  } catch (_) {}
   if (MODO_WEB === "cartas") {
     document.querySelectorAll("#nav-principal button").forEach((b) => (b.hidden = !["analisis", "pronostico"].includes(b.dataset.grupo)));
     $("#h1-txt").textContent = "Meteo UNLP · Cartas";

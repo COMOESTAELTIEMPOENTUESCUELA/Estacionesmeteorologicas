@@ -205,7 +205,7 @@ def test_modo_cartas_solo_expone_las_cartas(cliente, monkeypatch):
     panel del pronóstico (con quién pronosticó); todo lo demás, 404."""
     from meteo.web import app as web
     monkeypatch.setattr(web, "WEB_MODO", "cartas")
-    assert cliente.get("/api/modo").json() == {"modo": "cartas", "sinoptica": False}
+    assert cliente.get("/api/modo").json() == {"modo": "cartas", "sinoptica": False, "riesgo": False}
     for ruta in ("/", "/api/cartas/disponibles", "/api/cartas?ts=2026-10-12T12:00Z",
                  "/api/verificacion/dia?fecha=2026-10-10", "/vendor/chart-4.4.1.umd.js",
                  "/api/cartas/estaciones-omm", "/placa.html", "/placa/Tmax.png"):
@@ -725,11 +725,16 @@ def test_laboratorio_sinoptico_solo_www_y_salidas(cliente, monkeypatch, tmp_path
     (lab / "salidas" / "2026112100").mkdir(parents=True)
     (lab / "www" / "index.html").write_text("<h1>Laboratorio</h1>")
     (lab / "salidas" / "indice.json").write_text("[]")
+    (lab / "salidas" / "riesgo").mkdir()
     (lab / "salidas" / "2026112100" / "U3-1.png").write_bytes(b"\x89PNG")
     (lab / "config.yaml").write_text("secreto: si")
     (lab / "www" / "enlace").symlink_to(lab / "config.yaml")
     monkeypatch.setattr(web, "SINOPTICA_DIR", lab)
     assert cliente.get("/api/modo").json()["sinoptica"] is True
+    assert cliente.get("/api/modo").json()["riesgo"] is False                 # sin las capas preparadas, no hay pestaña Cuencas
+    (lab / "salidas" / "riesgo" / "cuencas.geojson").write_text('{"type":"FeatureCollection","features":[]}')
+    assert cliente.get("/api/modo").json()["riesgo"] is True
+    assert cliente.get("/sinoptica/salidas/riesgo/cuencas.geojson").status_code == 200
     assert cliente.get("/sinoptica", follow_redirects=False).headers["location"] == "/sinoptica/"
     r = cliente.get("/sinoptica/")
     assert r.status_code == 200 and "Laboratorio" in r.text
@@ -748,3 +753,4 @@ def test_laboratorio_sinoptico_solo_www_y_salidas(cliente, monkeypatch, tmp_path
     monkeypatch.setattr(web, "WEB_MODO", "cartas")
     assert cliente.get("/sinoptica/").status_code == 404
     assert cliente.get("/api/modo").json()["sinoptica"] is False
+    assert cliente.get("/api/modo").json()["riesgo"] is False

@@ -802,7 +802,7 @@ def modo(request: Request):
     La página lo pide una vez al cargar: ahí se cuenta la visita (Administración → Actividad).
     sinoptica: si está el laboratorio sinóptico (para mostrar su botón)."""
     cuentas.registrar_visita(request)
-    return {"modo": WEB_MODO, "sinoptica": sinoptica_disponible()}
+    return {"modo": WEB_MODO, "sinoptica": sinoptica_disponible(), "riesgo": riesgo_disponible()}
 
 
 # ---------------------------------------------------------------------------
@@ -819,6 +819,13 @@ SINOPTICA_DIR = Path(os.environ.get("SINOPTICA_DIR", "/sinoptica"))
 
 def sinoptica_disponible():
     return WEB_MODO != "cartas" and (SINOPTICA_DIR / "www" / "index.html").is_file()
+
+
+def riesgo_disponible():
+    """«Ahora → Cuencas» (estudio personal): barrios, cuencas y protocolos de la
+    Municipalidad, preparados por el laboratorio (estudio/riesgo.py preparar) en
+    salidas/riesgo/. Solo en el visor completo: se sirven por /sinoptica/salidas/."""
+    return WEB_MODO != "cartas" and (SINOPTICA_DIR / "salidas" / "riesgo" / "cuencas.geojson").is_file()
 
 
 @app.get("/sinoptica", include_in_schema=False)

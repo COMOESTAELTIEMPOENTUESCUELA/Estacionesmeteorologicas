@@ -295,3 +295,17 @@ que muestra la tarjeta de Wunderground). Un 0 suelto en medio de la lluvia se
 ignora y un reinicio de la consola (cae a ~0 y se queda) separa tramos.
 Para recalcular días viejos con este criterio:
 `python -m meteo.ingesta historico wunderground --desde AAAA-MM-DD --hasta AAAA-MM-DD`.
+
+
+## Ahora → Cuencas (estudio personal, solo en el visor completo)
+
+Barrios (735), cuencas (11) y protocolos de inundación de la Municipalidad de La
+Plata (PRRI 2026, riesgolaplata.org), con la lluvia de las estaciones por cuenca.
+Los datos NO están en este repositorio: los baja y prepara el laboratorio
+(`~/sinoptica_lab`, `estudio/riesgo.py preparar`) en `salidas/riesgo/`, que el
+visor lee por `/sinoptica/salidas/riesgo/` (montado en solo lectura; ver
+`SINOPTICA_DIR`). La pestaña aparece solo si existen esas capas (`/api/modo`:
+`riesgo`) y nunca en la copia pública. Lluvia por cuenca: Thiessen por muestreo
+(puntos cada 500 m dentro de cada cuenca; cada uno toma la estación más cercana
+con dato; las que midieron 0 mm cuentan) con `/api/estaciones` y
+`/api/lluvia/periodos` (última hora, hoy, día pluviométrico u otro día).
