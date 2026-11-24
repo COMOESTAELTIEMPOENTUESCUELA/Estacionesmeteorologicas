@@ -504,6 +504,25 @@ def test_georef_de_las_cartas(cliente, tmp_path, monkeypatch):
     assert 0 < fxm < 1 and 0 < fym < 1
 
 
+def test_calibracion_compartida_por_sector(cliente, tmp_path, monkeypatch):
+    """Las imágenes de NOAA de un mismo sector tienen el mismo encuadre:
+    calibrar una le da coordenadas a todas (pero no a las de otro sector)."""
+    from meteo.web import app as web
+    cfg = tmp_path / "cartas.yaml"
+    cfg.write_text("""productos:
+  - {id: ir, fuente: star, nombre: Infrarrojo, sector: ssa, banda: "13"}
+  - {id: wv, fuente: star, nombre: Vapor, sector: ssa, banda: "08"}
+  - {id: otro, fuente: star, nombre: Otro, sector: fd, banda: "13"}
+""", encoding="utf-8")
+    monkeypatch.setattr(web, "CARTAS_CONFIG", str(cfg))
+    cal = {"tipo": "lineal", "ax": 0.03, "bx": 2.2, "ay": -0.04, "by": -0.6, "y": "lat", "error_km": 8.0}
+    monkeypatch.setattr(web, "_calibraciones_compartidas", lambda: {"ir": {**cal, "compartida": True, "por": "Ana"}})
+    g = cliente.get("/api/cartas/georef").json()
+    assert g["ir"]["ax"] == 0.03 and "origen" not in g["ir"]
+    assert g["wv"]["ax"] == 0.03 and g["wv"]["compartida"] and "Infrarrojo" in g["wv"]["origen"]
+    assert g["otro"] is None
+
+
 def test_app_instalable_y_compartir(cliente, monkeypatch):
     """El manifest (con share_target para el menú Compartir del celular), el
     service worker y los íconos se sirven también en la copia pública."""

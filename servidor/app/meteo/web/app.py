@@ -1067,6 +1067,16 @@ def cartas_georef():
                 salida[p["id"]] = _georef_region(c["region"])
             elif p["fuente"] == "ogimet":
                 salida[p["id"]] = _georef_ogimet(p["id"]) or compartidas.get(p["id"])
+            elif p["fuente"] == "star" and c.get("sector"):
+                # Todas las imágenes de NOAA STAR de un mismo sector tienen el mismo
+                # encuadre (1800x1080): calibrar una alcanza para todas.
+                propia = compartidas.get(p["id"])
+                if not propia:
+                    otra = next((q for q in cfg.values() if q.get("fuente") == "star" and q.get("sector") == c["sector"]
+                                 and q.get("id") in compartidas), None)
+                    if otra:
+                        propia = {**compartidas[otra["id"]], "origen": f"de la calibración de «{otra.get('nombre', otra['id'])}» (mismo sector de NOAA)"}
+                salida[p["id"]] = propia
             else:
                 salida[p["id"]] = compartidas.get(p["id"])
         except Exception as ex:                  # una carta sin coordenadas no rompe las demás
