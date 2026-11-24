@@ -1818,6 +1818,12 @@ select, .boton {
 
 .ayer-t td { padding: 3px 4px; white-space: nowrap; text-align: right; }
 
+/* Las ciudades de "Ayer" se recorren con su propia barra, sin bajar toda la página. */
+#red-ayer { max-height: min(62vh, 560px); overflow-y: auto; overscroll-behavior: contain;
+  padding: 2px 6px 2px 0; margin-right: -6px; scrollbar-width: thin; scrollbar-color: var(--borde) transparent; }
+#red-ayer::-webkit-scrollbar { width: 8px; }
+#red-ayer::-webkit-scrollbar-thumb { background: var(--borde); border-radius: 8px; }
+
 @media (max-width: 1150px) {
   .red { grid-template-columns: 200px minmax(0, 1fr); }
   .red-der { display: none; }
@@ -7511,8 +7517,10 @@ function svgMedida(m, vivo = false) {
   return "";
 }
 function contenidoMedidas() {
-  const cal = med.cal.map((c) => `<circle cx="${r1(c.p[0])}" cy="${r1(c.p[1])}" r="6" fill="#16a34a" stroke="#fff" stroke-width="2"/>` +
-    textoSVG(c.p[0] + 9, c.p[1] - 10, c.nombre, "#15803d", 15, 600)).join("");
+  // Los lugares de la calibración se ven solo mientras se calibra (📍): una vez
+  // calibrada, la carta queda limpia. Puntito chico y el nombre tenue.
+  const cal = dib.herr !== "m_cal" ? "" : med.cal.map((c) => `<circle cx="${r1(c.p[0])}" cy="${r1(c.p[1])}" r="3.5" fill="#16a34a" stroke="#fff" stroke-width="1.2"/>` +
+    `<g opacity="0.75">${textoSVG(c.p[0] + 6, c.p[1] - 6, c.nombre, "#15803d", 11, 500)}</g>`).join("");
   if (!GEO.proy) return cal;
   return med.lista.map((m) => svgMedida(m)).join("") + (med.actual ? svgMedida(med.actual, true) : "")
     + (med.arrastre ? svgMedida(med.arrastre, true) : "") + cal;
@@ -7573,7 +7581,7 @@ function dibujarResultados() {
     html = med.lista.map(describirMedida).join("");
     const g = GEO.todos?.[GEO.producto];
     if (g?.origen && esMedir) html += `<div class="c-m-item tenue">📍 Coordenadas ${esc(g.origen)}.</div>`;
-    if ((!g || g.compartida) && GEO.proy && GEO.cal) {
+    if ((!g || g.compartida) && GEO.proy && GEO.cal && esMedir) {
       const n = (GEO.cal.puntos || []).length, proy = GEO.cal.y === "merc" ? "Mercator" : "latitud-longitud";
       html += `<div class="c-m-item tenue">📍 Calibrada ${g?.compartida ? `por ${esc(g.por || "alguien del grupo")} (para todos)` : "en este navegador"} con ${n} lugares
         (${proy}, error ≈ ${nKm(GEO.cal.error_km)} km).${YO ? "" : " Ingresá para dejarla guardada para todos."}
@@ -8131,6 +8139,7 @@ function elegirHerramienta(h) {
   $("#c-l-tam").hidden = !["A", "B", "simbolo"].includes(h);
   $("#c-simbolo").hidden = h !== "simbolo";
   if (typeof dibujarResultados === "function") dibujarResultados();
+  if ($("#c-dialogo").open && typeof pintarDibujoVisor === "function") pintarDibujoVisor();   // los lugares de la calibración aparecen/desaparecen
   document.querySelectorAll("#c-herr .herr").forEach((b) => b.classList.toggle("activa", b.dataset.herr === h));
   $("#c-vista").classList.toggle("dibujando", h !== "mover");
   $("#cpr-grid")?.classList.toggle("dibujando", cprDib.activo && h !== "mover");
