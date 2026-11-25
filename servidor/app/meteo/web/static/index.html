@@ -1838,6 +1838,26 @@ select, .boton {
   .muro-comp .avatar { display: none; }
 }
 
+/* Pantallas angostas (celular, tablet): la columna derecha no entra al costado.
+   En Inicio va ARRIBA del muro, como tarjetas que se deslizan de costado
+   (Isla de calor · Ayer · Para la reunión); "Ayer" con su propia barra. */
+@media (max-width: 1150px) {
+  .red[data-vista="inicio"] .red-der { display: flex; flex-direction: row; position: static; overflow-x: auto; gap: 10px;
+    grid-column: 2; grid-row: 1; scroll-snap-type: x mandatory; padding-bottom: 4px; align-items: flex-start; }
+  .red[data-vista="inicio"] .red-der > .tarjeta:has(#red-ayer) { order: -1; }
+  .red[data-vista="inicio"] .red-izq { grid-row: 1 / span 2; }
+  .red[data-vista="inicio"] .red-centro { grid-column: 2; grid-row: 2; }
+  .red[data-vista="inicio"] .red-der > .tarjeta { flex: 0 0 min(340px, 86vw); scroll-snap-align: start; }
+  .red[data-vista="inicio"] .red-der > .ayuda { display: none; }
+  .red[data-vista="inicio"] #red-ayer { max-height: 45vh; }
+}
+@media (max-width: 760px) {
+  .red[data-vista="inicio"] .red-der, .red[data-vista="inicio"] .red-centro { grid-column: 1; }
+  .red[data-vista="inicio"] .red-izq { grid-row: auto; }
+  .red[data-vista="inicio"] .red-der { grid-row: 2; }
+  .red[data-vista="inicio"] .red-centro { grid-row: 3; }
+}
+
 .muro-tabs { display: flex; gap: 6px; flex-wrap: wrap; border-bottom: 1px solid var(--borde); margin: -4px 0 14px; }
 
 .muro-tabs button { border: 0; background: none; color: var(--tinta-2); font: inherit; font-weight: 600; padding: 8px 14px; cursor: pointer;
@@ -10439,6 +10459,7 @@ function verRed(v, cargar = true) {
   setTimeout(marcarBarraAbajo, 0);
   document.querySelectorAll("#red-nav button").forEach((b) => b.classList.toggle("activa", b.dataset.rv === v));
   document.querySelectorAll("#tab-perfil .rv").forEach((x) => (x.hidden = x.id !== `rv-${v}`));
+  const grilla = document.querySelector("#tab-perfil .red"); if (grilla) grilla.dataset.vista = v;   // en el celular, "Ayer" arriba del Inicio
   if (!cargar) return;
   if (v === "inicio") cargarInicio();
   if (v === "perfil") abrirPerfil(YO.id);
