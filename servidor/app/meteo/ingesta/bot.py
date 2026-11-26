@@ -26,6 +26,9 @@ Corre como tarea de la ingesta ("bot", cada 15 minutos).
 import os
 import logging
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+import psycopg
 
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
@@ -36,7 +39,8 @@ from ..ciudades import SYNOP_PUNTOS
 log = logging.getLogger(__name__)
 
 EMAIL_BOT = "bot.observador@local"         # no es un mail de Google: nadie puede ingresar con él
-NOMBRE_BOT = "🤖 Bot observador"
+NOMBRE_BOT = "Bot Zari"                       # una zarigüeya que mira el tiempo (su foto: web/static/iconos/zari.webp)
+FOTO_BOT = Path(__file__).resolve().parents[1] / "web" / "static" / "iconos" / "zari.webp"
 CAIDA_PRESION_HPA, HORAS_PRESION = 3.0, 3
 CAIDA_TEMP_C = 4.0
 RAFAGA_KMH = 60.0
@@ -135,7 +139,17 @@ def detectar(e, ahora):
 def _usuario_bot(cur):
     cur.execute("""INSERT INTO usuario (email, nombre, rol) VALUES (%s, %s, 'pronosticador')
                    ON CONFLICT (email) DO UPDATE SET nombre = EXCLUDED.nombre RETURNING id""", (EMAIL_BOT, NOMBRE_BOT))
-    return cur.fetchone()["id"]
+    bot = cur.fetchone()["id"]
+    # Su foto de perfil (la zarigüeya): se pone o se cambia si el dibujo es otro.
+    try:
+        foto = FOTO_BOT.read_bytes()
+        with cur.connection.transaction():        # punto de guardado: si falla, no arruina la vuelta del bot
+            cur.execute("""INSERT INTO usuario_foto (usuario_id, datos) VALUES (%s, %s)
+                           ON CONFLICT (usuario_id) DO UPDATE SET datos = EXCLUDED.datos, actualizada = now()
+                           WHERE usuario_foto.datos IS DISTINCT FROM EXCLUDED.datos""", (bot, foto))
+    except (OSError, psycopg.errors.UndefinedTable):
+        pass                                  # sin el dibujo o sin la tabla: el círculo con la inicial
+    return bot
 
 
 def _poner_imagen(contexto):
@@ -192,7 +206,7 @@ def correr(conn, ahora=None):
             conn.commit()
             return None
         lineas = [f"• {e['nombre']}: " + "; ".join(f) + "." for e, f in hallazgos]
-        texto = (f"🤖 Cambio brusco detectado ({ahora.astimezone(ARG):%d/%m %H:%M} hs):\n" + "\n".join(lineas)
+        texto = (f"🔎 Cambio brusco detectado ({ahora.astimezone(ARG):%d/%m %H:%M} hs):\n" + "\n".join(lineas)
                  + "\n\nPuede ser el paso de un frente o una tormenta. ¿Alguien lo está mirando? (aviso automático)")
         primera = hallazgos[0][0]["id"]
         contexto = {"seccion": "meteograma", "ts": ahora.isoformat(), "estaciones": ",".join(e["id"] for e, _ in hallazgos)}

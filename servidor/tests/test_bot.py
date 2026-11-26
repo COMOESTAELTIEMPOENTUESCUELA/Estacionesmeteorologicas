@@ -61,6 +61,10 @@ def test_publica_una_vez(cliente, tmp_path, monkeypatch):
             texto, etq, ctx = r["texto"], r["etiquetas"], r["contexto"]
             assert "Estación Bot: la temperatura bajó 4,5 °C" in texto and etq == ["alertanowcasting"] and ctx["estaciones"] == "test_bot"
             assert ctx["imagenes"][0] == "gfs_ana_mslp_jet" and "producto" not in ctx     # la carta todavía no llegó
+            # Es "Bot Zari", con su foto de zarigüeya (la misma que el archivo del dibujo).
+            u = conn.execute("""SELECT u.nombre, f.datos FROM usuario u LEFT JOIN usuario_foto f ON f.usuario_id = u.id
+                                WHERE u.email = %s""", (bot.EMAIL_BOT,)).fetchone()
+            assert u["nombre"] == "Bot Zari" and bytes(u["datos"]) == bot.FOTO_BOT.read_bytes()
             assert bot.correr(conn, AHORA + timedelta(minutes=15)) is None        # silencio de 3 h
             # Llega la carta de análisis: en la vuelta siguiente la nota pasa a mostrarla.
             from meteo.cartas import archivo

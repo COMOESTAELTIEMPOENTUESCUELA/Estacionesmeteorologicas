@@ -133,7 +133,7 @@ La página de Cartas (también la copia pública) sigue igual para todos. Quien
     extremas, la temperatura **medida hora por hora** (SMN y, en La Plata, el
     Observatorio) se dibuja paso a paso y se completa sola mientras llegan
     los datos. **📝 Anotar como duda** lleva el gráfico a la pizarra.
-  - **🤖 Bot observador** (`ingesta/bot.py`, cada 15 min): si la presión baja
+  - **Bot Zari** (una zarigüeya; el bot observador, `ingesta/bot.py`, cada 15 min; su foto es `web/static/iconos/zari.webp`: para cambiarla, reemplazar ese archivo, cuadrado de 320 px): si la presión baja
     3 hPa o más en 3 h, la temperatura baja 4 °C o más en 1 h (sinópticas
     del SMN y el Observatorio), hay una ráfaga de 60 km/h o más o el SYNOP
     informa tormenta, publica una nota ⚡ con #alertanowcasting para que el

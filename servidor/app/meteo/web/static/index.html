@@ -9189,7 +9189,7 @@ const red = {
 const TIPO_CORTO = { vi: "Lo que vi", llamo_atencion: "Me llamó la atención", duda: "Duda", pregunta: "Pregunta" };
 const COLORES_AVATAR = ["--s1", "--s2", "--s3", "--s4", "--s5", "--s6", "--s7", "--s8"];
 const colorAvatar = (nombre) => css(COLORES_AVATAR[[...String(nombre)].reduce((a, c) => a + c.charCodeAt(0), 0) % 8]);
-// (con Array.from: la primera letra entera aunque sea un emoji, como la del 🤖 bot)
+// (con Array.from: la primera letra entera aunque sea un emoji)
 // El círculo de cada persona: su foto si subió una (FOTOS: id -> versión, viene en /api/yo), si no la inicial.
 let FOTOS = {};
 const fotoDe = (id) => id && FOTOS[id] ? `/api/yo/foto/${id}?v=${FOTOS[id]}` : null;
